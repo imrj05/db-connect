@@ -60,6 +60,7 @@ impl DatabaseDriver for SqliteDriver {
         Ok(rows.iter().map(|r| TableInfo {
             name: r.get::<String, _>(0),
             schema: Some("main".to_string()),
+            columns: None,
         }).collect())
     }
 

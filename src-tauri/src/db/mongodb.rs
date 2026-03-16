@@ -58,6 +58,7 @@ impl DatabaseDriver for MongoDriver {
         Ok(collections.into_iter().map(|name| TableInfo {
             name,
             schema: None,
+            columns: None,
         }).collect())
     }
 

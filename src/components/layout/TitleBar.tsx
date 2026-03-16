@@ -1,41 +1,67 @@
-import { Search, Command, Bell, Circle } from 'lucide-react';
+import { Search, Command, Circle } from 'lucide-react';
+import { useAppStore } from '@/store/useAppStore';
+import { Badge } from "@/components/ui/badge"
+import { cn } from "@/lib/utils"
 
 const TitleBar = () => {
+  const { setCommandPaletteOpen, activeConnection } = useAppStore();
+
   return (
-    <header className="h-10 bg-titlebar-bg border-b border-border-app flex items-center justify-between px-4 select-none tauri-drag-region">
-      {/* Search / Command Palette Trigger */}
-      <div className="flex items-center flex-1">
-        <div className="flex items-center gap-2 px-3 py-1 bg-input-bg border border-border-input rounded-md text-text-muted hover:text-text-secondary cursor-pointer transition-all w-72">
-          <Search size={14} />
-          <span className="text-xs font-medium">Quick Search...</span>
-          <div className="ml-auto flex items-center gap-0.5 opacity-50">
-            <Command size={10} />
-            <span className="text-[10px] font-bold">K</span>
+    <header className="h-10 bg-titlebar-bg border-b border-border-app flex items-center justify-between px-3 select-none tauri-drag-region">
+      {/* Left: Navigation & Breadcrumbs */}
+      <div className="flex items-center gap-4 flex-1">
+        <div className="flex items-center gap-2 text-text-muted hover:text-text-primary cursor-pointer transition-colors ml-1">
+          <div className="flex items-center justify-center size-6 hover:bg-white/5 rounded transition-colors">
+            <Command size={14} />
+          </div>
+          <span className="text-[10px] font-bold uppercase tracking-widest opacity-80">Back</span>
+        </div>
+      </div>
+
+      {/* Center: Search / Palette Trigger */}
+      <div className="flex items-center justify-center flex-1">
+        <div 
+          onClick={() => setCommandPaletteOpen(true)}
+          className="flex items-center gap-2 px-3 py-1 bg-input-bg/50 border border-border-input/50 rounded-md text-text-muted hover:text-text-secondary cursor-pointer transition-all w-72 group"
+        >
+          <Search size={11} className="group-hover:text-blue-500 transition-colors" />
+          <span className="text-[10px] font-bold uppercase tracking-tighter">Search tables...</span>
+          <div className="ml-auto flex items-center gap-0.5 opacity-20 group-hover:opacity-50 transition-opacity">
+            <span className="text-[9px] font-black">⌘K</span>
           </div>
         </div>
       </div>
 
-      {/* App Title/Logo */}
-      <div className="flex-1 flex justify-center">
-        <div className="flex items-center gap-2">
-          <div className="w-5 h-5 bg-linear-to-br from-blue-500 to-indigo-600 rounded flex items-center justify-center shadow-lg shadow-blue-500/20">
-            <Circle size={10} fill="white" stroke="none" />
-          </div>
-          <span className="text-xs font-bold tracking-tighter text-text-primary uppercase">DB Connect</span>
-        </div>
-      </div>
+      {/* Right: Status Indicators */}
+      <div className="flex items-center justify-end gap-2 flex-1 text-[9px] font-bold">
+        {activeConnection ? (
+          <>
+            <Badge variant="secondary" className="bg-emerald-500/10 text-emerald-500 hover:bg-emerald-500/20 border-none uppercase tracking-widest text-[9px] gap-1.5 flex py-0.5 px-2">
+              <Circle className="size-1.5 fill-current stroke-none animate-pulse" />
+              Connected
+            </Badge>
+            
+            <Badge variant="outline" className="border-blue-500/20 text-blue-400 bg-blue-500/5 uppercase tracking-widest text-[9px] py-0.5 px-2">
+              {activeConnection.type.toUpperCase()}
+            </Badge>
 
-      {/* Actions & Window Controls (Mac Style) */}
-      <div className="flex-1 flex justify-end items-center gap-4">
-        <button className="p-1.5 text-text-muted hover:text-text-secondary transition-colors">
-          <Bell size={16} />
-        </button>
-        
-        <div className="flex items-center gap-2 pl-4 border-l border-border-app">
-          <div className="w-3 h-3 rounded-full bg-amber-500/20 hover:bg-amber-500 transition-colors cursor-pointer" />
-          <div className="w-3 h-3 rounded-full bg-emerald-500/20 hover:bg-emerald-500 transition-colors cursor-pointer" />
-          <div className="w-3 h-3 rounded-full bg-rose-500/20 hover:bg-rose-500 transition-colors cursor-pointer" />
-        </div>
+            <Badge 
+              variant="outline" 
+              className={cn(
+                "uppercase tracking-widest text-[9px] py-0.5 px-2",
+                activeConnection.ssl 
+                  ? "border-emerald-500/20 text-emerald-400 bg-emerald-500/5" 
+                  : "border-border-app/50 text-text-muted bg-zinc-500/5"
+              )}
+            >
+              SSL: {activeConnection.ssl ? 'YES' : 'NO'}
+            </Badge>
+          </>
+        ) : (
+          <Badge variant="outline" className="border-border-app/50 text-text-muted bg-zinc-500/5 uppercase tracking-widest text-[9px] py-0.5 px-2">
+            Disconnected
+          </Badge>
+        )}
       </div>
     </header>
   );

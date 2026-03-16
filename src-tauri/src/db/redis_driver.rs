@@ -35,7 +35,7 @@ impl DatabaseDriver for RedisDriver {
 
         let client = Client::open(url)?;
         // Ping to check connection
-        let mut conn = client.get_async_connection().await?;
+        let mut conn = client.get_multiplexed_async_connection().await?;
         let _: String = redis::cmd("PING").query_async(&mut conn).await?;
 
         let mut client_lock = self.client.write().await;
@@ -70,7 +70,7 @@ impl DatabaseDriver for RedisDriver {
     async fn run_query(&self, query: &str) -> Result<QueryResult> {
         let client_lock = self.client.read().await;
         let client = client_lock.as_ref().ok_or_else(|| anyhow!("Not connected"))?;
-        let mut conn = client.get_async_connection().await?;
+        let mut conn = client.get_multiplexed_async_connection().await?;
         
         let start = Instant::now();
         // This is a very basic command execution

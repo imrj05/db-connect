@@ -1,8 +1,6 @@
 @import "tailwindcss";
-@import "./styles/unified-ui.css";
 @import "tw-animate-css";
 @import "shadcn/tailwind.css";
-@import "@fontsource-variable/geist";
 
 @custom-variant dark (&:is(.dark *));
 
@@ -57,91 +55,75 @@
 
 @layer base {
     :root {
-        --radius: 4px;
-        /* Light Mode Tokens - TablePlus Inspired */
-        --color-app-bg: #f0eee9;
-        --color-sidebar-bg: #e8e5df;
-        --color-toolbar-bg: #f5f3ef;
-        --color-titlebar-bg: #ebebeb;
-        --color-tabbar-bg: #e0ddd8;
+        --radius: 6px;
+        /* Light Mode Tokens - Refined */
+        --color-app-bg: #fdfdfd;
+        --color-sidebar-bg: #f7f7f7;
+        --color-toolbar-bg: #ffffff;
+        --color-titlebar-bg: #f0f0f0;
+        --color-tabbar-bg: #f7f7f7;
         --color-tab-active-bg: #ffffff;
         --color-table-bg: #ffffff;
-        --color-row-hover: #eef6fc;
-        --color-row-selected: #d6eaf8;
-        --color-row-alt: #f9f8f6;
-        --color-cell-focus-bg: #ebf5fb;
-        --color-filter-bar-bg: #f0eee9;
+        --color-row-hover: #f5f8fa;
+        --color-row-selected: #e7f3ff;
+        --color-row-alt: #fafafa;
+        --color-cell-focus-bg: #f0f7ff;
+        --color-filter-bar-bg: #ffffff;
         --color-input-bg: #ffffff;
-        --color-sidebar-item-hover: #d9d6cf;
-        --color-sidebar-item-active: #c7c3ba;
-        --color-tag-applied-bg: #d5e8d4;
-        --color-tag-applied-text: #3b6e3a;
-        --color-border-app: #d4d1cb;
-        --color-border-sidebar: #c8c5bf;
-        --color-border-table: #e8e6e1;
-        --color-border-header: #cfccc6;
-        --color-border-cell-focus: #0a84ff;
-        --color-border-input: #c8c5bf;
-        --color-row-border: #edeae4;
-        --color-text-primary: #1a1a1a;
-        --color-text-secondary: #5c5c5c;
-        --color-text-muted: #9a9a9a;
-        --color-text-sidebar-item: #3a3a3a;
-        --color-text-sidebar-active: #0a84ff;
-        --color-text-table-header: #4a4a4a;
-        --color-text-null: #b0a8b9;
-        --color-text-tag-applied: #3b6e3a;
-        --color-accent-blue: #0a84ff;
-        --color-accent-green: #30a14e;
-        --color-accent-orange: #d98c00;
-        --color-accent-purple: #6c3bce;
-        --color-accent-red: #d0021b;
+        --color-sidebar-item-hover: #ececec;
+        --color-sidebar-item-active: #e2e2e2;
+        --color-border-app: #e2e2e2;
+        --color-border-sidebar: #e2e2e2;
+        --color-border-table: #f0f0f0;
+        --color-border-header: #dedede;
+        --color-border-input: #dcdcdc;
+        --color-text-primary: #111111;
+        --color-text-secondary: #444444;
+        --color-text-muted: #888888;
+        --color-accent-blue: #0066cc;
+        --color-accent-green: #28a745;
+        --color-accent-orange: #f39c12;
+        --color-accent-purple: #8e44ad;
+        --color-accent-red: #d9534f;
+        
         --background: 0 0% 100%;
-        --foreground: 222 84% 4.9%;
-        --border-weight: 0.5px;
+        --foreground: 0 0% 10%;
+        --border-weight: 1px;
     }
 
     .dark {
-        /* Dark Mode Tokens - TablePlus Inspired */
-        --color-app-bg: #1a1a1c;
-        --color-sidebar-bg: #141416;
-        --color-toolbar-bg: #242428;
-        --color-titlebar-bg: #1e1e20;
-        --color-tabbar-bg: #1a1a1c;
-        --color-tab-active-bg: #202024;
-        --color-table-bg: #28282c;
-        --color-row-hover: #24303d;
-        --color-row-selected: #1a3a5e;
-        --color-row-alt: #202024;
-        --color-cell-focus-bg: #1e3248;
-        --color-filter-bar-bg: #1a1a1c;
-        --color-input-bg: #2a2a2e;
-        --color-sidebar-item-hover: #2a2a2d;
-        --color-sidebar-item-active: #2e3a4a;
-        --color-tag-applied-bg: #1e3a1e;
-        --color-tag-applied-text: #7abcad;
-        --color-border-app: #2e2e32;
-        --color-border-sidebar: #2a2a2e;
-        --color-border-table: #2a2a30;
-        --color-border-header: #303038;
-        --color-border-cell-focus: #4db6ff;
-        --color-border-input: #3a3a42;
-        --color-row-border: #28282e;
-        --color-text-primary: #e8e8ea;
-        --color-text-secondary: #a0a0a8;
-        --color-text-muted: #606068;
-        --color-text-sidebar-item: #c0c0c8;
-        --color-text-sidebar-active: #4db6ff;
-        --color-text-table-header: #a0a0a8;
-        --color-text-null: #b0a8b9;
-        --color-text-tag-applied: #7abcad;
-        --color-accent-blue: #4db6ff;
-        --color-accent-green: #40c870;
-        --color-accent-orange: #f5a623;
-        --color-accent-purple: #b07aff;
-        --color-accent-red: #ff6b6b;
-        --background: 222 84% 4.9%;
-        --foreground: 210 40% 96%;
+        /* Dark Mode Tokens - Deep & Modern */
+        --color-app-bg: #0d0d0d;
+        --color-sidebar-bg: #121212;
+        --color-toolbar-bg: #181818;
+        --color-titlebar-bg: #0a0a0a;
+        --color-tabbar-bg: #121212;
+        --color-tab-active-bg: #1e1e1e;
+        --color-table-bg: #181818;
+        --color-row-hover: #1e1e20;
+        --color-row-selected: #1e293b;
+        --color-row-alt: #141414;
+        --color-cell-focus-bg: #1e293b;
+        --color-filter-bar-bg: #121212;
+        --color-input-bg: #1a1a1c;
+        --color-sidebar-item-hover: #1e1e1e;
+        --color-sidebar-item-active: #2a2a2c;
+        --color-border-app: #222222;
+        --color-border-sidebar: #222222;
+        --color-border-table: #1f1f1f;
+        --color-border-header: #2a2a2a;
+        --color-border-input: #333333;
+        --color-text-primary: #eeeeee;
+        --color-text-secondary: #aaaaaa;
+        --color-text-muted: #666666;
+        --color-accent-blue: #3b82f6;
+        --color-accent-green: #22c55e;
+        --color-accent-orange: #f59e0b;
+        --color-accent-purple: #a855f7;
+        --color-accent-red: #ef4444;
+        
+        --background: 240 10% 4%;
+        --foreground: 0 0% 95%;
     }
 
     * {

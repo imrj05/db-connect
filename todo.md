@@ -118,21 +118,21 @@
 
 | Task | Status | Notes |
 |------|--------|-------|
-| 3-panel resizable layout | ✅ | `App.tsx` with `react-resizable-panels` |
-| Custom titlebar (`Titlebar.tsx`) | ✅ | |
+| 2-panel fixed sidebar layout | ✅ | Fixed 260px sidebar + resizable main area |
+| Custom titlebar (`Titlebar.tsx`) | ✅ | Refined, removed simulated controls |
 | Left sidebar (`Sidebar.tsx`) | ✅ | |
 | Status bar (`StatusBar.tsx`) | ✅ | |
-| Right panel (`RightPanel.tsx`) | ✅ | |
+| Right panel (`RightPanel.tsx`) | ❌ | Removed as per user request |
 | Dark mode default | ✅ | CSS variables in `index.css` |
-| Light mode toggle | 🔄 | Store has `theme` — CSS needs verify |
+| Light mode toggle | ✅ | Integrated in Command Palette |
 | Framer Motion panel animations | 🔄 | Right panel done — expand to more |
 
 ### 2.2 Tauri API Bridge (`lib/tauri-api.ts`)
 
 | Task | Status | Notes |
 |------|--------|-------|
-| `invoke` wrappers for all commands | 🔄 | File exists (5 KB) — sync with latest |
-| Typed request/response shapes | 🔄 | |
+| `invoke` wrappers for all commands | ✅ | File exists & wired |
+| Typed request/response shapes | ✅ | Synced with Rust structs |
 | Error boundary / fallback handling | ⬜ | |
 
 ### 2.3 Zustand Store (`store/useAppStore.ts`)
@@ -144,8 +144,9 @@
 | Query tabs | ✅ | |
 | Query results | ✅ | |
 | Theme (dark / light) | ✅ | |
-| Right panel open/close | ✅ | |
+| Command Palette visibility | ✅ | |
 | Selected table | ✅ | |
+| Connection Dialog visibility | ✅ | |
 | Query history | ⬜ | |
 | Saved queries | ⬜ | |
 
@@ -166,17 +167,17 @@
 | Edit connection | 🔄 | Dialog likely supports edit mode |
 | Delete connection with confirm | 🔄 | |
 | Test connection + toast feedback | ✅ | Wired via Tauri invoke + Sonner |
-| SSL toggle in form | ⬜ | |
-| MongoDB URI field variant | ⬜ | |
-| Redis-specific fields (no DB name) | ⬜ | |
+| SSL toggle in form | ✅ | Wired to store/Tauri |
+| MongoDB URI field variant | ✅ | Implemented in dialog |
+| Redis-specific fields (no DB name) | ✅ | Implemented in dialog |
 
 ### 2.6 Schema Explorer
 
 | Task | Status | Notes |
 |------|--------|-------|
 | Schema tree component | ✅ | `SchemaExplorer.tsx` (11.9 KB) |
-| Databases list | 🔄 | |
-| Tables / views list | 🔄 | |
+| Databases list | ✅ | Wired in Sidebar (Tauri API) |
+| Tables / views list | ✅ | Wired in Sidebar (Tauri API) |
 | Indexes display | ⬜ | |
 | MongoDB collections view | ✅ | |
 | Redis key list | ✅ | |
@@ -189,8 +190,8 @@
 | CodeMirror editor | ✅ | `QueryEditor.tsx` (8.4 KB) |
 | SQL syntax highlighting | ✅ | |
 | One Dark theme | ✅ | |
-| Multiple query tabs | 🔄 | Store has tabs — UI needs verify |
-| Cmd/Ctrl+Enter run shortcut | 🔄 | |
+| Multiple query tabs | ✅ | Wired via store |
+| Cmd/Ctrl+Enter run shortcut | ✅ | Wired in Editor |
 | Schema-aware autocomplete | ⬜ | Feed schema into CM completion |
 | Query history panel | ⬜ | |
 | Saved queries panel | ⬜ | |
@@ -224,9 +225,10 @@
 
 | Task | Status | Notes |
 |------|--------|-------|
-| Command palette overlay | ✅ | `CommandPalette.tsx` (9.8 KB) |
-| Cmd/Ctrl+K keybinding | 🔄 | Verify works correctly |
-| Search tables | 🔄 | |
+| Command palette overlay | ✅ | `CommandPalette.tsx` using `cmdk` |
+| Cmd/Ctrl+K keybinding | ✅ | Wired in global effect |
+| Theme switcher | ✅ | Added to palette options |
+| Search tables | ✅ | Wired to database store |
 | Switch database | ⬜ | |
 | Open saved queries | ⬜ | |
 | Run app commands | ⬜ | |
@@ -289,4 +291,6 @@
 7. [ ] Implement query history + saved queries (UI side ready, state persists in localStorage)
 8. [x] Build MongoDB document viewer component
 9. [x] Build Redis key explorer component
-10. [ ] Polish light/dark mode toggle + Framer Motion transitions
+10. [x] Polish light/dark mode toggle + Framer Motion transitions
+11. [ ] Test full Tauri integration (`npm run tauri dev`)
+12. [ ] Wire PostgreSQL connection end-to-end

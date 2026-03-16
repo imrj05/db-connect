@@ -78,32 +78,31 @@ export function LiveMockup() {
             <button className="size-7 flex items-center justify-center bg-white dark:bg-[#323232] border border-border-app rounded hover:bg-[#f8f8f8] dark:hover:bg-[#3d3d3d] transition-colors text-xs">-</button>
           </div>
 
-          {/* 5. Table Area */}
           <div className="flex-1 overflow-auto bg-table-bg scrollbar-thin">
-            <Table bordered density="compact" responsive={false}>
+            <Table className="w-full border-collapse">
               <TableHeader className="bg-toolbar-bg">
                 <TableRow>
-                  <TableHead typeBadge="PK" className="w-15">id</TableHead>
-                  <TableHead typeBadge="varchar">name</TableHead>
-                  <TableHead typeBadge="varchar">email</TableHead>
-                  <TableHead typeBadge="float" align="right">balance</TableHead>
-                  <TableHead typeBadge="timestamp">created_at</TableHead>
-                  <TableHead typeBadge="text">status</TableHead>
+                  <TableHead className="w-15">id</TableHead>
+                  <TableHead>name</TableHead>
+                  <TableHead>email</TableHead>
+                  <TableHead align="right">balance</TableHead>
+                  <TableHead>created_at</TableHead>
+                  <TableHead>status</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {SAMPLE_DATA.map((row, idx) => (
-                  <TableRow key={row.id} selected={idx === 1} className={cn(idx % 2 === 1 && "bg-row-alt")}>
-                    <TableCell dataType="number">{row.id}</TableCell>
-                    <TableCell dataType="text">{row.name}</TableCell>
-                    <TableCell dataType="text">{row.email}</TableCell>
-                    <TableCell dataType={row.balance === null ? "null" : "number"} align="right">
+                  <TableRow key={row.id} className={cn(idx === 1 && "bg-row-selected", idx % 2 === 1 && "bg-row-alt")}>
+                    <TableCell>{row.id}</TableCell>
+                    <TableCell>{row.name}</TableCell>
+                    <TableCell>{row.email}</TableCell>
+                    <TableCell align="right">
                       {row.balance === null ? "NULL" : row.balance.toFixed(2)}
                     </TableCell>
-                    <TableCell dataType={row.created_at === null ? "null" : "timestamp"}>
+                    <TableCell>
                       {row.created_at === null ? "NULL" : row.created_at}
                     </TableCell>
-                    <TableCell dataType="text">{row.status}</TableCell>
+                    <TableCell>{row.status}</TableCell>
                   </TableRow>
                 ))}
               </TableBody>

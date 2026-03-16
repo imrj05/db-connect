@@ -77,6 +77,7 @@ impl DatabaseDriver for MySqlDriver {
         Ok(rows.iter().map(|r| TableInfo {
             name: r.get::<String, _>(0),
             schema: None,
+            columns: None,
         }).collect())
     }
 

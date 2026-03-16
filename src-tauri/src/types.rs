@@ -11,9 +11,11 @@ pub enum DatabaseType {
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
+#[serde(rename_all = "camelCase")]
 pub struct ConnectionConfig {
     pub id: String,
     pub name: String,
+    #[serde(rename = "type")]
     pub db_type: DatabaseType,
     pub host: Option<String>,
     pub port: Option<u16>,
@@ -25,13 +27,16 @@ pub struct ConnectionConfig {
     pub uri: Option<String>,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
+#[serde(rename_all = "camelCase")]
 pub struct TableInfo {
     pub name: String,
     pub schema: Option<String>,
+    pub columns: Option<Vec<ColumnInfo>>,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
+#[serde(rename_all = "camelCase")]
 pub struct ColumnInfo {
     pub name: String,
     pub data_type: String,
@@ -39,7 +44,8 @@ pub struct ColumnInfo {
     pub is_primary: bool,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
+#[serde(rename_all = "camelCase")]
 pub struct QueryResult {
     pub columns: Vec<String>,
     pub rows: Vec<serde_json::Value>,

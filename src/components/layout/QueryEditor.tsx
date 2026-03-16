@@ -1,44 +1,114 @@
-import { useCallback } from 'react';
+import { useCallback, useEffect } from 'react';
 import CodeMirror from '@uiw/react-codemirror';
 import { sql } from '@codemirror/lang-sql';
 import { oneDark } from '@codemirror/theme-one-dark';
-import { Play, Save, History, Code, Sparkles, Plus } from 'lucide-react';
+import { Play, Save, Sparkles, Plus, Loader2 } from 'lucide-react';
 import { useAppStore } from '@/store/useAppStore';
+import { tauriApi } from '@/lib/tauri-api';
+import { toast } from 'sonner';
+import { Button } from "@/components/ui/button"
 
 const QueryEditor = () => {
-  const { queryTabs, activeTabId, updateTabQuery } = useAppStore();
+  const { 
+    queryTabs, 
+    activeTabId, 
+    updateTabQuery, 
+    activeConnection, 
+    setTabResults,
+    isLoading,
+    setLoading,
+    addQueryTab,
+    setActiveTabId
+  } = useAppStore();
+  
   const activeTab = queryTabs.find((t: any) => t.id === activeTabId);
+
+  const handleRunQuery = useCallback(async () => {
+    if (!activeConnection || !activeTabId || !activeTab?.query || isLoading) return;
+
+    setLoading(true);
+    try {
+      const results = await tauriApi.executeQuery(activeConnection.id, activeTab.query);
+      setTabResults(activeTabId, results);
+      toast.success('Query executed successfully');
+    } catch (error) {
+      console.error(error);
+      toast.error(String(error));
+    } finally {
+      setLoading(false);
+    }
+  }, [activeConnection, activeTabId, activeTab?.query, isLoading, setTabResults, setLoading]);
 
   const onChange = useCallback((value: string) => {
     if (activeTabId) updateTabQuery(activeTabId, value);
   }, [activeTabId, updateTabQuery]);
 
+  // Command + Enter to run query
+  useEffect(() => {
+    const down = (e: KeyboardEvent) => {
+      if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) {
+        e.preventDefault();
+        handleRunQuery();
+      }
+    };
+
+    document.addEventListener("keydown", down);
+    return () => document.removeEventListener("keydown", down);
+  }, [handleRunQuery]);
+
   return (
-    <div className="h-full flex flex-col bg-[var(--color-app-bg)] overflow-hidden">
-      {/* Tabs Toolbar */}
-      <div className="h-9 flex items-center bg-tabbar-bg border-b border-border-app px-2">
-        <div className="flex items-center gap-0.5 overflow-x-auto scrollbar-hide">
+    <div className="h-full flex flex-col bg-table-bg overflow-hidden text-text-primary">
+      {/* Editor Header: Tabs & Actions */}
+      <div className="h-10 flex items-center justify-between bg-tabbar-bg border-b border-border-app px-3 shrink-0">
+        <div className="flex items-center gap-0.5 h-full pt-1">
           {queryTabs.map((tab: any) => (
             <div 
               key={tab.id}
-              className={`h-7 px-3 flex items-center gap-2 text-[11px] font-medium rounded-t-md border-x border-t transition-all cursor-pointer ${
+              onClick={() => setActiveTabId(tab.id)}
+              className={`h-full px-4 flex items-center gap-2 text-[11px] font-bold uppercase tracking-tight rounded-t-md border-x border-t transition-all cursor-pointer relative group ${
                 activeTabId === tab.id 
-                  ? 'bg-[var(--color-tab-active-bg)] border-[var(--color-border-app)] text-[var(--color-text-primary)] shadow-[0_-2px_4px_rgba(0,0,0,0.1)]' 
-                  : 'bg-transparent border-transparent text-[var(--color-text-muted)] hover:bg-black/5'
+                  ? 'bg-table-bg border-border-app text-blue-500 z-10' 
+                  : 'bg-transparent border-transparent text-text-muted hover:bg-black/5'
               }`}
             >
-              <Code size={12} className={activeTabId === tab.id ? 'text-blue-500' : ''} />
               <span>{tab.name}</span>
+              <Plus size={10} className="rotate-45 opacity-0 group-hover:opacity-100 transition-opacity" />
+              {activeTabId === tab.id && <div className="absolute -bottom-px left-0 right-0 h-[1.5px] bg-blue-500" />}
             </div>
           ))}
+          <Button 
+            variant="ghost"
+            size="icon-xs"
+            onClick={addQueryTab}
+            className="text-text-muted hover:text-text-primary"
+          >
+            <Plus />
+          </Button>
         </div>
-        <button className="ml-2 w-6 h-6 flex items-center justify-center rounded hover:bg-black/5 text-[var(--color-text-muted)]">
-          <Plus size={14} />
-        </button>
+
+        <div className="flex items-center gap-2">
+          <Button variant="ghost" size="sm" className="text-text-muted hover:text-text-primary hover:bg-black/5 font-bold uppercase tracking-tighter text-[10px]">
+             <Save data-icon="inline-start" />
+             Save Query
+          </Button>
+          <Button 
+            size="sm"
+            onClick={handleRunQuery}
+            disabled={isLoading || !activeTab?.query}
+            className="bg-amber-500 hover:bg-amber-400 text-black font-bold text-[11px] uppercase tracking-tighter shadow-lg shadow-amber-500/10 active:scale-95"
+          >
+            {isLoading ? <Loader2 className="animate-spin" /> : <Play fill="currentColor" />}
+            Run SQL (⌘↵)
+          </Button>
+          <Button variant="outline" size="sm" className="bg-zinc-800 hover:bg-zinc-700 text-amber-500 border-amber-500/20 font-bold text-[11px] uppercase tracking-tighter group">
+            <Sparkles data-icon="inline-start" className="group-hover:animate-pulse" />
+            AI Help
+          </Button>
+        </div>
       </div>
 
       {/* Editor Container */}
-      <div className="flex-1 relative group">
+      <div className="flex-1 relative">
         <div className="absolute inset-0">
           <CodeMirror
             value={activeTab?.query || ''}
@@ -46,7 +116,7 @@ const QueryEditor = () => {
             theme={oneDark}
             extensions={[sql()]}
             onChange={onChange}
-            className="text-sm h-full"
+            className="text-[13px] h-full"
             basicSetup={{
               lineNumbers: true,
               foldGutter: true,
@@ -55,29 +125,6 @@ const QueryEditor = () => {
               indentOnInput: true,
             }}
           />
-        </div>
-      </div>
-
-      {/* Action Bar */}
-      <div className="h-10 bg-[var(--color-toolbar-bg)] border-t border-[var(--color-border-app)] flex items-center justify-between px-3">
-        <div className="flex items-center gap-2">
-          <button className="flex items-center gap-2 px-4 py-1 bg-blue-600 hover:bg-blue-500 rounded text-white text-xs font-bold transition-all shadow-lg shadow-blue-500/20 active:scale-95">
-            <Play size={14} fill="white" />
-            <span>RUN</span>
-          </button>
-          <button className="p-1.5 text-[var(--color-text-secondary)] hover:bg-black/5 rounded transition-all tooltip" title="Save Query">
-            <Save size={16} />
-          </button>
-          <button className="p-1.5 text-[var(--color-text-secondary)] hover:bg-black/5 rounded transition-all" title="Query History">
-            <History size={16} />
-          </button>
-        </div>
-
-        <div className="flex items-center gap-2">
-          <button className="flex items-center gap-2 px-3 py-1 bg-indigo-500/10 hover:bg-indigo-500/20 text-indigo-400 border border-indigo-500/30 rounded text-xs font-medium transition-all group">
-            <Sparkles size={14} className="group-hover:animate-pulse" />
-            <span>AI Assistant</span>
-          </button>
         </div>
       </div>
     </div>
