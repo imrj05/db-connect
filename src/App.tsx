@@ -1,33 +1,36 @@
-import { useEffect } from 'react';
-import { Panel, Group as PanelGroup, Separator as PanelResizeHandle } from 'react-resizable-panels';
-import Sidebar from './components/layout/Sidebar';
-import QueryEditor from './components/layout/QueryEditor';
-import ResultsView from './components/layout/ResultsView';
-import TitleBar from './components/layout/TitleBar';
-import { useAppStore } from './store/useAppStore';
-import { CommandPalette } from './components/layout/CommandPalette';
-import ConnectionDialog from './components/layout/ConnectionDialog';
-import { TooltipProvider } from './components/ui/tooltip';
-import { Toaster } from 'sonner';
+import { useEffect } from "react";
+import {
+    Panel,
+    Group as PanelGroup,
+    Separator as PanelResizeHandle,
+} from "react-resizable-panels";
+import Sidebar from "./components/layout/Sidebar";
+import QueryEditor from "./components/layout/QueryEditor";
+import ResultsView from "./components/layout/ResultsView";
+import TitleBar from "./components/layout/TitleBar";
+import { useAppStore } from "./store/useAppStore";
+import { CommandPalette } from "./components/layout/CommandPalette";
+import ConnectionDialog from "./components/layout/ConnectionDialog";
+import { TooltipProvider } from "./components/ui/tooltip";
+import { Toaster } from "sonner";
 function App() {
-    const { activeConnection, theme, setConnections, connectionDialogOpen, setConnectionDialogOpen } = useAppStore();
+    const {
+        activeConnection,
+        theme,
+        loadConnections,
+        connectionDialogOpen,
+        setConnectionDialogOpen,
+    } = useAppStore();
     // Load connections from storage
     useEffect(() => {
-        const saved = localStorage.getItem('db_connections');
-        if (saved) {
-            try {
-                setConnections(JSON.parse(saved));
-            } catch (e) {
-                console.error('Failed to parse saved connections', e);
-            }
-        }
-    }, [setConnections]);
+        loadConnections();
+    }, [loadConnections]);
     // Manage theme class on document element
     useEffect(() => {
-        if (theme === 'dark') {
-            document.documentElement.classList.add('dark');
+        if (theme === "dark") {
+            document.documentElement.classList.add("dark");
         } else {
-            document.documentElement.classList.remove('dark');
+            document.documentElement.classList.remove("dark");
         }
     }, [theme]);
     // In this version (v4), PanelGroup is Group and the prop is orientation
@@ -38,7 +41,12 @@ function App() {
                 <main className="flex-1 overflow-hidden relative">
                     <PanelGroup orientation="horizontal">
                         {/* Sidebar */}
-                        <Panel defaultSize={300} minSize={100} maxSize={500} className="h-full">
+                        <Panel
+                            defaultSize={300}
+                            minSize={100}
+                            maxSize={500}
+                            className="h-full"
+                        >
                             <Sidebar />
                         </Panel>
                         <PanelResizeHandle className="w-[1.5px] bg-border/40 hover:bg-primary/50 transition-all duration-300 cursor-col-resize relative group">
@@ -50,10 +58,17 @@ function App() {
                             {!activeConnection ? (
                                 <div className="h-full flex items-center justify-center bg-table-bg text-text-muted transition-all duration-500">
                                     <div className="text-center p-8 bg-zinc-900/50 rounded-3xl border border-white/5 backdrop-blur-3xl shadow-2xl">
-                                        <h2 className="text-2xl font-black mb-3 tracking-tight text-white">Welcome to DB Connect</h2>
-                                        <p className="text-sm font-medium opacity-60">Connect to a database to begin exploring your data.</p>
+                                        <h2 className="text-2xl font-black mb-3 tracking-tight text-white">
+                                            Welcome to DB Connect
+                                        </h2>
+                                        <p className="text-sm font-medium opacity-60">
+                                            Connect to a database to begin
+                                            exploring your data.
+                                        </p>
                                         <button
-                                            onClick={() => setConnectionDialogOpen(true)}
+                                            onClick={() =>
+                                                setConnectionDialogOpen(true)
+                                            }
                                             className="mt-8 px-10 py-3 bg-blue-600 hover:bg-blue-500 text-white rounded-xl font-bold transition-all active:scale-95 shadow-lg shadow-blue-500/20"
                                         >
                                             Add Connection
@@ -61,23 +76,24 @@ function App() {
                                     </div>
                                 </div>
                             ) : (
-                                <PanelGroup orientation="vertical">
-                                    <Panel defaultSize={50} minSize={20}>
-                                        <QueryEditor />
-                                    </Panel>
-                                    <PanelResizeHandle className="h-px bg-border-app hover:bg-blue-500/50 transition-colors cursor-row-resize relative">
-                                        <div className="absolute inset-x-0 -top-1 -bottom-1" />
-                                    </PanelResizeHandle>
-                                    <Panel defaultSize={50} minSize={20}>
+                                <div className="h-full flex flex-col">
+                                    <div className="flex-1 overflow-hidden relative">
                                         <ResultsView />
-                                    </Panel>
-                                </PanelGroup>
+                                    </div>
+                                    <div className="h-48 border-t border-border-app bg-zinc-950/50">
+                                        <QueryEditor />
+                                    </div>
+                                </div>
                             )}
                         </Panel>
                     </PanelGroup>
                 </main>
                 <CommandPalette />
-                {connectionDialogOpen && <ConnectionDialog onClose={() => setConnectionDialogOpen(false)} />}
+                {connectionDialogOpen && (
+                    <ConnectionDialog
+                        onClose={() => setConnectionDialogOpen(false)}
+                    />
+                )}
                 <Toaster position="bottom-right" richColors theme={theme} />
             </div>
         </TooltipProvider>

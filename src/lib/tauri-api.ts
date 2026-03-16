@@ -22,7 +22,7 @@ export const tauriApi = {
     return await invoke("execute_query", { id, query });
   },
 
-  async getTableData(id: string, table: string, page: number = 0, pageSize: number = 50): Promise<QueryResult> {
-    return await invoke("get_table_data", { id, table, page, pageSize });
+  async getTableData(id: string, database: string, table: string, page: number = 0, pageSize: number = 50): Promise<QueryResult> {
+    return await invoke("get_table_data", { id, database, table, page, pageSize });
   },
 };

@@ -71,7 +71,7 @@ impl DatabaseDriver for RedisDriver {
         let client_lock = self.client.read().await;
         let client = client_lock.as_ref().ok_or_else(|| anyhow!("Not connected"))?;
         let mut conn = client.get_multiplexed_async_connection().await?;
-        
+
         let start = Instant::now();
         // This is a very basic command execution
         // Real implementation would parse the query into command and args
@@ -95,7 +95,7 @@ impl DatabaseDriver for RedisDriver {
         })
     }
 
-    async fn get_table_data(&self, _table: &str, _page: u32, _page_size: u32) -> Result<QueryResult> {
+    async fn get_table_data(&self, _database: &str, _table: &str, _page: u32, _page_size: u32) -> Result<QueryResult> {
         Ok(QueryResult {
             columns: vec![],
             rows: vec![],

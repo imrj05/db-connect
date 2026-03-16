@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Shield, Globe, Database, Key, Server, Tag, Loader2, FileText, CheckCircle2 } from 'lucide-react';
+import { Shield, Globe, Database, Key, Server, Tag, Loader2, FileText, CheckCircle2, Trash2 } from 'lucide-react';
 import { ConnectionConfig } from '@/types';
 import { useAppStore } from '@/store/useAppStore';
 import { tauriApi } from '@/lib/tauri-api';
@@ -42,7 +42,15 @@ const DATABASE_ENGINES = [
 ] as const;
 
 const ConnectionDialog = ({ onClose, initialData }: ConnectionDialogProps) => {
-    const { setConnections, connections, setActiveConnection, setLoading, isLoading } = useAppStore();
+    const {
+        connections,
+        addConnection,
+        setConnections,
+        deleteConnection,
+        setActiveConnection,
+        setLoading,
+        isLoading
+    } = useAppStore();
     const [isTesting, setIsTesting] = useState(false);
     const [formData, setFormData] = useState<Partial<ConnectionConfig>>(
         initialData || {
@@ -64,7 +72,7 @@ const ConnectionDialog = ({ onClose, initialData }: ConnectionDialogProps) => {
     const handleTestConnection = async () => {
         setIsTesting(true);
         try {
-            // Always use a unique temporary ID for testing to avoid 
+            // Always use a unique temporary ID for testing to avoid
             // overwriting active connections in the registry
             const testConfig = {
                 ...formData,
@@ -74,7 +82,7 @@ const ConnectionDialog = ({ onClose, initialData }: ConnectionDialogProps) => {
 
             await tauriApi.connect(testConfig);
             toast.success('Connection successful');
-            
+
             // Immediately disconnect the test session
             await tauriApi.disconnect(testConfig.id);
         } catch (error) {
@@ -85,15 +93,20 @@ const ConnectionDialog = ({ onClose, initialData }: ConnectionDialogProps) => {
     };
 
     const persistConnection = (config: ConnectionConfig) => {
-        let updatedConnections;
         if (initialData) {
-            updatedConnections = connections.map((c: ConnectionConfig) => c.id === initialData.id ? config : c);
+            const updatedConnections = connections.map((c: ConnectionConfig) => c.id === initialData.id ? config : c);
+            setConnections(updatedConnections);
+            return updatedConnections;
         } else {
-            updatedConnections = [...connections, config];
+            // Check if connection with same name already exists to avoid duplicates
+            if (connections.find(c => c.name === config.name)) {
+                const updatedConnections = connections.map((c: ConnectionConfig) => c.name === config.name ? config : c);
+                setConnections(updatedConnections);
+                return updatedConnections;
+            }
+            addConnection(config);
+            return [...connections, config];
         }
-        setConnections(updatedConnections);
-        localStorage.setItem('db_connections', JSON.stringify(updatedConnections));
-        return updatedConnections;
     };
 
     const handleSaveOnly = async () => {
@@ -102,7 +115,7 @@ const ConnectionDialog = ({ onClose, initialData }: ConnectionDialogProps) => {
             id: formData.id || Math.random().toString(36).substring(7),
             name: formData.name || `Connection ${connections.length + 1}`,
         } as ConnectionConfig;
-        
+
         persistConnection(newConn);
         toast.success(initialData ? 'Connection updated' : 'Connection saved to list');
         onClose();
@@ -126,6 +139,14 @@ const ConnectionDialog = ({ onClose, initialData }: ConnectionDialogProps) => {
             toast.error(`Failed to connect: ${String(error)}`);
         } finally {
             setLoading(false);
+        }
+    };
+
+    const handleDelete = () => {
+        if (initialData?.id) {
+            deleteConnection(initialData.id);
+            toast.success('Connection deleted');
+            onClose();
         }
     };
 
@@ -326,16 +347,29 @@ const ConnectionDialog = ({ onClose, initialData }: ConnectionDialogProps) => {
                 </div>
                 {/* Footer Section */}
                 <DialogFooter className="p-6 bg-muted/30 border-t flex flex-row items-center justify-between gap-4">
-                    <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={handleTestConnection}
-                        disabled={isTesting || isLoading}
-                        className="shrink-0 text-muted-foreground hover:text-foreground"
-                    >
-                        {isTesting ? <Loader2 className="animate-spin mr-2 size-4" /> : <Globe className="mr-2 size-4" />}
-                        Test Connection
-                    </Button>
+                    <div className="flex items-center gap-2 grow">
+                        <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={handleTestConnection}
+                            disabled={isTesting || isLoading}
+                            className="shrink-0 text-muted-foreground hover:text-foreground"
+                        >
+                            {isTesting ? <Loader2 className="animate-spin mr-2 size-4" /> : <Globe className="mr-2 size-4" />}
+                            Test Connection
+                        </Button>
+                        {initialData && (
+                            <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={handleDelete}
+                                className="text-red-500 hover:text-red-600 hover:bg-red-500/10"
+                            >
+                                <Trash2 className="mr-2 size-4" />
+                                Delete
+                            </Button>
+                        )}
+                    </div>
                     <div className="flex items-center gap-3">
                         <Button
                             variant="outline"

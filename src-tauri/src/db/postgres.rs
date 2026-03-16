@@ -54,7 +54,7 @@ impl DatabaseDriver for PostgresDriver {
     async fn get_databases(&self) -> Result<Vec<String>> {
         let pool_lock = self.pool.read().await;
         let pool = pool_lock.as_ref().ok_or_else(|| anyhow!("Not connected"))?;
-        
+
         let rows = sqlx::query("SELECT datname FROM pg_database WHERE datistemplate = false")
             .fetch_all(pool)
             .await?;
@@ -65,7 +65,7 @@ impl DatabaseDriver for PostgresDriver {
     async fn get_schemas(&self, _database: &str) -> Result<Vec<String>> {
         let pool_lock = self.pool.read().await;
         let pool = pool_lock.as_ref().ok_or_else(|| anyhow!("Not connected"))?;
-        
+
         let rows = sqlx::query("SELECT schema_name FROM information_schema.schemata")
             .fetch_all(pool)
             .await?;
@@ -76,7 +76,7 @@ impl DatabaseDriver for PostgresDriver {
     async fn get_tables(&self, _database: &str, schema: Option<&str>) -> Result<Vec<TableInfo>> {
         let pool_lock = self.pool.read().await;
         let pool = pool_lock.as_ref().ok_or_else(|| anyhow!("Not connected"))?;
-        
+
         let schema_name = schema.unwrap_or("public");
         let rows = sqlx::query("SELECT table_name FROM information_schema.tables WHERE table_schema = $1")
             .bind(schema_name)
@@ -93,11 +93,11 @@ impl DatabaseDriver for PostgresDriver {
     async fn get_columns(&self, _database: &str, table: &str, schema: Option<&str>) -> Result<Vec<ColumnInfo>> {
         let pool_lock = self.pool.read().await;
         let pool = pool_lock.as_ref().ok_or_else(|| anyhow!("Not connected"))?;
-        
+
         let schema_name = schema.unwrap_or("public");
         let rows = sqlx::query(
-            "SELECT column_name, data_type, is_nullable, column_default 
-             FROM information_schema.columns 
+            "SELECT column_name, data_type, is_nullable, column_default
+             FROM information_schema.columns
              WHERE table_name = $1 AND table_schema = $2"
         )
         .bind(table)
@@ -116,7 +116,7 @@ impl DatabaseDriver for PostgresDriver {
     async fn run_query(&self, query: &str) -> Result<QueryResult> {
         let pool_lock = self.pool.read().await;
         let pool = pool_lock.as_ref().ok_or_else(|| anyhow!("Not connected"))?;
-        
+
         let start = Instant::now();
         let rows = sqlx::query(query)
             .fetch_all(pool)
@@ -158,8 +158,8 @@ impl DatabaseDriver for PostgresDriver {
         })
     }
 
-    async fn get_table_data(&self, table: &str, page: u32, page_size: u32) -> Result<QueryResult> {
-        let query = format!("SELECT * FROM {} LIMIT {} OFFSET {}", table, page_size, page * page_size);
+    async fn get_table_data(&self, database: &str, table: &str, page: u32, page_size: u32) -> Result<QueryResult> {
+        let query = format!("SELECT * FROM \"{}\".\"{}\" LIMIT {} OFFSET {}", database, table, page_size, page * page_size);
         self.run_query(&query).await
     }
 }

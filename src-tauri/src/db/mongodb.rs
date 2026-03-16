@@ -22,10 +22,10 @@ impl DatabaseDriver for MongoDriver {
         let uri = config.uri.as_deref().ok_or_else(|| anyhow!("MongoDB URI required"))?;
         let options = ClientOptions::parse(uri).await?;
         let client = Client::with_options(options)?;
-        
+
         // Ping the server to verify connection
         client.database("admin").run_command(doc! {"ping": 1}, None).await?;
-        
+
         let mut client_lock = self.client.write().await;
         *client_lock = Some(client);
         Ok(())
@@ -40,7 +40,7 @@ impl DatabaseDriver for MongoDriver {
     async fn get_databases(&self) -> Result<Vec<String>> {
         let client_lock = self.client.read().await;
         let client = client_lock.as_ref().ok_or_else(|| anyhow!("Not connected"))?;
-        
+
         Ok(client.list_database_names(None, None).await?)
     }
 
@@ -51,10 +51,10 @@ impl DatabaseDriver for MongoDriver {
     async fn get_tables(&self, database: &str, _schema: Option<&str>) -> Result<Vec<TableInfo>> {
         let client_lock = self.client.read().await;
         let client = client_lock.as_ref().ok_or_else(|| anyhow!("Not connected"))?;
-        
+
         let db = client.database(database);
         let collections = db.list_collection_names(None).await?;
-        
+
         Ok(collections.into_iter().map(|name| TableInfo {
             name,
             schema: None,
@@ -77,7 +77,7 @@ impl DatabaseDriver for MongoDriver {
         })
     }
 
-    async fn get_table_data(&self, _table: &str, _page: u32, _page_size: u32) -> Result<QueryResult> {
+    async fn get_table_data(&self, _database: &str, _table: &str, _page: u32, _page_size: u32) -> Result<QueryResult> {
         // Placeholder for fetching documents from a collection
         Ok(QueryResult {
             columns: vec!["document".to_string()],

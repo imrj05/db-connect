@@ -21,9 +21,9 @@ pub async fn connect_database(config: ConnectionConfig) -> Result<(), String> {
     };
 
     driver.connect(&config).await.map_err(|e| e.to_string())?;
-    
+
     REGISTRY.connections.insert(config.id.clone(), driver);
-    
+
     Ok(())
 }
 
@@ -39,7 +39,7 @@ pub async fn disconnect_database(id: String) -> Result<(), String> {
 pub async fn get_databases(id: String) -> Result<Vec<String>, String> {
     let driver = REGISTRY.connections.get(&id)
         .ok_or_else(|| "Not connected".to_string())?;
-    
+
     driver.get_databases().await.map_err(|e| e.to_string())
 }
 
@@ -47,7 +47,7 @@ pub async fn get_databases(id: String) -> Result<Vec<String>, String> {
 pub async fn get_tables(id: String, database: String, schema: Option<String>) -> Result<Vec<TableInfo>, String> {
     let driver = REGISTRY.connections.get(&id)
         .ok_or_else(|| "Not connected".to_string())?;
-    
+
     driver.get_tables(&database, schema.as_deref()).await.map_err(|e| e.to_string())
 }
 
@@ -55,14 +55,14 @@ pub async fn get_tables(id: String, database: String, schema: Option<String>) ->
 pub async fn execute_query(id: String, query: String) -> Result<QueryResult, String> {
     let driver = REGISTRY.connections.get(&id)
         .ok_or_else(|| "Not connected".to_string())?;
-    
+
     driver.run_query(&query).await.map_err(|e| e.to_string())
 }
 
 #[tauri::command]
-pub async fn get_table_data(id: String, table: String, page: u32, page_size: u32) -> Result<QueryResult, String> {
+pub async fn get_table_data(id: String, database: String, table: String, page: u32, page_size: u32) -> Result<QueryResult, String> {
     let driver = REGISTRY.connections.get(&id)
         .ok_or_else(|| "Not connected".to_string())?;
-    
-    driver.get_table_data(&table, page, page_size).await.map_err(|e| e.to_string())
+
+    driver.get_table_data(&database, &table, page, page_size).await.map_err(|e| e.to_string())
 }

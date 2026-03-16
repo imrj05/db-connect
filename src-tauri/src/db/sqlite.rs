@@ -22,7 +22,7 @@ impl DatabaseDriver for SqliteDriver {
     async fn connect(&self, config: &ConnectionConfig) -> Result<()> {
         let path = config.database.as_deref().ok_or_else(|| anyhow!("Database path required for SQLite"))?;
         let url = format!("sqlite:{}", path);
-        
+
         let pool = SqlitePoolOptions::new()
             .max_connections(1)
             .connect(&url)
@@ -52,7 +52,7 @@ impl DatabaseDriver for SqliteDriver {
     async fn get_tables(&self, _database: &str, _schema: Option<&str>) -> Result<Vec<TableInfo>> {
         let pool_lock = self.pool.read().await;
         let pool = pool_lock.as_ref().ok_or_else(|| anyhow!("Not connected"))?;
-        
+
         let rows = sqlx::query("SELECT name FROM sqlite_master WHERE type='table'")
             .fetch_all(pool)
             .await?;
@@ -67,7 +67,7 @@ impl DatabaseDriver for SqliteDriver {
     async fn get_columns(&self, _database: &str, table: &str, _schema: Option<&str>) -> Result<Vec<ColumnInfo>> {
         let pool_lock = self.pool.read().await;
         let pool = pool_lock.as_ref().ok_or_else(|| anyhow!("Not connected"))?;
-        
+
         let rows = sqlx::query(&format!("PRAGMA table_info({})", table))
             .fetch_all(pool)
             .await?;
@@ -83,7 +83,7 @@ impl DatabaseDriver for SqliteDriver {
     async fn run_query(&self, query: &str) -> Result<QueryResult> {
         let pool_lock = self.pool.read().await;
         let pool = pool_lock.as_ref().ok_or_else(|| anyhow!("Not connected"))?;
-        
+
         let start = Instant::now();
         let rows = sqlx::query(query)
             .fetch_all(pool)
@@ -127,8 +127,8 @@ impl DatabaseDriver for SqliteDriver {
         })
     }
 
-    async fn get_table_data(&self, table: &str, page: u32, page_size: u32) -> Result<QueryResult> {
-        let query = format!("SELECT * FROM {} LIMIT {} OFFSET {}", table, page_size, page * page_size);
+    async fn get_table_data(&self, _database: &str, table: &str, page: u32, page_size: u32) -> Result<QueryResult> {
+        let query = format!("SELECT * FROM `{}` LIMIT {} OFFSET {}", table, page_size, page * page_size);
         self.run_query(&query).await
     }
 }
