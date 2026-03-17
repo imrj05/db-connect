@@ -44,7 +44,7 @@ function FunctionItem({
           isActive ? "text-blue-300" : typeColors[fn.type] ?? "text-text-muted",
         )}
       >
-        {fn.name}
+        {fn.type === "table" ? fn.tableName : fn.name.slice(fn.prefix.length + 1)}
       </span>
     </button>
   );
