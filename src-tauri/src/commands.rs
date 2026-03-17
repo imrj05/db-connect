@@ -76,7 +76,18 @@ pub async fn get_table_data(id: String, database: String, table: String, page: u
     let driver = REGISTRY.connections.get(&id)
         .ok_or_else(|| "Not connected".to_string())?;
 
-    driver.get_table_data(&database, &table, page, page_size).await.map_err(|e| e.to_string())
+    let mut result = driver.get_table_data(&database, &table, page, page_size)
+        .await
+        .map_err(|e| e.to_string())?;
+
+    // If table is empty, still return column names so the UI can show headers
+    if result.rows.is_empty() && result.columns.is_empty() {
+        if let Ok(col_infos) = driver.get_columns(&database, &table, None).await {
+            result.columns = col_infos.iter().map(|c| c.name.clone()).collect();
+        }
+    }
+
+    Ok(result)
 }
 
 #[tauri::command]

@@ -132,13 +132,14 @@ function TableGridView({
 
   if (!queryResult) return null;
 
-  if (queryResult.rows.length === 0 && queryResult.columns.length === 0) {
+  // No columns at all means a DDL/non-SELECT result — show simple card
+  if (queryResult.columns.length === 0) {
     return (
-      <div className="h-full flex flex-col items-center justify-center text-emerald-500 bg-table-bg p-8 text-center">
+      <div className="h-full flex flex-col items-center justify-center text-emerald-500 bg-app-bg p-8 text-center">
         <div className="w-16 h-16 mb-6 bg-emerald-500/10 rounded-full flex items-center justify-center ring-1 ring-emerald-500/20">
           <Sparkles size={32} className="text-emerald-500/40" />
         </div>
-        <h3 className="text-sm font-bold uppercase tracking-[0.2em] mb-2">Empty result</h3>
+        <h3 className="text-sm font-bold uppercase tracking-[0.2em] mb-2">Empty table</h3>
         <p className="text-[10px] text-text-muted uppercase tracking-widest opacity-60">
           0 rows · {queryResult.executionTimeMs}ms
         </p>
@@ -187,21 +188,32 @@ function TableGridView({
                 ))}
               </TableHeader>
               <TableBody>
-                {table.getRowModel().rows.map((row, idx) => (
-                  <TableRow key={row.id} className="hover:bg-blue-500/5 transition-colors group">
-                    <TableCell className="w-10 h-8 px-2 text-center text-text-muted/30 border-r border-border-table bg-toolbar-bg/30">
-                      {page * 50 + idx + 1}
+                {table.getRowModel().rows.length === 0 ? (
+                  <TableRow className="hover:bg-transparent">
+                    <TableCell
+                      colSpan={table.getAllColumns().length + 1}
+                      className="h-24 text-center text-text-muted/40 text-[11px] font-mono"
+                    >
+                      0 rows
                     </TableCell>
-                    {row.getVisibleCells().map((cell) => (
-                      <TableCell
-                        key={cell.id}
-                        className="h-8 px-4 border-r border-border-table last:border-r-0 text-text-primary/90 whitespace-nowrap overflow-hidden text-ellipsis max-w-75"
-                      >
-                        {flexRender(cell.column.columnDef.cell, cell.getContext())}
-                      </TableCell>
-                    ))}
                   </TableRow>
-                ))}
+                ) : (
+                  table.getRowModel().rows.map((row, idx) => (
+                    <TableRow key={row.id} className="hover:bg-row-hover transition-colors group">
+                      <TableCell className="w-10 h-8 px-2 text-center text-text-muted/30 border-r border-border-table bg-toolbar-bg/30">
+                        {page * 50 + idx + 1}
+                      </TableCell>
+                      {row.getVisibleCells().map((cell) => (
+                        <TableCell
+                          key={cell.id}
+                          className="h-8 px-4 border-r border-border-table last:border-r-0 text-text-primary/90 whitespace-nowrap overflow-hidden text-ellipsis max-w-75"
+                        >
+                          {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                        </TableCell>
+                      ))}
+                    </TableRow>
+                  ))
+                )}
               </TableBody>
             </Table>
           </div>
@@ -359,7 +371,7 @@ function TableGridView({
                 ← Prev
               </button>
               <span className="tabular-nums">
-                {page * 50 + 1}–{page * 50 + queryResult.rows.length}
+                {queryResult.rows.length === 0 ? "0 rows" : `${page * 50 + 1}–${page * 50 + queryResult.rows.length}`}
               </span>
               <button
                 disabled={queryResult.rows.length < 50}
