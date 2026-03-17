@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import CodeMirror from "@uiw/react-codemirror";
 import { sql } from "@codemirror/lang-sql";
 import { oneDark } from "@codemirror/theme-one-dark";
+import { EditorView } from "@codemirror/view";
 import {
   flexRender,
   getCoreRowModel,
@@ -37,7 +38,7 @@ import { tauriApi } from "@/lib/tauri-api";
 // ─── Idle state ────────────────────────────────────────────────────────────────
 function IdleView({ onNewConnection }: { onNewConnection: () => void }) {
   return (
-    <div className="h-full flex flex-col items-center justify-center bg-[#0c0c0c] text-text-muted gap-4">
+    <div className="h-full flex flex-col items-center justify-center bg-app-bg text-text-muted gap-4">
       <div className="w-16 h-16 opacity-10 bg-blue-500/10 rounded-2xl flex items-center justify-center">
         <Search size={32} className="text-blue-500/20" />
       </div>
@@ -123,7 +124,7 @@ function TableGridView({
 
   if (isLoading) {
     return (
-      <div className="h-full flex items-center justify-center bg-[#0c0c0c]">
+      <div className="h-full flex items-center justify-center bg-app-bg">
         <Loader2 size={20} className="animate-spin text-blue-500" />
       </div>
     );
@@ -146,9 +147,9 @@ function TableGridView({
   }
 
   return (
-    <div className="h-full flex flex-col bg-[#111111] overflow-hidden">
+    <div className="h-full flex flex-col bg-tab-active-bg overflow-hidden">
       {/* Header */}
-      <div className="h-9 px-4 flex items-center justify-between border-b border-white/5 bg-[#111111] shrink-0">
+      <div className="h-9 px-4 flex items-center justify-between border-b border-border-table bg-tab-active-bg shrink-0">
         <span className="font-mono text-[11px] text-blue-400 font-bold">
           &gt; {fn.callSignature.slice(fn.prefix.length + 1)}
         </span>
@@ -167,16 +168,16 @@ function TableGridView({
         <div className="flex-1 overflow-auto scrollbar-thin">
           <div className="min-w-full inline-block align-middle">
             <Table className="w-full border-collapse text-[11px] font-mono border-separate border-spacing-0">
-              <TableHeader className="sticky top-0 z-10 bg-[#111111] shadow-[0_1px_0_rgba(255,255,255,0.05)]">
+              <TableHeader className="sticky top-0 z-10 bg-tab-active-bg shadow-[0_1px_0_var(--color-border-table)]">
                 {table.getHeaderGroups().map((headerGroup) => (
                   <TableRow key={headerGroup.id} className="hover:bg-transparent border-none">
-                    <TableHead className="w-10 h-8 px-2 text-center font-bold text-text-muted/30 border-r border-white/5 bg-[#181818]">
+                    <TableHead className="w-10 h-8 px-2 text-center font-bold text-text-muted/30 border-r border-border-table bg-toolbar-bg">
                       #
                     </TableHead>
                     {headerGroup.headers.map((header) => (
                       <TableHead
                         key={header.id}
-                        className="h-8 px-4 text-left font-bold text-text-muted border-r border-white/5 last:border-r-0 hover:bg-white/5 cursor-pointer transition-colors"
+                        className="h-8 px-4 text-left font-bold text-text-muted border-r border-border-table last:border-r-0 hover:bg-row-hover cursor-pointer transition-colors"
                         onClick={header.column.getToggleSortingHandler()}
                       >
                         {flexRender(header.column.columnDef.header, header.getContext())}
@@ -188,13 +189,13 @@ function TableGridView({
               <TableBody>
                 {table.getRowModel().rows.map((row, idx) => (
                   <TableRow key={row.id} className="hover:bg-blue-500/5 transition-colors group">
-                    <TableCell className="w-10 h-8 px-2 text-center text-text-muted/30 border-r border-white/5 bg-[#181818]/30">
+                    <TableCell className="w-10 h-8 px-2 text-center text-text-muted/30 border-r border-border-table bg-toolbar-bg/30">
                       {page * 50 + idx + 1}
                     </TableCell>
                     {row.getVisibleCells().map((cell) => (
                       <TableCell
                         key={cell.id}
-                        className="h-8 px-4 border-r border-white/5 last:border-r-0 text-text-primary/90 whitespace-nowrap overflow-hidden text-ellipsis max-w-75"
+                        className="h-8 px-4 border-r border-border-table last:border-r-0 text-text-primary/90 whitespace-nowrap overflow-hidden text-ellipsis max-w-75"
                       >
                         {flexRender(cell.column.columnDef.cell, cell.getContext())}
                       </TableCell>
@@ -209,7 +210,7 @@ function TableGridView({
 
       {/* Content: Structure view */}
       {viewMode === "structure" && (
-        <div className="flex-1 overflow-auto scrollbar-thin bg-[#0d0d0d]">
+        <div className="flex-1 overflow-auto scrollbar-thin bg-app-bg">
           {structureLoading ? (
             <div className="h-full flex items-center justify-center">
               <Loader2 size={18} className="animate-spin text-blue-500" />
@@ -217,28 +218,28 @@ function TableGridView({
           ) : structure ? (
             <div className="p-0">
               {/* Columns */}
-              <div className="border-b border-white/5">
-                <div className="px-4 py-2 bg-[#181818] flex items-center gap-2 border-b border-white/5">
+              <div className="border-b border-border-table">
+                <div className="px-4 py-2 bg-toolbar-bg flex items-center gap-2 border-b border-border-table">
                   <Key size={11} className="text-text-muted/50" />
                   <span className="text-[9px] font-black uppercase tracking-widest text-text-muted/50">
                     Columns ({structure.columns.length})
                   </span>
                 </div>
                 <table className="w-full text-[11px] font-mono">
-                  <thead className="sticky top-0 bg-[#161616] z-10">
+                  <thead className="sticky top-0 bg-tabbar-bg z-10">
                     <tr>
-                      <th className="h-7 px-3 text-left text-[9px] font-bold uppercase tracking-widest text-text-muted/40 border-b border-white/5 w-6">#</th>
-                      <th className="h-7 px-3 text-left text-[9px] font-bold uppercase tracking-widest text-text-muted/40 border-b border-white/5">Name</th>
-                      <th className="h-7 px-3 text-left text-[9px] font-bold uppercase tracking-widest text-text-muted/40 border-b border-white/5">Type</th>
-                      <th className="h-7 px-3 text-left text-[9px] font-bold uppercase tracking-widest text-text-muted/40 border-b border-white/5">Null</th>
-                      <th className="h-7 px-3 text-left text-[9px] font-bold uppercase tracking-widest text-text-muted/40 border-b border-white/5">Default</th>
-                      <th className="h-7 px-3 text-left text-[9px] font-bold uppercase tracking-widest text-text-muted/40 border-b border-white/5">Key</th>
-                      <th className="h-7 px-3 text-left text-[9px] font-bold uppercase tracking-widest text-text-muted/40 border-b border-white/5">Extra</th>
+                      <th className="h-7 px-3 text-left text-[9px] font-bold uppercase tracking-widest text-text-muted/40 border-b border-border-table w-6">#</th>
+                      <th className="h-7 px-3 text-left text-[9px] font-bold uppercase tracking-widest text-text-muted/40 border-b border-border-table">Name</th>
+                      <th className="h-7 px-3 text-left text-[9px] font-bold uppercase tracking-widest text-text-muted/40 border-b border-border-table">Type</th>
+                      <th className="h-7 px-3 text-left text-[9px] font-bold uppercase tracking-widest text-text-muted/40 border-b border-border-table">Null</th>
+                      <th className="h-7 px-3 text-left text-[9px] font-bold uppercase tracking-widest text-text-muted/40 border-b border-border-table">Default</th>
+                      <th className="h-7 px-3 text-left text-[9px] font-bold uppercase tracking-widest text-text-muted/40 border-b border-border-table">Key</th>
+                      <th className="h-7 px-3 text-left text-[9px] font-bold uppercase tracking-widest text-text-muted/40 border-b border-border-table">Extra</th>
                     </tr>
                   </thead>
                   <tbody>
                     {structure.columns.map((col, idx) => (
-                      <tr key={col.name} className="hover:bg-white/3 transition-colors border-b border-white/[0.04]">
+                      <tr key={col.name} className="hover:bg-row-alt transition-colors border-b border-border-table">
                         <td className="h-8 px-3 text-text-muted/30">{idx + 1}</td>
                         <td className="h-8 px-3 text-text-primary font-semibold">{col.name}</td>
                         <td className="h-8 px-3 text-amber-400/80">{col.dataType}</td>
@@ -276,29 +277,29 @@ function TableGridView({
               {/* Indexes */}
               {structure.indexes.length > 0 && (
                 <div>
-                  <div className="px-4 py-2 bg-[#181818] flex items-center gap-2 border-b border-white/5">
+                  <div className="px-4 py-2 bg-toolbar-bg flex items-center gap-2 border-b border-border-table">
                     <Hash size={11} className="text-text-muted/50" />
                     <span className="text-[9px] font-black uppercase tracking-widest text-text-muted/50">
                       Indexes ({structure.indexes.length})
                     </span>
                   </div>
                   <table className="w-full text-[11px] font-mono">
-                    <thead className="sticky top-0 bg-[#161616]">
+                    <thead className="sticky top-0 bg-tabbar-bg">
                       <tr>
-                        <th className="h-7 px-3 text-left text-[9px] font-bold uppercase tracking-widest text-text-muted/40 border-b border-white/5">Name</th>
-                        <th className="h-7 px-3 text-left text-[9px] font-bold uppercase tracking-widest text-text-muted/40 border-b border-white/5">Columns</th>
-                        <th className="h-7 px-3 text-left text-[9px] font-bold uppercase tracking-widest text-text-muted/40 border-b border-white/5">Type</th>
-                        <th className="h-7 px-3 text-left text-[9px] font-bold uppercase tracking-widest text-text-muted/40 border-b border-white/5">Unique</th>
+                        <th className="h-7 px-3 text-left text-[9px] font-bold uppercase tracking-widest text-text-muted/40 border-b border-border-table">Name</th>
+                        <th className="h-7 px-3 text-left text-[9px] font-bold uppercase tracking-widest text-text-muted/40 border-b border-border-table">Columns</th>
+                        <th className="h-7 px-3 text-left text-[9px] font-bold uppercase tracking-widest text-text-muted/40 border-b border-border-table">Type</th>
+                        <th className="h-7 px-3 text-left text-[9px] font-bold uppercase tracking-widest text-text-muted/40 border-b border-border-table">Unique</th>
                       </tr>
                     </thead>
                     <tbody>
                       {structure.indexes.map((idx) => (
-                        <tr key={idx.name} className="hover:bg-white/3 transition-colors border-b border-white/[0.04]">
+                        <tr key={idx.name} className="hover:bg-row-alt transition-colors border-b border-border-table">
                           <td className="h-8 px-3 text-blue-400/80">{idx.name}</td>
                           <td className="h-8 px-3 text-text-primary/80">
                             <div className="flex flex-wrap gap-1">
                               {idx.columns.map((c) => (
-                                <span key={c} className="px-1.5 py-0.5 bg-white/5 rounded text-[9px]">{c}</span>
+                                <span key={c} className="px-1.5 py-0.5 bg-toolbar-bg rounded text-[9px]">{c}</span>
                               ))}
                             </div>
                           </td>
@@ -326,13 +327,13 @@ function TableGridView({
       )}
 
       {/* Footer toolbar */}
-      <div className="h-9 bg-[#181818] border-t border-white/5 flex items-center justify-between px-2 shrink-0">
+      <div className="h-9 bg-toolbar-bg border-t border-border-table flex items-center justify-between px-2 shrink-0">
         <div className="flex items-center gap-1">
           <button
             onClick={() => handleViewMode("data")}
             className={cn(
               "px-3 h-6 rounded text-[10px] font-bold uppercase tracking-widest transition-all",
-              viewMode === "data" ? "bg-white/10 text-white" : "text-text-muted hover:text-white",
+              viewMode === "data" ? "bg-sidebar-item-hover text-white" : "text-text-muted hover:text-white",
             )}
           >
             Data
@@ -341,7 +342,7 @@ function TableGridView({
             onClick={() => handleViewMode("structure")}
             className={cn(
               "px-3 h-6 rounded text-[10px] font-bold uppercase tracking-widest transition-all",
-              viewMode === "structure" ? "bg-white/10 text-white" : "text-text-muted hover:text-white",
+              viewMode === "structure" ? "bg-sidebar-item-hover text-white" : "text-text-muted hover:text-white",
             )}
           >
             Structure
@@ -368,7 +369,7 @@ function TableGridView({
                 Next →
               </button>
             </div>
-            <button className="px-3 h-6 rounded bg-white/5 text-text-muted hover:text-white text-[10px] font-bold uppercase tracking-widest">
+            <button className="px-3 h-6 rounded bg-toolbar-bg text-text-muted hover:text-white text-[10px] font-bold uppercase tracking-widest">
               <Download size={10} className="inline mr-1" />
               Export
             </button>
@@ -411,6 +412,16 @@ function SqlEditorView({
     return () => document.removeEventListener("keydown", down);
   }, [onExecute]);
 
+  const { theme } = useAppStore();
+  const editorTheme = theme === "dark" ? oneDark : EditorView.theme({
+    "&": { backgroundColor: "var(--color-table-bg)", color: "var(--color-text-primary)" },
+    ".cm-gutters": { backgroundColor: "var(--color-toolbar-bg)", color: "var(--color-text-muted)", borderRight: "1px solid var(--color-border-table)" },
+    ".cm-activeLineGutter": { backgroundColor: "var(--color-row-hover)" },
+    ".cm-activeLine": { backgroundColor: "var(--color-row-hover)" },
+    ".cm-cursor": { borderLeftColor: "var(--color-text-primary)" },
+    ".cm-selectionBackground": { backgroundColor: "var(--color-row-selected) !important" },
+  });
+
   const [sorting, setSorting] = useState<SortingState>([]);
   const table = useReactTable({
     data: queryResult?.rows ?? [],
@@ -436,9 +447,9 @@ function SqlEditorView({
   });
 
   return (
-    <div className="h-full flex flex-col bg-[#0A0A0A] overflow-hidden">
+    <div className="h-full flex flex-col bg-app-bg overflow-hidden">
       {/* Header */}
-      <div className="h-9 flex items-center justify-between bg-[#111111] border-b border-white/5 px-4 shrink-0">
+      <div className="h-9 flex items-center justify-between bg-tab-active-bg border-b border-border-table px-4 shrink-0">
         <span className="font-mono text-[11px] text-blue-400 font-bold">
           &gt; {fn.callSignature.slice(fn.prefix.length + 1)}
         </span>
@@ -453,7 +464,7 @@ function SqlEditorView({
           <CodeMirror
             value={pendingSql}
             height="100%"
-            theme={oneDark}
+            theme={editorTheme}
             extensions={[sql()]}
             onChange={onSqlChange}
             className="text-[13px] h-full selection:bg-blue-500/30"
@@ -476,21 +487,21 @@ function SqlEditorView({
           />
         </div>
         <div className="absolute top-4 right-6 flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-10">
-          <kbd className="px-1.5 h-5 rounded border border-white/10 bg-[#111111]/80 backdrop-blur-sm text-[9px] font-mono text-text-muted/60 flex items-center gap-1">
+          <kbd className="px-1.5 h-5 rounded border border-white/10 bg-tab-active-bg/80 backdrop-blur-sm text-[9px] font-mono text-text-muted/60 flex items-center gap-1">
             ⌘<span>↵</span>
           </kbd>
         </div>
       </div>
 
       {/* Execute bar */}
-      <div className="h-10 bg-[#0F0F0F] border-t border-white/5 flex items-center justify-between px-3 shrink-0 select-none">
+      <div className="h-10 bg-app-bg border-t border-border-table flex items-center justify-between px-3 shrink-0 select-none">
         <button
           onClick={onExecute}
           disabled={isLoading || !pendingSql.trim()}
           className={cn(
             "group h-7 px-4 rounded flex items-center gap-2 text-[10px] font-black uppercase tracking-[0.15em] transition-all",
             isLoading || !pendingSql.trim()
-              ? "bg-white/5 text-text-muted cursor-not-allowed"
+              ? "bg-toolbar-bg text-text-muted cursor-not-allowed"
               : "bg-emerald-500/10 text-emerald-400 hover:bg-emerald-500/20 active:scale-95",
           )}
         >
@@ -506,7 +517,7 @@ function SqlEditorView({
       {/* Results (shown below editor if present) */}
       {queryResult && (
         <div
-          className="border-t border-white/5 overflow-auto scrollbar-thin"
+          className="border-t border-border-table overflow-auto scrollbar-thin"
           style={{ flex: "1 1 60%" }}
         >
           {queryResult.rows.length === 0 && queryResult.columns.length === 0 ? (
@@ -518,13 +529,13 @@ function SqlEditorView({
             </div>
           ) : (
             <Table className="w-full text-[11px] font-mono border-collapse">
-              <TableHeader className="sticky top-0 z-10 bg-[#111111]">
+              <TableHeader className="sticky top-0 z-10 bg-tab-active-bg">
                 {table.getHeaderGroups().map((hg) => (
                   <TableRow key={hg.id} className="hover:bg-transparent border-none">
                     {hg.headers.map((h) => (
                       <TableHead
                         key={h.id}
-                        className="h-8 px-4 text-left font-bold text-text-muted border-r border-white/5 last:border-r-0"
+                        className="h-8 px-4 text-left font-bold text-text-muted border-r border-border-table last:border-r-0"
                         onClick={h.column.getToggleSortingHandler()}
                       >
                         {flexRender(h.column.columnDef.header, h.getContext())}
@@ -539,7 +550,7 @@ function SqlEditorView({
                     {row.getVisibleCells().map((cell) => (
                       <TableCell
                         key={cell.id}
-                        className="h-8 px-4 border-r border-white/5 last:border-r-0 text-text-primary/90 whitespace-nowrap overflow-hidden text-ellipsis max-w-75"
+                        className="h-8 px-4 border-r border-border-table last:border-r-0 text-text-primary/90 whitespace-nowrap overflow-hidden text-ellipsis max-w-75"
                       >
                         {flexRender(cell.column.columnDef.cell, cell.getContext())}
                       </TableCell>
@@ -549,7 +560,7 @@ function SqlEditorView({
               </TableBody>
             </Table>
           )}
-          <div className="h-8 bg-[#181818] border-t border-white/5 flex items-center px-4 shrink-0">
+          <div className="h-8 bg-toolbar-bg border-t border-border-table flex items-center px-4 shrink-0">
             <span className="text-[10px] font-mono text-text-muted/40">
               {queryResult.rows.length} rows · {queryResult.executionTimeMs}ms
             </span>
@@ -571,8 +582,8 @@ function TableListView({
   onTableClick: (tableName: string) => void;
 }) {
   return (
-    <div className="h-full flex flex-col bg-[#111111] overflow-hidden">
-      <div className="h-9 px-4 flex items-center border-b border-white/5 shrink-0">
+    <div className="h-full flex flex-col bg-tab-active-bg overflow-hidden">
+      <div className="h-9 px-4 flex items-center border-b border-border-table shrink-0">
         <span className="font-mono text-[11px] text-blue-400 font-bold">
           &gt; {fn.callSignature.slice(fn.prefix.length + 1)}
         </span>
@@ -582,10 +593,10 @@ function TableListView({
       </div>
       <div className="flex-1 overflow-auto scrollbar-thin">
         <table className="w-full text-[11px] font-mono">
-          <thead className="sticky top-0 bg-[#181818]">
+          <thead className="sticky top-0 bg-toolbar-bg">
             <tr>
-              <th className="h-8 px-4 text-left font-bold text-text-muted border-b border-white/5">Table</th>
-              <th className="h-8 px-4 text-left font-bold text-text-muted border-b border-white/5">Schema / DB</th>
+              <th className="h-8 px-4 text-left font-bold text-text-muted border-b border-border-table">Table</th>
+              <th className="h-8 px-4 text-left font-bold text-text-muted border-b border-border-table">Schema / DB</th>
             </tr>
           </thead>
           <tbody>
@@ -593,7 +604,7 @@ function TableListView({
               <tr
                 key={`${t.schema}-${t.name}`}
                 onClick={() => onTableClick(t.name)}
-                className="hover:bg-blue-500/10 cursor-pointer transition-colors border-b border-white/5 group"
+                className="hover:bg-blue-500/10 cursor-pointer transition-colors border-b border-border-table group"
               >
                 <td className="h-8 px-4 text-text-primary/90">
                   <div className="flex items-center gap-2">
@@ -620,8 +631,8 @@ function ConnectionSrcView({
   info: { connectionId: string; name: string; prefix: string; type: string; host?: string; port?: number; database?: string; ssl?: boolean; tableCount: number };
 }) {
   return (
-    <div className="h-full flex flex-col bg-[#0c0c0c] overflow-hidden">
-      <div className="h-9 px-4 flex items-center border-b border-white/5 shrink-0">
+    <div className="h-full flex flex-col bg-app-bg overflow-hidden">
+      <div className="h-9 px-4 flex items-center border-b border-border-table shrink-0">
         <span className="font-mono text-[11px] text-blue-400 font-bold">
           &gt; {fn.callSignature.slice(fn.prefix.length + 1)}
         </span>
@@ -656,7 +667,7 @@ function ConnectionSrcView({
           {/* Generated functions preview */}
           <div className="pt-2">
             <p className="text-[9px] font-bold uppercase tracking-widest text-text-muted/40 mb-2">Generated Functions</p>
-            <div className="bg-[#111111] rounded-xl p-4 border border-white/5">
+            <div className="bg-tab-active-bg rounded-xl p-4 border border-border-table">
               <div className="flex flex-col gap-1">
                 {[
                   `${info.prefix}_list()`,
@@ -691,7 +702,7 @@ function InfoCard({
   accent?: "emerald" | "zinc";
 }) {
   return (
-    <div className="bg-[#181818] rounded-xl p-3 border border-white/5 flex flex-col gap-1.5">
+    <div className="bg-toolbar-bg rounded-xl p-3 border border-border-table flex flex-col gap-1.5">
       <div className="flex items-center gap-1.5 text-text-muted/50">
         {icon}
         <span className="text-[9px] font-bold uppercase tracking-widest">{label}</span>
@@ -782,7 +793,7 @@ const FunctionOutput = () => {
 
   if (invocationResult.isLoading || isLoading) {
     return (
-      <div className="h-full flex items-center justify-center bg-[#0c0c0c]">
+      <div className="h-full flex items-center justify-center bg-app-bg">
         <div className="text-center space-y-3">
           <Loader2 size={24} className="animate-spin text-blue-500 mx-auto" />
           <p className="text-[10px] font-mono text-text-muted/60 uppercase tracking-widest">
@@ -795,7 +806,7 @@ const FunctionOutput = () => {
 
   if (invocationResult.error) {
     return (
-      <div className="h-full flex items-center justify-center bg-[#0c0c0c] p-8">
+      <div className="h-full flex items-center justify-center bg-app-bg p-8">
         <div className="max-w-lg w-full bg-red-500/5 border border-red-500/20 rounded-xl p-6">
           <p className="text-[10px] font-bold uppercase tracking-widest text-red-400 mb-2">Error</p>
           <p className="text-xs font-mono text-red-300/80">{invocationResult.error}</p>
