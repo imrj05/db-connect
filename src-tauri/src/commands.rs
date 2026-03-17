@@ -66,3 +66,32 @@ pub async fn get_table_data(id: String, database: String, table: String, page: u
 
     driver.get_table_data(&database, &table, page, page_size).await.map_err(|e| e.to_string())
 }
+
+#[tauri::command]
+pub async fn list_all_tables(id: String) -> Result<Vec<TableInfo>, String> {
+    let driver = REGISTRY.connections.get(&id)
+        .ok_or_else(|| "Not connected".to_string())?;
+
+    // Get all databases for this connection
+    let dbs = driver.get_databases().await.map_err(|e| e.to_string())?;
+    let target_dbs = if dbs.is_empty() {
+        vec!["default".to_string()]
+    } else {
+        dbs
+    };
+
+    let mut all_tables: Vec<TableInfo> = Vec::new();
+    for db in &target_dbs {
+        if let Ok(tables) = driver.get_tables(db, None).await {
+            for mut table in tables {
+                // Tag with database name if schema not already set
+                if table.schema.is_none() {
+                    table.schema = Some(db.clone());
+                }
+                all_tables.push(table);
+            }
+        }
+    }
+
+    Ok(all_tables)
+}

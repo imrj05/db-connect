@@ -1,323 +1,305 @@
-import { useEffect } from "react";
-import { ChevronDown, Database, Plus, Search, Loader2 } from "lucide-react";
+import { ChevronDown, ChevronRight, Database, Plus, Loader2, Plug, Unplug, Pencil } from "lucide-react";
 import { useAppStore } from "@/store/useAppStore";
-import { tauriApi } from "@/lib/tauri-api";
-import {
-    Combobox,
-    ComboboxInput,
-    ComboboxContent,
-    ComboboxList,
-    ComboboxEmpty,
-    ComboboxItem,
-} from "@/components/ui/combobox";
+import { ConnectionConfig, ConnectionFunction } from "@/types";
+import { cn } from "@/lib/utils";
 
-import { toast } from "sonner";
+// ─── Individual function item ─────────────────────────────────────────────────
+function FunctionItem({
+  fn,
+  isActive,
+  onInvoke,
+}: {
+  fn: ConnectionFunction;
+  isActive: boolean;
+  onInvoke: (fn: ConnectionFunction) => void;
+}) {
+  const typeColors: Record<string, string> = {
+    list: "text-violet-400",
+    src: "text-slate-400",
+    query: "text-emerald-400",
+    execute: "text-amber-400",
+    tbl: "text-cyan-400",
+    table: "text-blue-400",
+  };
 
-const Sidebar = () => {
-    const {
-        activeConnection,
-        activeDatabase,
-        setActiveDatabase,
-        databases,
-        setDatabases,
-        tables,
-        setTables,
-        isLoading,
-        setLoading,
-        activeTable,
-        setActiveTable,
-        setConnectionDialogOpen,
-        activeTabId,
-        setTabResults,
-        openTableTab,
-        queryTabs,
-    } = useAppStore();
+  return (
+    <button
+      onClick={() => onInvoke(fn)}
+      className={cn(
+        "w-full text-left flex items-center gap-2 px-2 py-1 rounded-md transition-all group",
+        isActive
+          ? "bg-blue-500/15 text-blue-300"
+          : "hover:bg-white/5 text-text-muted hover:text-text-secondary",
+      )}
+    >
+      <span
+        className={cn(
+          "w-1.5 h-1.5 rounded-full shrink-0 opacity-50",
+          isActive ? "bg-blue-400 opacity-100" : "bg-current",
+        )}
+      />
+      <span
+        className={cn(
+          "text-[11px] font-mono truncate",
+          isActive ? "text-blue-300" : typeColors[fn.type] ?? "text-text-muted",
+        )}
+      >
+        {fn.name}
+      </span>
+    </button>
+  );
+}
 
-    // Handle connection and fetch databases when activeConnection changes
-    useEffect(() => {
-        let isMounted = true;
-        if (activeConnection) {
-            console.log("Sidebar: Connecting to", activeConnection.name);
-            setLoading(true);
-            tauriApi
-                .connect(activeConnection)
-                .then(async () => {
-                    console.log("Sidebar: Connected, fetching databases...");
-                    const dbs = await tauriApi.getDatabases(
-                        activeConnection.id,
-                    );
-                    console.log("Sidebar: Databases received:", dbs);
-                    if (!isMounted) return;
+// ─── Connection node (one per connection) ─────────────────────────────────────
+function ConnectionNode({
+  connection,
+  isConnected,
+  isExpanded,
+  functions,
+  activeFunctionId,
+  onToggleExpand,
+  onConnect,
+  onDisconnect,
+  onEdit,
+  onInvoke,
+}: {
+  connection: ConnectionConfig;
+  isConnected: boolean;
+  isExpanded: boolean;
+  functions: ConnectionFunction[];
+  activeFunctionId?: string;
+  onToggleExpand: () => void;
+  onConnect: () => void;
+  onDisconnect: () => void;
+  onEdit: () => void;
+  onInvoke: (fn: ConnectionFunction) => void;
+}) {
+  const DB_COLORS: Record<string, string> = {
+    postgresql: "bg-blue-600",
+    mysql: "bg-cyan-600",
+    sqlite: "bg-slate-600",
+    mongodb: "bg-emerald-600",
+    redis: "bg-red-600",
+  };
 
-                    setDatabases(dbs);
+  const utilityFns = functions.filter((f) => f.type !== "table");
+  const tableFns = functions.filter((f) => f.type === "table");
 
-                    // If there are databases, ensure one is selected
-                    if (dbs.length > 0) {
-                        const targetDb =
-                            activeDatabase && dbs.includes(activeDatabase)
-                                ? activeDatabase
-                                : activeConnection.database &&
-                                    dbs.includes(activeConnection.database)
-                                    ? activeConnection.database
-                                    : dbs[0];
+  return (
+    <div className="mb-1">
+      {/* Connection header row */}
+      <div
+        className="flex items-center gap-2 px-2 py-1.5 rounded-lg hover:bg-white/5 cursor-pointer group transition-all select-none"
+        onClick={onToggleExpand}
+      >
+        {isExpanded ? (
+          <ChevronDown size={12} className="text-text-muted/60 shrink-0" />
+        ) : (
+          <ChevronRight size={12} className="text-text-muted/60 shrink-0" />
+        )}
 
-                        if (targetDb !== activeDatabase) {
-                            setActiveDatabase(targetDb);
-                        }
-                    }
-                })
-                .catch((err) => {
-                    if (isMounted) {
-                        console.error("Connection error:", err);
-                        toast.error(`Connection failed: ${err}`);
-                    }
-                })
-                .finally(() => {
-                    if (isMounted) setLoading(false);
-                });
-        }
-        return () => {
-            isMounted = false;
-        };
-    }, [activeConnection?.id]);
-
-    // Fetch tables when database changes
-    useEffect(() => {
-        let isMounted = true;
-        if (activeConnection && activeDatabase) {
-            console.log("Sidebar: Fetching tables for", activeDatabase);
-            setLoading(true);
-            setTables([]); // Clear current tables while loading
-            tauriApi
-                .getTables(activeConnection.id, activeDatabase)
-                .then((newTables) => {
-                    console.log("Sidebar: Tables received:", newTables.length);
-                    if (isMounted) setTables(newTables);
-                })
-                .catch((err) => {
-                    if (isMounted) {
-                        console.error("Tables fetch error:", err);
-                        toast.error(`Failed to fetch tables: ${err}`);
-                    }
-                })
-                .finally(() => {
-                    if (isMounted) setLoading(false);
-                });
-        }
-        return () => {
-            isMounted = false;
-        };
-    }, [activeConnection?.id, activeDatabase]);
-
-    // Fetch table data when table is selected
-    useEffect(() => {
-        const activeTab = queryTabs.find((t) => t.id === activeTabId);
-        const isTableTabMissingData =
-            activeTab?.type === "table" &&
-            activeTab.tableName === activeTable &&
-            !activeTab.results;
-
-        if (
-            activeConnection &&
-            activeDatabase &&
-            activeTable &&
-            activeTabId &&
-            isTableTabMissingData
-        ) {
-            console.log("Sidebar: Fetching data for table", activeTable);
-            setLoading(true);
-            tauriApi
-                .getTableData(activeConnection.id, activeDatabase, activeTable)
-                .then((results) => {
-                    console.log("Sidebar: Table results received", results);
-                    setTabResults(activeTabId, results);
-                })
-                .catch((err) => {
-                    console.error("Sidebar: Error fetching table data", err);
-                    toast.error(`Failed to load table data: ${err}`);
-                })
-                .finally(() => setLoading(false));
-        }
-    }, [
-        activeConnection?.id,
-        activeDatabase,
-        activeTable,
-        activeTabId,
-        queryTabs.length,
-    ]);
-
-    if (!activeConnection) {
-        return (
-            <div className="h-full flex flex-col items-center justify-center p-6 text-center bg-sidebar-bg">
-                <Plus size={32} className="text-text-muted mb-4 opacity-20" />
-                <p className="text-xs font-bold text-text-muted uppercase tracking-widest">
-                    No Active Connection
-                </p>
-            </div>
-        );
-    }
-
-    return (
-        <div className="h-full flex flex-col bg-sidebar-bg border-r border-border-sidebar overflow-hidden w-full">
-            {/* Sidebar Header */}
-            <div className="p-4 flex flex-col gap-4">
-                <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2 overflow-hidden">
-                        <div className="size-6 bg-blue-600 shrink-0 rounded flex items-center justify-center font-bold text-white text-[10px]">
-                            {(activeConnection.type || "")
-                                .substring(0, 2)
-                                .toUpperCase()}
-                        </div>
-                        <span className="text-sm font-bold tracking-tight truncate">
-                            {activeConnection.name}
-                        </span>
-                    </div>
-                    <Plus
-                        size={14}
-                        className="text-text-muted cursor-pointer hover:text-text-primary shrink-0"
-                        onClick={() => setConnectionDialogOpen(true)}
-                    />
-                </div>
-
-                {/* Database Selector */}
-                <div className="px-0 relative group">
-                    <Combobox
-                        value={activeDatabase || ""}
-                        onValueChange={(val) =>
-                            setActiveDatabase(val as string)
-                        }
-                    >
-                        <ComboboxInput
-                            placeholder="Select Database..."
-                            className="w-full h-9 bg-black/20 hover:bg-black/30 border-none text-[11px] font-bold uppercase tracking-wider text-text-secondary placeholder:text-text-muted/50 rounded-lg transition-all"
-                            showTrigger
-                        />
-                        <ComboboxContent className="bg-popover border border-white/5 shadow-2xl overflow-hidden rounded-xl min-w-50">
-                            <ComboboxList className="p-1 max-h-75">
-                                <ComboboxEmpty className="py-6 text-[11px] font-bold uppercase tracking-widest text-text-muted">
-                                    No databases found
-                                </ComboboxEmpty>
-                                {databases.map((db) => (
-                                    <ComboboxItem
-                                        key={db}
-                                        value={db}
-                                        className="flex items-center gap-2 px-3 py-2 rounded-lg text-[11px] font-bold uppercase tracking-widest data-highlighted:bg-blue-500/10 data-highlighted:text-blue-400 cursor-pointer transition-colors"
-                                    >
-                                        <Database
-                                            size={12}
-                                            className="opacity-50"
-                                        />
-                                        {db}
-                                    </ComboboxItem>
-                                ))}
-                            </ComboboxList>
-                        </ComboboxContent>
-                    </Combobox>
-                </div>
-
-                {/* Local Navigation Tabs */}
-                <div className="flex p-0.5 bg-black/10 rounded-md">
-                    <button className="flex-1 flex items-center justify-center gap-2 py-1 bg-white dark:bg-zinc-800 rounded shadow-sm text-[10px] font-bold uppercase transition-all">
-                        <Database size={12} />
-                        Schema
-                    </button>
-                    <button className="flex-1 flex items-center justify-center gap-2 py-1 text-text-muted text-[10px] font-bold uppercase hover:text-text-secondary transition-all">
-                        <ChevronDown size={12} className="-rotate-90" />
-                        Queries
-                    </button>
-                </div>
-
-                {/* Search */}
-                <div className="relative group">
-                    <Search
-                        size={12}
-                        className="absolute left-3 top-1/2 -translate-y-1/2 text-text-muted group-focus-within:text-blue-500 transition-colors"
-                    />
-                    <input
-                        placeholder="Filter explorer..."
-                        className="w-full bg-input-bg border border-border-input rounded-md pl-8 pr-3 py-1.5 text-[11px] outline-none focus:border-blue-500/50 transition-all font-medium"
-                    />
-                </div>
-            </div>
-
-            {/* Explorer Content */}
-            <div className="flex-1 overflow-y-auto scrollbar-thin px-2">
-                <div className="mb-4">
-                    <div className="flex items-center justify-between px-2 mb-2">
-                        <span className="text-[10px] font-bold text-text-muted uppercase tracking-widest">
-                            {isLoading ? (
-                                <Loader2 size={10} className="animate-spin" />
-                            ) : (
-                                `${tables.length} objects`
-                            )}
-                        </span>
-                    </div>
-                    <div className="flex flex-col gap-0.5">
-                        {tables.map((table) => (
-                            <div key={table.name} className="group">
-                                <div
-                                    onClick={() => {
-                                        setActiveTable(
-                                            activeTable === table.name
-                                                ? null
-                                                : table.name,
-                                        );
-                                        openTableTab(table.name);
-                                    }}
-                                    className={`flex items-center gap-2 px-2 py-1.5 rounded-md cursor-pointer transition-all ${activeTable === table.name ? "bg-sidebar-item-active text-sidebar-active" : "hover:bg-sidebar-item-hover text-text-secondary hover:text-text-primary"}`}
-                                >
-                                    <ChevronDown
-                                        size={12}
-                                        className={
-                                            activeTable === table.name
-                                                ? ""
-                                                : "-rotate-90 text-text-muted"
-                                        }
-                                    />
-                                    <Database
-                                        size={13}
-                                        className={
-                                            activeTable === table.name
-                                                ? "text-blue-400"
-                                                : "text-text-muted"
-                                        }
-                                    />
-                                    <span className="text-[11px] font-semibold flex-1 truncate">
-                                        {table.name}
-                                    </span>
-                                </div>
-                                {activeTable === table.name &&
-                                    table.columns && (
-                                        <div className="ml-6 mt-1 flex flex-col gap-1 mb-2">
-                                            {table.columns.map((col) => (
-                                                <div
-                                                    key={col.name}
-                                                    className="flex items-center justify-between pr-2 py-0.5 group/item cursor-default"
-                                                >
-                                                    <span className="text-[10px] font-medium text-text-muted group-hover/item:text-text-secondary truncate">
-                                                        {col.name}
-                                                    </span>
-                                                    <div className="flex items-center gap-1.5">
-                                                        <span className="text-[9px] font-mono text-zinc-500 uppercase">
-                                                            {col.type}
-                                                        </span>
-                                                        {col.isPrimary && (
-                                                            <span className="text-[8px] px-1 bg-amber-500/10 text-amber-500 border border-amber-500/20 rounded font-black leading-none py-0.5">
-                                                                PK
-                                                            </span>
-                                                        )}
-                                                    </div>
-                                                </div>
-                                            ))}
-                                        </div>
-                                    )}
-                            </div>
-                        ))}
-                    </div>
-                </div>
-            </div>
+        <div
+          className={cn(
+            "size-5 rounded flex items-center justify-center font-bold text-white text-[9px] shrink-0",
+            DB_COLORS[connection.type] ?? "bg-zinc-600",
+          )}
+        >
+          {connection.type.substring(0, 2).toUpperCase()}
         </div>
-    );
+
+        <div className="flex-1 min-w-0">
+          <span className="text-[11px] font-bold truncate text-text-primary block">
+            {connection.name}
+          </span>
+          <span className="text-[9px] font-mono text-text-muted/50 block">
+            {connection.prefix}_
+          </span>
+        </div>
+
+        {/* Action buttons (visible on hover) */}
+        <div
+          className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity shrink-0"
+          onClick={(e) => e.stopPropagation()}
+        >
+          <button
+            onClick={onEdit}
+            className="size-5 flex items-center justify-center rounded text-text-muted hover:text-white hover:bg-white/10 transition-colors"
+            title="Edit connection"
+          >
+            <Pencil size={10} />
+          </button>
+          {isConnected ? (
+            <button
+              onClick={onDisconnect}
+              className="size-5 flex items-center justify-center rounded text-text-muted hover:text-red-400 hover:bg-red-500/10 transition-colors"
+              title="Disconnect"
+            >
+              <Unplug size={10} />
+            </button>
+          ) : (
+            <button
+              onClick={onConnect}
+              className="size-5 flex items-center justify-center rounded text-text-muted hover:text-emerald-400 hover:bg-emerald-500/10 transition-colors"
+              title="Connect"
+            >
+              <Plug size={10} />
+            </button>
+          )}
+        </div>
+
+        {/* Connected indicator */}
+        {isConnected && (
+          <div className="size-1.5 rounded-full bg-emerald-500 shrink-0 animate-pulse" />
+        )}
+      </div>
+
+      {/* Expanded tree */}
+      {isExpanded && (
+        <div className="ml-4 pl-2 border-l border-white/5 mt-0.5 space-y-0.5">
+          {isConnected ? (
+            <>
+              {/* Utility functions: list, src, query, execute, tbl */}
+              {utilityFns.map((fn) => (
+                <FunctionItem
+                  key={fn.id}
+                  fn={fn}
+                  isActive={activeFunctionId === fn.id}
+                  onInvoke={onInvoke}
+                />
+              ))}
+
+              {/* Tables section */}
+              {tableFns.length > 0 && (
+                <>
+                  <div className="flex items-center gap-2 px-2 py-1 mt-1">
+                    <div className="flex-1 h-px bg-white/5" />
+                    <span className="text-[9px] font-bold uppercase tracking-widest text-text-muted/30">
+                      Tables ({tableFns.length})
+                    </span>
+                    <div className="flex-1 h-px bg-white/5" />
+                  </div>
+                  {tableFns.map((fn) => (
+                    <FunctionItem
+                      key={fn.id}
+                      fn={fn}
+                      isActive={activeFunctionId === fn.id}
+                      onInvoke={onInvoke}
+                    />
+                  ))}
+                </>
+              )}
+            </>
+          ) : (
+            /* Not yet connected */
+            <div className="px-2 py-3 space-y-2">
+              <p className="text-[10px] text-text-muted/50 font-mono">
+                {connection.prefix}_list() ...
+              </p>
+              <button
+                onClick={onConnect}
+                className="w-full h-7 bg-emerald-500/10 text-emerald-400 hover:bg-emerald-500/20 rounded text-[10px] font-bold uppercase tracking-widest transition-all flex items-center justify-center gap-1.5"
+              >
+                <Plug size={11} />
+                Connect
+              </button>
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ─── Main Sidebar ─────────────────────────────────────────────────────────────
+const Sidebar = () => {
+  const {
+    connections,
+    connectedIds,
+    connectionFunctions,
+    expandedConnections,
+    activeFunction,
+    isLoading,
+    connectAndInit,
+    disconnectConnection,
+    toggleConnectionExpanded,
+    invokeFunction,
+    setActiveFunctionOnly,
+    setConnectionDialogOpen,
+    setEditingConnection,
+  } = useAppStore();
+
+  const handleInvoke = (fn: ConnectionFunction) => {
+    // For query/execute: show editor without running
+    if (fn.type === "query" || fn.type === "execute") {
+      setActiveFunctionOnly(fn);
+    } else {
+      invokeFunction(fn);
+    }
+  };
+
+  return (
+    <div className="h-full flex flex-col bg-sidebar-bg border-r border-border-sidebar overflow-hidden w-full">
+      {/* Sidebar header */}
+      <div className="h-10 px-3 flex items-center justify-between border-b border-border-sidebar shrink-0">
+        <span className="text-[9px] font-black uppercase tracking-[0.2em] text-text-muted/50">
+          Connections
+        </span>
+        <div className="flex items-center gap-1">
+          {isLoading && <Loader2 size={12} className="animate-spin text-blue-500" />}
+          <button
+            onClick={() => {
+              setEditingConnection(null);
+              setConnectionDialogOpen(true);
+            }}
+            className="size-6 flex items-center justify-center rounded text-text-muted hover:text-white hover:bg-white/10 transition-colors"
+            title="New connection"
+          >
+            <Plus size={14} />
+          </button>
+        </div>
+      </div>
+
+      {/* Connection list */}
+      <div className="flex-1 overflow-y-auto scrollbar-thin p-2 space-y-0.5">
+        {connections.length === 0 ? (
+          <div className="flex flex-col items-center justify-center h-full gap-3 pb-8">
+            <Database size={24} className="text-text-muted opacity-20" />
+            <p className="text-[10px] font-bold text-text-muted/50 uppercase tracking-widest text-center">
+              No connections
+            </p>
+            <button
+              onClick={() => {
+                setEditingConnection(null);
+                setConnectionDialogOpen(true);
+              }}
+              className="px-4 py-1.5 bg-blue-600 hover:bg-blue-500 text-white rounded-lg font-bold text-[10px] transition-all active:scale-95"
+            >
+              Add Connection
+            </button>
+          </div>
+        ) : (
+          connections.map((conn) => (
+            <ConnectionNode
+              key={conn.id}
+              connection={conn}
+              isConnected={connectedIds.includes(conn.id)}
+              isExpanded={expandedConnections.includes(conn.id)}
+              functions={connectionFunctions[conn.id] ?? []}
+              activeFunctionId={activeFunction?.id}
+              onToggleExpand={() => toggleConnectionExpanded(conn.id)}
+              onConnect={() => connectAndInit(conn.id)}
+              onDisconnect={() => disconnectConnection(conn.id)}
+              onEdit={() => {
+                setEditingConnection(conn);
+                setConnectionDialogOpen(true);
+              }}
+              onInvoke={handleInvoke}
+            />
+          ))
+        )}
+      </div>
+    </div>
+  );
 };
 
 export default Sidebar;

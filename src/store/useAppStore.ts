@@ -1,215 +1,418 @@
 import { create } from "zustand";
-import { ConnectionConfig, QueryResult, TableInfo } from "@/types";
+import {
+  ConnectionConfig,
+  ConnectionFunction,
+  FunctionInvocationResult,
+  TableInfo,
+  ConnectionSourceInfo,
+} from "@/types";
 import { EncryptionUtils } from "@/lib/encryption";
+import { buildConnectionFunctions, suggestPrefix } from "@/lib/db-functions";
+import { tauriApi } from "@/lib/tauri-api";
+import { toast } from "sonner";
 
-const STORAGE_KEY = "db_connections_v2";
-
-interface QueryTab {
-	id: string;
-	name: string;
-	query: string;
-	type: "query" | "table";
-	tableName?: string;
-	results?: QueryResult;
-}
+const STORAGE_KEY = "db_connections_v3";
 
 interface AppState {
-	connections: ConnectionConfig[];
-	activeConnection: ConnectionConfig | null;
-	activeDatabase: string | null;
-	activeSchema: string | null;
-	databases: string[];
-	tables: TableInfo[];
-	queryTabs: QueryTab[];
-	activeTabId: string | null;
-	sidebarCollapsed: boolean;
-	commandPaletteOpen: boolean;
-	theme: "dark" | "light";
-	isLoading: boolean;
-	activeTable: string | null;
-	connectionDialogOpen: boolean;
+  // ---- Connection list (persisted) ----
+  connections: ConnectionConfig[];
 
-	// Actions
-	setConnections: (connections: ConnectionConfig[]) => void;
-	addConnection: (connection: ConnectionConfig) => void;
-	deleteConnection: (id: string) => void;
-	loadConnections: () => void;
-	setActiveConnection: (connection: ConnectionConfig | null) => void;
-	setActiveDatabase: (database: string | null) => void;
-	setActiveSchema: (schema: string | null) => void;
-	setDatabases: (databases: string[]) => void;
-	setTables: (tables: TableInfo[]) => void;
-	setLoading: (loading: boolean) => void;
-	setActiveTable: (table: string | null) => void;
-	setConnectionDialogOpen: (open: boolean) => void;
-	addQueryTab: () => void;
-	openTableTab: (tableName: string) => void;
-	closeQueryTab: (id: string) => void;
-	setActiveTabId: (id: string | null) => void;
-	updateTabQuery: (id: string, query: string) => void;
-	setTabResults: (id: string, results: QueryResult) => void;
-	toggleSidebar: () => void;
-	toggleRightPanel: () => void;
-	setCommandPaletteOpen: (open: boolean) => void;
-	setTheme: (theme: "dark" | "light") => void;
+  // ---- Live connection state ----
+  connectedIds: string[]; // IDs with active Rust driver in REGISTRY
+  connectionFunctions: Record<string, ConnectionFunction[]>; // connectionId → generated fns
+  connectionTables: Record<string, TableInfo[]>; // connectionId → discovered tables
+
+  // ---- Active function invocation ----
+  activeFunction: ConnectionFunction | null;
+  invocationResult: FunctionInvocationResult | null;
+  pendingSqlValue: string; // live SQL text for query/execute editors
+
+  // ---- UI state ----
+  expandedConnections: string[]; // connectionIds with open tree in sidebar
+  sidebarCollapsed: boolean;
+  commandPaletteOpen: boolean;
+  connectionDialogOpen: boolean;
+  editingConnection: ConnectionConfig | null;
+  theme: "dark" | "light";
+  isLoading: boolean;
+
+  // ---- Actions: persistence ----
+  loadConnections: () => void;
+  addConnection: (connection: ConnectionConfig) => void;
+  updateConnection: (connection: ConnectionConfig) => void;
+  setConnections: (connections: ConnectionConfig[]) => void;
+  deleteConnection: (id: string) => void;
+
+  // ---- Actions: connection lifecycle ----
+  connectAndInit: (connectionId: string) => Promise<void>;
+  disconnectConnection: (connectionId: string) => Promise<void>;
+
+  // ---- Actions: function invocation ----
+  invokeFunction: (
+    fn: ConnectionFunction,
+    args?: { sql?: string; tableName?: string; page?: number },
+  ) => Promise<void>;
+  setActiveFunctionOnly: (fn: ConnectionFunction) => void;
+  setPendingSql: (sql: string) => void;
+
+  // ---- Actions: UI ----
+  toggleConnectionExpanded: (connectionId: string) => void;
+  toggleSidebar: () => void;
+  setCommandPaletteOpen: (open: boolean) => void;
+  setConnectionDialogOpen: (open: boolean) => void;
+  setEditingConnection: (connection: ConnectionConfig | null) => void;
+  setTheme: (theme: "dark" | "light") => void;
+  setLoading: (loading: boolean) => void;
 }
 
-export const useAppStore = create<AppState>((set) => ({
-	connections: [],
-	activeConnection: null,
-	activeDatabase: null,
-	activeSchema: null,
-	databases: [],
-	tables: [],
-	queryTabs: [{ id: "1", name: "Query 1", query: "", type: "query" }],
-	activeTabId: "1",
-	sidebarCollapsed: false,
-	commandPaletteOpen: false,
-	theme: "dark",
-	isLoading: false,
-	activeTable: null,
-	connectionDialogOpen: false,
+export const useAppStore = create<AppState>((set, get) => ({
+  connections: [],
+  connectedIds: [],
+  connectionFunctions: {},
+  connectionTables: {},
+  activeFunction: null,
+  invocationResult: null,
+  pendingSqlValue: "",
+  expandedConnections: [],
+  sidebarCollapsed: false,
+  commandPaletteOpen: false,
+  connectionDialogOpen: false,
+  editingConnection: null,
+  theme: "dark",
+  isLoading: false,
 
-	setConnections: (connections) => {
-		const encrypted = EncryptionUtils.encrypt(connections);
-		localStorage.setItem(STORAGE_KEY, encrypted);
-		set({ connections });
-	},
+  // ---- Persistence ----
 
-	addConnection: (connection) =>
-		set((state) => {
-			const newConnections = [...state.connections, connection];
-			const encrypted = EncryptionUtils.encrypt(newConnections);
-			localStorage.setItem(STORAGE_KEY, encrypted);
-			return { connections: newConnections };
-		}),
+  loadConnections: () => {
+    // Try new v3 key first
+    const encrypted = localStorage.getItem(STORAGE_KEY);
+    if (encrypted) {
+      const decrypted = EncryptionUtils.decrypt(encrypted);
+      if (decrypted) {
+        set({ connections: decrypted });
+        return;
+      }
+    }
+    // Migration: try old v2 key, auto-generate prefixes for old records
+    const oldEncrypted = localStorage.getItem("db_connections_v2");
+    if (oldEncrypted) {
+      const oldDecrypted = EncryptionUtils.decrypt(oldEncrypted);
+      if (oldDecrypted) {
+        const migrated = (oldDecrypted as ConnectionConfig[]).map((c) => ({
+          ...c,
+          prefix: c.prefix || suggestPrefix(c.name),
+        }));
+        const newEncrypted = EncryptionUtils.encrypt(migrated);
+        localStorage.setItem(STORAGE_KEY, newEncrypted);
+        set({ connections: migrated });
+      }
+    }
+  },
 
-	deleteConnection: (id) =>
-		set((state) => {
-			const newConnections = state.connections.filter((c) => c.id !== id);
-			const encrypted = EncryptionUtils.encrypt(newConnections);
-			localStorage.setItem(STORAGE_KEY, encrypted);
-			return {
-				connections: newConnections,
-				activeConnection:
-					state.activeConnection?.id === id
-						? null
-						: state.activeConnection,
-			};
-		}),
+  addConnection: (connection) =>
+    set((state) => {
+      const newConnections = [...state.connections, connection];
+      localStorage.setItem(STORAGE_KEY, EncryptionUtils.encrypt(newConnections));
+      return { connections: newConnections };
+    }),
 
-	loadConnections: () => {
-		const encrypted = localStorage.getItem(STORAGE_KEY);
-		if (encrypted) {
-			const decrypted = EncryptionUtils.decrypt(encrypted);
-			if (decrypted) {
-				set({ connections: decrypted });
-			}
-		}
-	},
+  updateConnection: (connection) =>
+    set((state) => {
+      const newConnections = state.connections.map((c) =>
+        c.id === connection.id ? connection : c,
+      );
+      localStorage.setItem(STORAGE_KEY, EncryptionUtils.encrypt(newConnections));
+      return { connections: newConnections };
+    }),
 
-	setActiveConnection: (activeConnection) =>
-		set({
-			activeConnection,
-			activeDatabase: null,
-			activeSchema: null,
-			databases: [],
-			tables: [],
-			activeTable: null,
-		}),
-	setActiveDatabase: (activeDatabase) =>
-		set({ activeDatabase, activeSchema: null, tables: [] }),
-	setActiveSchema: (activeSchema) => set({ activeSchema, tables: [] }),
-	setDatabases: (databases) => set({ databases }),
-	setTables: (tables) => set({ tables }),
-	setLoading: (isLoading) => set({ isLoading }),
-	setActiveTable: (activeTable) => set({ activeTable }),
-	setConnectionDialogOpen: (connectionDialogOpen) =>
-		set({ connectionDialogOpen }),
+  setConnections: (connections) => {
+    localStorage.setItem(STORAGE_KEY, EncryptionUtils.encrypt(connections));
+    set({ connections });
+  },
 
-	addQueryTab: () =>
-		set((state) => {
-			const id = Math.random().toString(36).substring(7);
-			return {
-				queryTabs: [
-					...state.queryTabs,
-					{
-						id,
-						name: `Query ${state.queryTabs.length + 1}`,
-						query: "",
-						type: "query",
-					},
-				],
-				activeTabId: id,
-			};
-		}),
+  deleteConnection: (id) =>
+    set((state) => {
+      const newConnections = state.connections.filter((c) => c.id !== id);
+      localStorage.setItem(STORAGE_KEY, EncryptionUtils.encrypt(newConnections));
+      // Clean up live state for this connection
+      const { [id]: _fns, ...restFns } = state.connectionFunctions;
+      const { [id]: _tables, ...restTables } = state.connectionTables;
+      return {
+        connections: newConnections,
+        connectedIds: state.connectedIds.filter((cid) => cid !== id),
+        connectionFunctions: restFns,
+        connectionTables: restTables,
+        activeFunction:
+          state.activeFunction?.connectionId === id
+            ? null
+            : state.activeFunction,
+        invocationResult:
+          state.invocationResult?.fn.connectionId === id
+            ? null
+            : state.invocationResult,
+      };
+    }),
 
-	openTableTab: (tableName) =>
-		set((state) => {
-			const existingTab = state.queryTabs.find(
-				(t) => t.type === "table" && t.tableName === tableName,
-			);
-			if (existingTab) {
-				return { activeTabId: existingTab.id };
-			}
+  // ---- Connection lifecycle ----
 
-			const id = Math.random().toString(36).substring(7);
-			return {
-				queryTabs: [
-					...state.queryTabs,
-					{
-						id,
-						name: tableName,
-						query: `SELECT * FROM ${tableName} LIMIT 100`,
-						type: "table",
-						tableName,
-					},
-				],
-				activeTabId: id,
-			};
-		}),
+  connectAndInit: async (connectionId) => {
+    const { connections } = get();
+    const config = connections.find((c) => c.id === connectionId);
+    if (!config) return;
 
-	closeQueryTab: (id) =>
-		set((state) => {
-			const newTabs = state.queryTabs.filter((tab) => tab.id !== id);
-			return {
-				queryTabs:
-					newTabs.length > 0
-						? newTabs
-						: [
-								{
-									id: "1",
-									name: "Query 1",
-									query: "",
-									type: "query",
-								},
-							],
-				activeTabId:
-					state.activeTabId === id
-						? newTabs[0]?.id || "1"
-						: state.activeTabId,
-			};
-		}),
+    set({ isLoading: true });
+    try {
+      // Establish Rust driver connection
+      await tauriApi.connect(config);
 
-	setActiveTabId: (activeTabId) => set({ activeTabId }),
+      // Discover all tables flat (new command)
+      const tables = await tauriApi.listAllTables(connectionId);
 
-	updateTabQuery: (id, query) =>
-		set((state) => ({
-			queryTabs: state.queryTabs.map((tab) =>
-				tab.id === id ? { ...tab, query } : tab,
-			),
-		})),
+      // Build dbcooper-style function registry
+      const fns = buildConnectionFunctions(config, tables);
 
-	setTabResults: (id, results) =>
-		set((state) => ({
-			queryTabs: state.queryTabs.map((tab) =>
-				tab.id === id ? { ...tab, results } : tab,
-			),
-		})),
+      set((state) => ({
+        connectedIds: state.connectedIds.includes(connectionId)
+          ? state.connectedIds
+          : [...state.connectedIds, connectionId],
+        connectionTables: { ...state.connectionTables, [connectionId]: tables },
+        connectionFunctions: {
+          ...state.connectionFunctions,
+          [connectionId]: fns,
+        },
+        expandedConnections: state.expandedConnections.includes(connectionId)
+          ? state.expandedConnections
+          : [...state.expandedConnections, connectionId],
+      }));
 
-	toggleSidebar: () =>
-		set((state) => ({ sidebarCollapsed: !state.sidebarCollapsed })),
-	toggleRightPanel: () => {}, // No-op
-	setCommandPaletteOpen: (commandPaletteOpen) => set({ commandPaletteOpen }),
-	setTheme: (theme) => set({ theme }),
+      toast.success(`Connected: ${config.prefix}_list() and ${tables.length} table functions ready`);
+    } catch (error) {
+      toast.error(`Connection failed: ${String(error)}`);
+    } finally {
+      set({ isLoading: false });
+    }
+  },
+
+  disconnectConnection: async (connectionId) => {
+    try {
+      await tauriApi.disconnect(connectionId);
+    } catch {
+      // Ignore disconnect errors
+    }
+    set((state) => {
+      const { [connectionId]: _fns, ...restFns } = state.connectionFunctions;
+      const { [connectionId]: _tables, ...restTables } = state.connectionTables;
+      return {
+        connectedIds: state.connectedIds.filter((id) => id !== connectionId),
+        connectionFunctions: restFns,
+        connectionTables: restTables,
+        activeFunction:
+          state.activeFunction?.connectionId === connectionId
+            ? null
+            : state.activeFunction,
+        invocationResult:
+          state.invocationResult?.fn.connectionId === connectionId
+            ? null
+            : state.invocationResult,
+      };
+    });
+    toast.success("Disconnected");
+  },
+
+  // ---- Function invocation ----
+
+  invokeFunction: async (fn, args = {}) => {
+    const state = get();
+    const { connectionTables, connections } = state;
+
+    // Set loading state with the active function
+    set({
+      activeFunction: fn,
+      invocationResult: {
+        fn,
+        outputType: "idle",
+        isLoading: true,
+        invokedAt: Date.now(),
+      },
+    });
+
+    try {
+      switch (fn.type) {
+        case "list": {
+          const tables = connectionTables[fn.connectionId] ?? [];
+          set({
+            invocationResult: {
+              fn,
+              outputType: "table-list",
+              tables,
+              isLoading: false,
+              invokedAt: Date.now(),
+            },
+          });
+          break;
+        }
+
+        case "src": {
+          const config = connections.find((c) => c.id === fn.connectionId);
+          const tables = connectionTables[fn.connectionId] ?? [];
+          const info: ConnectionSourceInfo = {
+            connectionId: fn.connectionId,
+            name: config?.name ?? fn.connectionId,
+            prefix: fn.prefix,
+            type: config?.type ?? "postgresql",
+            host: config?.host,
+            port: config?.port,
+            database: config?.database,
+            ssl: config?.ssl,
+            tableCount: tables.length,
+          };
+          set({
+            invocationResult: {
+              fn,
+              outputType: "connection-src",
+              connectionInfo: info,
+              isLoading: false,
+              invokedAt: Date.now(),
+            },
+          });
+          break;
+        }
+
+        case "query":
+        case "execute": {
+          // If no SQL provided, show editor (user types SQL then runs)
+          if (!args.sql) {
+            set({
+              invocationResult: {
+                fn,
+                outputType: "sql-editor",
+                isLoading: false,
+                invokedAt: Date.now(),
+              },
+            });
+            break;
+          }
+          const result = await tauriApi.executeQuery(fn.connectionId, args.sql);
+          set({
+            invocationResult: {
+              fn,
+              outputType: "sql-editor",
+              queryResult: result,
+              isLoading: false,
+              invokedAt: Date.now(),
+            },
+          });
+          break;
+        }
+
+        case "table": {
+          const tables = connectionTables[fn.connectionId] ?? [];
+          // Determine the database/schema for this table
+          const tableInfo = tables.find((t) => t.name === fn.tableName);
+          const database =
+            tableInfo?.schema ??
+            connections.find((c) => c.id === fn.connectionId)?.database ??
+            "default";
+          const page = args.page ?? 0;
+          const result = await tauriApi.getTableData(
+            fn.connectionId,
+            database,
+            fn.tableName!,
+            page,
+            50,
+          );
+          set({
+            invocationResult: {
+              fn,
+              outputType: "table-grid",
+              queryResult: result,
+              isLoading: false,
+              invokedAt: Date.now(),
+            },
+          });
+          break;
+        }
+
+        case "tbl": {
+          if (!args.tableName) {
+            // Show table list to pick from
+            const tables = connectionTables[fn.connectionId] ?? [];
+            set({
+              invocationResult: {
+                fn,
+                outputType: "table-list",
+                tables,
+                isLoading: false,
+                invokedAt: Date.now(),
+              },
+            });
+            break;
+          }
+          const tables = connectionTables[fn.connectionId] ?? [];
+          const tableInfo = tables.find((t) => t.name === args.tableName);
+          const database =
+            tableInfo?.schema ??
+            connections.find((c) => c.id === fn.connectionId)?.database ??
+            "default";
+          const result = await tauriApi.getTableData(
+            fn.connectionId,
+            database,
+            args.tableName,
+            args.page ?? 0,
+            50,
+          );
+          set({
+            invocationResult: {
+              fn,
+              outputType: "table-grid",
+              queryResult: result,
+              isLoading: false,
+              invokedAt: Date.now(),
+            },
+          });
+          break;
+        }
+      }
+    } catch (error) {
+      set((s) => ({
+        invocationResult: s.invocationResult
+          ? { ...s.invocationResult, isLoading: false, error: String(error) }
+          : null,
+      }));
+      toast.error(String(error));
+    }
+  },
+
+  setActiveFunctionOnly: (fn) =>
+    set({
+      activeFunction: fn,
+      invocationResult: {
+        fn,
+        outputType: "sql-editor",
+        isLoading: false,
+        invokedAt: Date.now(),
+      },
+      pendingSqlValue: "",
+    }),
+
+  setPendingSql: (pendingSqlValue) => set({ pendingSqlValue }),
+
+  // ---- UI ----
+
+  toggleConnectionExpanded: (connectionId) =>
+    set((state) => ({
+      expandedConnections: state.expandedConnections.includes(connectionId)
+        ? state.expandedConnections.filter((id) => id !== connectionId)
+        : [...state.expandedConnections, connectionId],
+    })),
+
+  toggleSidebar: () =>
+    set((state) => ({ sidebarCollapsed: !state.sidebarCollapsed })),
+
+  setCommandPaletteOpen: (commandPaletteOpen) => set({ commandPaletteOpen }),
+  setConnectionDialogOpen: (connectionDialogOpen) =>
+    set({ connectionDialogOpen }),
+  setEditingConnection: (editingConnection) => set({ editingConnection }),
+  setTheme: (theme) => set({ theme }),
+  setLoading: (isLoading) => set({ isLoading }),
 }));
