@@ -23,9 +23,24 @@ export interface TableInfo {
 
 export interface ColumnInfo {
   name: string;
-  type: string;
+  dataType: string;
   nullable: boolean;
   isPrimary: boolean;
+  isUnique: boolean;
+  defaultValue: string | null;
+  extra: string | null;
+}
+
+export interface IndexInfo {
+  name: string;
+  columns: string[];
+  unique: boolean;
+  indexType: string | null;
+}
+
+export interface TableStructure {
+  columns: ColumnInfo[];
+  indexes: IndexInfo[];
 }
 
 export interface QueryResult {

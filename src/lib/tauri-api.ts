@@ -1,5 +1,5 @@
 import { invoke } from "@tauri-apps/api/core";
-import { ConnectionConfig, QueryResult, TableInfo } from "@/types";
+import { ConnectionConfig, QueryResult, TableInfo, TableStructure } from "@/types";
 
 export const tauriApi = {
   async connect(config: ConnectionConfig): Promise<void> {
@@ -32,5 +32,9 @@ export const tauriApi = {
 
   async getUserDatabases(id: string): Promise<string[]> {
     return await invoke("get_user_databases", { id });
+  },
+
+  async getTableStructure(id: string, database: string, table: string, schema?: string): Promise<TableStructure> {
+    return await invoke("get_table_structure", { id, database, table, schema: schema ?? null });
   },
 };

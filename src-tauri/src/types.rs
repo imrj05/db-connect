@@ -43,6 +43,28 @@ pub struct ColumnInfo {
     pub data_type: String,
     pub nullable: bool,
     pub is_primary: bool,
+    #[serde(default)]
+    pub is_unique: bool,
+    #[serde(default)]
+    pub default_value: Option<String>,
+    #[serde(default)]
+    pub extra: Option<String>,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+#[serde(rename_all = "camelCase")]
+pub struct IndexInfo {
+    pub name: String,
+    pub columns: Vec<String>,
+    pub unique: bool,
+    pub index_type: Option<String>,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+#[serde(rename_all = "camelCase")]
+pub struct TableStructure {
+    pub columns: Vec<ColumnInfo>,
+    pub indexes: Vec<IndexInfo>,
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]

@@ -68,16 +68,56 @@ impl DatabaseDriver for SqliteDriver {
         let pool_lock = self.pool.read().await;
         let pool = pool_lock.as_ref().ok_or_else(|| anyhow!("Not connected"))?;
 
-        let rows = sqlx::query(&format!("PRAGMA table_info({})", table))
+        // PRAGMA table_info: cid(0), name(1), type(2), notnull(3), dflt_value(4), pk(5)
+        let rows = sqlx::query(&format!("PRAGMA table_info(\"{}\")", table))
             .fetch_all(pool)
             .await?;
 
         Ok(rows.iter().map(|r| ColumnInfo {
-            name: r.get::<String, _>(1),
-            data_type: r.get::<String, _>(2),
+            name: r.get(1),
+            data_type: r.get(2),
             nullable: r.get::<i32, _>(3) == 0,
+            default_value: r.try_get::<Option<String>, _>(4).unwrap_or(None),
             is_primary: r.get::<i32, _>(5) == 1,
+            is_unique: false, // determined via indexes
+            extra: None,
         }).collect())
+    }
+
+    async fn get_indexes(&self, _database: &str, table: &str, _schema: Option<&str>) -> Result<Vec<IndexInfo>> {
+        let pool_lock = self.pool.read().await;
+        let pool = pool_lock.as_ref().ok_or_else(|| anyhow!("Not connected"))?;
+
+        // PRAGMA index_list: seq(0), name(1), unique(2), origin(3), partial(4)
+        let index_rows = sqlx::query(&format!("PRAGMA index_list(\"{}\")", table))
+            .fetch_all(pool)
+            .await?;
+
+        let mut indexes = Vec::new();
+        for irow in &index_rows {
+            let index_name: String = irow.get(1);
+            let unique: i32 = irow.get(2);
+
+            // PRAGMA index_info: seqno(0), cid(1), name(2)
+            let col_rows = sqlx::query(&format!("PRAGMA index_info(\"{}\")", index_name))
+                .fetch_all(pool)
+                .await
+                .unwrap_or_default();
+
+            let mut cols: Vec<(i32, String)> = col_rows.iter().map(|r| {
+                (r.get::<i32, _>(0), r.get::<String, _>(2))
+            }).collect();
+            cols.sort_by_key(|(seq, _)| *seq);
+
+            indexes.push(IndexInfo {
+                name: index_name,
+                columns: cols.into_iter().map(|(_, c)| c).collect(),
+                unique: unique == 1,
+                index_type: Some("BTREE".to_string()),
+            });
+        }
+
+        Ok(indexes)
     }
 
     async fn run_query(&self, query: &str) -> Result<QueryResult> {

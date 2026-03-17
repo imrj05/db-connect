@@ -132,3 +132,19 @@ pub async fn list_all_tables(id: String, database: Option<String>) -> Result<Vec
 
     Ok(all_tables)
 }
+
+#[tauri::command]
+pub async fn get_table_structure(id: String, database: String, table: String, schema: Option<String>) -> Result<TableStructure, String> {
+    let driver = REGISTRY.connections.get(&id)
+        .ok_or_else(|| "Not connected".to_string())?;
+
+    let columns = driver.get_columns(&database, &table, schema.as_deref())
+        .await
+        .map_err(|e| e.to_string())?;
+
+    let indexes = driver.get_indexes(&database, &table, schema.as_deref())
+        .await
+        .unwrap_or_default();
+
+    Ok(TableStructure { columns, indexes })
+}

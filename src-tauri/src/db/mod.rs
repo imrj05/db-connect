@@ -16,6 +16,9 @@ pub trait DatabaseDriver: Send + Sync {
     async fn get_schemas(&self, database: &str) -> Result<Vec<String>>;
     async fn get_tables(&self, database: &str, schema: Option<&str>) -> Result<Vec<TableInfo>>;
     async fn get_columns(&self, database: &str, table: &str, schema: Option<&str>) -> Result<Vec<ColumnInfo>>;
+    async fn get_indexes(&self, _database: &str, _table: &str, _schema: Option<&str>) -> Result<Vec<IndexInfo>> {
+        Ok(vec![])
+    }
     async fn run_query(&self, query: &str) -> Result<QueryResult>;
     async fn get_table_data(&self, database: &str, table: &str, page: u32, page_size: u32) -> Result<QueryResult>;
 }

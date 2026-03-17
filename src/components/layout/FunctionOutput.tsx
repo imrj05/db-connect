@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import CodeMirror from "@uiw/react-codemirror";
 import { sql } from "@codemirror/lang-sql";
 import { oneDark } from "@codemirror/theme-one-dark";
@@ -19,6 +19,7 @@ import {
   Server,
   Lock,
   Hash,
+  Key,
 } from "lucide-react";
 import { useAppStore } from "@/store/useAppStore";
 import { cn } from "@/lib/utils";
@@ -30,7 +31,8 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { TableInfo, ConnectionFunction } from "@/types";
+import { TableInfo, ConnectionFunction, TableStructure } from "@/types";
+import { tauriApi } from "@/lib/tauri-api";
 
 // ─── Idle state ────────────────────────────────────────────────────────────────
 function IdleView({ onNewConnection }: { onNewConnection: () => void }) {
@@ -64,15 +66,37 @@ function TableGridView({
   isLoading,
   onPageChange,
   page,
+  database,
 }: {
   fn: ConnectionFunction;
   queryResult?: { columns: string[]; rows: any[]; executionTimeMs: number };
   isLoading: boolean;
   onPageChange: (page: number) => void;
   page: number;
+  database: string;
 }) {
   const [viewMode, setViewMode] = useState<"data" | "structure">("data");
   const [sorting, setSorting] = useState<SortingState>([]);
+  const [structure, setStructure] = useState<TableStructure | null>(null);
+  const [structureLoading, setStructureLoading] = useState(false);
+
+  const loadStructure = useCallback(async () => {
+    if (structure || !fn.tableName) return;
+    setStructureLoading(true);
+    try {
+      const s = await tauriApi.getTableStructure(fn.connectionId, database, fn.tableName);
+      setStructure(s);
+    } catch {
+      // ignore
+    } finally {
+      setStructureLoading(false);
+    }
+  }, [fn, database, structure]);
+
+  const handleViewMode = (mode: "data" | "structure") => {
+    setViewMode(mode);
+    if (mode === "structure") loadStructure();
+  };
 
   const table = useReactTable({
     data: queryResult?.rows ?? [],
@@ -86,9 +110,7 @@ function TableGridView({
       accessorKey: col,
       header: col,
       cell: (info: any) => (
-        <span
-          className={`${info.getValue() === null ? "text-text-null italic" : ""} font-medium`}
-        >
+        <span className={`${info.getValue() === null ? "text-text-null italic" : ""} font-medium`}>
           {info.getValue() === null ? "null" : String(info.getValue())}
         </span>
       ),
@@ -115,9 +137,7 @@ function TableGridView({
         <div className="w-16 h-16 mb-6 bg-emerald-500/10 rounded-full flex items-center justify-center ring-1 ring-emerald-500/20">
           <Sparkles size={32} className="text-emerald-500/40" />
         </div>
-        <h3 className="text-sm font-bold uppercase tracking-[0.2em] mb-2">
-          Empty result
-        </h3>
+        <h3 className="text-sm font-bold uppercase tracking-[0.2em] mb-2">Empty result</h3>
         <p className="text-[10px] text-text-muted uppercase tracking-widest opacity-60">
           0 rows · {queryResult.executionTimeMs}ms
         </p>
@@ -141,109 +161,224 @@ function TableGridView({
           </button>
         </div>
       </div>
-      {/* Table */}
-      <div className="flex-1 overflow-auto scrollbar-thin">
-        <div className="min-w-full inline-block align-middle">
-          <Table className="w-full border-collapse text-[11px] font-mono border-separate border-spacing-0">
-            <TableHeader className="sticky top-0 z-10 bg-[#111111] shadow-[0_1px_0_rgba(255,255,255,0.05)]">
-              {table.getHeaderGroups().map((headerGroup) => (
-                <TableRow
-                  key={headerGroup.id}
-                  className="hover:bg-transparent border-none"
-                >
-                  <TableHead className="w-10 h-8 px-2 text-center font-bold text-text-muted/30 border-r border-white/5 bg-[#181818]">
-                    #
-                  </TableHead>
-                  {headerGroup.headers.map((header) => (
-                    <TableHead
-                      key={header.id}
-                      className="h-8 px-4 text-left font-bold text-text-muted border-r border-white/5 last:border-r-0 hover:bg-white/5 cursor-pointer transition-colors"
-                      onClick={header.column.getToggleSortingHandler()}
-                    >
-                      {flexRender(
-                        header.column.columnDef.header,
-                        header.getContext(),
-                      )}
+
+      {/* Content: Data view */}
+      {viewMode === "data" && (
+        <div className="flex-1 overflow-auto scrollbar-thin">
+          <div className="min-w-full inline-block align-middle">
+            <Table className="w-full border-collapse text-[11px] font-mono border-separate border-spacing-0">
+              <TableHeader className="sticky top-0 z-10 bg-[#111111] shadow-[0_1px_0_rgba(255,255,255,0.05)]">
+                {table.getHeaderGroups().map((headerGroup) => (
+                  <TableRow key={headerGroup.id} className="hover:bg-transparent border-none">
+                    <TableHead className="w-10 h-8 px-2 text-center font-bold text-text-muted/30 border-r border-white/5 bg-[#181818]">
+                      #
                     </TableHead>
-                  ))}
-                </TableRow>
-              ))}
-            </TableHeader>
-            <TableBody>
-              {table.getRowModel().rows.map((row, idx) => (
-                <TableRow
-                  key={row.id}
-                  className="hover:bg-blue-500/5 transition-colors group"
-                >
-                  <TableCell className="w-10 h-8 px-2 text-center text-text-muted/30 border-r border-white/5 bg-[#181818]/30">
-                    {page * 50 + idx + 1}
-                  </TableCell>
-                  {row.getVisibleCells().map((cell) => (
-                    <TableCell
-                      key={cell.id}
-                      className="h-8 px-4 border-r border-white/5 last:border-r-0 text-text-primary/90 whitespace-nowrap overflow-hidden text-ellipsis max-w-75"
-                    >
-                      {flexRender(
-                        cell.column.columnDef.cell,
-                        cell.getContext(),
-                      )}
+                    {headerGroup.headers.map((header) => (
+                      <TableHead
+                        key={header.id}
+                        className="h-8 px-4 text-left font-bold text-text-muted border-r border-white/5 last:border-r-0 hover:bg-white/5 cursor-pointer transition-colors"
+                        onClick={header.column.getToggleSortingHandler()}
+                      >
+                        {flexRender(header.column.columnDef.header, header.getContext())}
+                      </TableHead>
+                    ))}
+                  </TableRow>
+                ))}
+              </TableHeader>
+              <TableBody>
+                {table.getRowModel().rows.map((row, idx) => (
+                  <TableRow key={row.id} className="hover:bg-blue-500/5 transition-colors group">
+                    <TableCell className="w-10 h-8 px-2 text-center text-text-muted/30 border-r border-white/5 bg-[#181818]/30">
+                      {page * 50 + idx + 1}
                     </TableCell>
-                  ))}
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
+                    {row.getVisibleCells().map((cell) => (
+                      <TableCell
+                        key={cell.id}
+                        className="h-8 px-4 border-r border-white/5 last:border-r-0 text-text-primary/90 whitespace-nowrap overflow-hidden text-ellipsis max-w-75"
+                      >
+                        {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                      </TableCell>
+                    ))}
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </div>
         </div>
-      </div>
+      )}
+
+      {/* Content: Structure view */}
+      {viewMode === "structure" && (
+        <div className="flex-1 overflow-auto scrollbar-thin bg-[#0d0d0d]">
+          {structureLoading ? (
+            <div className="h-full flex items-center justify-center">
+              <Loader2 size={18} className="animate-spin text-blue-500" />
+            </div>
+          ) : structure ? (
+            <div className="p-0">
+              {/* Columns */}
+              <div className="border-b border-white/5">
+                <div className="px-4 py-2 bg-[#181818] flex items-center gap-2 border-b border-white/5">
+                  <Key size={11} className="text-text-muted/50" />
+                  <span className="text-[9px] font-black uppercase tracking-widest text-text-muted/50">
+                    Columns ({structure.columns.length})
+                  </span>
+                </div>
+                <table className="w-full text-[11px] font-mono">
+                  <thead className="sticky top-0 bg-[#161616] z-10">
+                    <tr>
+                      <th className="h-7 px-3 text-left text-[9px] font-bold uppercase tracking-widest text-text-muted/40 border-b border-white/5 w-6">#</th>
+                      <th className="h-7 px-3 text-left text-[9px] font-bold uppercase tracking-widest text-text-muted/40 border-b border-white/5">Name</th>
+                      <th className="h-7 px-3 text-left text-[9px] font-bold uppercase tracking-widest text-text-muted/40 border-b border-white/5">Type</th>
+                      <th className="h-7 px-3 text-left text-[9px] font-bold uppercase tracking-widest text-text-muted/40 border-b border-white/5">Null</th>
+                      <th className="h-7 px-3 text-left text-[9px] font-bold uppercase tracking-widest text-text-muted/40 border-b border-white/5">Default</th>
+                      <th className="h-7 px-3 text-left text-[9px] font-bold uppercase tracking-widest text-text-muted/40 border-b border-white/5">Key</th>
+                      <th className="h-7 px-3 text-left text-[9px] font-bold uppercase tracking-widest text-text-muted/40 border-b border-white/5">Extra</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {structure.columns.map((col, idx) => (
+                      <tr key={col.name} className="hover:bg-white/3 transition-colors border-b border-white/[0.04]">
+                        <td className="h-8 px-3 text-text-muted/30">{idx + 1}</td>
+                        <td className="h-8 px-3 text-text-primary font-semibold">{col.name}</td>
+                        <td className="h-8 px-3 text-amber-400/80">{col.dataType}</td>
+                        <td className="h-8 px-3">
+                          <span className={cn("text-[9px] font-bold uppercase", col.nullable ? "text-text-muted/40" : "text-red-400/70")}>
+                            {col.nullable ? "YES" : "NO"}
+                          </span>
+                        </td>
+                        <td className="h-8 px-3 text-text-muted/50 italic">
+                          {col.defaultValue ?? <span className="text-text-muted/25 not-italic">—</span>}
+                        </td>
+                        <td className="h-8 px-3">
+                          <div className="flex items-center gap-1">
+                            {col.isPrimary && (
+                              <span className="px-1.5 py-0.5 rounded text-[8px] font-black uppercase tracking-wider bg-amber-500/15 text-amber-400 border border-amber-500/20">
+                                PK
+                              </span>
+                            )}
+                            {col.isUnique && !col.isPrimary && (
+                              <span className="px-1.5 py-0.5 rounded text-[8px] font-black uppercase tracking-wider bg-violet-500/15 text-violet-400 border border-violet-500/20">
+                                UNI
+                              </span>
+                            )}
+                          </div>
+                        </td>
+                        <td className="h-8 px-3 text-text-muted/40 italic text-[10px]">
+                          {col.extra ?? <span className="text-text-muted/20 not-italic">—</span>}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+
+              {/* Indexes */}
+              {structure.indexes.length > 0 && (
+                <div>
+                  <div className="px-4 py-2 bg-[#181818] flex items-center gap-2 border-b border-white/5">
+                    <Hash size={11} className="text-text-muted/50" />
+                    <span className="text-[9px] font-black uppercase tracking-widest text-text-muted/50">
+                      Indexes ({structure.indexes.length})
+                    </span>
+                  </div>
+                  <table className="w-full text-[11px] font-mono">
+                    <thead className="sticky top-0 bg-[#161616]">
+                      <tr>
+                        <th className="h-7 px-3 text-left text-[9px] font-bold uppercase tracking-widest text-text-muted/40 border-b border-white/5">Name</th>
+                        <th className="h-7 px-3 text-left text-[9px] font-bold uppercase tracking-widest text-text-muted/40 border-b border-white/5">Columns</th>
+                        <th className="h-7 px-3 text-left text-[9px] font-bold uppercase tracking-widest text-text-muted/40 border-b border-white/5">Type</th>
+                        <th className="h-7 px-3 text-left text-[9px] font-bold uppercase tracking-widest text-text-muted/40 border-b border-white/5">Unique</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {structure.indexes.map((idx) => (
+                        <tr key={idx.name} className="hover:bg-white/3 transition-colors border-b border-white/[0.04]">
+                          <td className="h-8 px-3 text-blue-400/80">{idx.name}</td>
+                          <td className="h-8 px-3 text-text-primary/80">
+                            <div className="flex flex-wrap gap-1">
+                              {idx.columns.map((c) => (
+                                <span key={c} className="px-1.5 py-0.5 bg-white/5 rounded text-[9px]">{c}</span>
+                              ))}
+                            </div>
+                          </td>
+                          <td className="h-8 px-3 text-text-muted/50 uppercase text-[9px]">{idx.indexType ?? "—"}</td>
+                          <td className="h-8 px-3">
+                            {idx.unique ? (
+                              <span className="px-1.5 py-0.5 rounded text-[8px] font-black uppercase tracking-wider bg-emerald-500/15 text-emerald-400 border border-emerald-500/20">YES</span>
+                            ) : (
+                              <span className="text-text-muted/30 text-[9px]">NO</span>
+                            )}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
+          ) : (
+            <div className="h-full flex items-center justify-center text-text-muted/30 text-[11px] font-mono">
+              No structure data
+            </div>
+          )}
+        </div>
+      )}
+
       {/* Footer toolbar */}
       <div className="h-9 bg-[#181818] border-t border-white/5 flex items-center justify-between px-2 shrink-0">
         <div className="flex items-center gap-1">
           <button
-            onClick={() => setViewMode("data")}
+            onClick={() => handleViewMode("data")}
             className={cn(
               "px-3 h-6 rounded text-[10px] font-bold uppercase tracking-widest transition-all",
-              viewMode === "data"
-                ? "bg-white/10 text-white"
-                : "text-text-muted hover:text-white",
+              viewMode === "data" ? "bg-white/10 text-white" : "text-text-muted hover:text-white",
             )}
           >
             Data
           </button>
           <button
-            onClick={() => setViewMode("structure")}
+            onClick={() => handleViewMode("structure")}
             className={cn(
               "px-3 h-6 rounded text-[10px] font-bold uppercase tracking-widest transition-all",
-              viewMode === "structure"
-                ? "bg-white/10 text-white"
-                : "text-text-muted hover:text-white",
+              viewMode === "structure" ? "bg-white/10 text-white" : "text-text-muted hover:text-white",
             )}
           >
             Structure
           </button>
         </div>
-        <div className="flex items-center gap-4 text-[10px] font-mono text-text-muted/60">
-          <button
-            disabled={page === 0}
-            onClick={() => onPageChange(page - 1)}
-            className="px-2 h-6 rounded text-text-muted hover:text-white disabled:opacity-30 text-[10px] font-bold uppercase tracking-widest"
-          >
-            ← Prev
-          </button>
-          <span className="tabular-nums">
-            {page * 50 + 1}–{page * 50 + queryResult.rows.length}
+        {viewMode === "data" && (
+          <>
+            <div className="flex items-center gap-4 text-[10px] font-mono text-text-muted/60">
+              <button
+                disabled={page === 0}
+                onClick={() => onPageChange(page - 1)}
+                className="px-2 h-6 rounded text-text-muted hover:text-white disabled:opacity-30 text-[10px] font-bold uppercase tracking-widest"
+              >
+                ← Prev
+              </button>
+              <span className="tabular-nums">
+                {page * 50 + 1}–{page * 50 + queryResult.rows.length}
+              </span>
+              <button
+                disabled={queryResult.rows.length < 50}
+                onClick={() => onPageChange(page + 1)}
+                className="px-2 h-6 rounded text-text-muted hover:text-white disabled:opacity-30 text-[10px] font-bold uppercase tracking-widest"
+              >
+                Next →
+              </button>
+            </div>
+            <button className="px-3 h-6 rounded bg-white/5 text-text-muted hover:text-white text-[10px] font-bold uppercase tracking-widest">
+              <Download size={10} className="inline mr-1" />
+              Export
+            </button>
+          </>
+        )}
+        {viewMode === "structure" && (
+          <span className="text-[9px] font-mono text-text-muted/30">
+            {structure ? `${structure.columns.length} columns · ${structure.indexes.length} indexes` : ""}
           </span>
-          <button
-            disabled={queryResult.rows.length < 50}
-            onClick={() => onPageChange(page + 1)}
-            className="px-2 h-6 rounded text-text-muted hover:text-white disabled:opacity-30 text-[10px] font-bold uppercase tracking-widest"
-          >
-            Next →
-          </button>
-        </div>
-        <button className="px-3 h-6 rounded bg-white/5 text-text-muted hover:text-white text-[10px] font-bold uppercase tracking-widest">
-          <Download size={10} className="inline mr-1" />
-          Export
-        </button>
+        )}
       </div>
     </div>
   );
@@ -583,6 +718,8 @@ const FunctionOutput = () => {
     setPendingSql,
     invokeFunction,
     connectionFunctions,
+    connectionTables,
+    connections,
     setConnectionDialogOpen,
     isLoading,
   } = useAppStore();
@@ -626,6 +763,17 @@ const FunctionOutput = () => {
     [invocationResult, connectionFunctions, invokeFunction],
   );
 
+  const activeTableDatabase = useMemo(() => {
+    if (!activeFunction?.tableName) return "default";
+    const tables = connectionTables[activeFunction.connectionId] ?? [];
+    const tableInfo = tables.find((t) => t.name === activeFunction.tableName);
+    return (
+      tableInfo?.schema ??
+      connections.find((c) => c.id === activeFunction.connectionId)?.database ??
+      "default"
+    );
+  }, [activeFunction, connectionTables, connections]);
+
   const outputType = invocationResult?.outputType ?? "idle";
 
   if (outputType === "idle" || !invocationResult || !activeFunction) {
@@ -665,6 +813,7 @@ const FunctionOutput = () => {
           isLoading={false}
           onPageChange={handlePageChange}
           page={page}
+          database={activeTableDatabase}
         />
       );
 

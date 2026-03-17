@@ -91,13 +91,59 @@ impl DatabaseDriver for MySqlDriver {
 
         pool.execute(format!("USE `{}`", database).as_str()).await?;
 
-        let rows = pool.fetch_all(format!("SHOW COLUMNS FROM `{}`.`{}`", database, table).as_str()).await?;
+        let rows = pool.fetch_all(
+            format!("SHOW FULL COLUMNS FROM `{}`.`{}`", database, table).as_str()
+        ).await?;
 
-        Ok(rows.iter().map(|r| ColumnInfo {
-            name: r.get::<String, _>(0),
-            data_type: r.get::<String, _>(1),
-            nullable: r.get::<String, _>(2) == "YES",
-            is_primary: r.get::<String, _>(3) == "PRI",
+        // SHOW FULL COLUMNS: Field, Type, Collation, Null, Key, Default, Extra, ...
+        Ok(rows.iter().map(|r| {
+            let key: String = r.try_get::<String, _>(4).unwrap_or_default();
+            let extra: String = r.try_get::<String, _>(6).unwrap_or_default();
+            ColumnInfo {
+                name: r.get(0),
+                data_type: r.get(1),
+                nullable: r.try_get::<String, _>(3).unwrap_or_default() == "YES",
+                is_primary: key == "PRI",
+                is_unique: key == "UNI",
+                default_value: r.try_get::<Option<String>, _>(5).unwrap_or(None),
+                extra: if extra.is_empty() { None } else { Some(extra) },
+            }
+        }).collect())
+    }
+
+    async fn get_indexes(&self, database: &str, table: &str, _schema: Option<&str>) -> Result<Vec<IndexInfo>> {
+        let pool_lock = self.pool.read().await;
+        let pool = pool_lock.as_ref().ok_or_else(|| anyhow!("Not connected"))?;
+
+        pool.execute(format!("USE `{}`", database).as_str()).await?;
+
+        let rows = pool.fetch_all(
+            format!("SHOW INDEX FROM `{}`.`{}`", database, table).as_str()
+        ).await?;
+
+        // SHOW INDEX: Table(0), Non_unique(1), Key_name(2), Seq_in_index(3), Column_name(4), ..., Index_type(10)
+        use std::collections::BTreeMap;
+        let mut index_map: BTreeMap<String, (bool, Vec<(u32, String)>, String)> = BTreeMap::new();
+
+        for row in &rows {
+            let non_unique: i8 = row.try_get::<i8, _>(1).unwrap_or(1);
+            let key_name: String = row.try_get(2).unwrap_or_default();
+            let seq: u32 = row.try_get::<u32, _>(3).unwrap_or(0);
+            let col_name: String = row.try_get(4).unwrap_or_default();
+            let index_type: String = row.try_get(10).unwrap_or_else(|_| "BTREE".to_string());
+
+            let entry = index_map.entry(key_name).or_insert((non_unique == 0, vec![], index_type));
+            entry.1.push((seq, col_name));
+        }
+
+        Ok(index_map.into_iter().map(|(name, (unique, mut cols, index_type))| {
+            cols.sort_by_key(|(seq, _)| *seq);
+            IndexInfo {
+                name,
+                columns: cols.into_iter().map(|(_, c)| c).collect(),
+                unique,
+                index_type: Some(index_type),
+            }
         }).collect())
     }
 

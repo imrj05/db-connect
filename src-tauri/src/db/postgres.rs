@@ -96,9 +96,24 @@ impl DatabaseDriver for PostgresDriver {
 
         let schema_name = schema.unwrap_or("public");
         let rows = sqlx::query(
-            "SELECT column_name, data_type, is_nullable, column_default
-             FROM information_schema.columns
-             WHERE table_name = $1 AND table_schema = $2"
+            "SELECT
+                col.column_name,
+                col.data_type,
+                col.is_nullable = 'YES' AS nullable,
+                col.column_default,
+                COALESCE(bool_or(tc.constraint_type = 'PRIMARY KEY'), false) AS is_primary,
+                COALESCE(bool_or(tc.constraint_type = 'UNIQUE'), false) AS is_unique
+             FROM information_schema.columns col
+             LEFT JOIN information_schema.key_column_usage kcu
+                 ON kcu.column_name = col.column_name
+                 AND kcu.table_name = col.table_name
+                 AND kcu.table_schema = col.table_schema
+             LEFT JOIN information_schema.table_constraints tc
+                 ON tc.constraint_name = kcu.constraint_name
+                 AND tc.table_schema = kcu.table_schema
+             WHERE col.table_name = $1 AND col.table_schema = $2
+             GROUP BY col.column_name, col.data_type, col.is_nullable, col.column_default, col.ordinal_position
+             ORDER BY col.ordinal_position"
         )
         .bind(table)
         .bind(schema_name)
@@ -106,10 +121,51 @@ impl DatabaseDriver for PostgresDriver {
         .await?;
 
         Ok(rows.iter().map(|r| ColumnInfo {
-            name: r.get::<String, _>(0),
-            data_type: r.get::<String, _>(1),
-            nullable: r.get::<String, _>(2) == "YES",
-            is_primary: false, // Implementation needs more logic for PK
+            name: r.get(0),
+            data_type: r.get(1),
+            nullable: r.get(2),
+            default_value: r.try_get::<Option<String>, _>(3).unwrap_or(None),
+            is_primary: r.get(4),
+            is_unique: r.get(5),
+            extra: None,
+        }).collect())
+    }
+
+    async fn get_indexes(&self, _database: &str, table: &str, schema: Option<&str>) -> Result<Vec<IndexInfo>> {
+        let pool_lock = self.pool.read().await;
+        let pool = pool_lock.as_ref().ok_or_else(|| anyhow!("Not connected"))?;
+
+        let schema_name = schema.unwrap_or("public");
+        let rows = sqlx::query(
+            "SELECT
+                i.relname AS index_name,
+                ix.indisunique AS is_unique,
+                am.amname AS index_type,
+                array_agg(a.attname ORDER BY k.ord) AS columns
+             FROM pg_index ix
+             JOIN pg_class t ON t.oid = ix.indrelid
+             JOIN pg_class i ON i.oid = ix.indexrelid
+             JOIN pg_am am ON am.oid = i.relam
+             JOIN pg_namespace n ON n.oid = t.relnamespace
+             JOIN LATERAL unnest(ix.indkey) WITH ORDINALITY AS k(attnum, ord) ON true
+             JOIN pg_attribute a ON a.attrelid = t.oid AND a.attnum = k.attnum AND a.attnum > 0
+             WHERE t.relname = $1 AND n.nspname = $2
+             GROUP BY i.relname, ix.indisunique, am.amname
+             ORDER BY i.relname"
+        )
+        .bind(table)
+        .bind(schema_name)
+        .fetch_all(pool)
+        .await?;
+
+        Ok(rows.iter().map(|r| {
+            let cols: Vec<String> = r.try_get::<Vec<String>, _>(3).unwrap_or_default();
+            IndexInfo {
+                name: r.get(0),
+                unique: r.get(1),
+                index_type: r.try_get::<String, _>(2).ok(),
+                columns: cols,
+            }
         }).collect())
     }
 
