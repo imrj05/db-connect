@@ -799,21 +799,28 @@ const FunctionOutput = () => {
 
   const outputType = invocationResult?.outputType ?? "idle";
 
-  if (outputType === "idle" || !invocationResult || !activeFunction) {
-    return <IdleView onNewConnection={() => setConnectionDialogOpen(true)} />;
-  }
-
-  if (invocationResult.isLoading || isLoading) {
+  // Show loader first — before the idle check — so switching tables/databases
+  // shows a spinner instead of flickering through the "No function selected" screen.
+  if (isLoading || invocationResult?.isLoading) {
+    const label = activeFunction
+      ? activeFunction.callSignature.slice(activeFunction.prefix.length + 1)
+      : "";
     return (
       <div className="h-full flex items-center justify-center bg-app-bg">
         <div className="text-center space-y-3">
           <Loader2 size={24} className="animate-spin text-blue-500 mx-auto" />
-          <p className="text-[10px] font-mono text-text-muted/60 uppercase tracking-widest">
-            {activeFunction.callSignature.slice(activeFunction.prefix.length + 1)}
-          </p>
+          {label && (
+            <p className="text-[10px] font-mono text-text-muted/60 uppercase tracking-widest">
+              {label}
+            </p>
+          )}
         </div>
       </div>
     );
+  }
+
+  if (outputType === "idle" || !invocationResult || !activeFunction) {
+    return <IdleView onNewConnection={() => setConnectionDialogOpen(true)} />;
   }
 
   if (invocationResult.error) {
