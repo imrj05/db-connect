@@ -1,7 +1,10 @@
-import { ChevronDown, ChevronRight, Database, Plus, Loader2, Plug, Unplug, Pencil, ChevronsUpDown } from "lucide-react";
+import { useState } from "react";
+import { ChevronDown, ChevronRight, Database, Plus, Loader2, Plug, Unplug, Pencil, ChevronsUpDown, Check } from "lucide-react";
 import { useAppStore } from "@/store/useAppStore";
 import { ConnectionConfig, ConnectionFunction } from "@/types";
 import { cn } from "@/lib/utils";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
 
 // ─── Individual function item ─────────────────────────────────────────────────
 function FunctionItem({
@@ -60,7 +63,8 @@ function DatabaseSelector({
   selected: string | undefined;
   onSelect: (db: string) => void;
 }) {
-  // Build the list to display: use fetched databases, or fall back to just the selected one
+  const [open, setOpen] = useState(false);
+
   const displayDbs = databases.length > 0
     ? databases
     : selected
@@ -69,24 +73,58 @@ function DatabaseSelector({
 
   if (displayDbs.length === 0) return null;
 
+  const current = selected ?? displayDbs[0];
+
   return (
-    <div className="relative mx-1 mb-1">
-      <div className="flex items-center gap-1.5 px-2 py-1.5 rounded-md bg-white/5 border border-white/8 hover:bg-white/8 transition-colors">
-        <Database size={10} className="text-text-muted/50 shrink-0" />
-        <select
-          value={selected ?? displayDbs[0] ?? ""}
-          onChange={(e) => onSelect(e.target.value)}
-          onClick={(e) => e.stopPropagation()}
-          className="flex-1 bg-transparent text-[10px] font-mono text-text-secondary appearance-none cursor-pointer outline-none min-w-0 truncate"
+    <div className="mx-1 mb-1" onClick={(e) => e.stopPropagation()}>
+      <Popover open={open} onOpenChange={setOpen}>
+        <PopoverTrigger asChild>
+          <button className="w-full flex items-center gap-1.5 px-2 py-1.5 rounded-md bg-white/5 border border-white/8 hover:bg-white/8 transition-colors">
+            <Database size={10} className="text-text-muted/50 shrink-0" />
+            <span className="flex-1 text-left text-[10px] font-mono text-text-secondary truncate min-w-0">
+              {current}
+            </span>
+            <ChevronsUpDown size={9} className="text-text-muted/40 shrink-0" />
+          </button>
+        </PopoverTrigger>
+        <PopoverContent
+          className="w-48 p-0 bg-zinc-900 border border-white/10 shadow-xl"
+          align="start"
+          side="right"
+          sideOffset={6}
         >
-          {displayDbs.map((db) => (
-            <option key={db} value={db} className="bg-zinc-900 text-text-primary">
-              {db}
-            </option>
-          ))}
-        </select>
-        <ChevronsUpDown size={9} className="text-text-muted/40 shrink-0 pointer-events-none" />
-      </div>
+          <Command className="bg-transparent">
+            <CommandInput
+              placeholder="Search database..."
+              className="h-8 text-[11px] font-mono border-b border-white/10 bg-transparent text-text-primary placeholder:text-text-muted/40"
+            />
+            <CommandList className="max-h-48">
+              <CommandEmpty className="py-3 text-center text-[10px] text-text-muted/50">
+                No database found
+              </CommandEmpty>
+              <CommandGroup>
+                {displayDbs.map((db) => (
+                  <CommandItem
+                    key={db}
+                    value={db}
+                    onSelect={() => {
+                      onSelect(db);
+                      setOpen(false);
+                    }}
+                    className="flex items-center gap-2 px-2 py-1.5 text-[11px] font-mono cursor-pointer aria-selected:bg-white/10 text-text-secondary hover:text-text-primary"
+                  >
+                    <Check
+                      size={10}
+                      className={cn("shrink-0", db === current ? "opacity-100 text-blue-400" : "opacity-0")}
+                    />
+                    {db}
+                  </CommandItem>
+                ))}
+              </CommandGroup>
+            </CommandList>
+          </Command>
+        </PopoverContent>
+      </Popover>
     </div>
   );
 }
