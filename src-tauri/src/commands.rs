@@ -84,12 +84,8 @@ pub async fn get_user_databases(id: String) -> Result<Vec<String>, String> {
     let driver = REGISTRY.connections.get(&id)
         .ok_or_else(|| "Not connected".to_string())?;
 
-    let all_dbs = driver.get_databases().await.map_err(|e| e.to_string())?;
-    let user_dbs: Vec<String> = all_dbs.into_iter()
-        .filter(|db| !SYSTEM_DATABASES.contains(&db.to_lowercase().as_str()))
-        .collect();
-
-    Ok(user_dbs)
+    // Return all databases — let the user pick which one to work with
+    driver.get_databases().await.map_err(|e| e.to_string())
 }
 
 #[tauri::command]
