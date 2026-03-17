@@ -1,45 +1,118 @@
-import { useState } from 'react';
-import { Shield, Globe, Database, Key, Server, Tag, Loader2, FileText, CheckCircle2, Trash2 } from 'lucide-react';
+import { useEffect, useState } from 'react';
+import {
+    Shield, Globe, Database, Key, Server, Tag,
+    Loader2, FileText, CheckCircle2, Trash2, Hash,
+    Wifi, WifiOff, Eye, EyeOff, ChevronRight,
+} from 'lucide-react';
 import { ConnectionConfig } from '@/types';
 import { useAppStore } from '@/store/useAppStore';
 import { tauriApi } from '@/lib/tauri-api';
 import { toast } from 'sonner';
 import { motion, AnimatePresence } from 'framer-motion';
-import {
-    Dialog,
-    DialogContent,
-    DialogDescription,
-    DialogFooter,
-    DialogHeader,
-    DialogTitle,
-} from "@/components/ui/dialog"
-import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { Switch } from "@/components/ui/switch"
-import { FieldGroup, Field, FieldLabel, FieldDescription } from "@/components/ui/field"
-import { Card, CardContent } from "@/components/ui/card"
-import { cn } from "@/lib/utils"
+import { Dialog, DialogContent } from "@/components/ui/dialog";
+import { Switch } from "@/components/ui/switch";
+import { cn } from "@/lib/utils";
+import { suggestPrefix } from '@/lib/db-functions';
+
+// ── Types ──────────────────────────────────────────────────────────────────────
 
 interface ConnectionDialogProps {
     onClose: () => void;
     initialData?: ConnectionConfig;
 }
 
+// ── Constants ──────────────────────────────────────────────────────────────────
+
 const ENGINE_DEFAULTS: Record<string, Partial<ConnectionConfig>> = {
     postgresql: { host: 'localhost', port: 5432, user: 'postgres', database: 'postgres' },
-    mysql: { host: 'localhost', port: 3306, user: 'root', database: 'mysql' },
-    sqlite: { database: 'local.sqlite' },
-    mongodb: { uri: 'mongodb://localhost:27017' },
-    redis: { host: 'localhost', port: 6379 },
+    mysql:      { host: 'localhost', port: 3306, user: 'root',     database: 'mysql'    },
+    sqlite:     { database: 'local.sqlite'                                               },
+    mongodb:    { uri: 'mongodb://localhost:27017'                                       },
+    redis:      { host: 'localhost', port: 6379                                          },
 };
 
 const DATABASE_ENGINES = [
-    { id: 'postgresql', name: 'Postgres', color: 'text-blue-500', bgColor: 'bg-blue-500/10', borderColor: 'border-blue-500/20' },
-    { id: 'mysql', name: 'MySQL', color: 'text-cyan-500', bgColor: 'bg-cyan-500/10', borderColor: 'border-cyan-500/20' },
-    { id: 'sqlite', name: 'SQLite', color: 'text-slate-500', bgColor: 'bg-slate-500/10', borderColor: 'border-slate-500/20' },
-    { id: 'mongodb', name: 'MongoDB', color: 'text-emerald-500', bgColor: 'bg-emerald-500/10', borderColor: 'border-emerald-500/20' },
-    { id: 'redis', name: 'Redis', color: 'text-red-500', bgColor: 'bg-red-500/10', borderColor: 'border-red-500/20' }
+    {
+        id: 'postgresql', label: 'PostgreSQL',
+        color: '#3B82F6', bg: 'bg-blue-500/10', text: 'text-blue-400',
+        border: 'border-blue-500/30', ring: 'ring-blue-500/20',
+        abbr: 'PG',
+        description: 'Advanced open source RDBMS',
+    },
+    {
+        id: 'mysql', label: 'MySQL',
+        color: '#06B6D4', bg: 'bg-cyan-500/10', text: 'text-cyan-400',
+        border: 'border-cyan-500/30', ring: 'ring-cyan-500/20',
+        abbr: 'MY',
+        description: 'World\'s most popular open source DB',
+    },
+    {
+        id: 'sqlite', label: 'SQLite',
+        color: '#64748B', bg: 'bg-slate-500/10', text: 'text-slate-400',
+        border: 'border-slate-500/30', ring: 'ring-slate-500/20',
+        abbr: 'LT',
+        description: 'Lightweight embedded database',
+    },
+    {
+        id: 'mongodb', label: 'MongoDB',
+        color: '#10B981', bg: 'bg-emerald-500/10', text: 'text-emerald-400',
+        border: 'border-emerald-500/30', ring: 'ring-emerald-500/20',
+        abbr: 'MG',
+        description: 'Flexible document database',
+    },
+    {
+        id: 'redis', label: 'Redis',
+        color: '#EF4444', bg: 'bg-red-500/10', text: 'text-red-400',
+        border: 'border-red-500/30', ring: 'ring-red-500/20',
+        abbr: 'RD',
+        description: 'In-memory data structure store',
+    },
 ] as const;
+
+// ── Sub-components ─────────────────────────────────────────────────────────────
+
+function FormLabel({ children, required }: { children: React.ReactNode; required?: boolean }) {
+    return (
+        <label className="block text-[10px] font-bold uppercase tracking-widest text-text-muted/70 mb-1.5">
+            {children}
+            {required && <span className="text-red-500 ml-0.5">*</span>}
+        </label>
+    );
+}
+
+function FormInput({ className, ...props }: React.InputHTMLAttributes<HTMLInputElement>) {
+    return (
+        <input
+            {...props}
+            className={cn(
+                "w-full h-9 bg-white/5 border border-white/10 rounded-lg px-3 text-sm text-text-primary placeholder:text-text-muted/40 outline-none transition-all",
+                "focus:border-blue-500/50 focus:bg-white/[0.07] focus:ring-1 focus:ring-blue-500/20",
+                "disabled:opacity-40 disabled:cursor-not-allowed",
+                className,
+            )}
+        />
+    );
+}
+
+function ConnectionUrlPreview({ formData }: { formData: Partial<ConnectionConfig> }) {
+    const url = (() => {
+        const { type, host, port, user, database, uri } = formData;
+        if (type === 'mongodb') return uri || 'mongodb://localhost:27017';
+        if (type === 'sqlite') return `sqlite://${database || 'local.sqlite'}`;
+        if (type === 'redis') return `redis://${host || 'localhost'}:${port || 6379}`;
+        const scheme = type === 'mysql' ? 'mysql' : 'postgres';
+        return `${scheme}://${user || 'user'}:****@${host || 'localhost'}:${port || 5432}/${database || 'db'}`;
+    })();
+
+    return (
+        <div className="bg-black/30 border border-white/5 rounded-lg px-3 py-2 flex items-center gap-2">
+            <span className="text-[9px] font-bold uppercase tracking-widest text-text-muted/40 shrink-0">URL</span>
+            <span className="text-[11px] font-mono text-text-muted/60 truncate">{url}</span>
+        </div>
+    );
+}
+
+// ── Main component ─────────────────────────────────────────────────────────────
 
 const ConnectionDialog = ({ onClose, initialData }: ConnectionDialogProps) => {
     const {
@@ -47,99 +120,93 @@ const ConnectionDialog = ({ onClose, initialData }: ConnectionDialogProps) => {
         addConnection,
         setConnections,
         deleteConnection,
-        setActiveConnection,
-        setLoading,
-        isLoading
+        connectAndInit,
+        isLoading,
     } = useAppStore();
+
     const [isTesting, setIsTesting] = useState(false);
+    const [testStatus, setTestStatus] = useState<'idle' | 'success' | 'error'>('idle');
+    const [showPassword, setShowPassword] = useState(false);
+    const [prefixManuallyEdited, setPrefixManuallyEdited] = useState(!!initialData?.prefix);
+
     const [formData, setFormData] = useState<Partial<ConnectionConfig>>(
         initialData || {
             name: '',
+            prefix: '',
             type: 'postgresql',
             ...ENGINE_DEFAULTS.postgresql,
             ssl: false,
         }
     );
 
-    const handleTypeChange = (type: string) => {
-        setFormData(prev => ({
-            ...prev,
-            type: type as any,
-            ...(ENGINE_DEFAULTS[type] || {})
-        }));
+    const activeEngine = DATABASE_ENGINES.find(e => e.id === formData.type) ?? DATABASE_ENGINES[0];
+
+    // Auto-suggest prefix from connection name
+    useEffect(() => {
+        if (!prefixManuallyEdited && formData.name) {
+            setFormData(prev => ({ ...prev, prefix: suggestPrefix(formData.name || '') }));
+        }
+    }, [formData.name, prefixManuallyEdited]);
+
+    const patch = (partial: Partial<ConnectionConfig>) =>
+        setFormData(prev => ({ ...prev, ...partial }));
+
+    const handleEngineChange = (id: string) => {
+        patch({ type: id as any, ...(ENGINE_DEFAULTS[id] || {}) });
+        setTestStatus('idle');
     };
 
-    const handleTestConnection = async () => {
+    const buildConfig = (): ConnectionConfig => ({
+        ...formData,
+        id: formData.id || Math.random().toString(36).substring(7),
+        name: formData.name || `Connection ${connections.length + 1}`,
+        prefix: formData.prefix || suggestPrefix(formData.name || `conn${connections.length + 1}`),
+    } as ConnectionConfig);
+
+    const persistConnection = (config: ConnectionConfig) => {
+        if (initialData) {
+            setConnections(connections.map(c => c.id === initialData.id ? config : c));
+        } else if (connections.find(c => c.name === config.name)) {
+            setConnections(connections.map(c => c.name === config.name ? config : c));
+        } else {
+            addConnection(config);
+        }
+    };
+
+    const handleTest = async () => {
         setIsTesting(true);
+        setTestStatus('idle');
         try {
-            // Always use a unique temporary ID for testing to avoid
-            // overwriting active connections in the registry
             const testConfig = {
                 ...formData,
                 id: `test-${Math.random().toString(36).substring(7)}`,
-                name: formData.name || 'Test Connection',
+                name: formData.name || 'Test',
+                prefix: formData.prefix || 'test',
             } as ConnectionConfig;
-
             await tauriApi.connect(testConfig);
-            toast.success('Connection successful');
-
-            // Immediately disconnect the test session
             await tauriApi.disconnect(testConfig.id);
-        } catch (error) {
-            toast.error(`Connection failed: ${String(error)}`);
+            setTestStatus('success');
+            toast.success('Connection successful');
+        } catch (err) {
+            setTestStatus('error');
+            toast.error(`Connection failed: ${String(err)}`);
         } finally {
             setIsTesting(false);
         }
     };
 
-    const persistConnection = (config: ConnectionConfig) => {
-        if (initialData) {
-            const updatedConnections = connections.map((c: ConnectionConfig) => c.id === initialData.id ? config : c);
-            setConnections(updatedConnections);
-            return updatedConnections;
-        } else {
-            // Check if connection with same name already exists to avoid duplicates
-            if (connections.find(c => c.name === config.name)) {
-                const updatedConnections = connections.map((c: ConnectionConfig) => c.name === config.name ? config : c);
-                setConnections(updatedConnections);
-                return updatedConnections;
-            }
-            addConnection(config);
-            return [...connections, config];
-        }
-    };
-
-    const handleSaveOnly = async () => {
-        const newConn = {
-            ...formData,
-            id: formData.id || Math.random().toString(36).substring(7),
-            name: formData.name || `Connection ${connections.length + 1}`,
-        } as ConnectionConfig;
-
-        persistConnection(newConn);
-        toast.success(initialData ? 'Connection updated' : 'Connection saved to list');
+    const handleSave = async () => {
+        const config = buildConfig();
+        persistConnection(config);
+        toast.success(initialData ? 'Connection updated' : 'Connection saved');
         onClose();
     };
 
-    const saveConnection = async () => {
-        const newConn = {
-            ...formData,
-            id: formData.id || Math.random().toString(36).substring(7),
-            name: formData.name || `Connection ${connections.length + 1}`,
-        } as ConnectionConfig;
-
-        setLoading(true);
-        try {
-            await tauriApi.connect(newConn);
-            persistConnection(newConn);
-            setActiveConnection(newConn);
-            toast.success(initialData ? 'Connection updated' : 'Connected successfully');
-            onClose();
-        } catch (error) {
-            toast.error(`Failed to connect: ${String(error)}`);
-        } finally {
-            setLoading(false);
-        }
+    const handleConnect = async () => {
+        const config = buildConfig();
+        persistConnection(config);
+        await connectAndInit(config.id);
+        onClose();
     };
 
     const handleDelete = () => {
@@ -150,258 +217,417 @@ const ConnectionDialog = ({ onClose, initialData }: ConnectionDialogProps) => {
         }
     };
 
+    // ── Render ───────────────────────────────────────────────────────────────────
+
     return (
-        <Dialog open={true} onOpenChange={(open) => !open && onClose()}>
-            <DialogContent className="max-w-5xl sm:max-w-5xl overflow-hidden p-0 shadow-2xl ring-1 ring-foreground/5 sm:rounded-2xl">
-                {/* Header Section */}
-                <DialogHeader className="p-6 bg-muted/30 border-b">
-                    <div className="flex items-center justify-between">
-                        <div className="space-y-1.5">
-                            <DialogTitle className="text-xl font-semibold tracking-tight">
-                                {initialData ? 'Edit Database Connection' : 'New Database Connection'}
-                            </DialogTitle>
-                            <DialogDescription className="text-muted-foreground">
-                                Set up your database credentials and connection parameters.
-                            </DialogDescription>
+        <Dialog open onOpenChange={open => !open && onClose()}>
+            <DialogContent showCloseButton={false} className="!max-w-[860px] !w-[860px] !p-0 !gap-0 overflow-hidden bg-[#111111] border border-white/8 shadow-2xl rounded-2xl">
+                <div className="flex h-[560px]">
+
+                    {/* ── Left panel: engine selector ─────────────────────────────── */}
+                    <div className="w-52 shrink-0 bg-[#0d0d0d] border-r border-white/5 flex flex-col">
+                        {/* Panel header */}
+                        <div className="h-14 px-4 flex items-end pb-3 border-b border-white/5">
+                            <span className="text-[9px] font-black uppercase tracking-[0.2em] text-text-muted/40">
+                                Database Engine
+                            </span>
                         </div>
-                    </div>
-                </DialogHeader>
-                <div className="flex-1 overflow-y-auto p-6 space-y-8 max-h-[70vh]">
-                    {/* Engine Selection */}
-                    <section className="space-y-4">
-                        <h4 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground/70">Select Database Engine</h4>
-                        <div className="grid grid-cols-5 gap-3">
-                            {DATABASE_ENGINES.map((db) => {
-                                const isActive = formData.type === db.id;
+
+                        {/* Engine list */}
+                        <div className="flex-1 p-2 space-y-0.5 overflow-y-auto scrollbar-thin">
+                            {DATABASE_ENGINES.map(engine => {
+                                const isActive = formData.type === engine.id;
                                 return (
-                                    <Card
-                                        key={db.id}
-                                        onClick={() => handleTypeChange(db.id)}
+                                    <button
+                                        key={engine.id}
+                                        onClick={() => handleEngineChange(engine.id)}
                                         className={cn(
-                                            "relative cursor-pointer transition-all duration-200 py-3",
+                                            "w-full flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all duration-150 text-left group",
                                             isActive
-                                                ? "bg-background border-primary ring-1 ring-primary/20"
-                                                : "bg-muted/10 border-transparent hover:bg-muted/30 hover:border-muted-foreground/20"
+                                                ? `${engine.bg} border ${engine.border}`
+                                                : "hover:bg-white/5 border border-transparent",
                                         )}
                                     >
-                                        <CardContent className="flex flex-col items-center gap-2.5 p-0">
+                                        {/* Engine icon */}
+                                        <div className={cn(
+                                            "size-8 rounded-lg flex items-center justify-center font-black text-[10px] shrink-0 transition-all",
+                                            isActive
+                                                ? `${engine.bg} ${engine.text} border ${engine.border}`
+                                                : "bg-white/5 text-text-muted/40 group-hover:bg-white/10",
+                                        )}>
+                                            {engine.abbr}
+                                        </div>
+
+                                        <div className="min-w-0 flex-1">
                                             <div className={cn(
-                                                "size-10 rounded-lg flex items-center justify-center transition-colors shadow-inner",
-                                                isActive ? db.bgColor : "bg-muted/50 contrast-75 grayscale opacity-50"
+                                                "text-[12px] font-semibold leading-none",
+                                                isActive ? engine.text : "text-text-secondary",
                                             )}>
-                                                <Database className={cn("size-5", isActive ? db.color : "text-muted-foreground")} />
+                                                {engine.label}
                                             </div>
-                                            <span className={cn(
-                                                "text-[11px] font-medium leading-none",
-                                                isActive ? "text-foreground" : "text-muted-foreground"
-                                            )}>
-                                                {db.name}
-                                            </span>
-                                            {isActive && (
-                                                <motion.div
-                                                    layoutId="active-check"
-                                                    className="absolute top-2 right-2"
-                                                    initial={{ opacity: 0, scale: 0.5 }}
-                                                    animate={{ opacity: 1, scale: 1 }}
-                                                >
-                                                    <CheckCircle2 className="size-3.5 text-primary fill-background" />
-                                                </motion.div>
-                                            )}
-                                        </CardContent>
-                                    </Card>
+                                            <div className="text-[9px] text-text-muted/40 mt-0.5 leading-tight truncate">
+                                                {engine.description}
+                                            </div>
+                                        </div>
+
+                                        {isActive && (
+                                            <ChevronRight size={12} className={cn("shrink-0", engine.text)} />
+                                        )}
+                                    </button>
                                 );
                             })}
                         </div>
-                    </section>
-                    {/* Form Fields */}
-                    <FieldGroup className="grid grid-cols-2 gap-6">
-                        <Field className="col-span-2">
-                            <FieldLabel className="text-xs font-medium text-muted-foreground flex items-center gap-2">
-                                <Tag className="size-3.5" /> Connection Name
-                            </FieldLabel>
-                            <Input
-                                value={formData.name || ''}
-                                onChange={e => setFormData({ ...formData, name: e.target.value })}
-                                placeholder="e.g. Production Analytics"
-                                className="h-10 text-sm font-medium"
-                            />
-                            <FieldDescription>An optional alias for this connection.</FieldDescription>
-                        </Field>
-                        {formData.type === 'mongodb' ? (
-                            <Field className="col-span-2">
-                                <FieldLabel className="text-xs font-medium text-muted-foreground flex items-center gap-2">
-                                    <Globe className="size-3.5" /> Connection URI
-                                </FieldLabel>
-                                <Input
-                                    value={formData.uri || ''}
-                                    onChange={e => setFormData({ ...formData, uri: e.target.value })}
-                                    placeholder="mongodb+srv://user:pass@cluster0.abc.mongodb.net/dbname"
-                                    className="h-10 text-sm font-mono bg-muted/20"
-                                />
-                            </Field>
-                        ) : formData.type === 'sqlite' ? (
-                            <Field className="col-span-2">
-                                <FieldLabel className="text-xs font-medium text-muted-foreground flex items-center gap-2">
-                                    <FileText className="size-3.5" /> Database File Path
-                                </FieldLabel>
-                                <div className="flex gap-2">
-                                    <Input
-                                        value={formData.database || ''}
-                                        onChange={e => setFormData({ ...formData, database: e.target.value })}
-                                        placeholder="/path/to/database.sqlite"
-                                        className="h-10 text-sm flex-1"
-                                    />
-                                    <Button variant="secondary" size="sm" className="h-10">Browse</Button>
-                                </div>
-                            </Field>
-                        ) : (
-                            <>
-                                <Field>
-                                    <FieldLabel className="text-xs font-medium text-muted-foreground flex items-center gap-2">
-                                        <Server className="size-3.5" /> Hostname / IP
-                                    </FieldLabel>
-                                    <Input
-                                        value={formData.host || ''}
-                                        onChange={e => setFormData({ ...formData, host: e.target.value })}
-                                        placeholder="localhost"
-                                        className="h-10 text-sm"
-                                    />
-                                </Field>
-                                <Field>
-                                    <FieldLabel className="text-xs font-medium text-muted-foreground flex items-center gap-2">
-                                        Port
-                                    </FieldLabel>
-                                    <Input
-                                        type="number"
-                                        value={formData.port || ''}
-                                        onChange={e => setFormData({ ...formData, port: parseInt(e.target.value) || 0 })}
-                                        placeholder="5432"
-                                        className="h-10 text-sm font-mono w-full"
-                                    />
-                                </Field>
-                                <Field>
-                                    <FieldLabel className="text-xs font-medium text-muted-foreground flex items-center gap-2">
-                                        <Key className="size-3.5" /> Username
-                                    </FieldLabel>
-                                    <Input
-                                        value={formData.user || ''}
-                                        onChange={e => setFormData({ ...formData, user: e.target.value })}
-                                        placeholder="database_user"
-                                        className="h-10 text-sm"
-                                    />
-                                </Field>
-                                <Field>
-                                    <FieldLabel className="text-xs font-medium text-muted-foreground flex items-center gap-2">
-                                        Password
-                                    </FieldLabel>
-                                    <Input
-                                        type="password"
-                                        value={formData.password || ''}
-                                        onChange={e => setFormData({ ...formData, password: e.target.value })}
-                                        placeholder="••••••••"
-                                        className="h-10 text-sm"
-                                    />
-                                </Field>
-                                <Field className="col-span-2">
-                                    <FieldLabel className="text-xs font-medium text-muted-foreground flex items-center gap-2">
-                                        <Database className="size-3.5" /> Default Database
-                                    </FieldLabel>
-                                    <Input
-                                        value={formData.database || ''}
-                                        onChange={e => setFormData({ ...formData, database: e.target.value })}
-                                        placeholder="e.g. postgres"
-                                        className="h-10 text-sm"
-                                    />
-                                </Field>
-                            </>
-                        )}
-                    </FieldGroup>
-                    {/* SSL Toggle Card */}
-                    <Card
-                        onClick={() => setFormData({ ...formData, ssl: !formData.ssl })}
-                        className={cn(
-                            "cursor-pointer transition-all duration-200 border py-4",
-                            formData.ssl ? "bg-primary/5 border-primary/30" : "bg-muted/10 border-transparent hover:bg-muted/20"
-                        )}
-                    >
-                        <CardContent className="flex items-center justify-between p-0 px-4">
-                            <div className="flex items-center gap-4">
+
+                        {/* Panel footer: active engine pill */}
+                        <div className="p-3 border-t border-white/5">
+                            <div className={cn(
+                                "flex items-center gap-2 px-3 py-2 rounded-lg",
+                                activeEngine.bg,
+                            )}>
                                 <div className={cn(
-                                    "size-10 rounded-lg flex items-center justify-center transition-colors",
-                                    formData.ssl ? "bg-primary/10 text-primary" : "bg-muted/50 text-muted-foreground"
+                                    "size-5 rounded flex items-center justify-center font-black text-[8px]",
+                                    activeEngine.bg, activeEngine.text,
                                 )}>
-                                    <Shield className="size-5" />
+                                    {activeEngine.abbr}
                                 </div>
+                                <span className={cn("text-[10px] font-bold", activeEngine.text)}>
+                                    {activeEngine.label}
+                                </span>
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* ── Right panel: form ────────────────────────────────────────── */}
+                    <div className="flex-1 flex flex-col min-w-0">
+
+                        {/* Form header */}
+                        <div className="h-14 px-6 flex items-center border-b border-white/5 shrink-0">
+                            <div>
+                                <h2 className="text-sm font-bold text-text-primary">
+                                    {initialData ? 'Edit Connection' : 'New Connection'}
+                                </h2>
+                                <p className="text-[10px] text-text-muted/50 mt-0.5">
+                                    {initialData
+                                        ? `Editing ${initialData.name}`
+                                        : `Configure your ${activeEngine.label} connection`}
+                                </p>
+                            </div>
+                        </div>
+
+                        {/* Scrollable form body */}
+                        <div className="flex-1 overflow-y-auto scrollbar-thin p-6 space-y-5">
+
+                            {/* ── Identity row ── */}
+                            <div className="grid grid-cols-2 gap-4">
                                 <div>
-                                    <h4 className="text-sm font-medium">SSL / TLS Encryption</h4>
-                                    <p className="text-xs text-muted-foreground">Secure the connection with cryptographic protocols.</p>
+                                    <FormLabel required>
+                                        <Tag className="inline size-3 mr-1 opacity-60" />
+                                        Connection Name
+                                    </FormLabel>
+                                    <FormInput
+                                        value={formData.name || ''}
+                                        onChange={e => patch({ name: e.target.value })}
+                                        placeholder="e.g. Production Analytics"
+                                    />
+                                </div>
+
+                                <div>
+                                    <FormLabel>
+                                        <Hash className="inline size-3 mr-1 opacity-60" />
+                                        Function Prefix
+                                    </FormLabel>
+                                    <div className="flex gap-2">
+                                        <FormInput
+                                            value={formData.prefix || ''}
+                                            onChange={e => {
+                                                setPrefixManuallyEdited(true);
+                                                patch({ prefix: e.target.value });
+                                            }}
+                                            placeholder="e.g. prod"
+                                            className="font-mono flex-1"
+                                        />
+                                        <button
+                                            type="button"
+                                            onClick={() => {
+                                                setPrefixManuallyEdited(false);
+                                                patch({ prefix: suggestPrefix(formData.name || '') });
+                                            }}
+                                            className="h-9 px-3 rounded-lg text-[10px] font-bold text-text-muted hover:text-white bg-white/5 hover:bg-white/10 border border-white/8 transition-all shrink-0"
+                                        >
+                                            Auto
+                                        </button>
+                                    </div>
+                                    {/* Inline prefix preview */}
+                                    {formData.prefix && (
+                                        <p className="mt-1.5 text-[10px] font-mono text-text-muted/40">
+                                            <span className={activeEngine.text}>{formData.prefix}_list()</span>
+                                            {' · '}
+                                            <span className={activeEngine.text}>{formData.prefix}_query()</span>
+                                            {' · ...'}
+                                        </p>
+                                    )}
                                 </div>
                             </div>
-                            <Switch
-                                checked={formData.ssl}
-                                onCheckedChange={(checked) => setFormData({ ...formData, ssl: checked })}
-                                onClick={(e) => e.stopPropagation()}
-                            />
-                        </CardContent>
-                    </Card>
+
+                            {/* ── Divider ── */}
+                            <div className="flex items-center gap-3">
+                                <div className="flex-1 h-px bg-white/5" />
+                                <span className="text-[9px] font-bold uppercase tracking-widest text-text-muted/30">
+                                    Connection Details
+                                </span>
+                                <div className="flex-1 h-px bg-white/5" />
+                            </div>
+
+                            {/* ── Engine-specific fields ── */}
+                            <AnimatePresence mode="wait">
+                                <motion.div
+                                    key={formData.type}
+                                    initial={{ opacity: 0, y: 6 }}
+                                    animate={{ opacity: 1, y: 0 }}
+                                    exit={{ opacity: 0, y: -6 }}
+                                    transition={{ duration: 0.15 }}
+                                    className="space-y-4"
+                                >
+                                    {formData.type === 'mongodb' ? (
+                                        <div>
+                                            <FormLabel>
+                                                <Globe className="inline size-3 mr-1 opacity-60" />
+                                                Connection URI
+                                            </FormLabel>
+                                            <FormInput
+                                                value={formData.uri || ''}
+                                                onChange={e => patch({ uri: e.target.value })}
+                                                placeholder="mongodb+srv://user:pass@cluster0.example.net/db"
+                                                className="font-mono text-[12px]"
+                                            />
+                                        </div>
+                                    ) : formData.type === 'sqlite' ? (
+                                        <div>
+                                            <FormLabel>
+                                                <FileText className="inline size-3 mr-1 opacity-60" />
+                                                Database File Path
+                                            </FormLabel>
+                                            <div className="flex gap-2">
+                                                <FormInput
+                                                    value={formData.database || ''}
+                                                    onChange={e => patch({ database: e.target.value })}
+                                                    placeholder="/path/to/database.sqlite"
+                                                    className="font-mono text-[12px] flex-1"
+                                                />
+                                                <button className="h-9 px-3 rounded-lg text-[10px] font-bold text-text-muted hover:text-white bg-white/5 hover:bg-white/10 border border-white/8 transition-all shrink-0">
+                                                    Browse
+                                                </button>
+                                            </div>
+                                        </div>
+                                    ) : (
+                                        <div className="space-y-4">
+                                            {/* Host + Port */}
+                                            <div className="grid grid-cols-3 gap-3">
+                                                <div className="col-span-2">
+                                                    <FormLabel>
+                                                        <Server className="inline size-3 mr-1 opacity-60" />
+                                                        Hostname
+                                                    </FormLabel>
+                                                    <FormInput
+                                                        value={formData.host || ''}
+                                                        onChange={e => patch({ host: e.target.value })}
+                                                        placeholder="localhost"
+                                                    />
+                                                </div>
+                                                <div>
+                                                    <FormLabel>Port</FormLabel>
+                                                    <FormInput
+                                                        type="number"
+                                                        value={formData.port || ''}
+                                                        onChange={e => patch({ port: parseInt(e.target.value) || 0 })}
+                                                        placeholder="5432"
+                                                        className="font-mono"
+                                                    />
+                                                </div>
+                                            </div>
+
+                                            {/* User + Password (only for non-Redis) */}
+                                            {formData.type !== 'redis' && (
+                                                <div className="grid grid-cols-2 gap-3">
+                                                    <div>
+                                                        <FormLabel>
+                                                            <Key className="inline size-3 mr-1 opacity-60" />
+                                                            Username
+                                                        </FormLabel>
+                                                        <FormInput
+                                                            value={formData.user || ''}
+                                                            onChange={e => patch({ user: e.target.value })}
+                                                            placeholder="database_user"
+                                                        />
+                                                    </div>
+                                                    <div>
+                                                        <FormLabel>Password</FormLabel>
+                                                        <div className="relative">
+                                                            <FormInput
+                                                                type={showPassword ? 'text' : 'password'}
+                                                                value={formData.password || ''}
+                                                                onChange={e => patch({ password: e.target.value })}
+                                                                placeholder="••••••••"
+                                                                className="pr-9"
+                                                            />
+                                                            <button
+                                                                type="button"
+                                                                onClick={() => setShowPassword(v => !v)}
+                                                                className="absolute right-2.5 top-1/2 -translate-y-1/2 text-text-muted/40 hover:text-text-muted transition-colors"
+                                                            >
+                                                                {showPassword
+                                                                    ? <EyeOff size={13} />
+                                                                    : <Eye size={13} />}
+                                                            </button>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            )}
+
+                                            {/* Default database (not for Redis) */}
+                                            {formData.type !== 'redis' && (
+                                                <div>
+                                                    <FormLabel>
+                                                        <Database className="inline size-3 mr-1 opacity-60" />
+                                                        Default Database
+                                                    </FormLabel>
+                                                    <FormInput
+                                                        value={formData.database || ''}
+                                                        onChange={e => patch({ database: e.target.value })}
+                                                        placeholder="e.g. postgres"
+                                                    />
+                                                </div>
+                                            )}
+                                        </div>
+                                    )}
+                                </motion.div>
+                            </AnimatePresence>
+
+                            {/* ── SSL toggle (not for Redis/SQLite) ── */}
+                            {formData.type !== 'redis' && formData.type !== 'sqlite' && (
+                                <div
+                                    onClick={() => patch({ ssl: !formData.ssl })}
+                                    className={cn(
+                                        "flex items-center justify-between px-4 py-3 rounded-xl border cursor-pointer transition-all",
+                                        formData.ssl
+                                            ? "bg-emerald-500/5 border-emerald-500/20"
+                                            : "bg-white/[0.02] border-white/5 hover:bg-white/5",
+                                    )}
+                                >
+                                    <div className="flex items-center gap-3">
+                                        <div className={cn(
+                                            "size-8 rounded-lg flex items-center justify-center transition-colors",
+                                            formData.ssl
+                                                ? "bg-emerald-500/10 text-emerald-400"
+                                                : "bg-white/5 text-text-muted/40",
+                                        )}>
+                                            <Shield size={14} />
+                                        </div>
+                                        <div>
+                                            <p className="text-[12px] font-semibold text-text-primary">
+                                                SSL / TLS Encryption
+                                            </p>
+                                            <p className="text-[10px] text-text-muted/50">
+                                                Encrypt the connection with TLS
+                                            </p>
+                                        </div>
+                                    </div>
+                                    <Switch
+                                        checked={!!formData.ssl}
+                                        onCheckedChange={checked => patch({ ssl: checked })}
+                                        onClick={e => e.stopPropagation()}
+                                        className="shrink-0"
+                                    />
+                                </div>
+                            )}
+
+                            {/* ── Connection URL preview ── */}
+                            <ConnectionUrlPreview formData={formData} />
+                        </div>
+
+                        {/* ── Footer ── */}
+                        <div className="h-14 px-6 border-t border-white/5 flex items-center justify-between shrink-0 bg-[#0d0d0d]">
+                            {/* Left: test + delete */}
+                            <div className="flex items-center gap-2">
+                                <button
+                                    onClick={handleTest}
+                                    disabled={isTesting || isLoading}
+                                    className={cn(
+                                        "h-8 px-4 rounded-lg flex items-center gap-2 text-[10px] font-bold uppercase tracking-widest transition-all border",
+                                        testStatus === 'success'
+                                            ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/20"
+                                            : testStatus === 'error'
+                                            ? "bg-red-500/10 text-red-400 border-red-500/20"
+                                            : "bg-white/5 text-text-muted hover:text-white hover:bg-white/10 border-white/8",
+                                        (isTesting || isLoading) && "opacity-50 cursor-not-allowed",
+                                    )}
+                                >
+                                    {isTesting ? (
+                                        <Loader2 size={11} className="animate-spin" />
+                                    ) : testStatus === 'success' ? (
+                                        <Wifi size={11} />
+                                    ) : testStatus === 'error' ? (
+                                        <WifiOff size={11} />
+                                    ) : (
+                                        <Globe size={11} />
+                                    )}
+                                    {testStatus === 'success' ? 'Connected' : testStatus === 'error' ? 'Failed' : 'Test'}
+                                </button>
+
+                                {initialData && (
+                                    <button
+                                        onClick={handleDelete}
+                                        className="h-8 px-3 rounded-lg flex items-center gap-2 text-[10px] font-bold uppercase tracking-widest text-red-500/60 hover:text-red-400 hover:bg-red-500/10 border border-transparent hover:border-red-500/20 transition-all"
+                                    >
+                                        <Trash2 size={11} />
+                                        Delete
+                                    </button>
+                                )}
+                            </div>
+
+                            {/* Right: cancel + save + connect */}
+                            <div className="flex items-center gap-2">
+                                <button
+                                    onClick={onClose}
+                                    disabled={isLoading}
+                                    className="h-8 px-4 rounded-lg text-[10px] font-bold uppercase tracking-widest text-text-muted hover:text-white bg-white/5 hover:bg-white/10 border border-white/8 transition-all disabled:opacity-40"
+                                >
+                                    Cancel
+                                </button>
+
+                                <button
+                                    onClick={handleSave}
+                                    disabled={isLoading || !formData.name}
+                                    className="h-8 px-4 rounded-lg text-[10px] font-bold uppercase tracking-widest text-text-muted hover:text-white bg-white/5 hover:bg-white/10 border border-white/8 transition-all disabled:opacity-40"
+                                >
+                                    Save
+                                </button>
+
+                                <button
+                                    onClick={handleConnect}
+                                    disabled={isLoading || !formData.name}
+                                    className={cn(
+                                        "h-8 px-5 rounded-lg flex items-center gap-2 text-[10px] font-black uppercase tracking-widest transition-all active:scale-[0.97] disabled:opacity-40 disabled:cursor-not-allowed",
+                                        activeEngine.bg,
+                                        activeEngine.text,
+                                        `border ${activeEngine.border}`,
+                                        "hover:brightness-125",
+                                    )}
+                                >
+                                    {isLoading ? (
+                                        <Loader2 size={11} className="animate-spin" />
+                                    ) : (
+                                        <CheckCircle2 size={11} />
+                                    )}
+                                    {initialData ? 'Reconnect' : 'Connect'}
+                                </button>
+                            </div>
+                        </div>
+                    </div>
                 </div>
-                {/* Footer Section */}
-                <DialogFooter className="p-6 bg-muted/30 border-t flex flex-row items-center justify-between gap-4">
-                    <div className="flex items-center gap-2 grow">
-                        <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={handleTestConnection}
-                            disabled={isTesting || isLoading}
-                            className="shrink-0 text-muted-foreground hover:text-foreground"
-                        >
-                            {isTesting ? <Loader2 className="animate-spin mr-2 size-4" /> : <Globe className="mr-2 size-4" />}
-                            Test Connection
-                        </Button>
-                        {initialData && (
-                            <Button
-                                variant="ghost"
-                                size="sm"
-                                onClick={handleDelete}
-                                className="text-red-500 hover:text-red-600 hover:bg-red-500/10"
-                            >
-                                <Trash2 className="mr-2 size-4" />
-                                Delete
-                            </Button>
-                        )}
-                    </div>
-                    <div className="flex items-center gap-3">
-                        <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={onClose}
-                            disabled={isLoading || isTesting}
-                            className="px-5 border-none bg-transparent hover:bg-muted font-medium"
-                        >
-                            Cancel
-                        </Button>
-                        <Button
-                            variant="secondary"
-                            size="sm"
-                            onClick={handleSaveOnly}
-                            disabled={isLoading || isTesting || !formData.name}
-                            className="px-6 font-medium shadow-sm border border-foreground/5"
-                        >
-                            Save
-                        </Button>
-                        <Button
-                            size="sm"
-                            onClick={saveConnection}
-                            disabled={isLoading || isTesting || !formData.name}
-                            className="px-8 font-semibold shadow-md active:scale-[0.98] transition-all bg-primary hover:bg-primary/90 text-primary-foreground"
-                        >
-                            {isLoading ? <Loader2 className="animate-spin mr-2 size-4" /> : <CheckCircle2 className="mr-2 size-4" />}
-                            {initialData ? 'Save & Connect' : 'Connect'}
-                        </Button>
-                    </div>
-                </DialogFooter>
             </DialogContent>
         </Dialog>
     );
 };
+
 export default ConnectionDialog;

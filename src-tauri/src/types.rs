@@ -15,6 +15,7 @@ pub enum DatabaseType {
 pub struct ConnectionConfig {
     pub id: String,
     pub name: String,
+    pub prefix: String,
     #[serde(rename = "type")]
     pub db_type: DatabaseType,
     pub host: Option<String>,

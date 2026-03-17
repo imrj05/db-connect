@@ -5,27 +5,28 @@ import {
     Separator as PanelResizeHandle,
 } from "react-resizable-panels";
 import Sidebar from "./components/layout/Sidebar";
-import QueryEditor from "./components/layout/QueryEditor";
-import ResultsView from "./components/layout/ResultsView";
 import TitleBar from "./components/layout/TitleBar";
+import FunctionOutput from "./components/layout/FunctionOutput";
 import { useAppStore } from "./store/useAppStore";
 import { CommandPalette } from "./components/layout/CommandPalette";
 import ConnectionDialog from "./components/layout/ConnectionDialog";
 import { TooltipProvider } from "./components/ui/tooltip";
 import { Toaster } from "sonner";
+
 function App() {
     const {
-        activeConnection,
         theme,
         loadConnections,
         connectionDialogOpen,
+        editingConnection,
         setConnectionDialogOpen,
+        setEditingConnection,
     } = useAppStore();
-    // Load connections from storage
+
     useEffect(() => {
         loadConnections();
     }, [loadConnections]);
-    // Manage theme class on document element
+
     useEffect(() => {
         if (theme === "dark") {
             document.documentElement.classList.add("dark");
@@ -33,18 +34,18 @@ function App() {
             document.documentElement.classList.remove("dark");
         }
     }, [theme]);
-    // In this version (v4), PanelGroup is Group and the prop is orientation
+
     return (
         <TooltipProvider>
             <div className="h-screen flex flex-col bg-app-bg text-text-primary overflow-hidden font-sans selection:bg-blue-500/30">
                 <TitleBar />
                 <main className="flex-1 overflow-hidden relative">
                     <PanelGroup orientation="horizontal">
-                        {/* Sidebar */}
+                        {/* Sidebar: connection tree + generated functions */}
                         <Panel
-                            defaultSize={300}
-                            minSize={100}
-                            maxSize={500}
+                            defaultSize={260}
+                            minSize={180}
+                            maxSize={480}
                             className="h-full"
                         >
                             <Sidebar />
@@ -53,45 +54,20 @@ function App() {
                             <div className="absolute inset-y-0 -left-2 -right-2 z-10" />
                             <div className="absolute inset-y-0 left-1/2 -translate-x-1/2 w-px bg-primary opacity-0 group-hover:opacity-100 transition-opacity" />
                         </PanelResizeHandle>
-                        {/* Main Content Area */}
+                        {/* Main content: function output area */}
                         <Panel className="h-full">
-                            {!activeConnection ? (
-                                <div className="h-full flex items-center justify-center bg-table-bg text-text-muted transition-all duration-500">
-                                    <div className="text-center p-8 bg-zinc-900/50 rounded-3xl border border-white/5 backdrop-blur-3xl shadow-2xl">
-                                        <h2 className="text-2xl font-black mb-3 tracking-tight text-white">
-                                            Welcome to DB Connect
-                                        </h2>
-                                        <p className="text-sm font-medium opacity-60">
-                                            Connect to a database to begin
-                                            exploring your data.
-                                        </p>
-                                        <button
-                                            onClick={() =>
-                                                setConnectionDialogOpen(true)
-                                            }
-                                            className="mt-8 px-10 py-3 bg-blue-600 hover:bg-blue-500 text-white rounded-xl font-bold transition-all active:scale-95 shadow-lg shadow-blue-500/20"
-                                        >
-                                            Add Connection
-                                        </button>
-                                    </div>
-                                </div>
-                            ) : (
-                                <div className="h-full flex flex-col">
-                                    <div className="flex-1 overflow-hidden relative">
-                                        <ResultsView />
-                                    </div>
-                                    <div className="h-48 border-t border-border-app bg-zinc-950/50">
-                                        <QueryEditor />
-                                    </div>
-                                </div>
-                            )}
+                            <FunctionOutput />
                         </Panel>
                     </PanelGroup>
                 </main>
                 <CommandPalette />
                 {connectionDialogOpen && (
                     <ConnectionDialog
-                        onClose={() => setConnectionDialogOpen(false)}
+                        initialData={editingConnection ?? undefined}
+                        onClose={() => {
+                            setConnectionDialogOpen(false);
+                            setEditingConnection(null);
+                        }}
                     />
                 )}
                 <Toaster position="bottom-right" richColors theme={theme} />
@@ -99,4 +75,5 @@ function App() {
         </TooltipProvider>
     );
 }
+
 export default App;
