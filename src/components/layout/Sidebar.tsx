@@ -60,19 +60,26 @@ function DatabaseSelector({
   selected: string | undefined;
   onSelect: (db: string) => void;
 }) {
-  if (databases.length <= 1) return null;
+  // Build the list to display: use fetched databases, or fall back to just the selected one
+  const displayDbs = databases.length > 0
+    ? databases
+    : selected
+    ? [selected]
+    : [];
+
+  if (displayDbs.length === 0) return null;
 
   return (
     <div className="relative mx-1 mb-1">
-      <div className="flex items-center gap-1.5 px-2 py-1.5 rounded-md bg-white/5 border border-white/8 cursor-pointer group hover:bg-white/8 transition-colors">
+      <div className="flex items-center gap-1.5 px-2 py-1.5 rounded-md bg-white/5 border border-white/8 hover:bg-white/8 transition-colors">
         <Database size={10} className="text-text-muted/50 shrink-0" />
         <select
-          value={selected ?? ""}
+          value={selected ?? displayDbs[0] ?? ""}
           onChange={(e) => onSelect(e.target.value)}
           onClick={(e) => e.stopPropagation()}
           className="flex-1 bg-transparent text-[10px] font-mono text-text-secondary appearance-none cursor-pointer outline-none min-w-0 truncate"
         >
-          {databases.map((db) => (
+          {displayDbs.map((db) => (
             <option key={db} value={db} className="bg-zinc-900 text-text-primary">
               {db}
             </option>
