@@ -1,4 +1,4 @@
-import { ChevronDown, ChevronRight, Database, Plus, Loader2, Plug, Unplug, Pencil } from "lucide-react";
+import { ChevronDown, ChevronRight, Database, Plus, Loader2, Plug, Unplug, Pencil, ChevronsUpDown } from "lucide-react";
 import { useAppStore } from "@/store/useAppStore";
 import { ConnectionConfig, ConnectionFunction } from "@/types";
 import { cn } from "@/lib/utils";
@@ -50,29 +50,69 @@ function FunctionItem({
   );
 }
 
+// ─── Database selector ────────────────────────────────────────────────────────
+function DatabaseSelector({
+  databases,
+  selected,
+  onSelect,
+}: {
+  databases: string[];
+  selected: string | undefined;
+  onSelect: (db: string) => void;
+}) {
+  if (databases.length <= 1) return null;
+
+  return (
+    <div className="relative mx-1 mb-1">
+      <div className="flex items-center gap-1.5 px-2 py-1.5 rounded-md bg-white/5 border border-white/8 cursor-pointer group hover:bg-white/8 transition-colors">
+        <Database size={10} className="text-text-muted/50 shrink-0" />
+        <select
+          value={selected ?? ""}
+          onChange={(e) => onSelect(e.target.value)}
+          onClick={(e) => e.stopPropagation()}
+          className="flex-1 bg-transparent text-[10px] font-mono text-text-secondary appearance-none cursor-pointer outline-none min-w-0 truncate"
+        >
+          {databases.map((db) => (
+            <option key={db} value={db} className="bg-zinc-900 text-text-primary">
+              {db}
+            </option>
+          ))}
+        </select>
+        <ChevronsUpDown size={9} className="text-text-muted/40 shrink-0 pointer-events-none" />
+      </div>
+    </div>
+  );
+}
+
 // ─── Connection node (one per connection) ─────────────────────────────────────
 function ConnectionNode({
   connection,
   isConnected,
   isExpanded,
   functions,
+  databases,
+  selectedDatabase,
   activeFunctionId,
   onToggleExpand,
   onConnect,
   onDisconnect,
   onEdit,
   onInvoke,
+  onSelectDatabase,
 }: {
   connection: ConnectionConfig;
   isConnected: boolean;
   isExpanded: boolean;
   functions: ConnectionFunction[];
+  databases: string[];
+  selectedDatabase: string | undefined;
   activeFunctionId?: string;
   onToggleExpand: () => void;
   onConnect: () => void;
   onDisconnect: () => void;
   onEdit: () => void;
   onInvoke: (fn: ConnectionFunction) => void;
+  onSelectDatabase: (db: string) => void;
 }) {
   const DB_COLORS: Record<string, string> = {
     postgresql: "bg-blue-600",
@@ -158,6 +198,13 @@ function ConnectionNode({
         <div className="ml-4 pl-2 border-l border-white/5 mt-0.5 space-y-0.5">
           {isConnected ? (
             <>
+              {/* Database selector (only shown when multiple databases available) */}
+              <DatabaseSelector
+                databases={databases}
+                selected={selectedDatabase}
+                onSelect={onSelectDatabase}
+              />
+
               {/* Utility functions: list, src, query, execute, tbl */}
               {utilityFns.map((fn) => (
                 <FunctionItem
@@ -216,11 +263,14 @@ const Sidebar = () => {
     connections,
     connectedIds,
     connectionFunctions,
+    connectionDatabases,
+    selectedDatabases,
     expandedConnections,
     activeFunction,
     isLoading,
     connectAndInit,
     disconnectConnection,
+    selectDatabase,
     toggleConnectionExpanded,
     invokeFunction,
     setActiveFunctionOnly,
@@ -285,6 +335,8 @@ const Sidebar = () => {
               isConnected={connectedIds.includes(conn.id)}
               isExpanded={expandedConnections.includes(conn.id)}
               functions={connectionFunctions[conn.id] ?? []}
+              databases={connectionDatabases[conn.id] ?? []}
+              selectedDatabase={selectedDatabases[conn.id]}
               activeFunctionId={activeFunction?.id}
               onToggleExpand={() => toggleConnectionExpanded(conn.id)}
               onConnect={() => connectAndInit(conn.id)}
@@ -294,6 +346,7 @@ const Sidebar = () => {
                 setConnectionDialogOpen(true);
               }}
               onInvoke={handleInvoke}
+              onSelectDatabase={(db) => selectDatabase(conn.id, db)}
             />
           ))
         )}

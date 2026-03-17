@@ -21,6 +21,8 @@ interface AppState {
   connectedIds: string[]; // IDs with active Rust driver in REGISTRY
   connectionFunctions: Record<string, ConnectionFunction[]>; // connectionId → generated fns
   connectionTables: Record<string, TableInfo[]>; // connectionId → discovered tables
+  connectionDatabases: Record<string, string[]>; // connectionId → available user databases
+  selectedDatabases: Record<string, string>; // connectionId → currently selected database
 
   // ---- Active function invocation ----
   activeFunction: ConnectionFunction | null;
@@ -46,6 +48,7 @@ interface AppState {
   // ---- Actions: connection lifecycle ----
   connectAndInit: (connectionId: string) => Promise<void>;
   disconnectConnection: (connectionId: string) => Promise<void>;
+  selectDatabase: (connectionId: string, database: string) => Promise<void>;
 
   // ---- Actions: function invocation ----
   invokeFunction: (
@@ -70,6 +73,8 @@ export const useAppStore = create<AppState>((set, get) => ({
   connectedIds: [],
   connectionFunctions: {},
   connectionTables: {},
+  connectionDatabases: {},
+  selectedDatabases: {},
   activeFunction: null,
   invocationResult: null,
   pendingSqlValue: "",
@@ -137,11 +142,15 @@ export const useAppStore = create<AppState>((set, get) => ({
       // Clean up live state for this connection
       const { [id]: _fns, ...restFns } = state.connectionFunctions;
       const { [id]: _tables, ...restTables } = state.connectionTables;
+      const { [id]: _dbs, ...restDbs } = state.connectionDatabases;
+      const { [id]: _sel, ...restSel } = state.selectedDatabases;
       return {
         connections: newConnections,
         connectedIds: state.connectedIds.filter((cid) => cid !== id),
         connectionFunctions: restFns,
         connectionTables: restTables,
+        connectionDatabases: restDbs,
+        selectedDatabases: restSel,
         activeFunction:
           state.activeFunction?.connectionId === id
             ? null
@@ -165,8 +174,19 @@ export const useAppStore = create<AppState>((set, get) => ({
       // Establish Rust driver connection
       await tauriApi.connect(config);
 
-      // Discover all tables flat (new command)
-      const tables = await tauriApi.listAllTables(connectionId);
+      // Fetch available user databases (filtered from system DBs)
+      let userDbs: string[] = [];
+      try {
+        userDbs = await tauriApi.getUserDatabases(connectionId);
+      } catch {
+        // Some drivers (SQLite, Redis) may not support listing databases
+      }
+
+      // Auto-select: prefer configured DB, then first available
+      const autoSelected = config.database ?? userDbs[0] ?? undefined;
+
+      // Discover tables for the selected database
+      const tables = await tauriApi.listAllTables(connectionId, autoSelected);
 
       // Build dbcooper-style function registry
       const fns = buildConnectionFunctions(config, tables);
@@ -180,6 +200,10 @@ export const useAppStore = create<AppState>((set, get) => ({
           ...state.connectionFunctions,
           [connectionId]: fns,
         },
+        connectionDatabases: { ...state.connectionDatabases, [connectionId]: userDbs },
+        selectedDatabases: autoSelected
+          ? { ...state.selectedDatabases, [connectionId]: autoSelected }
+          : state.selectedDatabases,
         expandedConnections: state.expandedConnections.includes(connectionId)
           ? state.expandedConnections
           : [...state.expandedConnections, connectionId],
@@ -202,10 +226,14 @@ export const useAppStore = create<AppState>((set, get) => ({
     set((state) => {
       const { [connectionId]: _fns, ...restFns } = state.connectionFunctions;
       const { [connectionId]: _tables, ...restTables } = state.connectionTables;
+      const { [connectionId]: _dbs, ...restDbs } = state.connectionDatabases;
+      const { [connectionId]: _sel, ...restSel } = state.selectedDatabases;
       return {
         connectedIds: state.connectedIds.filter((id) => id !== connectionId),
         connectionFunctions: restFns,
         connectionTables: restTables,
+        connectionDatabases: restDbs,
+        selectedDatabases: restSel,
         activeFunction:
           state.activeFunction?.connectionId === connectionId
             ? null
@@ -217,6 +245,39 @@ export const useAppStore = create<AppState>((set, get) => ({
       };
     });
     toast.success("Disconnected");
+  },
+
+  selectDatabase: async (connectionId, database) => {
+    const { connections } = get();
+    const config = connections.find((c) => c.id === connectionId);
+    if (!config) return;
+
+    set({ isLoading: true });
+    try {
+      const tables = await tauriApi.listAllTables(connectionId, database);
+      const fns = buildConnectionFunctions(config, tables);
+
+      set((state) => ({
+        selectedDatabases: { ...state.selectedDatabases, [connectionId]: database },
+        connectionTables: { ...state.connectionTables, [connectionId]: tables },
+        connectionFunctions: { ...state.connectionFunctions, [connectionId]: fns },
+        // Clear active function/result if it belonged to this connection
+        activeFunction:
+          state.activeFunction?.connectionId === connectionId
+            ? null
+            : state.activeFunction,
+        invocationResult:
+          state.invocationResult?.fn.connectionId === connectionId
+            ? null
+            : state.invocationResult,
+      }));
+
+      toast.success(`Switched to ${database}: ${tables.length} tables`);
+    } catch (error) {
+      toast.error(`Failed to switch database: ${String(error)}`);
+    } finally {
+      set({ isLoading: false });
+    }
   },
 
   // ---- Function invocation ----

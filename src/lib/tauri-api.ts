@@ -26,7 +26,11 @@ export const tauriApi = {
     return await invoke("get_table_data", { id, database, table, page, pageSize });
   },
 
-  async listAllTables(id: string): Promise<TableInfo[]> {
-    return await invoke("list_all_tables", { id });
+  async listAllTables(id: string, database?: string): Promise<TableInfo[]> {
+    return await invoke("list_all_tables", { id, database: database ?? null });
+  },
+
+  async getUserDatabases(id: string): Promise<string[]> {
+    return await invoke("get_user_databases", { id });
   },
 };

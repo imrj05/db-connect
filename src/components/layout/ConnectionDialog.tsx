@@ -221,7 +221,7 @@ const ConnectionDialog = ({ onClose, initialData }: ConnectionDialogProps) => {
 
     return (
         <Dialog open onOpenChange={open => !open && onClose()}>
-            <DialogContent className="max-w-[820px] p-0 gap-0 overflow-hidden bg-[#111111] border border-white/8 shadow-2xl rounded-2xl">
+            <DialogContent showCloseButton={false} className="!max-w-[860px] !w-[860px] !p-0 !gap-0 overflow-hidden bg-[#111111] border border-white/8 shadow-2xl rounded-2xl">
                 <div className="flex h-[560px]">
 
                     {/* ── Left panel: engine selector ─────────────────────────────── */}
