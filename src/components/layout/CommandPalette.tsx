@@ -96,7 +96,7 @@ export function CommandPalette() {
   return (
     <CommandDialog open={commandPaletteOpen} onOpenChange={setCommandPaletteOpen}>
       <CommandInput
-        placeholder="Search functions, e.g. lahman_batting..."
+        placeholder="Search functions or tables..."
         value={query}
         onValueChange={setQuery}
       />
@@ -115,7 +115,7 @@ export function CommandPalette() {
                 heading={
                   <span className="flex items-center gap-2">
                     <Hash size={10} className="opacity-50" />
-                    <span>{prefix}_</span>
+                    <span>{conn?.name ?? prefix}</span>
                     {conn && (
                       <span className="text-[9px] opacity-40 uppercase tracking-widest">
                         {conn.type}
@@ -132,7 +132,9 @@ export function CommandPalette() {
                     className="flex items-center gap-2"
                   >
                     {TYPE_ICONS[fn.type] ?? <Database size={13} />}
-                    <span className="font-mono text-[12px]">{fn.name}</span>
+                    <span className="font-mono text-[12px]">
+                      {fn.type === "table" ? fn.tableName : fn.callSignature.slice(fn.prefix.length + 1)}
+                    </span>
                     <span className="text-text-muted/50 text-[10px] ml-1 hidden sm:inline">
                       {fn.description}
                     </span>
