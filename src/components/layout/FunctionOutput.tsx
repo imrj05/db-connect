@@ -130,7 +130,7 @@ function TableGridView({
       {/* Header */}
       <div className="h-9 px-4 flex items-center justify-between border-b border-white/5 bg-[#111111] shrink-0">
         <span className="font-mono text-[11px] text-blue-400 font-bold">
-          &gt; {fn.callSignature}
+          &gt; {fn.callSignature.slice(fn.prefix.length + 1)}
         </span>
         <div className="flex items-center gap-1">
           <span className="text-[10px] font-mono text-text-muted/40 mr-2">
@@ -305,7 +305,7 @@ function SqlEditorView({
       {/* Header */}
       <div className="h-9 flex items-center justify-between bg-[#111111] border-b border-white/5 px-4 shrink-0">
         <span className="font-mono text-[11px] text-blue-400 font-bold">
-          &gt; {fn.callSignature}
+          &gt; {fn.callSignature.slice(fn.prefix.length + 1)}
         </span>
         <span className="text-[9px] font-mono text-text-muted/30 uppercase tracking-widest">
           {fn.type === "execute" ? "DDL / DML" : "SELECT"}
@@ -439,7 +439,7 @@ function TableListView({
     <div className="h-full flex flex-col bg-[#111111] overflow-hidden">
       <div className="h-9 px-4 flex items-center border-b border-white/5 shrink-0">
         <span className="font-mono text-[11px] text-blue-400 font-bold">
-          &gt; {fn.callSignature}
+          &gt; {fn.callSignature.slice(fn.prefix.length + 1)}
         </span>
         <span className="ml-auto text-[10px] font-mono text-text-muted/40">
           {tables.length} tables
@@ -488,7 +488,7 @@ function ConnectionSrcView({
     <div className="h-full flex flex-col bg-[#0c0c0c] overflow-hidden">
       <div className="h-9 px-4 flex items-center border-b border-white/5 shrink-0">
         <span className="font-mono text-[11px] text-blue-400 font-bold">
-          &gt; {fn.callSignature}
+          &gt; {fn.callSignature.slice(fn.prefix.length + 1)}
         </span>
       </div>
       <div className="flex-1 p-8 flex items-start justify-center">
@@ -638,7 +638,7 @@ const FunctionOutput = () => {
         <div className="text-center space-y-3">
           <Loader2 size={24} className="animate-spin text-blue-500 mx-auto" />
           <p className="text-[10px] font-mono text-text-muted/60 uppercase tracking-widest">
-            {activeFunction.callSignature}
+            {activeFunction.callSignature.slice(activeFunction.prefix.length + 1)}
           </p>
         </div>
       </div>
