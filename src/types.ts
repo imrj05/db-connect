@@ -101,6 +101,51 @@ export interface FunctionInvocationResult {
   invokedAt: number; // Date.now()
 }
 
+// ---------- Result tabs ----------
+
+export interface ResultTab {
+  id: string;
+  fn: ConnectionFunction;
+  result: FunctionInvocationResult | null;
+  pendingSql: string;
+  label: string;      // display name, e.g. "users", "query", "list"
+}
+
+// ---------- Filter conditions (for the visual WHERE builder) ----------
+
+export type FilterOp =
+  | "=" | "!=" | ">" | "<" | ">=" | "<="
+  | "LIKE" | "NOT LIKE"
+  | "IS NULL" | "IS NOT NULL";
+
+export interface FilterCondition {
+  id: string;
+  col: string;
+  op: FilterOp;
+  value: string;
+}
+
+// ---------- Query history ----------
+
+export interface QueryHistoryEntry {
+  id: string;
+  sql: string;
+  executedAt: number;       // Date.now()
+  executionTimeMs: number;
+  rowCount: number;
+  connectionId: string;
+}
+
+// ---------- Saved queries ----------
+
+export interface SavedQuery {
+  id: string;
+  name: string;
+  sql: string;
+  connectionId?: string;    // optional: pin to a specific connection
+  createdAt: number;        // Date.now()
+}
+
 // ---------- NoSQL types (unchanged) ----------
 
 export interface RedisKey {

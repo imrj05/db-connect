@@ -12,7 +12,6 @@ import { CommandPalette } from "./components/layout/CommandPalette";
 import ConnectionDialog from "./components/layout/ConnectionDialog";
 import { TooltipProvider } from "./components/ui/tooltip";
 import { Toaster } from "sonner";
-
 function App() {
     const {
         theme,
@@ -22,11 +21,9 @@ function App() {
         setConnectionDialogOpen,
         setEditingConnection,
     } = useAppStore();
-
     useEffect(() => {
         loadConnections();
     }, [loadConnections]);
-
     useEffect(() => {
         if (theme === "dark") {
             document.documentElement.classList.add("dark");
@@ -34,10 +31,9 @@ function App() {
             document.documentElement.classList.remove("dark");
         }
     }, [theme]);
-
     return (
         <TooltipProvider>
-            <div className="h-screen flex flex-col bg-app-bg text-text-primary overflow-hidden font-sans selection:bg-blue-500/30">
+            <div className="h-screen flex flex-col bg-background text-foreground overflow-hidden font-sans selection:bg-accent/30">
                 <TitleBar />
                 <main className="flex-1 overflow-hidden relative">
                     <PanelGroup orientation="horizontal">
@@ -50,10 +46,7 @@ function App() {
                         >
                             <Sidebar />
                         </Panel>
-                        <PanelResizeHandle className="w-[1.5px] bg-border/40 hover:bg-primary/50 transition-all duration-300 cursor-col-resize relative group">
-                            <div className="absolute inset-y-0 -left-2 -right-2 z-10" />
-                            <div className="absolute inset-y-0 left-1/2 -translate-x-1/2 w-px bg-primary opacity-0 group-hover:opacity-100 transition-opacity" />
-                        </PanelResizeHandle>
+                        <PanelResizeHandle className="w-px bg-border hover:bg-primary/60 transition-colors duration-200 cursor-col-resize" />
                         {/* Main content: function output area */}
                         <Panel className="h-full">
                             <FunctionOutput />
@@ -75,5 +68,4 @@ function App() {
         </TooltipProvider>
     );
 }
-
 export default App;

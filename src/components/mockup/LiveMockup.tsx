@@ -23,24 +23,24 @@ const SAMPLE_DATA = [
 
 export function LiveMockup() {
   return (
-    <div className="flex flex-col h-full bg-app-bg text-text-primary overflow-hidden">
+    <div className="flex flex-col h-full bg-background text-foreground overflow-hidden">
       {/* 1. Title Bar */}
-      <div className="h-9 px-3 flex items-center justify-between bg-titlebar-bg border-b border-border-app shrink-0 select-none">
+      <div className="h-9 px-3 flex items-center justify-between bg-sidebar border-b border-border shrink-0 select-none">
         <div className="flex items-center gap-2">
           <div className="flex gap-1.5 px-1">
              <div className="size-3 rounded-full bg-[#ff5f57]" />
              <div className="size-3 rounded-full bg-[#febc2e]" />
              <div className="size-3 rounded-full bg-[#28c840]" />
           </div>
-          <span className="text-xs font-medium text-text-secondary">db-connect — example_app</span>
+          <span className="text-xs font-medium text-muted-foreground">db-connect — example_app</span>
         </div>
       </div>
 
       <div className="flex flex-1 min-h-0">
         {/* 2. Sidebar */}
-        <div className="w-64 bg-sidebar-bg border-r border-border-sidebar flex flex-col pt-4">
+        <div className="w-64 bg-sidebar border-r border-sidebar-border flex flex-col pt-4">
           <div className="px-4 mb-4">
-            <h3 className="text-[10px] font-bold text-text-muted uppercase tracking-wider">Databases</h3>
+            <h3 className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">Databases</h3>
           </div>
           <div className="space-y-0.5 px-2">
             {["example_app", "postgres", "test_db"].map((db) => (
@@ -48,7 +48,7 @@ export function LiveMockup() {
                 key={db}
                 className={cn(
                   "px-2 py-1.5 rounded-sm text-sm cursor-pointer transition-colors",
-                  db === "example_app" ? "bg-sidebar-item-active text-sidebar-active" : "text-sidebar-item hover:bg-sidebar-item-hover"
+                  db === "example_app" ? "bg-accent text-sidebar-active" : "text-sidebar-item hover:bg-sidebar-accent"
                 )}
               >
                 {db}
@@ -58,29 +58,29 @@ export function LiveMockup() {
         </div>
 
         {/* Main Content Area */}
-        <div className="flex-1 flex flex-col min-w-0 bg-table-bg">
+        <div className="flex-1 flex flex-col min-w-0 bg-card">
           {/* 3. Filter Bar */}
-          <div className="h-10 px-4 flex items-center gap-4 bg-filter-bar-bg border-b border-border-app shrink-0">
+          <div className="h-10 px-4 flex items-center gap-4 bg-card border-b border-border shrink-0">
             <div className="flex items-center gap-2 flex-1">
-              <span className="text-xs text-text-muted">Filter</span>
-              <div className="h-6 flex-1 bg-input-bg border border-border-input rounded px-2 flex items-center">
-                <span className="text-xs text-text-muted italic">e.g. name = 'Alice'</span>
+              <span className="text-xs text-muted-foreground">Filter</span>
+              <div className="h-6 flex-1 bg-background border border-input rounded px-2 flex items-center">
+                <span className="text-xs text-muted-foreground italic">e.g. name = 'Alice'</span>
               </div>
             </div>
           </div>
 
           {/* 4. Toolbar */}
-          <div className="h-11 px-4 flex items-center gap-3 bg-toolbar-bg border-b border-border-app shrink-0">
-            <button className="h-7 px-3 bg-white dark:bg-[#323232] border border-border-app rounded text-xs hover:bg-[#f8f8f8] dark:hover:bg-[#3d3d3d] transition-colors">Refresh</button>
-            <button className="h-7 px-3 bg-white dark:bg-[#323232] border border-border-app rounded text-xs opacity-50 cursor-not-allowed">Commit</button>
+          <div className="h-11 px-4 flex items-center gap-3 bg-card border-b border-border shrink-0">
+            <button className="h-7 px-3 bg-background dark:bg-muted border border-border rounded text-xs hover:bg-background/80 dark:hover:bg-muted/80 transition-colors">Refresh</button>
+            <button className="h-7 px-3 bg-background dark:bg-muted border border-border rounded text-xs opacity-50 cursor-not-allowed">Commit</button>
             <div className="w-px h-4 bg-border-app mx-1" />
-            <button className="size-7 flex items-center justify-center bg-white dark:bg-[#323232] border border-border-app rounded hover:bg-[#f8f8f8] dark:hover:bg-[#3d3d3d] transition-colors text-xs">+</button>
-            <button className="size-7 flex items-center justify-center bg-white dark:bg-[#323232] border border-border-app rounded hover:bg-[#f8f8f8] dark:hover:bg-[#3d3d3d] transition-colors text-xs">-</button>
+            <button className="size-7 flex items-center justify-center bg-background dark:bg-muted border border-border rounded hover:bg-background/80 dark:hover:bg-muted/80 transition-colors text-xs">+</button>
+            <button className="size-7 flex items-center justify-center bg-background dark:bg-muted border border-border rounded hover:bg-background/80 dark:hover:bg-muted/80 transition-colors text-xs">-</button>
           </div>
 
-          <div className="flex-1 overflow-auto bg-table-bg scrollbar-thin">
+          <div className="flex-1 overflow-auto bg-card scrollbar-thin">
             <Table className="w-full border-collapse">
-              <TableHeader className="bg-toolbar-bg">
+              <TableHeader className="bg-card">
                 <TableRow>
                   <TableHead className="w-15">id</TableHead>
                   <TableHead>name</TableHead>
@@ -92,7 +92,7 @@ export function LiveMockup() {
               </TableHeader>
               <TableBody>
                 {SAMPLE_DATA.map((row, idx) => (
-                  <TableRow key={row.id} className={cn(idx === 1 && "bg-row-selected", idx % 2 === 1 && "bg-row-alt")}>
+                  <TableRow key={row.id} className={cn(idx === 1 && "bg-muted", idx % 2 === 1 && "bg-muted")}>
                     <TableCell>{row.id}</TableCell>
                     <TableCell>{row.name}</TableCell>
                     <TableCell>{row.email}</TableCell>
@@ -110,13 +110,13 @@ export function LiveMockup() {
           </div>
 
           {/* 6. Bottom Bar */}
-          <div className="h-8 px-4 flex items-center justify-between bg-app-bg border-t border-border-app shrink-0 select-none">
-            <div className="flex items-center gap-4 text-xs text-text-secondary">
+          <div className="h-8 px-4 flex items-center justify-between bg-background border-t border-border shrink-0 select-none">
+            <div className="flex items-center gap-4 text-xs text-muted-foreground">
               <span>5 rows</span>
-              <span className="text-text-muted">|</span>
-              <span className="text-accent-blue underline cursor-pointer">Export CSV</span>
+              <span className="text-muted-foreground">|</span>
+              <span className="text-chart-1 underline cursor-pointer">Export CSV</span>
             </div>
-            <div className="text-[10px] text-text-muted uppercase tracking-widest font-bold">
+            <div className="text-[10px] text-muted-foreground uppercase tracking-widest font-bold">
               UTF-8 • PSQL
             </div>
           </div>

@@ -75,23 +75,23 @@ Every connected database generates a set of typed functions identified by a user
 
 ## Ongoing
 
-- [ ] Export table data to CSV / JSON
-- [ ] SQL editor autocomplete (table/column names from the active connection)
-- [ ] Resizable result panel split between editor and results
+- [x] Export table data to CSV / JSON
+- [x] SQL editor autocomplete (table/column names from the active connection)
+- [x] Resizable result panel split between editor and results
 
 ---
 
 ## Upcoming
 
-- [ ] **Saved queries** — name and persist frequently used SQL snippets per connection
-- [ ] **Query history** — per-connection log of recently executed queries with timestamps and row counts
-- [ ] **Cell editing** — inline edit table cells and write back with generated UPDATE statements
-- [ ] **Filters & sorting UI** — visual WHERE builder on top of the data grid without writing SQL
+- [x] **Saved queries** — name and persist frequently used SQL snippets per connection
+- [x] **Query history** — per-connection log of recently executed queries with timestamps and row counts
+- [x] **Cell editing** — inline edit table cells and write back with generated UPDATE statements
+- [x] **Filters & sorting UI** — visual WHERE builder on top of the data grid without writing SQL
 - [ ] **ER diagram view** — auto-generated entity-relationship diagram from foreign key metadata
 - [ ] **Schema diff** — compare table structure between two connections or two points in time
-- [ ] **Multiple result tabs** — keep multiple query results open side-by-side
+- [x] **Multiple result tabs** — keep multiple query results open side-by-side
 - [ ] **SSH tunnel support** — connect through a bastion host
-- [ ] **Import** — load CSV / JSON into a table
+- [x] **Import** — load CSV / JSON into a table
 - [ ] **MongoDB schema inference** — sample documents and infer field types for the Structure tab
 - [ ] **Redis key browser** — tree view of key namespaces with value inspector
 
