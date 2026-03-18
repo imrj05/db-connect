@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import {
     Panel,
     Group as PanelGroup,
@@ -10,20 +10,29 @@ import FunctionOutput from "./components/layout/FunctionOutput";
 import { useAppStore } from "./store/useAppStore";
 import { CommandPalette } from "./components/layout/CommandPalette";
 import ConnectionDialog from "./components/layout/ConnectionDialog";
+import { Onboarding, shouldShowOnboarding } from "./components/layout/Onboarding";
+import { SettingsDialog } from "./components/layout/SettingsDialog";
 import { TooltipProvider } from "./components/ui/tooltip";
 import { Toaster } from "sonner";
+
 function App() {
     const {
         theme,
+        appSettings,
         loadConnections,
+        connections,
         connectionDialogOpen,
         editingConnection,
         setConnectionDialogOpen,
         setEditingConnection,
     } = useAppStore();
+
+    const [onboardingDone, setOnboardingDone] = useState(false);
+
     useEffect(() => {
         loadConnections();
     }, [loadConnections]);
+
     useEffect(() => {
         if (theme === "dark") {
             document.documentElement.classList.add("dark");
@@ -31,6 +40,13 @@ function App() {
             document.documentElement.classList.remove("dark");
         }
     }, [theme]);
+
+    useEffect(() => {
+        document.documentElement.style.zoom = `${appSettings.uiZoom}%`;
+    }, [appSettings.uiZoom]);
+
+    const showOnboarding = !onboardingDone && shouldShowOnboarding(connections.length > 0);
+
     return (
         <TooltipProvider>
             <div className="h-screen flex flex-col bg-background text-foreground overflow-hidden font-sans selection:bg-accent/30">
@@ -47,9 +63,19 @@ function App() {
                             <Sidebar />
                         </Panel>
                         <PanelResizeHandle className="w-px bg-border hover:bg-primary/60 transition-colors duration-200 cursor-col-resize" />
-                        {/* Main content: function output area */}
+                        {/* Main content: onboarding or function output */}
                         <Panel className="h-full">
-                            <FunctionOutput />
+                            {showOnboarding ? (
+                                <Onboarding
+                                    onDone={() => setOnboardingDone(true)}
+                                    onOpenConnectionDialog={() => {
+                                        setEditingConnection(null);
+                                        setConnectionDialogOpen(true);
+                                    }}
+                                />
+                            ) : (
+                                <FunctionOutput />
+                            )}
                         </Panel>
                     </PanelGroup>
                 </main>
@@ -63,6 +89,7 @@ function App() {
                         }}
                     />
                 )}
+                <SettingsDialog />
                 <Toaster position="bottom-right" richColors theme={theme} />
             </div>
         </TooltipProvider>

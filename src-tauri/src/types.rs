@@ -74,3 +74,13 @@ pub struct QueryResult {
     pub rows: Vec<serde_json::Value>,
     pub execution_time_ms: u64,
 }
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+#[serde(rename_all = "camelCase")]
+pub struct SavedQuery {
+    pub id: String,
+    pub name: String,
+    pub sql: String,
+    pub connection_id: Option<String>,
+    pub created_at: i64, // Unix ms
+}

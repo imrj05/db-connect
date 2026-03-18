@@ -1,3 +1,4 @@
+use crate::storage::AppStorage;
 use crate::types::*;
 use crate::db::registry::REGISTRY;
 use crate::db::postgres::PostgresDriver;
@@ -158,4 +159,65 @@ pub async fn get_table_structure(id: String, database: String, table: String, sc
         .unwrap_or_default();
 
     Ok(TableStructure { columns, indexes })
+}
+
+// ── App info commands ──────────────────────────────────────────────────────────
+
+#[tauri::command]
+pub async fn get_app_data_dir(app: tauri::AppHandle) -> Result<String, String> {
+    use tauri::Manager;
+    app.path()
+        .app_data_dir()
+        .map(|p| p.to_string_lossy().to_string())
+        .map_err(|e| e.to_string())
+}
+
+// ── Storage commands ───────────────────────────────────────────────────────────
+
+#[tauri::command]
+pub async fn storage_load_connections() -> Result<Vec<ConnectionConfig>, String> {
+    AppStorage::get()
+        .load_connections()
+        .await
+        .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub async fn storage_save_connection(connection: ConnectionConfig) -> Result<(), String> {
+    AppStorage::get()
+        .save_connection(&connection)
+        .await
+        .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub async fn storage_delete_connection(id: String) -> Result<(), String> {
+    AppStorage::get()
+        .delete_connection(&id)
+        .await
+        .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub async fn storage_load_queries() -> Result<Vec<SavedQuery>, String> {
+    AppStorage::get()
+        .load_queries()
+        .await
+        .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub async fn storage_save_query(query: SavedQuery) -> Result<(), String> {
+    AppStorage::get()
+        .save_query(&query)
+        .await
+        .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub async fn storage_delete_query(id: String) -> Result<(), String> {
+    AppStorage::get()
+        .delete_query(&id)
+        .await
+        .map_err(|e| e.to_string())
 }

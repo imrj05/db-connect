@@ -41,6 +41,14 @@ import {
     DropdownMenuItem,
     DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Badge } from "@/components/ui/badge";
+import {
+    Tooltip,
+    TooltipContent,
+    TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { useAppStore } from "@/store/useAppStore";
 import { cn } from "@/lib/utils";
 import {
@@ -76,12 +84,12 @@ function IdleView({ onNewConnection }: { onNewConnection: () => void }) {
                     Click a function in the sidebar or press ⌘K to search
                 </p>
             </div>
-            <button
+            <Button
                 onClick={onNewConnection}
-                className="mt-2 px-6 py-2 bg-primary hover:bg-primary/90 text-foreground rounded-xl font-bold text-xs transition-all active:scale-95"
+                className="mt-2 text-xs font-bold uppercase tracking-widest"
             >
                 Add Connection
-            </button>
+            </Button>
         </div>
     );
 }
@@ -93,6 +101,7 @@ function TableGridView({
     onPageChange,
     page,
     database,
+    pageSize = 50,
 }: {
     fn: ConnectionFunction;
     queryResult?: { columns: string[]; rows: any[]; executionTimeMs: number };
@@ -100,6 +109,7 @@ function TableGridView({
     onPageChange: (page: number) => void;
     page: number;
     database: string;
+    pageSize?: number;
 }) {
     const [viewMode, setViewMode] = useState<"data" | "structure">("data");
     const [sorting, setSorting] = useState<SortingState>([]);
@@ -209,7 +219,7 @@ function TableGridView({
                     : `'${f.value.replace(/'/g, "''")}'`;
                 return `${col} ${f.op} ${val}`;
             });
-            const sql = `SELECT * FROM "${fn.tableName}" WHERE ${whereParts.join(" AND ")} LIMIT 50 OFFSET ${page * 50}`;
+            const sql = `SELECT * FROM "${fn.tableName}" WHERE ${whereParts.join(" AND ")} LIMIT ${pageSize} OFFSET ${page * pageSize}`;
             const result = await tauriApi.executeQuery(fn.connectionId, sql);
             setFilteredResult(result);
         } catch {
@@ -531,37 +541,40 @@ function TableGridView({
                         {effectiveResult.executionTimeMs}ms
                     </span>
                     {/* Filter toggle */}
-                    <button
-                        onClick={() => {
-                            setShowFilterBar((v) => !v);
-                            if (!showFilterBar && filters.length === 0)
-                                addFilter();
-                        }}
-                        className={cn(
-                            "size-6 flex items-center justify-center transition-colors",
-                            filtersActive
-                                ? "text-accent-blue"
-                                : "text-muted-foreground hover:text-foreground",
-                        )}
-                        title="Toggle filter bar"
-                    >
-                        {filtersActive ? (
-                            <FilterX size={11} />
-                        ) : (
-                            <Filter size={11} />
-                        )}
-                    </button>
+                    <Tooltip>
+                        <TooltipTrigger asChild>
+                            <Button
+                                variant="ghost"
+                                size="icon-xs"
+                                onClick={() => {
+                                    setShowFilterBar((v) => !v);
+                                    if (!showFilterBar && filters.length === 0)
+                                        addFilter();
+                                }}
+                                className={filtersActive ? "text-accent-blue" : "text-muted-foreground"}
+                            >
+                                {filtersActive ? <FilterX size={11} /> : <Filter size={11} />}
+                            </Button>
+                        </TooltipTrigger>
+                        <TooltipContent>Toggle filters</TooltipContent>
+                    </Tooltip>
                     {/* Import button */}
-                    <button
-                        onClick={() => {
-                            setShowImport((v) => !v);
-                            setImportDone(null);
-                        }}
-                        className="size-6 flex items-center justify-center text-muted-foreground hover:text-foreground transition-colors"
-                        title="Import data"
-                    >
-                        <Upload size={11} />
-                    </button>
+                    <Tooltip>
+                        <TooltipTrigger asChild>
+                            <Button
+                                variant="ghost"
+                                size="icon-xs"
+                                onClick={() => {
+                                    setShowImport((v) => !v);
+                                    setImportDone(null);
+                                }}
+                                className="text-muted-foreground"
+                            >
+                                <Upload size={11} />
+                            </Button>
+                        </TooltipTrigger>
+                        <TooltipContent>Import data</TooltipContent>
+                    </Tooltip>
                 </div>
             </div>
             {/* Filter bar */}
@@ -625,64 +638,62 @@ function TableGridView({
                                 ))}
                             </select>
                             {f.op !== "IS NULL" && f.op !== "IS NOT NULL" && (
-                                <input
+                                <Input
                                     value={f.value}
                                     onChange={(e) =>
                                         setFilters((prev) =>
                                             prev.map((x) =>
                                                 x.id === f.id
-                                                    ? {
-                                                        ...x,
-                                                        value: e.target
-                                                            .value,
-                                                    }
+                                                    ? { ...x, value: e.target.value }
                                                     : x,
                                             ),
                                         )
                                     }
-                                    onKeyDown={(e) =>
-                                        e.key === "Enter" && applyFilters()
-                                    }
+                                    onKeyDown={(e) => e.key === "Enter" && applyFilters()}
                                     placeholder="value"
-                                    className="h-6 px-2 rounded bg-background border border-border text-[11px] font-mono text-foreground outline-none w-36"
+                                    className="h-6 text-[11px] font-mono w-36"
                                 />
                             )}
-                            <button
+                            <Button
+                                variant="ghost"
+                                size="icon-xs"
                                 onClick={() => removeFilter(f.id)}
                                 className="text-muted-foreground/40 hover:text-destructive"
                             >
                                 <X size={10} />
-                            </button>
+                            </Button>
                         </div>
                     ))}
                     <div className="flex items-center gap-2">
-                        <button
+                        <Button
+                            variant="outline"
+                            size="xs"
                             onClick={addFilter}
-                            className="h-6 px-2 rounded text-[10px] font-bold uppercase tracking-widest text-muted-foreground hover:text-foreground border border-border"
+                            className="h-6 text-[10px] font-bold uppercase tracking-widest"
                         >
                             + Add
-                        </button>
-                        <button
+                        </Button>
+                        <Button
+                            size="xs"
                             onClick={applyFilters}
                             disabled={filterLoading || filters.length === 0}
-                            className="h-6 px-3 rounded text-[10px] font-bold uppercase tracking-widest bg-primary text-foreground hover:bg-primary/90 disabled:opacity-40 flex items-center gap-1"
+                            className="h-6 text-[10px] font-bold uppercase tracking-widest gap-1"
                         >
-                            {filterLoading ? (
-                                <Loader2 size={9} className="animate-spin" />
-                            ) : null}
+                            {filterLoading && <Loader2 size={9} className="animate-spin" />}
                             Apply
-                        </button>
-                        <button
+                        </Button>
+                        <Button
+                            variant="ghost"
+                            size="xs"
                             onClick={clearFilters}
-                            className="h-6 px-2 rounded text-[10px] font-bold uppercase tracking-widest text-muted-foreground hover:text-foreground"
+                            className="h-6 text-[10px] font-bold uppercase tracking-widest text-muted-foreground"
                         >
                             Clear
-                        </button>
+                        </Button>
                         {filtersActive && (
-                            <span className="text-[10px] font-mono text-accent-blue/60">
-                                {effectiveResult?.rows.length ?? 0} rows
-                                filtered
-                            </span>
+                            <Badge variant="secondary" className="text-[9px] font-mono h-5">
+                                {effectiveResult?.rows.length ?? 0} filtered
+                            </Badge>
                         )}
                     </div>
                 </div>
@@ -694,40 +705,41 @@ function TableGridView({
                         <span className="text-[10px] font-black uppercase tracking-widest text-muted-foreground/50">
                             Import data into {fn.tableName}
                         </span>
-                        <button
+                        <Button
+                            variant="ghost"
+                            size="icon-xs"
                             onClick={() => setShowImport(false)}
                             className="text-muted-foreground/40 hover:text-foreground"
                         >
                             <X size={10} />
-                        </button>
+                        </Button>
                     </div>
                     <div className="flex items-center gap-2">
                         <span className="text-[10px] font-mono text-muted-foreground/60">
                             Format:
                         </span>
                         {(["csv", "json"] as const).map((fmt) => (
-                            <button
+                            <Button
                                 key={fmt}
+                                variant={importFormat === fmt ? "secondary" : "outline"}
+                                size="xs"
                                 onClick={() => {
                                     setImportFormat(fmt);
                                     parseImport(importText, fmt);
                                 }}
-                                className={cn(
-                                    "h-6 px-2 rounded text-[10px] font-bold uppercase tracking-widest border border-border",
-                                    importFormat === fmt
-                                        ? "bg-sidebar-accent text-foreground"
-                                        : "text-muted-foreground hover:text-foreground",
-                                )}
+                                className="h-6 text-[10px] font-bold uppercase tracking-widest"
                             >
                                 {fmt.toUpperCase()}
-                            </button>
+                            </Button>
                         ))}
-                        <button
+                        <Button
+                            variant="outline"
+                            size="xs"
                             onClick={() => importFileRef.current?.click()}
-                            className="h-6 px-2 rounded text-[10px] font-bold uppercase tracking-widest text-muted-foreground hover:text-foreground border border-border"
+                            className="h-6 text-[10px] font-bold uppercase tracking-widest"
                         >
                             Open file…
-                        </button>
+                        </Button>
                         <input
                             ref={importFileRef}
                             type="file"
@@ -762,23 +774,19 @@ function TableGridView({
                         </div>
                     )}
                     <div className="flex items-center gap-2">
-                        <button
+                        <Button
+                            size="xs"
                             onClick={runImport}
                             disabled={importing || !importPreview}
-                            className="h-6 px-3 rounded text-[10px] font-bold uppercase tracking-widest bg-accent-green text-foreground hover:bg-accent-green/90 disabled:opacity-40 flex items-center gap-1"
+                            className="h-6 text-[10px] font-bold uppercase tracking-widest gap-1"
                         >
-                            {importing ? (
-                                <Loader2 size={9} className="animate-spin" />
-                            ) : null}
-                            Import{" "}
-                            {importPreview
-                                ? `${importPreview.rows.length} rows`
-                                : ""}
-                        </button>
+                            {importing && <Loader2 size={9} className="animate-spin" />}
+                            Import{importPreview ? ` ${importPreview.rows.length} rows` : ""}
+                        </Button>
                         {importDone !== null && (
-                            <span className="text-[10px] font-mono text-accent-green">
+                            <Badge variant="secondary" className="text-[10px] font-mono h-5 text-accent-green">
                                 ✓ {importDone} rows imported
-                            </span>
+                            </Badge>
                         )}
                     </div>
                 </div>
@@ -835,7 +843,7 @@ function TableGridView({
                                             )}
                                         >
                                             <TableCell className="w-10 h-8 px-2 text-center text-muted-foreground/30 border-r border-border bg-card/30">
-                                                {page * 50 + idx + 1}
+                                                {page * pageSize + idx + 1}
                                             </TableCell>
                                             {row
                                                 .getVisibleCells()
@@ -1057,82 +1065,81 @@ function TableGridView({
                     <span className="text-[10px] font-mono text-destructive">
                         {cellEditError}
                     </span>
-                    <button
+                    <Button
+                        variant="ghost"
+                        size="icon-xs"
                         onClick={() => setCellEditError(null)}
                         className="text-destructive/50 hover:text-destructive"
                     >
                         <X size={10} />
-                    </button>
+                    </Button>
                 </div>
             )}
             {/* Footer toolbar */}
             <div className="h-9 bg-card border-t border-border flex items-center justify-between px-2 shrink-0">
-                <div className="flex items-center gap-1">
-                    <button
-                        onClick={() => handleViewMode("data")}
-                        className={cn(
-                            "px-3 h-6 rounded text-[10px] font-bold uppercase tracking-widest transition-all",
-                            viewMode === "data"
-                                ? "bg-sidebar-accent text-foreground"
-                                : "text-muted-foreground hover:text-foreground",
-                        )}
-                    >
-                        Data
-                    </button>
-                    <button
-                        onClick={() => handleViewMode("structure")}
-                        className={cn(
-                            "px-3 h-6 rounded text-[10px] font-bold uppercase tracking-widest transition-all",
-                            viewMode === "structure"
-                                ? "bg-sidebar-accent text-foreground"
-                                : "text-muted-foreground hover:text-foreground",
-                        )}
-                    >
-                        Structure
-                    </button>
+                <div className="flex items-stretch gap-0 h-full">
+                    {(["data", "structure"] as const).map((mode) => (
+                        <button
+                            key={mode}
+                            onClick={() => handleViewMode(mode)}
+                            className={cn(
+                                "relative flex items-center px-3 text-[10px] font-bold uppercase tracking-widest transition-colors",
+                                viewMode === mode
+                                    ? "text-foreground"
+                                    : "text-muted-foreground/40 hover:text-muted-foreground",
+                            )}
+                        >
+                            {mode}
+                            {viewMode === mode && (
+                                <span className="absolute bottom-0 left-0 right-0 h-0.5 bg-primary rounded-t-full" />
+                            )}
+                        </button>
+                    ))}
                 </div>
                 {viewMode === "data" && (
                     <>
-                        <div className="flex items-center gap-4 text-[10px] font-mono text-muted-foreground/60">
+                        <div className="flex items-center gap-2 text-[10px] font-mono text-muted-foreground/60">
                             {cellEditLoading ? (
-                                <Loader2
-                                    size={10}
-                                    className="animate-spin text-accent-blue"
-                                />
+                                <Loader2 size={10} className="animate-spin text-accent-blue" />
                             ) : (
                                 <span className="text-[9px] text-muted-foreground/20 hidden sm:inline">
                                     dbl-click to edit
                                 </span>
                             )}
-                            <button
+                            <Button
+                                variant="ghost"
+                                size="xs"
                                 disabled={page === 0}
                                 onClick={() => onPageChange(page - 1)}
-                                className="px-2 h-6 rounded text-muted-foreground hover:text-foreground disabled:opacity-30 text-[10px] font-bold uppercase tracking-widest"
+                                className="h-6 text-[10px] font-bold uppercase tracking-widest text-muted-foreground"
                             >
                                 ← Prev
-                            </button>
-                            <span className="tabular-nums">
+                            </Button>
+                            <span className="tabular-nums text-muted-foreground/60">
                                 {effectiveResult.rows.length === 0
                                     ? "0 rows"
-                                    : `${page * 50 + 1}–${page * 50 + effectiveResult.rows.length}`}
+                                    : `${page * pageSize + 1}–${page * pageSize + effectiveResult.rows.length}`}
                             </span>
-                            <button
-                                disabled={
-                                    effectiveResult.rows.length < 50 ||
-                                    filtersActive
-                                }
+                            <Button
+                                variant="ghost"
+                                size="xs"
+                                disabled={effectiveResult.rows.length < 50 || filtersActive}
                                 onClick={() => onPageChange(page + 1)}
-                                className="px-2 h-6 rounded text-muted-foreground hover:text-foreground disabled:opacity-30 text-[10px] font-bold uppercase tracking-widest"
+                                className="h-6 text-[10px] font-bold uppercase tracking-widest text-muted-foreground"
                             >
                                 Next →
-                            </button>
+                            </Button>
                         </div>
                         <DropdownMenu>
                             <DropdownMenuTrigger asChild>
-                                <button className="px-3 h-6 rounded bg-card text-muted-foreground hover:text-foreground text-[10px] font-bold uppercase tracking-widest flex items-center gap-1">
+                                <Button
+                                    variant="outline"
+                                    size="xs"
+                                    className="h-6 text-[10px] font-bold uppercase tracking-widest gap-1"
+                                >
                                     <Download size={10} />
                                     Export
-                                </button>
+                                </Button>
                             </DropdownMenuTrigger>
                             <DropdownMenuContent
                                 align="end"
@@ -1192,7 +1199,9 @@ function SqlEditorView({
         clearHistory,
         saveQuery,
         deleteSavedQuery,
+        appSettings,
     } = useAppStore();
+    const editorFontSize = appSettings.editorFontSize;
     // Sub-panel tab: which panel is currently shown
     const [panel, setPanel] = useState<"editor" | "history" | "saved">(
         "editor",
@@ -1222,6 +1231,10 @@ function SqlEditorView({
         document.addEventListener("keydown", down);
         return () => document.removeEventListener("keydown", down);
     }, [onExecute, panel]);
+    const fontSizeTheme = EditorView.theme({
+        "&": { fontSize: `${editorFontSize}px` },
+        ".cm-content": { fontSize: `${editorFontSize}px` },
+    });
     const editorTheme =
         theme === "dark"
             ? oneDark
@@ -1328,23 +1341,24 @@ function SqlEditorView({
         label: string,
         count?: number,
     ) => (
-        <button
+        <Button
+            variant="ghost"
             onClick={() => setPanel(id)}
             className={cn(
-                "h-full px-3 flex items-center gap-1.5 text-[9px] font-bold uppercase tracking-widest transition-colors border-b-2",
+                "h-full px-3 rounded-none gap-1.5 text-[9px] font-bold uppercase tracking-widest border-b-2 border-transparent",
                 panel === id
                     ? "text-accent-blue border-blue-500"
-                    : "text-muted-foreground/50 border-transparent hover:text-muted-foreground",
+                    : "text-muted-foreground/50 hover:text-muted-foreground",
             )}
         >
             {icon}
             {label}
             {count !== undefined && count > 0 && (
-                <span className="px-1 rounded bg-card text-[8px] font-mono">
+                <Badge variant="secondary" className="h-4 px-1 text-[8px] font-mono">
                     {count}
-                </span>
+                </Badge>
             )}
-        </button>
+        </Button>
     );
     return (
         <div className="h-full flex flex-col bg-background overflow-hidden">
@@ -1381,12 +1395,14 @@ function SqlEditorView({
                             {history.length} queries
                         </span>
                         {history.length > 0 && (
-                            <button
+                            <Button
+                                variant="ghost"
+                                size="xs"
                                 onClick={() => clearHistory(fn.connectionId)}
-                                className="text-[9px] text-muted-foreground/40 hover:text-destructive transition-colors"
+                                className="h-5 text-[9px] text-muted-foreground/40 hover:text-destructive uppercase tracking-widest"
                             >
                                 Clear
-                            </button>
+                            </Button>
                         )}
                     </div>
                     <div className="flex-1 overflow-auto scrollbar-thin">
@@ -1452,23 +1468,25 @@ function SqlEditorView({
                                             {sq.name}
                                         </span>
                                         <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                                            <button
+                                            <Button
+                                                size="xs"
+                                                variant="secondary"
                                                 onClick={() => {
                                                     onSqlChange(sq.sql);
                                                     setPanel("editor");
                                                 }}
-                                                className="h-5 px-2 text-[9px] font-bold uppercase tracking-wider text-accent-blue hover:text-accent-blue/90 bg-primary/10 rounded transition-colors"
+                                                className="h-5 text-[9px] font-bold uppercase tracking-wider"
                                             >
                                                 Load
-                                            </button>
-                                            <button
-                                                onClick={() =>
-                                                    deleteSavedQuery(sq.id)
-                                                }
-                                                className="size-5 flex items-center justify-center text-muted-foreground/40 hover:text-destructive rounded transition-colors"
+                                            </Button>
+                                            <Button
+                                                variant="ghost"
+                                                size="icon-xs"
+                                                onClick={() => deleteSavedQuery(sq.id)}
+                                                className="size-5 text-muted-foreground/40 hover:text-destructive"
                                             >
                                                 <Trash2 size={10} />
-                                            </button>
+                                            </Button>
                                         </div>
                                     </div>
                                     <pre className="text-[10px] font-mono text-muted-foreground/50 truncate">
@@ -1497,7 +1515,7 @@ function SqlEditorView({
                                 value={pendingSql}
                                 height="100%"
                                 theme={editorTheme}
-                                extensions={[sql({ schema: sqlSchema })]}
+                                extensions={[sql({ schema: sqlSchema }), fontSizeTheme]}
                                 onChange={onSqlChange}
                                 className="text-[13px] h-full selection:bg-primary/30"
                                 basicSetup={{
@@ -1526,14 +1544,14 @@ function SqlEditorView({
                     </div>
                     {/* Execute + Save bar */}
                     <div className="h-10 bg-background border-t border-border flex items-center justify-between px-3 shrink-0 select-none gap-2">
-                        <button
+                        <Button
                             onClick={onExecute}
                             disabled={isLoading || !pendingSql.trim()}
+                            variant={isLoading || !pendingSql.trim() ? "outline" : "ghost"}
+                            size="sm"
                             className={cn(
-                                "h-7 px-4 rounded flex items-center gap-2 text-[10px] font-black uppercase tracking-[0.15em] transition-all",
-                                isLoading || !pendingSql.trim()
-                                    ? "bg-card text-muted-foreground cursor-not-allowed"
-                                    : "bg-accent/10 text-accent-green hover:bg-accent-green/90/20 active:scale-95",
+                                "h-7 text-[10px] font-black uppercase tracking-[0.15em] gap-2",
+                                !isLoading && pendingSql.trim() && "text-accent-green hover:text-accent-green",
                             )}
                         >
                             {isLoading ? (
@@ -1542,17 +1560,15 @@ function SqlEditorView({
                                 <Play size={11} className="fill-current" />
                             )}
                             Execute
-                        </button>
+                        </Button>
                         {/* Save query inline UI */}
                         <div className="flex items-center gap-1 ml-auto">
                             {saveOpen ? (
                                 <>
-                                    <input
+                                    <Input
                                         ref={saveInputRef}
                                         value={saveName}
-                                        onChange={(e) =>
-                                            setSaveName(e.target.value)
-                                        }
+                                        onChange={(e) => setSaveName(e.target.value)}
                                         onKeyDown={(e) => {
                                             if (e.key === "Enter") handleSave();
                                             if (e.key === "Escape") {
@@ -1561,37 +1577,37 @@ function SqlEditorView({
                                             }
                                         }}
                                         placeholder="Query name…"
-                                        className="h-6 px-2 rounded bg-card border border-border text-[11px] font-mono text-foreground placeholder:text-muted-foreground/30 outline-none focus:border-blue-500/50 w-36"
+                                        className="h-6 text-[11px] font-mono w-36"
                                     />
-                                    <button
+                                    <Button
+                                        variant="ghost"
+                                        size="icon-xs"
                                         onClick={handleSave}
-                                        disabled={
-                                            !saveName.trim() ||
-                                            !pendingSql.trim()
-                                        }
-                                        className="size-6 flex items-center justify-center rounded bg-accent/10 text-accent-green hover:bg-accent-green/90/20 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+                                        disabled={!saveName.trim() || !pendingSql.trim()}
+                                        className="size-6 text-accent-green"
                                     >
                                         <Check size={10} />
-                                    </button>
-                                    <button
-                                        onClick={() => {
-                                            setSaveOpen(false);
-                                            setSaveName("");
-                                        }}
-                                        className="size-6 flex items-center justify-center rounded text-muted-foreground/40 hover:text-muted-foreground transition-colors"
+                                    </Button>
+                                    <Button
+                                        variant="ghost"
+                                        size="icon-xs"
+                                        onClick={() => { setSaveOpen(false); setSaveName(""); }}
+                                        className="size-6 text-muted-foreground/40"
                                     >
                                         <X size={10} />
-                                    </button>
+                                    </Button>
                                 </>
                             ) : (
-                                <button
+                                <Button
+                                    variant="ghost"
+                                    size="xs"
                                     onClick={() => setSaveOpen(true)}
                                     disabled={!pendingSql.trim()}
-                                    className="h-6 px-2 flex items-center gap-1 rounded text-muted-foreground/40 hover:text-muted-foreground disabled:opacity-20 disabled:cursor-not-allowed transition-colors text-[9px] font-bold uppercase tracking-widest"
+                                    className="h-6 text-[9px] font-bold uppercase tracking-widest text-muted-foreground/40 gap-1"
                                 >
                                     <BookmarkPlus size={10} />
                                     Save
-                                </button>
+                                </Button>
                             )}
                         </div>
                     </div>
@@ -1924,6 +1940,7 @@ const FunctionOutput = () => {
         closeTab,
         switchToTab,
         connectedIds,
+        appSettings,
     } = useAppStore();
     const [page, setPage] = useState(0);
     useEffect(() => {
@@ -2024,6 +2041,7 @@ const FunctionOutput = () => {
                         onPageChange={handlePageChange}
                         page={page}
                         database={activeTableDatabase}
+                        pageSize={appSettings.tablePageSize}
                     />
                 );
             case "sql-editor":
@@ -2089,27 +2107,35 @@ const FunctionOutput = () => {
                                 {tab.label}
                             </span>
                             {tabs.length > 1 && (
-                                <button
+                                <Button
+                                    variant="ghost"
+                                    size="icon-xs"
                                     onClick={(e) => {
                                         e.stopPropagation();
                                         closeTab(tab.id);
                                     }}
-                                    className="ml-0.5 opacity-0 group-hover/tab:opacity-100 text-muted-foreground/40 hover:text-muted-foreground transition-all"
+                                    className="ml-0.5 size-4 opacity-0 group-hover/tab:opacity-100 text-muted-foreground/40 hover:text-muted-foreground"
                                 >
                                     <X size={9} />
-                                </button>
+                                </Button>
                             )}
                         </div>
                     ))}
-                    {/* New tab button — only when at least one connection is live */}
+                    {/* New tab button */}
                     {connectedIds.length > 0 && (
-                        <button
-                            onClick={openNewTab}
-                            className="px-3 flex items-center text-muted-foreground/40 hover:text-muted-foreground transition-colors shrink-0"
-                            title="New query tab"
-                        >
-                            <Plus size={11} />
-                        </button>
+                        <Tooltip>
+                            <TooltipTrigger asChild>
+                                <Button
+                                    variant="ghost"
+                                    size="icon-xs"
+                                    onClick={openNewTab}
+                                    className="mx-1 my-auto size-6 text-muted-foreground/40 hover:text-muted-foreground shrink-0"
+                                >
+                                    <Plus size={11} />
+                                </Button>
+                            </TooltipTrigger>
+                            <TooltipContent>New query tab</TooltipContent>
+                        </Tooltip>
                     )}
                 </div>
             )}

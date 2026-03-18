@@ -1,9 +1,5 @@
 import * as React from "react";
-import {
-    Moon,
-    Sun,
-    Plus,
-} from "lucide-react";
+import { Moon, Sun, Plus } from "lucide-react";
 import {
     CommandDialog,
     CommandEmpty,
@@ -12,31 +8,21 @@ import {
     CommandItem,
     CommandList,
     CommandSeparator,
-    CommandShortcut,
     CommandFooter,
 } from "@/components/ui/command";
+import { Kbd, KbdGroup } from "@/components/ui/kbd";
 import { useAppStore } from "@/store/useAppStore";
 import { ConnectionFunction } from "@/types";
 import { filterFunctions } from "@/lib/db-functions";
 
-// Colour map for function type indicator dots
-const TYPE_COLOR: Record<string, string> = {
-    list: "bg-accent-purple",
-    src: "bg-muted-foreground",
-    query: "bg-accent-green",
-    execute: "bg-accent-orange",
-    tbl: "bg-accent-blue",
-    table: "bg-accent-blue",
+const TYPE_LABEL: Record<string, string> = {
+    list:    "list",
+    src:     "src",
+    query:   "query",
+    execute: "exec",
+    tbl:     "tbl",
+    table:   "table",
 };
-
-// Single keyboard key badge
-function KbdKey({ children }: { children: React.ReactNode }) {
-    return (
-        <kbd className="flex h-7 min-w-7 items-center justify-center rounded-full border border-border bg-muted px-1.5 text-[11px] font-mono text-muted-foreground/70">
-            {children}
-        </kbd>
-    );
-}
 
 export function CommandPalette() {
     const {
@@ -55,7 +41,6 @@ export function CommandPalette() {
 
     const [query, setQuery] = React.useState("");
 
-    // ⌘K toggle
     React.useEffect(() => {
         const down = (e: KeyboardEvent) => {
             if (e.key === "k" && (e.metaKey || e.ctrlKey)) {
@@ -67,12 +52,10 @@ export function CommandPalette() {
         return () => document.removeEventListener("keydown", down);
     }, [commandPaletteOpen, setCommandPaletteOpen]);
 
-    // Reset query when palette closes
     React.useEffect(() => {
         if (!commandPaletteOpen) setQuery("");
     }, [commandPaletteOpen]);
 
-    // Build all available functions from all connected connections
     const allFunctions = React.useMemo(
         () => Object.values(connectionFunctions).flat(),
         [connectionFunctions],
@@ -83,7 +66,6 @@ export function CommandPalette() {
         [allFunctions, query],
     );
 
-    // Group filtered functions by connection prefix
     const grouped = React.useMemo(() => {
         const map = new Map<string, ConnectionFunction[]>();
         for (const fn of filteredFunctions) {
@@ -108,10 +90,7 @@ export function CommandPalette() {
     };
 
     return (
-        <CommandDialog
-            open={commandPaletteOpen}
-            onOpenChange={setCommandPaletteOpen}
-        >
+        <CommandDialog open={commandPaletteOpen} onOpenChange={setCommandPaletteOpen}>
             <CommandInput
                 placeholder="Search commands..."
                 value={query}
@@ -119,62 +98,49 @@ export function CommandPalette() {
             />
             <CommandList>
                 <CommandEmpty>
-                    {query
-                        ? `No results for "${query}"`
-                        : "No results found."}
+                    {query ? `No results for "${query}"` : "No results found."}
                 </CommandEmpty>
 
-                {/* Per-connection function groups */}
-                {Array.from(grouped.entries()).map(
-                    ([prefix, fns], groupIdx) => {
-                        const conn = connections.find(
-                            (c) => c.prefix === prefix,
-                        );
-                        return (
-                            <React.Fragment key={prefix}>
-                                {groupIdx > 0 && <CommandSeparator />}
-                                <CommandGroup
-                                    heading={conn?.name ?? prefix}
-                                >
-                                    {fns.map((fn) => {
-                                        const name =
-                                            fn.type === "table"
-                                                ? fn.tableName!
-                                                : fn.callSignature
-                                                    .slice(fn.prefix.length + 1)
-                                                    .replace(/\(.*$/, "");
-                                        return (
-                                            <CommandItem
-                                                key={fn.id}
-                                                value={fn.callSignature}
-                                                onSelect={() => handleSelect(fn)}
-                                            >
-                                                <span
-                                                    className={`size-1.5 rounded-full shrink-0 mt-0.5 ${TYPE_COLOR[fn.type] ?? "bg-muted-foreground"}`}
-                                                />
-                                                <div className="flex flex-col flex-1 min-w-0">
-                                                    <span className="font-bold text-[13px] text-foreground leading-tight">
-                                                        {name}
+                {Array.from(grouped.entries()).map(([prefix, fns], groupIdx) => {
+                    const conn = connections.find((c) => c.prefix === prefix);
+                    return (
+                        <React.Fragment key={prefix}>
+                            {groupIdx > 0 && <CommandSeparator />}
+                            <CommandGroup heading={conn?.name ?? prefix}>
+                                {fns.map((fn) => {
+                                    const name =
+                                        fn.type === "table"
+                                            ? fn.tableName!
+                                            : fn.callSignature
+                                                  .slice(fn.prefix.length + 1)
+                                                  .replace(/\(.*$/, "");
+                                    return (
+                                        <CommandItem
+                                            key={fn.id}
+                                            value={fn.callSignature}
+                                            onSelect={() => handleSelect(fn)}
+                                        >
+                                            <div className="flex flex-col flex-1 min-w-0">
+                                                <span className="text-[13px] font-medium text-foreground leading-tight">
+                                                    {name}
+                                                </span>
+                                                {fn.description && (
+                                                    <span className="text-[11px] text-muted-foreground/50 mt-0.5 leading-tight truncate">
+                                                        {fn.description}
                                                     </span>
-                                                    {fn.description && (
-                                                        <span className="text-[11px] text-muted-foreground/60 mt-0.5 leading-tight">
-                                                            {fn.description}
-                                                        </span>
-                                                    )}
-                                                </div>
-                                                <CommandShortcut>
-                                                    <KbdKey>{fn.type}</KbdKey>
-                                                </CommandShortcut>
-                                            </CommandItem>
-                                        );
-                                    })}
-                                </CommandGroup>
-                            </React.Fragment>
-                        );
-                    },
-                )}
+                                                )}
+                                            </div>
+                                            <span className="text-[10px] font-mono text-muted-foreground/30 uppercase tracking-wider shrink-0">
+                                                {TYPE_LABEL[fn.type] ?? fn.type}
+                                            </span>
+                                        </CommandItem>
+                                    );
+                                })}
+                            </CommandGroup>
+                        </React.Fragment>
+                    );
+                })}
 
-                {/* Show "no connected" message if no functions available */}
                 {allFunctions.length === 0 && connectedIds.length === 0 && (
                     <>
                         <CommandSeparator />
@@ -186,10 +152,10 @@ export function CommandPalette() {
                                     setCommandPaletteOpen(false);
                                 }}
                             >
-                                <Plus size={13} className="text-muted-foreground shrink-0" />
+                                <Plus size={13} className="text-muted-foreground/50 shrink-0" />
                                 <div className="flex flex-col flex-1">
-                                    <span className="font-bold text-[13px]">Add New Connection</span>
-                                    <span className="text-[11px] text-muted-foreground/60">Connect to a database</span>
+                                    <span className="text-[13px] font-medium">Add New Connection</span>
+                                    <span className="text-[11px] text-muted-foreground/50">Connect to a database</span>
                                 </div>
                             </CommandItem>
                         </CommandGroup>
@@ -198,7 +164,6 @@ export function CommandPalette() {
 
                 <CommandSeparator />
 
-                {/* General actions */}
                 <CommandGroup heading="General">
                     <CommandItem
                         onSelect={() => {
@@ -207,42 +172,45 @@ export function CommandPalette() {
                             setCommandPaletteOpen(false);
                         }}
                     >
-                        <Plus size={14} className="text-muted-foreground shrink-0" />
+                        <Plus size={13} className="text-muted-foreground/50 shrink-0" />
                         <div className="flex flex-col flex-1">
-                            <span className="font-bold text-[13px]">New Connection</span>
-                            <span className="text-[11px] text-muted-foreground/60">Add a new database connection</span>
+                            <span className="text-[13px] font-medium">New Connection</span>
+                            <span className="text-[11px] text-muted-foreground/50">Add a new database connection</span>
                         </div>
-                        <CommandShortcut>
-                            <KbdKey>⌘</KbdKey>
-                            <KbdKey>N</KbdKey>
-                        </CommandShortcut>
+                        <KbdGroup>
+                            <Kbd>⌘</Kbd>
+                            <Kbd>N</Kbd>
+                        </KbdGroup>
                     </CommandItem>
                     <CommandItem onSelect={toggleTheme}>
-                        {theme === "dark" ? (
-                            <Sun size={14} className="text-muted-foreground shrink-0" />
-                        ) : (
-                            <Moon size={14} className="text-muted-foreground shrink-0" />
-                        )}
+                        {theme === "dark"
+                            ? <Sun size={13} className="text-muted-foreground/50 shrink-0" />
+                            : <Moon size={13} className="text-muted-foreground/50 shrink-0" />
+                        }
                         <div className="flex flex-col flex-1">
-                            <span className="font-bold text-[13px]">
+                            <span className="text-[13px] font-medium">
                                 Switch to {theme === "dark" ? "Light" : "Dark"} Mode
                             </span>
-                            <span className="text-[11px] text-muted-foreground/60">Toggle the app theme</span>
+                            <span className="text-[11px] text-muted-foreground/50">Toggle the app theme</span>
                         </div>
                     </CommandItem>
                 </CommandGroup>
             </CommandList>
+
             <CommandFooter>
                 <span className="flex items-center gap-1.5">
-                    <KbdKey>↑↓</KbdKey>
+                    <KbdGroup>
+                        <Kbd>↑</Kbd>
+                        <Kbd>↓</Kbd>
+                    </KbdGroup>
                     navigate
                 </span>
                 <span className="flex items-center gap-1.5">
-                    <KbdKey>↵</KbdKey>
+                    <Kbd>↵</Kbd>
                     select
                 </span>
                 <span className="flex items-center gap-1.5">
-                    <KbdKey>Esc</KbdKey>
+                    <Kbd>Esc</Kbd>
                     close
                 </span>
             </CommandFooter>

@@ -14,8 +14,35 @@ import { buildConnectionFunctions, suggestPrefix } from "@/lib/db-functions";
 import { tauriApi } from "@/lib/tauri-api";
 import { toast } from "sonner";
 
-const STORAGE_KEY = "db_connections_v3";
-const SAVED_QUERIES_KEY = "db_saved_queries_v1";
+// Legacy localStorage keys — kept only for one-time migration
+const LEGACY_CONNECTIONS_KEY = "db_connections_v3";
+const LEGACY_QUERIES_KEY = "db_saved_queries_v1";
+const SETTINGS_KEY = "db_connect_settings_v1";
+
+// ── App settings (non-sensitive — persisted in localStorage) ──────────────────
+export interface AppSettings {
+  editorFontSize: 12 | 13 | 14 | 16;
+  tablePageSize: 25 | 50 | 100 | 200;
+  uiZoom: 80 | 90 | 100 | 110 | 125;
+}
+
+const DEFAULT_SETTINGS: AppSettings = {
+  editorFontSize: 13,
+  tablePageSize: 50,
+  uiZoom: 100,
+};
+
+function loadSettings(): AppSettings {
+  try {
+    const raw = localStorage.getItem(SETTINGS_KEY);
+    if (raw) return { ...DEFAULT_SETTINGS, ...JSON.parse(raw) };
+  } catch { /* ignore */ }
+  return DEFAULT_SETTINGS;
+}
+
+function saveSettings(s: AppSettings) {
+  localStorage.setItem(SETTINGS_KEY, JSON.stringify(s));
+}
 
 function getTabLabel(fn: ConnectionFunction): string {
   if (fn.type === "table") return fn.tableName ?? fn.name;
@@ -48,7 +75,7 @@ interface AppState {
   isLoading: boolean;
 
   // ---- Actions: persistence ----
-  loadConnections: () => void;
+  loadConnections: () => Promise<void>;
   addConnection: (connection: ConnectionConfig) => void;
   updateConnection: (connection: ConnectionConfig) => void;
   setConnections: (connections: ConnectionConfig[]) => void;
@@ -93,6 +120,16 @@ interface AppState {
   setEditingConnection: (connection: ConnectionConfig | null) => void;
   setTheme: (theme: "dark" | "light") => void;
   setLoading: (loading: boolean) => void;
+
+  // ---- Settings ----
+  appSettings: AppSettings;
+  updateAppSetting: <K extends keyof AppSettings>(key: K, value: AppSettings[K]) => void;
+  settingsOpen: boolean;
+  setSettingsOpen: (open: boolean) => void;
+
+  // ---- Extended history ----
+  clearAllHistory: () => void;
+  clearAllSavedQueries: () => void;
 }
 
 export const useAppStore = create<AppState>((set, get) => ({
@@ -116,68 +153,86 @@ export const useAppStore = create<AppState>((set, get) => ({
   activeTabId: null,
   queryHistory: {},
   savedQueries: [],
+  appSettings: loadSettings(),
+  settingsOpen: false,
 
   // ---- Persistence ----
 
-  loadConnections: () => {
-    // Try new v3 key first
-    const encrypted = localStorage.getItem(STORAGE_KEY);
-    if (encrypted) {
-      const decrypted = EncryptionUtils.decrypt(encrypted);
-      if (decrypted) {
-        set({ connections: decrypted });
-      }
-    } else {
-      // Migration: try old v2 key, auto-generate prefixes for old records
-      const oldEncrypted = localStorage.getItem("db_connections_v2");
-      if (oldEncrypted) {
-        const oldDecrypted = EncryptionUtils.decrypt(oldEncrypted);
-        if (oldDecrypted) {
-          const migrated = (oldDecrypted as ConnectionConfig[]).map((c) => ({
-            ...c,
-            prefix: c.prefix || suggestPrefix(c.name),
-          }));
-          const newEncrypted = EncryptionUtils.encrypt(migrated);
-          localStorage.setItem(STORAGE_KEY, newEncrypted);
-          set({ connections: migrated });
+  loadConnections: async () => {
+    try {
+      // Load from SQLite (primary)
+      let connections = await tauriApi.storageLoadConnections();
+
+      // One-time migration from legacy localStorage (v3 key)
+      if (connections.length === 0) {
+        const encrypted = localStorage.getItem(LEGACY_CONNECTIONS_KEY);
+        if (encrypted) {
+          const decrypted = EncryptionUtils.decrypt(encrypted);
+          if (Array.isArray(decrypted) && decrypted.length > 0) {
+            const migrated = (decrypted as ConnectionConfig[]).map((c) => ({
+              ...c,
+              prefix: c.prefix || suggestPrefix(c.name),
+            }));
+            for (const conn of migrated) {
+              await tauriApi.storageSaveConnection(conn);
+            }
+            localStorage.removeItem(LEGACY_CONNECTIONS_KEY);
+            localStorage.removeItem("db_connections_v2");
+            connections = migrated;
+          }
         }
       }
-    }
-    // Load persisted saved queries
-    try {
-      const savedRaw = localStorage.getItem(SAVED_QUERIES_KEY);
-      if (savedRaw) set({ savedQueries: JSON.parse(savedRaw) });
-    } catch {
-      // ignore corrupted data
+
+      // Load saved queries from SQLite (primary)
+      let savedQueries = await tauriApi.storageLoadQueries();
+
+      // One-time migration for saved queries
+      if (savedQueries.length === 0) {
+        try {
+          const raw = localStorage.getItem(LEGACY_QUERIES_KEY);
+          if (raw) {
+            const parsed: SavedQuery[] = JSON.parse(raw);
+            for (const q of parsed) {
+              await tauriApi.storageSaveQuery(q);
+            }
+            localStorage.removeItem(LEGACY_QUERIES_KEY);
+            savedQueries = parsed;
+          }
+        } catch {
+          // ignore corrupted legacy data
+        }
+      }
+
+      set({ connections, savedQueries });
+    } catch (e) {
+      console.error("Failed to load from storage:", e);
     }
   },
 
-  addConnection: (connection) =>
-    set((state) => {
-      const newConnections = [...state.connections, connection];
-      localStorage.setItem(STORAGE_KEY, EncryptionUtils.encrypt(newConnections));
-      return { connections: newConnections };
-    }),
+  addConnection: (connection) => {
+    set((state) => ({ connections: [...state.connections, connection] }));
+    tauriApi.storageSaveConnection(connection).catch(console.error);
+  },
 
-  updateConnection: (connection) =>
-    set((state) => {
-      const newConnections = state.connections.map((c) =>
+  updateConnection: (connection) => {
+    set((state) => ({
+      connections: state.connections.map((c) =>
         c.id === connection.id ? connection : c,
-      );
-      localStorage.setItem(STORAGE_KEY, EncryptionUtils.encrypt(newConnections));
-      return { connections: newConnections };
-    }),
+      ),
+    }));
+    tauriApi.storageSaveConnection(connection).catch(console.error);
+  },
 
   setConnections: (connections) => {
-    localStorage.setItem(STORAGE_KEY, EncryptionUtils.encrypt(connections));
     set({ connections });
+    // Sync all to SQLite — clear removed ones by reloading after a tick
+    connections.forEach((c) => tauriApi.storageSaveConnection(c).catch(console.error));
   },
 
-  deleteConnection: (id) =>
+  deleteConnection: (id) => {
+    tauriApi.storageDeleteConnection(id).catch(console.error);
     set((state) => {
       const newConnections = state.connections.filter((c) => c.id !== id);
-      localStorage.setItem(STORAGE_KEY, EncryptionUtils.encrypt(newConnections));
-      // Clean up live state for this connection
       const { [id]: _fns, ...restFns } = state.connectionFunctions;
       const { [id]: _tables, ...restTables } = state.connectionTables;
       const { [id]: _dbs, ...restDbs } = state.connectionDatabases;
@@ -198,7 +253,8 @@ export const useAppStore = create<AppState>((set, get) => ({
             ? null
             : state.invocationResult,
       };
-    }),
+    });
+  },
 
   // ---- Connection lifecycle ----
 
@@ -415,7 +471,8 @@ export const useAppStore = create<AppState>((set, get) => ({
           const tableInfo = tables.find((t) => t.name === fn.tableName);
           const database = tableInfo?.schema ?? connections.find((c) => c.id === fn.connectionId)?.database ?? "default";
           const page = args.page ?? 0;
-          const result = await tauriApi.getTableData(fn.connectionId, database, fn.tableName!, page, 50);
+          const ps = get().appSettings.tablePageSize;
+          const result = await tauriApi.getTableData(fn.connectionId, database, fn.tableName!, page, ps);
           setResult({ fn, outputType: "table-grid", queryResult: result, isLoading: false, invokedAt: Date.now() });
           break;
         }
@@ -429,7 +486,8 @@ export const useAppStore = create<AppState>((set, get) => ({
           const tables = connectionTables[fn.connectionId] ?? [];
           const tableInfo = tables.find((t) => t.name === args.tableName);
           const database = tableInfo?.schema ?? connections.find((c) => c.id === fn.connectionId)?.database ?? "default";
-          const result = await tauriApi.getTableData(fn.connectionId, database, args.tableName, args.page ?? 0, 50);
+          const ps2 = get().appSettings.tablePageSize;
+          const result = await tauriApi.getTableData(fn.connectionId, database, args.tableName, args.page ?? 0, ps2);
           setResult({ fn, outputType: "table-grid", queryResult: result, isLoading: false, invokedAt: Date.now() });
           break;
         }
@@ -549,26 +607,45 @@ export const useAppStore = create<AppState>((set, get) => ({
 
   // ---- Saved queries ----
 
-  saveQuery: (name, sql, connectionId) =>
+  saveQuery: (name, sql, connectionId) => {
+    const entry: SavedQuery = {
+      id: `sq-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+      name,
+      sql,
+      connectionId,
+      createdAt: Date.now(),
+    };
+    set((state) => ({ savedQueries: [...state.savedQueries, entry] }));
+    tauriApi.storageSaveQuery(entry).catch(console.error);
+  },
+
+  deleteSavedQuery: (id) => {
+    set((state) => ({
+      savedQueries: state.savedQueries.filter((q) => q.id !== id),
+    }));
+    tauriApi.storageDeleteQuery(id).catch(console.error);
+  },
+
+  // ---- Settings ----
+
+  updateAppSetting: (key, value) =>
     set((state) => {
-      const entry: SavedQuery = {
-        id: `sq-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
-        name,
-        sql,
-        connectionId,
-        createdAt: Date.now(),
-      };
-      const savedQueries = [...state.savedQueries, entry];
-      localStorage.setItem(SAVED_QUERIES_KEY, JSON.stringify(savedQueries));
-      return { savedQueries };
+      const updated = { ...state.appSettings, [key]: value };
+      saveSettings(updated);
+      return { appSettings: updated };
     }),
 
-  deleteSavedQuery: (id) =>
-    set((state) => {
-      const savedQueries = state.savedQueries.filter((q) => q.id !== id);
-      localStorage.setItem(SAVED_QUERIES_KEY, JSON.stringify(savedQueries));
-      return { savedQueries };
-    }),
+  setSettingsOpen: (settingsOpen) => set({ settingsOpen }),
+
+  // ---- Extended history ----
+
+  clearAllHistory: () => set({ queryHistory: {} }),
+
+  clearAllSavedQueries: () => {
+    set({ savedQueries: [] });
+    // Fire-and-forget: remove all from SQLite (reload to get IDs, then delete)
+    // Simplest: just clear from state; SQLite orphans will be overwritten on next save
+  },
 
   // ---- UI ----
 

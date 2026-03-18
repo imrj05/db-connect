@@ -8,6 +8,7 @@ import {
     DialogHeader,
     DialogTitle,
 } from "@/components/ui/dialog"
+import { Kbd } from "@/components/ui/kbd"
 import { SearchIcon } from "lucide-react"
 function Command({
     className,
@@ -72,9 +73,7 @@ function CommandInput({
                 )}
                 {...props}
             />
-            <kbd className="px-2 py-0.5 rounded border border-border bg-muted text-[10px] font-mono text-muted-foreground/60 shrink-0">
-                Esc
-            </kbd>
+            <Kbd className="shrink-0">Esc</Kbd>
         </div>
     )
 }
@@ -113,7 +112,7 @@ function CommandGroup({
         <CommandPrimitive.Group
             data-slot="command-group"
             className={cn(
-                "overflow-hidden text-foreground **:[[cmdk-group-heading]]:px-4 **:[[cmdk-group-heading]]:pt-4 **:[[cmdk-group-heading]]:pb-1.5 **:[[cmdk-group-heading]]:text-[10px] **:[[cmdk-group-heading]]:font-bold **:[[cmdk-group-heading]]:uppercase **:[[cmdk-group-heading]]:tracking-[0.15em] **:[[cmdk-group-heading]]:text-muted-foreground/50",
+                "overflow-hidden px-1 pt-1 pb-2 text-foreground **:[[cmdk-group-heading]]:px-3 **:[[cmdk-group-heading]]:pt-3 **:[[cmdk-group-heading]]:pb-1.5 **:[[cmdk-group-heading]]:text-[10px] **:[[cmdk-group-heading]]:font-bold **:[[cmdk-group-heading]]:uppercase **:[[cmdk-group-heading]]:tracking-[0.15em] **:[[cmdk-group-heading]]:text-muted-foreground/40",
                 className
             )}
             {...props}
@@ -141,7 +140,7 @@ function CommandItem({
         <CommandPrimitive.Item
             data-slot="command-item"
             className={cn(
-                "relative flex cursor-default items-center gap-3 px-4 py-3 text-sm outline-none select-none transition-colors data-[disabled=true]:pointer-events-none data-[disabled=true]:opacity-50 hover:bg-accent/20 data-selected:bg-accent/30 [&_svg]:pointer-events-none [&_svg]:shrink-0",
+                "relative flex cursor-default items-center gap-3 px-3 py-2.5 text-sm outline-none select-none transition-colors rounded-lg mx-1 mb-0.5 last:mb-0 data-[disabled=true]:pointer-events-none data-[disabled=true]:opacity-50 hover:bg-muted/60 data-selected:bg-muted data-selected:text-foreground [&_svg]:pointer-events-none [&_svg]:shrink-0",
                 className
             )}
             {...props}

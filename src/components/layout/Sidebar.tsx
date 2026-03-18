@@ -1,16 +1,28 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import {
     ChevronDown,
     ChevronRight,
-    Database,
+    ChevronsUpDown,
     Plus,
     Loader2,
     Plug,
     Unplug,
     Pencil,
-    ChevronsUpDown,
+    Search,
+    Table2,
+    Zap,
+    Database,
     Check,
+    TerminalSquare,
+    ListTree,
 } from "lucide-react";
+import {
+    SiPostgresql,
+    SiMysql,
+    SiSqlite,
+    SiMongodb,
+    SiRedis,
+} from "react-icons/si";
 import { useAppStore } from "@/store/useAppStore";
 import { ConnectionConfig, ConnectionFunction } from "@/types";
 import { cn } from "@/lib/utils";
@@ -19,16 +31,72 @@ import {
     PopoverContent,
     PopoverTrigger,
 } from "@/components/ui/popover";
+import { Button } from "@/components/ui/button";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { Separator } from "@/components/ui/separator";
+import { Input } from "@/components/ui/input";
 import {
-    Command,
-    CommandEmpty,
-    CommandGroup,
-    CommandInput,
-    CommandItem,
-    CommandList,
-} from "@/components/ui/command";
-// ─── Individual function item ─────────────────────────────────────────────────
-function FunctionItem({
+    Tooltip,
+    TooltipContent,
+    TooltipTrigger,
+} from "@/components/ui/tooltip";
+
+// ── DB type logos ──────────────────────────────────────────────────────────────
+
+const DB_LOGO: Record<string, React.FC<{ className?: string }>> = {
+    postgresql: ({ className }) => <SiPostgresql className={className} />,
+    mysql:      ({ className }) => <SiMysql      className={className} />,
+    sqlite:     ({ className }) => <SiSqlite     className={className} />,
+    mongodb:    ({ className }) => <SiMongodb    className={className} />,
+    redis:      ({ className }) => <SiRedis      className={className} />,
+};
+
+const DB_COLOR: Record<string, string> = {
+    postgresql: "text-blue-500",
+    mysql:      "text-cyan-500",
+    sqlite:     "text-slate-400",
+    mongodb:    "text-emerald-500",
+    redis:      "text-red-500",
+};
+
+// Left-border accent color for expanded tree (per db type)
+const DB_TREE_BORDER: Record<string, string> = {
+    postgresql: "border-blue-500/30",
+    mysql:      "border-cyan-500/30",
+    sqlite:     "border-slate-400/30",
+    mongodb:    "border-emerald-500/30",
+    redis:      "border-red-500/30",
+};
+
+// Subtle bg tint for expanded tree
+const DB_TREE_BG: Record<string, string> = {
+    postgresql: "bg-blue-500/[0.03]",
+    mysql:      "bg-cyan-500/[0.03]",
+    sqlite:     "bg-slate-400/[0.03]",
+    mongodb:    "bg-emerald-500/[0.03]",
+    redis:      "bg-red-500/[0.03]",
+};
+
+// ── Section label ──────────────────────────────────────────────────────────────
+
+function SectionLabel({ label, count }: { label: string; count?: number }) {
+    return (
+        <div className="flex items-center gap-2 px-2 pt-2 pb-1">
+            <span className="text-[9px] font-black uppercase tracking-[0.18em] text-muted-foreground/35">
+                {label}
+            </span>
+            {count !== undefined && (
+                <span className="text-[9px] font-mono text-muted-foreground/25">
+                    {count}
+                </span>
+            )}
+        </div>
+    );
+}
+
+// ── Table row (compact, TablePlus style) ───────────────────────────────────────
+
+function TableRow({
     fn,
     isActive,
     onInvoke,
@@ -37,48 +105,82 @@ function FunctionItem({
     isActive: boolean;
     onInvoke: (fn: ConnectionFunction) => void;
 }) {
-    const typeColors: Record<string, string> = {
-        list: "text-accent-purple",
-        src: "text-muted-foreground",
-        query: "text-accent-green",
-        execute: "text-accent-orange",
-        tbl: "text-accent-blue",
-        table: "text-accent-blue",
-    };
     return (
         <button
             onClick={() => onInvoke(fn)}
             className={cn(
-                "w-full text-left flex items-center gap-2 px-2 py-1 rounded-md transition-all group",
+                "group w-full flex items-center gap-2 h-6 pl-2 pr-2 transition-colors relative",
                 isActive
-                    ? "bg-accent text-accent-foreground"
-                    : "hover:bg-muted text-muted-foreground hover:text-muted-foreground",
+                    ? "bg-primary/8 text-primary"
+                    : "text-muted-foreground hover:bg-muted hover:text-foreground",
             )}
         >
-            <span
+            <Table2
+                size={11}
                 className={cn(
-                    "w-1.5 h-1.5 rounded-full shrink-0 opacity-50",
-                    isActive
-                        ? "bg-accent-foreground opacity-100"
-                        : "bg-current",
+                    "shrink-0",
+                    isActive ? "text-primary/70" : "text-muted-foreground/40",
                 )}
             />
             <span
                 className={cn(
-                    "text-[11px] font-mono truncate",
-                    isActive
-                        ? "text-accent-foreground"
-                        : (typeColors[fn.type] ?? "text-muted-foreground"),
+                    "text-[11px] font-mono truncate flex-1 text-left",
+                    isActive ? "text-primary font-semibold" : "",
                 )}
             >
-                {fn.type === "table"
-                    ? fn.tableName
-                    : fn.name.slice(fn.prefix.length + 1)}
+                {fn.tableName}
             </span>
         </button>
     );
 }
-// ─── Database selector ────────────────────────────────────────────────────────
+
+// ── Quick-access function row (query / execute) ────────────────────────────────
+
+function QuickFnRow({
+    fn,
+    isActive,
+    onInvoke,
+}: {
+    fn: ConnectionFunction;
+    isActive: boolean;
+    onInvoke: (fn: ConnectionFunction) => void;
+}) {
+    const Icon = fn.type === "execute" ? TerminalSquare : Zap;
+    const label =
+        fn.type === "query"   ? "SQL Query"
+      : fn.type === "execute" ? "SQL Execute"
+      : fn.name.slice(fn.prefix.length + 1);
+
+    return (
+        <button
+            onClick={() => onInvoke(fn)}
+            className={cn(
+                "group w-full flex items-center gap-2 h-6 pl-2 pr-2 transition-colors",
+                isActive
+                    ? "bg-primary/8 text-primary"
+                    : "text-muted-foreground hover:bg-muted hover:text-foreground",
+            )}
+        >
+            <Icon
+                size={11}
+                className={cn(
+                    "shrink-0",
+                    isActive
+                        ? "text-primary/70"
+                        : fn.type === "execute"
+                          ? "text-accent-orange/50"
+                          : "text-accent-green/50",
+                )}
+            />
+            <span className="text-[11px] font-mono truncate flex-1 text-left">
+                {label}
+            </span>
+        </button>
+    );
+}
+
+// ── Database selector ──────────────────────────────────────────────────────────
+
 function DatabaseSelector({
     databases,
     selected,
@@ -93,71 +195,70 @@ function DatabaseSelector({
         databases.length > 0 ? databases : selected ? [selected] : [];
     if (displayDbs.length === 0) return null;
     const current = selected ?? displayDbs[0];
+
     return (
-        <div className="mx-1 mb-1" onClick={(e) => e.stopPropagation()}>
+        <div className="px-2 pt-1.5 pb-1" onClick={(e) => e.stopPropagation()}>
             <Popover open={open} onOpenChange={setOpen}>
                 <PopoverTrigger asChild>
-                    <button className="w-full flex items-center gap-1.5 px-2 py-1.5 rounded-md bg-muted border border-border hover:bg-muted/80 transition-colors">
-                        <Database
-                            size={10}
-                            className="text-muted-foreground/50 shrink-0"
-                        />
-                        <span className="flex-1 text-left text-[10px] font-mono text-muted-foreground truncate min-w-0">
+                    <button
+                        className={cn(
+                            "group w-full flex items-center gap-1.5 h-6 px-2 rounded-md transition-colors",
+                            "bg-muted/40 hover:bg-muted border border-border/40 hover:border-border/70",
+                        )}
+                    >
+                        <div className="size-1.5 rounded-full bg-primary/50 shrink-0" />
+                        <span className="flex-1 text-left text-[10px] font-mono text-muted-foreground/70 truncate">
                             {current}
                         </span>
                         <ChevronsUpDown
                             size={9}
-                            className="text-muted-foreground/40 shrink-0"
+                            className="text-muted-foreground/30 shrink-0 group-hover:text-muted-foreground/50 transition-colors"
                         />
                     </button>
                 </PopoverTrigger>
+
                 <PopoverContent
-                    className="w-48 p-0 bg-card border border-border shadow-xl"
                     align="start"
-                    side="right"
-                    sideOffset={6}
+                    sideOffset={4}
+                    className="w-48 p-1 shadow-md"
                 >
-                    <Command className="bg-transparent">
-                        <CommandInput
-                            placeholder="Search database..."
-                            className="h-8 text-[11px] font-mono border-b border-border bg-transparent text-foreground placeholder:text-muted-foreground/40"
-                        />
-                        <CommandList className="max-h-52">
-                            <CommandEmpty className="py-3 text-center text-[10px] text-muted-foreground/50">
-                                No database found
-                            </CommandEmpty>
-                            <CommandGroup>
-                                {displayDbs.map((db) => (
-                                    <CommandItem
-                                        key={db}
-                                        value={db}
-                                        onSelect={() => {
-                                            onSelect(db);
-                                            setOpen(false);
-                                        }}
-                                        className="flex items-center gap-2  py-1.5 text-[11px] font-mono cursor-pointer aria-selected:bg-muted text-muted-foreground hover:text-foreground"
-                                    >
-                                        <Check
-                                            size={10}
-                                            className={cn(
-                                                "shrink-0",
-                                                db === current
-                                                    ? "opacity-100 text-accent-blue"
-                                                    : "opacity-0",
-                                            )}
-                                        />
-                                        {db}
-                                    </CommandItem>
-                                ))}
-                            </CommandGroup>
-                        </CommandList>
-                    </Command>
+                    <div className="max-h-48 overflow-y-auto">
+                        {displayDbs.map((db) => {
+                            const isSelected = db === current;
+                            return (
+                                <button
+                                    key={db}
+                                    onClick={() => {
+                                        onSelect(db);
+                                        setOpen(false);
+                                    }}
+                                    className={cn(
+                                        "w-full flex items-center gap-2 h-7 px-2 rounded-md text-[11px] font-mono transition-colors text-left",
+                                        isSelected
+                                            ? "bg-primary/8 text-primary font-semibold"
+                                            : "text-muted-foreground hover:bg-muted hover:text-foreground",
+                                    )}
+                                >
+                                    <Check
+                                        size={10}
+                                        className={cn(
+                                            "shrink-0 transition-opacity",
+                                            isSelected ? "opacity-100 text-primary" : "opacity-0",
+                                        )}
+                                    />
+                                    <span className="truncate">{db}</span>
+                                </button>
+                            );
+                        })}
+                    </div>
                 </PopoverContent>
             </Popover>
         </div>
     );
 }
-// ─── Connection node (one per connection) ─────────────────────────────────────
+
+// ── Connection node ────────────────────────────────────────────────────────────
+
 function ConnectionNode({
     connection,
     isConnected,
@@ -166,6 +267,7 @@ function ConnectionNode({
     databases,
     selectedDatabase,
     activeFunctionId,
+    isLoading,
     onToggleExpand,
     onConnect,
     onDisconnect,
@@ -180,6 +282,7 @@ function ConnectionNode({
     databases: string[];
     selectedDatabase: string | undefined;
     activeFunctionId?: string;
+    isLoading: boolean;
     onToggleExpand: () => void;
     onConnect: () => void;
     onDisconnect: () => void;
@@ -187,140 +290,238 @@ function ConnectionNode({
     onInvoke: (fn: ConnectionFunction) => void;
     onSelectDatabase: (db: string) => void;
 }) {
-    const DB_COLORS: Record<string, string> = {
-        postgresql: "bg-chart-1",
-        mysql: "bg-chart-1",
-        sqlite: "bg-muted",
-        mongodb: "bg-chart-3",
-        redis: "bg-chart-5",
-    };
-    const utilityFns = functions.filter((f) => f.type !== "table");
+    const [tableFilter, setTableFilter] = useState("");
+
+    const Logo = DB_LOGO[connection.type] ?? DB_LOGO.postgresql;
+    const logoColor = DB_COLOR[connection.type] ?? "text-muted-foreground";
+    const treeBorder = DB_TREE_BORDER[connection.type] ?? "border-border/30";
+    const treeBg = DB_TREE_BG[connection.type] ?? "";
+
+    // Partition functions
+    const quickFns = functions.filter(
+        (f) => f.type === "query" || f.type === "execute",
+    );
     const tableFns = functions.filter((f) => f.type === "table");
+
+    const filteredTables = useMemo(() => {
+        const q = tableFilter.trim().toLowerCase();
+        if (!q) return tableFns;
+        return tableFns.filter((f) =>
+            (f.tableName ?? "").toLowerCase().includes(q),
+        );
+    }, [tableFns, tableFilter]);
+
     return (
-        <div className="mb-1">
-            {/* Connection header row */}
+        <div className="border-b border-border/40">
+            {/* ── Connection header ── */}
             <div
-                className="flex items-center gap-2 px-2 py-1.5 rounded-lg hover:bg-muted cursor-pointer group transition-all select-none"
+                role="button"
                 onClick={onToggleExpand}
-            >
-                {isExpanded ? (
-                    <ChevronDown
-                        size={12}
-                        className="text-muted-foreground/60 shrink-0"
-                    />
-                ) : (
-                    <ChevronRight
-                        size={12}
-                        className="text-muted-foreground/60 shrink-0"
-                    />
+                className={cn(
+                    "group relative flex items-center gap-2 h-8 px-2 cursor-pointer select-none transition-colors",
+                    isExpanded ? "bg-muted/50" : "hover:bg-muted/40",
                 )}
-                <div
+            >
+                {/* DB type color stripe on left edge */}
+                <span
                     className={cn(
-                        "size-5 rounded flex items-center justify-center font-bold text-background text-[9px] shrink-0",
-                        DB_COLORS[connection.type] ?? "bg-muted",
+                        "absolute left-0 top-0 bottom-0 w-0.5 rounded-r-full transition-opacity",
+                        logoColor.replace("text-", "bg-"),
+                        isExpanded ? "opacity-60" : "opacity-0 group-hover:opacity-30",
                     )}
-                >
-                    {connection.type.substring(0, 2).toUpperCase()}
-                </div>
+                />
+
+                {/* Expand chevron */}
+                <span className="text-muted-foreground/40 shrink-0 w-3 ml-0.5">
+                    {isExpanded ? (
+                        <ChevronDown size={11} />
+                    ) : (
+                        <ChevronRight size={11} />
+                    )}
+                </span>
+
+                {/* DB type logo */}
+                <Logo className={cn("text-[14px] shrink-0", logoColor)} />
+
+                {/* Name */}
                 <div className="flex-1 min-w-0">
-                    <span className="text-[11px] font-bold truncate text-foreground block">
+                    <span className="text-[12px] font-semibold text-foreground truncate leading-none block">
                         {connection.name}
                     </span>
-                    <span className="text-[9px] font-mono text-muted-foreground/50 block">
-                        {connection.prefix}_
-                    </span>
                 </div>
-                {/* Action buttons (visible on hover) */}
+
+                {/* Hover actions */}
                 <div
-                    className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity shrink-0"
+                    className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity shrink-0"
                     onClick={(e) => e.stopPropagation()}
                 >
-                    <button
-                        onClick={onEdit}
-                        className="size-5 flex items-center justify-center rounded text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
-                        title="Edit connection"
-                    >
-                        <Pencil size={10} />
-                    </button>
+                    <Tooltip>
+                        <TooltipTrigger asChild>
+                            <Button
+                                variant="ghost"
+                                size="icon-xs"
+                                onClick={onEdit}
+                                className="size-5 text-muted-foreground/50 hover:text-foreground"
+                            >
+                                <Pencil size={10} />
+                            </Button>
+                        </TooltipTrigger>
+                        <TooltipContent side="top" sideOffset={4}>Edit</TooltipContent>
+                    </Tooltip>
+
                     {isConnected ? (
-                        <button
-                            onClick={onDisconnect}
-                            className="size-5 flex items-center justify-center rounded text-muted-foreground hover:text-accent-red hover:bg-accent transition-colors"
-                            title="Disconnect"
-                        >
-                            <Unplug size={10} />
-                        </button>
+                        <Tooltip>
+                            <TooltipTrigger asChild>
+                                <Button
+                                    variant="ghost"
+                                    size="icon-xs"
+                                    onClick={onDisconnect}
+                                    className="size-5 text-muted-foreground/50 hover:text-destructive"
+                                >
+                                    <Unplug size={10} />
+                                </Button>
+                            </TooltipTrigger>
+                            <TooltipContent side="top" sideOffset={4}>Disconnect</TooltipContent>
+                        </Tooltip>
                     ) : (
-                        <button
-                            onClick={onConnect}
-                            className="size-5 flex items-center justify-center rounded text-muted-foreground hover:text-accent-green hover:bg-accent transition-colors"
-                            title="Connect"
-                        >
-                            <Plug size={10} />
-                        </button>
+                        <Tooltip>
+                            <TooltipTrigger asChild>
+                                <Button
+                                    variant="ghost"
+                                    size="icon-xs"
+                                    onClick={onConnect}
+                                    className="size-5 text-muted-foreground/50 hover:text-emerald-500"
+                                >
+                                    <Plug size={10} />
+                                </Button>
+                            </TooltipTrigger>
+                            <TooltipContent side="top" sideOffset={4}>Connect</TooltipContent>
+                        </Tooltip>
                     )}
                 </div>
-                {/* Connected indicator */}
-                {isConnected && (
-                    <div className="size-1.5 rounded-full bg-accent-green shrink-0 animate-pulse" />
-                )}
+
+                {/* Status dot */}
+                <span
+                    className={cn(
+                        "size-1.5 rounded-full shrink-0 transition-opacity",
+                        isConnected
+                            ? "bg-emerald-500 animate-pulse group-hover:opacity-0"
+                            : "bg-muted-foreground/20 group-hover:opacity-0",
+                    )}
+                />
             </div>
-            {/* Expanded tree */}
+
+            {/* ── Expanded tree ── */}
             {isExpanded && (
-                <div className="ml-4 pl-2 border-l border-border mt-0.5 space-y-0.5">
+                <div className={cn("border-l-2 ml-3", treeBorder, treeBg)}>
                     {isConnected ? (
                         <>
-                            {/* Database selector (only shown when multiple databases available) */}
+                            {/* Database selector */}
                             <DatabaseSelector
                                 databases={databases}
                                 selected={selectedDatabase}
                                 onSelect={onSelectDatabase}
                             />
-                            {/* Utility functions: list, src, query, execute, tbl */}
-                            {utilityFns.map((fn) => (
-                                <FunctionItem
-                                    key={fn.id}
-                                    fn={fn}
-                                    isActive={activeFunctionId === fn.id}
-                                    onInvoke={onInvoke}
-                                />
-                            ))}
-                            {/* Tables section */}
-                            {tableFns.length > 0 && (
+
+                            {/* Quick-access functions (query / execute) */}
+                            {quickFns.length > 0 && (
                                 <>
-                                    <div className="flex items-center gap-2 px-2 py-1 mt-1">
-                                        <div className="flex-1 h-px bg-muted" />
-                                        <span className="text-[9px] font-bold uppercase tracking-widest text-muted-foreground/30">
-                                            Tables ({tableFns.length})
-                                        </span>
-                                        <div className="flex-1 h-px bg-muted" />
-                                    </div>
-                                    {tableFns.map((fn) => (
-                                        <FunctionItem
+                                    <SectionLabel label="Quick Access" />
+                                    {quickFns.map((fn) => (
+                                        <QuickFnRow
                                             key={fn.id}
                                             fn={fn}
-                                            isActive={
-                                                activeFunctionId === fn.id
-                                            }
+                                            isActive={activeFunctionId === fn.id}
                                             onInvoke={onInvoke}
                                         />
                                     ))}
                                 </>
                             )}
+
+                            {/* Tables */}
+                            {tableFns.length > 0 && (
+                                <>
+                                    <SectionLabel
+                                        label="Tables"
+                                        count={
+                                            tableFilter
+                                                ? filteredTables.length
+                                                : tableFns.length
+                                        }
+                                    />
+
+                                    {/* Filter input — visible when many tables */}
+                                    {tableFns.length >= 5 && (
+                                        <div className="px-2 pb-1">
+                                            <div className="relative">
+                                                <Search
+                                                    size={10}
+                                                    className="absolute left-2 top-1/2 -translate-y-1/2 text-muted-foreground/30 pointer-events-none"
+                                                />
+                                                <Input
+                                                    value={tableFilter}
+                                                    onChange={(e) =>
+                                                        setTableFilter(e.target.value)
+                                                    }
+                                                    placeholder="Filter tables..."
+                                                    className="h-6 pl-6 pr-2 text-[10px] font-mono bg-muted/40 border-border/50 placeholder:text-muted-foreground/30"
+                                                />
+                                            </div>
+                                        </div>
+                                    )}
+
+                                    {filteredTables.length === 0 ? (
+                                        <p className="px-3 py-2 text-[10px] text-muted-foreground/40 font-mono">
+                                            No tables match "{tableFilter}"
+                                        </p>
+                                    ) : (
+                                        <div className="overflow-y-auto max-h-[45vh] pb-1 no-scrollbar">
+                                            {filteredTables.map((fn) => (
+                                                <TableRow
+                                                    key={fn.id}
+                                                    fn={fn}
+                                                    isActive={activeFunctionId === fn.id}
+                                                    onInvoke={onInvoke}
+                                                />
+                                            ))}
+                                        </div>
+                                    )}
+                                </>
+                            )}
+
+                            {/* Loading state while functions populate */}
+                            {functions.length === 0 && (
+                                <div className="flex items-center gap-2 px-3 py-3">
+                                    <Loader2
+                                        size={11}
+                                        className="animate-spin text-muted-foreground/40"
+                                    />
+                                    <span className="text-[10px] text-muted-foreground/40 font-mono">
+                                        Loading…
+                                    </span>
+                                </div>
+                            )}
                         </>
                     ) : (
-                        /* Not yet connected */
-                        <div className="px-2 py-3 space-y-2">
-                            <p className="text-[10px] text-muted-foreground/50 font-mono">
-                                {connection.prefix}_list() ...
+                        /* Not connected */
+                        <div className="px-3 py-3 space-y-2">
+                            <p className="text-[10px] font-mono text-muted-foreground/40">
+                                {connection.prefix}_list() …
                             </p>
-                            <button
+                            <Button
+                                variant="outline"
+                                size="sm"
                                 onClick={onConnect}
-                                className="w-full h-7 bg-accent text-accent-foreground hover:bg-accent/90 rounded text-[10px] font-bold uppercase tracking-widest transition-all flex items-center justify-center gap-1.5"
+                                disabled={isLoading}
+                                className="w-full h-7 text-[10px] font-bold uppercase tracking-widest gap-1.5"
                             >
-                                <Plug size={11} />
+                                {isLoading ? (
+                                    <Loader2 size={10} className="animate-spin" />
+                                ) : (
+                                    <Plug size={10} />
+                                )}
                                 Connect
-                            </button>
+                            </Button>
                         </div>
                     )}
                 </div>
@@ -328,7 +529,9 @@ function ConnectionNode({
         </div>
     );
 }
-// ─── Main Sidebar ─────────────────────────────────────────────────────────────
+
+// ── Main Sidebar ───────────────────────────────────────────────────────────────
+
 const Sidebar = () => {
     const {
         connections,
@@ -348,90 +551,125 @@ const Sidebar = () => {
         setConnectionDialogOpen,
         setEditingConnection,
     } = useAppStore();
+
     const handleInvoke = (fn: ConnectionFunction) => {
-        // For query/execute: show editor without running
         if (fn.type === "query" || fn.type === "execute") {
             setActiveFunctionOnly(fn);
         } else {
             invokeFunction(fn);
         }
     };
+
     return (
-        <div className="h-full flex flex-col bg-sidebar border-r border-sidebar-border overflow-hidden w-full">
-            {/* Sidebar header */}
-            <div className="h-10 px-3 flex items-center justify-between border-b border-border shrink-0">
-                <span className="text-[9px] font-black uppercase tracking-[0.2em] text-muted-foreground/50">
-                    Connections
-                </span>
+        <div className="h-full flex flex-col bg-sidebar border-r border-sidebar-border overflow-hidden">
+            {/* ── Header ── */}
+            <div className="h-10 flex items-center justify-between px-3 border-b border-border shrink-0">
+                <div className="flex items-center gap-2">
+                    <ListTree size={14} className="text-muted-foreground/50" />
+                    <span className="text-[10px] font-black uppercase tracking-[0.18em] text-muted-foreground/50">
+                        Connections
+                    </span>
+                </div>
+
                 <div className="flex items-center gap-1">
                     {isLoading && (
-                        <Loader2
-                            size={12}
-                            className="animate-spin text-accent-blue"
-                        />
+                        <Loader2 size={11} className="animate-spin text-muted-foreground/40" />
                     )}
-                    <button
+                    <Tooltip>
+                        <TooltipTrigger asChild>
+                            <Button
+                                variant="ghost"
+                                size="icon-xs"
+                                onClick={() => {
+                                    setEditingConnection(null);
+                                    setConnectionDialogOpen(true);
+                                }}
+                                className="text-muted-foreground/50 hover:text-foreground"
+                            >
+                                <Plus size={14} />
+                            </Button>
+                        </TooltipTrigger>
+                        <TooltipContent side="bottom" sideOffset={4}>
+                            New connection
+                        </TooltipContent>
+                    </Tooltip>
+                </div>
+            </div>
+
+            {/* ── Connection list ── */}
+            {connections.length === 0 ? (
+                /* Empty state */
+                <div className="flex-1 flex flex-col items-center justify-center gap-4 pb-10 px-4">
+                    <div className="size-12 rounded-xl bg-muted/50 border border-border flex items-center justify-center">
+                        <Database size={20} className="text-muted-foreground/30" />
+                    </div>
+                    <div className="text-center space-y-1">
+                        <p className="text-[11px] font-bold text-muted-foreground/60 uppercase tracking-widest">
+                            No connections
+                        </p>
+                        <p className="text-[10px] text-muted-foreground/35">
+                            Add your first database to get started
+                        </p>
+                    </div>
+                    <Button
+                        size="sm"
                         onClick={() => {
                             setEditingConnection(null);
                             setConnectionDialogOpen(true);
                         }}
-                        className="size-6 flex items-center justify-center rounded text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
-                        title="New connection"
+                        className="h-7 text-[10px] font-bold uppercase tracking-widest gap-1.5"
                     >
-                        <Plus size={14} />
-                    </button>
+                        <Plus size={11} />
+                        Add Connection
+                    </Button>
                 </div>
-            </div>
-            {/* Connection list */}
-            <div className="flex-1 overflow-y-auto scrollbar-thin p-2 space-y-0.5">
-                {connections.length === 0 ? (
-                    <div className="flex flex-col items-center justify-center h-full gap-3 pb-8">
-                        <Database
-                            size={24}
-                            className="text-muted-foreground opacity-20"
-                        />
-                        <p className="text-[10px] font-bold text-muted-foreground/50 uppercase tracking-widest text-center">
-                            No connections
-                        </p>
-                        <button
-                            onClick={() => {
-                                setEditingConnection(null);
-                                setConnectionDialogOpen(true);
-                            }}
-                            className="px-4 py-1.5 bg-primary hover:bg-primary/90 text-primary-foreground rounded-lg font-bold text-[10px] transition-all active:scale-95"
-                        >
-                            Add Connection
-                        </button>
+            ) : (
+                <ScrollArea className="flex-1">
+                    <div className="py-1">
+                        {connections.map((conn) => (
+                            <ConnectionNode
+                                key={conn.id}
+                                connection={conn}
+                                isConnected={connectedIds.includes(conn.id)}
+                                isExpanded={expandedConnections.includes(conn.id)}
+                                functions={connectionFunctions[conn.id] ?? []}
+                                databases={connectionDatabases[conn.id] ?? []}
+                                selectedDatabase={selectedDatabases[conn.id]}
+                                activeFunctionId={activeFunction?.id}
+                                isLoading={isLoading}
+                                onToggleExpand={() => toggleConnectionExpanded(conn.id)}
+                                onConnect={() => connectAndInit(conn.id)}
+                                onDisconnect={() => disconnectConnection(conn.id)}
+                                onEdit={() => {
+                                    setEditingConnection(conn);
+                                    setConnectionDialogOpen(true);
+                                }}
+                                onInvoke={handleInvoke}
+                                onSelectDatabase={(db) => selectDatabase(conn.id, db)}
+                            />
+                        ))}
                     </div>
-                ) : (
-                    connections.map((conn) => (
-                        <ConnectionNode
-                            key={conn.id}
-                            connection={conn}
-                            isConnected={connectedIds.includes(conn.id)}
-                            isExpanded={expandedConnections.includes(conn.id)}
-                            functions={connectionFunctions[conn.id] ?? []}
-                            databases={connectionDatabases[conn.id] ?? []}
-                            selectedDatabase={selectedDatabases[conn.id]}
-                            activeFunctionId={activeFunction?.id}
-                            onToggleExpand={() =>
-                                toggleConnectionExpanded(conn.id)
-                            }
-                            onConnect={() => connectAndInit(conn.id)}
-                            onDisconnect={() => disconnectConnection(conn.id)}
-                            onEdit={() => {
-                                setEditingConnection(conn);
-                                setConnectionDialogOpen(true);
-                            }}
-                            onInvoke={handleInvoke}
-                            onSelectDatabase={(db) =>
-                                selectDatabase(conn.id, db)
-                            }
-                        />
-                    ))
-                )}
-            </div>
+                </ScrollArea>
+            )}
+
+            {/* ── Footer: connected count ── */}
+            {connections.length > 0 && (
+                <>
+                    <Separator />
+                    <div className="h-7 flex items-center justify-between px-3 shrink-0">
+                        <span className="text-[9px] font-mono text-muted-foreground/30">
+                            {connectedIds.length}/{connections.length} connected
+                        </span>
+                        <span className="text-[9px] font-mono text-muted-foreground/25">
+                            {connections.length === 1
+                                ? "1 connection"
+                                : `${connections.length} connections`}
+                        </span>
+                    </div>
+                </>
+            )}
         </div>
     );
 };
+
 export default Sidebar;
