@@ -124,7 +124,7 @@ function FormLabel({
     required?: boolean;
 }) {
     return (
-        <Label className="block text-[10px] font-bold uppercase tracking-widest text-muted-foreground/70 mb-1.5">
+        <Label className="block text-[10px] font-label font-bold uppercase tracking-widest text-muted-foreground/70 mb-1.5">
             {children}
             {required && <span className="text-destructive ml-0.5">*</span>}
         </Label>
@@ -372,10 +372,10 @@ const ConnectionDialog = ({ onClose, initialData }: ConnectionDialogProps) => {
                         {/* Form header */}
                         <div className="h-14 px-6 flex items-center border-b border-border shrink-0">
                             <div>
-                                <h2 className="text-sm font-bold text-foreground">
+                                <h2 className="text-sm font-sans font-bold text-foreground">
                                     {initialData ? "Edit Connection" : "New Connection"}
                                 </h2>
-                                <p className="text-[10px] text-muted-foreground/50 mt-0.5">
+                                <p className="text-[10px] font-sans text-muted-foreground/50 mt-0.5">
                                     {initialData
                                         ? `Editing ${initialData.name}`
                                         : `Configure your ${activeEngine.label} connection`}
@@ -639,7 +639,7 @@ const ConnectionDialog = ({ onClose, initialData }: ConnectionDialogProps) => {
                                     className={cn(
                                         "h-8 text-[10px] font-bold uppercase tracking-widest gap-1.5",
                                         testStatus === "success" &&
-                                            "bg-accent/10 text-accent-foreground border-emerald-500/20",
+                                            "bg-primary/10 text-primary border-primary/30",
                                         testStatus === "error" &&
                                             "bg-destructive/10 text-destructive border-destructive/20",
                                     )}

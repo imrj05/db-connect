@@ -221,3 +221,37 @@ pub async fn storage_delete_query(id: String) -> Result<(), String> {
         .await
         .map_err(|e| e.to_string())
 }
+
+// ── Query history commands ──────────────────────────────────────────────────────
+
+#[tauri::command]
+pub async fn storage_load_history() -> Result<Vec<crate::types::QueryHistoryEntry>, String> {
+    AppStorage::get()
+        .load_history()
+        .await
+        .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub async fn storage_save_history_entry(entry: crate::types::QueryHistoryEntry) -> Result<(), String> {
+    AppStorage::get()
+        .save_history_entry(&entry)
+        .await
+        .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub async fn storage_clear_history(connection_id: String) -> Result<(), String> {
+    AppStorage::get()
+        .clear_history_for_connection(&connection_id)
+        .await
+        .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub async fn storage_clear_all_history() -> Result<(), String> {
+    AppStorage::get()
+        .clear_all_history()
+        .await
+        .map_err(|e| e.to_string())
+}

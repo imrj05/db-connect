@@ -40,6 +40,10 @@ pub fn run() {
             commands::storage_load_queries,
             commands::storage_save_query,
             commands::storage_delete_query,
+            commands::storage_load_history,
+            commands::storage_save_history_entry,
+            commands::storage_clear_history,
+            commands::storage_clear_all_history,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

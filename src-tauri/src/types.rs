@@ -77,6 +77,17 @@ pub struct QueryResult {
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 #[serde(rename_all = "camelCase")]
+pub struct QueryHistoryEntry {
+    pub id: String,
+    pub sql: String,
+    pub executed_at: i64,       // Unix ms
+    pub execution_time_ms: i64,
+    pub row_count: i64,
+    pub connection_id: String,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+#[serde(rename_all = "camelCase")]
 pub struct SavedQuery {
     pub id: String,
     pub name: String,

@@ -24,6 +24,16 @@ const TYPE_LABEL: Record<string, string> = {
     table:   "table",
 };
 
+// Neon color per function type
+const TYPE_COLOR: Record<string, string> = {
+    list:    "text-accent-purple/70 border-accent-purple/20",
+    src:     "text-muted-foreground/40 border-border",
+    query:   "text-primary/80 border-primary/25",
+    execute: "text-accent-orange/80 border-accent-orange/25",
+    tbl:     "text-accent-blue/80 border-accent-blue/25",
+    table:   "text-accent-blue/80 border-accent-blue/25",
+};
+
 export function CommandPalette() {
     const {
         theme,
@@ -92,7 +102,7 @@ export function CommandPalette() {
     return (
         <CommandDialog open={commandPaletteOpen} onOpenChange={setCommandPaletteOpen}>
             <CommandInput
-                placeholder="Search commands..."
+                placeholder="Search functions, tables, commands…"
                 value={query}
                 onValueChange={setQuery}
             />
@@ -119,18 +129,19 @@ export function CommandPalette() {
                                             key={fn.id}
                                             value={fn.callSignature}
                                             onSelect={() => handleSelect(fn)}
+                                            className="border-border bg-card"
                                         >
                                             <div className="flex flex-col flex-1 min-w-0">
-                                                <span className="text-[13px] font-medium text-foreground leading-tight">
+                                                <span className="text-[12px] font-sans font-medium text-foreground leading-tight">
                                                     {name}
                                                 </span>
                                                 {fn.description && (
-                                                    <span className="text-[11px] text-muted-foreground/50 mt-0.5 leading-tight truncate">
+                                                    <span className="text-[10px] font-sans text-muted-foreground/40 mt-0.5 leading-tight truncate">
                                                         {fn.description}
                                                     </span>
                                                 )}
                                             </div>
-                                            <span className="text-[10px] font-mono text-muted-foreground/30 uppercase tracking-wider shrink-0">
+                                            <span className={`text-[9px] font-label font-bold uppercase tracking-widest shrink-0 px-1.5 py-0.5 border ${TYPE_COLOR[fn.type] ?? "text-muted-foreground/30 border-border"}`}>
                                                 {TYPE_LABEL[fn.type] ?? fn.type}
                                             </span>
                                         </CommandItem>
@@ -151,11 +162,12 @@ export function CommandPalette() {
                                     setConnectionDialogOpen(true);
                                     setCommandPaletteOpen(false);
                                 }}
+                                className="border-border bg-card"
                             >
-                                <Plus size={13} className="text-muted-foreground/50 shrink-0" />
+                                <Plus size={12} className="text-primary/60 shrink-0" />
                                 <div className="flex flex-col flex-1">
-                                    <span className="text-[13px] font-medium">Add New Connection</span>
-                                    <span className="text-[11px] text-muted-foreground/50">Connect to a database</span>
+                                    <span className="text-[12px] font-sans font-medium">Add New Connection</span>
+                                    <span className="text-[10px] font-sans text-muted-foreground/40">Connect to a database</span>
                                 </div>
                             </CommandItem>
                         </CommandGroup>
@@ -171,27 +183,28 @@ export function CommandPalette() {
                             setConnectionDialogOpen(true);
                             setCommandPaletteOpen(false);
                         }}
+                        className="border-border bg-card"
                     >
-                        <Plus size={13} className="text-muted-foreground/50 shrink-0" />
+                        <Plus size={12} className="text-primary/60 shrink-0" />
                         <div className="flex flex-col flex-1">
-                            <span className="text-[13px] font-medium">New Connection</span>
-                            <span className="text-[11px] text-muted-foreground/50">Add a new database connection</span>
+                            <span className="text-[12px] font-sans font-medium">New Connection</span>
+                            <span className="text-[10px] font-sans text-muted-foreground/40">Add a new database connection</span>
                         </div>
                         <KbdGroup>
                             <Kbd>⌘</Kbd>
                             <Kbd>N</Kbd>
                         </KbdGroup>
                     </CommandItem>
-                    <CommandItem onSelect={toggleTheme}>
+                    <CommandItem onSelect={toggleTheme} className="border-border bg-card">
                         {theme === "dark"
-                            ? <Sun size={13} className="text-muted-foreground/50 shrink-0" />
-                            : <Moon size={13} className="text-muted-foreground/50 shrink-0" />
+                            ? <Sun size={12} className="text-primary/60 shrink-0" />
+                            : <Moon size={12} className="text-primary/60 shrink-0" />
                         }
                         <div className="flex flex-col flex-1">
-                            <span className="text-[13px] font-medium">
+                            <span className="text-[12px] font-sans font-medium">
                                 Switch to {theme === "dark" ? "Light" : "Dark"} Mode
                             </span>
-                            <span className="text-[11px] text-muted-foreground/50">Toggle the app theme</span>
+                            <span className="text-[10px] font-sans text-muted-foreground/40">Toggle the app theme</span>
                         </div>
                     </CommandItem>
                 </CommandGroup>

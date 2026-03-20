@@ -102,8 +102,8 @@ interface AppState {
   setActiveFunctionOnly: (fn: ConnectionFunction) => void;
   setPendingSql: (sql: string) => void;
 
-  // ---- Query history (in-memory, per connection, max 100) ----
-  queryHistory: Record<string, QueryHistoryEntry[]>;
+  // ---- Query history (persisted, all connections) ----
+  queryHistory: QueryHistoryEntry[];
   addToHistory: (entry: QueryHistoryEntry) => void;
   clearHistory: (connectionId: string) => void;
 
@@ -151,7 +151,7 @@ export const useAppStore = create<AppState>((set, get) => ({
   isLoading: false,
   tabs: [],
   activeTabId: null,
-  queryHistory: {},
+  queryHistory: [],
   savedQueries: [],
   appSettings: loadSettings(),
   settingsOpen: false,
@@ -203,7 +203,9 @@ export const useAppStore = create<AppState>((set, get) => ({
         }
       }
 
-      set({ connections, savedQueries });
+      const queryHistory = await tauriApi.storageLoadHistory();
+
+      set({ connections, savedQueries, queryHistory });
     } catch (e) {
       console.error("Failed to load from storage:", e);
     }
@@ -450,19 +452,17 @@ export const useAppStore = create<AppState>((set, get) => ({
             fn, outputType: "sql-editor", queryResult: result, isLoading: false, invokedAt: Date.now(),
           };
           // Record history and update result + tab atomically
-          set((s) => {
-            const prev = s.queryHistory[fn.connectionId] ?? [];
-            const entry: QueryHistoryEntry = {
-              id: `${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
-              sql: args.sql!, executedAt: Date.now(),
-              executionTimeMs: result.executionTimeMs, rowCount: result.rows.length, connectionId: fn.connectionId,
-            };
-            return {
-              queryHistory: { ...s.queryHistory, [fn.connectionId]: [entry, ...prev].slice(0, 100) },
-              invocationResult: sqlResult,
-              tabs: s.tabs.map((t) => (t.id === s.activeTabId ? { ...t, result: sqlResult } : t)),
-            };
-          });
+          const historyEntry: QueryHistoryEntry = {
+            id: `${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+            sql: args.sql!, executedAt: Date.now(),
+            executionTimeMs: result.executionTimeMs, rowCount: result.rows.length, connectionId: fn.connectionId,
+          };
+          tauriApi.storageSaveHistoryEntry(historyEntry).catch(console.error);
+          set((s) => ({
+            queryHistory: [historyEntry, ...s.queryHistory],
+            invocationResult: sqlResult,
+            tabs: s.tabs.map((t) => (t.id === s.activeTabId ? { ...t, result: sqlResult } : t)),
+          }));
           break;
         }
 
@@ -473,7 +473,20 @@ export const useAppStore = create<AppState>((set, get) => ({
           const page = args.page ?? 0;
           const ps = get().appSettings.tablePageSize;
           const result = await tauriApi.getTableData(fn.connectionId, database, fn.tableName!, page, ps);
-          setResult({ fn, outputType: "table-grid", queryResult: result, isLoading: false, invokedAt: Date.now() });
+          const tableEntry: QueryHistoryEntry = {
+            id: `${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+            sql: `SELECT * FROM "${fn.tableName}" LIMIT ${ps} OFFSET ${page * ps}`,
+            executedAt: Date.now(),
+            executionTimeMs: result.executionTimeMs,
+            rowCount: result.rows.length,
+            connectionId: fn.connectionId,
+          };
+          tauriApi.storageSaveHistoryEntry(tableEntry).catch(console.error);
+          set((s) => ({
+            queryHistory: [tableEntry, ...s.queryHistory],
+            invocationResult: { fn, outputType: "table-grid", queryResult: result, isLoading: false, invokedAt: Date.now() },
+            tabs: s.tabs.map((t) => (t.id === s.activeTabId ? { ...t, result: { fn, outputType: "table-grid", queryResult: result, isLoading: false, invokedAt: Date.now() } } : t)),
+          }));
           break;
         }
 
@@ -488,7 +501,20 @@ export const useAppStore = create<AppState>((set, get) => ({
           const database = tableInfo?.schema ?? connections.find((c) => c.id === fn.connectionId)?.database ?? "default";
           const ps2 = get().appSettings.tablePageSize;
           const result = await tauriApi.getTableData(fn.connectionId, database, args.tableName, args.page ?? 0, ps2);
-          setResult({ fn, outputType: "table-grid", queryResult: result, isLoading: false, invokedAt: Date.now() });
+          const tblEntry: QueryHistoryEntry = {
+            id: `${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+            sql: `SELECT * FROM "${args.tableName}" LIMIT ${ps2} OFFSET ${(args.page ?? 0) * ps2}`,
+            executedAt: Date.now(),
+            executionTimeMs: result.executionTimeMs,
+            rowCount: result.rows.length,
+            connectionId: fn.connectionId,
+          };
+          tauriApi.storageSaveHistoryEntry(tblEntry).catch(console.error);
+          set((s) => ({
+            queryHistory: [tblEntry, ...s.queryHistory],
+            invocationResult: { fn, outputType: "table-grid", queryResult: result, isLoading: false, invokedAt: Date.now() },
+            tabs: s.tabs.map((t) => (t.id === s.activeTabId ? { ...t, result: { fn, outputType: "table-grid", queryResult: result, isLoading: false, invokedAt: Date.now() } } : t)),
+          }));
           break;
         }
       }
@@ -589,21 +615,17 @@ export const useAppStore = create<AppState>((set, get) => ({
 
   // ---- Query history ----
 
-  addToHistory: (entry) =>
-    set((state) => {
-      const prev = state.queryHistory[entry.connectionId] ?? [];
-      return {
-        queryHistory: {
-          ...state.queryHistory,
-          [entry.connectionId]: [entry, ...prev].slice(0, 100),
-        },
-      };
-    }),
+  addToHistory: (entry) => {
+    tauriApi.storageSaveHistoryEntry(entry).catch(console.error);
+    set((state) => ({ queryHistory: [entry, ...state.queryHistory] }));
+  },
 
-  clearHistory: (connectionId) =>
+  clearHistory: (connectionId) => {
+    tauriApi.storageClearHistory(connectionId).catch(console.error);
     set((state) => ({
-      queryHistory: { ...state.queryHistory, [connectionId]: [] },
-    })),
+      queryHistory: state.queryHistory.filter((e) => e.connectionId !== connectionId),
+    }));
+  },
 
   // ---- Saved queries ----
 
@@ -639,7 +661,10 @@ export const useAppStore = create<AppState>((set, get) => ({
 
   // ---- Extended history ----
 
-  clearAllHistory: () => set({ queryHistory: {} }),
+  clearAllHistory: () => {
+    tauriApi.storageClearAllHistory().catch(console.error);
+    set({ queryHistory: [] });
+  },
 
   clearAllSavedQueries: () => {
     set({ savedQueries: [] });

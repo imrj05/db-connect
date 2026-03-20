@@ -1,5 +1,5 @@
 import { invoke } from "@tauri-apps/api/core";
-import { ConnectionConfig, QueryResult, SavedQuery, TableInfo, TableStructure } from "@/types";
+import { ConnectionConfig, QueryHistoryEntry, QueryResult, SavedQuery, TableInfo, TableStructure } from "@/types";
 
 export const tauriApi = {
   // ── DB driver ──────────────────────────────────────────────────────────────
@@ -70,5 +70,21 @@ export const tauriApi = {
 
   async storageDeleteQuery(id: string): Promise<void> {
     await invoke("storage_delete_query", { id });
+  },
+
+  async storageLoadHistory(): Promise<QueryHistoryEntry[]> {
+    return await invoke("storage_load_history");
+  },
+
+  async storageSaveHistoryEntry(entry: QueryHistoryEntry): Promise<void> {
+    await invoke("storage_save_history_entry", { entry });
+  },
+
+  async storageClearHistory(connectionId: string): Promise<void> {
+    await invoke("storage_clear_history", { connectionId });
+  },
+
+  async storageClearAllHistory(): Promise<void> {
+    await invoke("storage_clear_all_history");
   },
 };

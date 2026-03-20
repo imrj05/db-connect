@@ -17,7 +17,7 @@ use base64::{engine::general_purpose::STANDARD, Engine};
 use rand::RngCore;
 use sqlx::{sqlite::SqliteConnectOptions, Pool, Row, Sqlite};
 
-use crate::types::{ConnectionConfig, DatabaseType, SavedQuery};
+use crate::types::{ConnectionConfig, DatabaseType, QueryHistoryEntry, SavedQuery};
 
 // ── Global singleton ───────────────────────────────────────────────────────────
 
@@ -88,6 +88,19 @@ impl AppStorage {
                 sql_text      TEXT NOT NULL,
                 connection_id TEXT,
                 created_at    INTEGER NOT NULL
+            )",
+        )
+        .execute(&pool)
+        .await?;
+
+        sqlx::query(
+            "CREATE TABLE IF NOT EXISTS query_history (
+                id                TEXT PRIMARY KEY,
+                sql_text          TEXT NOT NULL,
+                executed_at       INTEGER NOT NULL,
+                execution_time_ms INTEGER NOT NULL,
+                row_count         INTEGER NOT NULL,
+                connection_id     TEXT NOT NULL
             )",
         )
         .execute(&pool)
@@ -278,6 +291,61 @@ impl AppStorage {
     pub async fn delete_query(&self, id: &str) -> Result<()> {
         sqlx::query("DELETE FROM saved_queries WHERE id = ?")
             .bind(id)
+            .execute(&self.pool)
+            .await?;
+        Ok(())
+    }
+
+    // ── Query history CRUD ────────────────────────────────────────────────────
+
+    pub async fn save_history_entry(&self, entry: &QueryHistoryEntry) -> Result<()> {
+        sqlx::query(
+            "INSERT OR IGNORE INTO query_history
+                (id, sql_text, executed_at, execution_time_ms, row_count, connection_id)
+             VALUES (?, ?, ?, ?, ?, ?)",
+        )
+        .bind(&entry.id)
+        .bind(&entry.sql)
+        .bind(entry.executed_at)
+        .bind(entry.execution_time_ms)
+        .bind(entry.row_count)
+        .bind(&entry.connection_id)
+        .execute(&self.pool)
+        .await?;
+        Ok(())
+    }
+
+    pub async fn load_history(&self) -> Result<Vec<QueryHistoryEntry>> {
+        let rows = sqlx::query(
+            "SELECT id, sql_text, executed_at, execution_time_ms, row_count, connection_id
+             FROM query_history ORDER BY executed_at DESC",
+        )
+        .fetch_all(&self.pool)
+        .await?;
+
+        Ok(rows
+            .iter()
+            .map(|row| QueryHistoryEntry {
+                id: row.get("id"),
+                sql: row.get("sql_text"),
+                executed_at: row.get("executed_at"),
+                execution_time_ms: row.get("execution_time_ms"),
+                row_count: row.get("row_count"),
+                connection_id: row.get("connection_id"),
+            })
+            .collect())
+    }
+
+    pub async fn clear_history_for_connection(&self, connection_id: &str) -> Result<()> {
+        sqlx::query("DELETE FROM query_history WHERE connection_id = ?")
+            .bind(connection_id)
+            .execute(&self.pool)
+            .await?;
+        Ok(())
+    }
+
+    pub async fn clear_all_history(&self) -> Result<()> {
+        sqlx::query("DELETE FROM query_history")
             .execute(&self.pool)
             .await?;
         Ok(())

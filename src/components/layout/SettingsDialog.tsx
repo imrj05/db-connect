@@ -188,10 +188,7 @@ function StorageSection() {
         tauriApi.getAppDataDir().then(setDataDir).catch(() => {});
     }, []);
 
-    const totalHistory = Object.values(queryHistory).reduce(
-        (sum, arr) => sum + arr.length,
-        0,
-    );
+    const totalHistory = queryHistory.length;
 
     const handleClear = (type: "history" | "queries") => {
         if (confirmClear === type) {
