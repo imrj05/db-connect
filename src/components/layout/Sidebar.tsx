@@ -82,6 +82,14 @@ function ColumnRow({ col }: { col: ColumnInfo }) {
     );
 }
 
+// ── Middle-truncate long table names ──────────────────────────────────────────
+function midTruncate(name: string, max = 26): string {
+    if (name.length <= max) return name;
+    const front = Math.ceil((max - 1) * 0.55);
+    const back  = Math.floor((max - 1) * 0.45);
+    return `${name.slice(0, front)}…${name.slice(-back)}`;
+}
+
 // ── Table row ──────────────────────────────────────────────────────────────────
 function TableRow({
     fn,
@@ -97,47 +105,54 @@ function TableRow({
     const [open, setOpen] = useState(false);
 
     return (
-        <div>
-            <button
-                onClick={() => onInvoke(fn)}
-                className={cn(
-                    "group w-full flex items-center gap-1.5 h-[26px] pr-2 pl-0 transition-colors",
-                    isActive
-                        ? "bg-primary/10 text-primary"
-                        : "text-muted-foreground/70 hover:bg-muted/50 hover:text-foreground",
-                )}
-            >
-                {/* expand chevron */}
-                <span
-                    className="flex items-center justify-center w-5 h-full shrink-0 text-muted-foreground/30 hover:text-muted-foreground/60"
-                    onClick={(e) => {
-                        e.stopPropagation();
-                        if (columns.length > 0) setOpen((v) => !v);
-                    }}
-                >
-                    {columns.length > 0
-                        ? open
-                            ? <ChevronDown size={10} />
-                            : <ChevronRight size={10} />
-                        : <span className="w-2" />}
-                </span>
+        <div className="w-full min-w-0 overflow-hidden">
+            <Tooltip>
+                <TooltipTrigger asChild>
+                    <button
+                        onClick={() => onInvoke(fn)}
+                        className={cn(
+                            "group w-full flex items-center gap-1.5 h-[26px] pr-2 pl-0 transition-colors overflow-hidden",
+                            isActive
+                                ? "bg-primary/10 text-primary"
+                                : "text-muted-foreground/70 hover:bg-muted/50 hover:text-foreground",
+                        )}
+                    >
+                        {/* expand chevron */}
+                        <span
+                            className="flex items-center justify-center w-5 h-full shrink-0 text-muted-foreground/30 hover:text-muted-foreground/60"
+                            onClick={(e) => {
+                                e.stopPropagation();
+                                if (columns.length > 0) setOpen((v) => !v);
+                            }}
+                        >
+                            {columns.length > 0
+                                ? open
+                                    ? <ChevronDown size={10} />
+                                    : <ChevronRight size={10} />
+                                : <span className="w-2" />}
+                        </span>
 
-                <Table2
-                    size={12}
-                    className={cn(
-                        "shrink-0",
-                        isActive ? "text-primary/80" : "text-blue-400/70",
-                    )}
-                />
-                <span
-                    className={cn(
-                        "text-[11px] font-mono truncate flex-1 text-left",
-                        isActive && "font-semibold",
-                    )}
-                >
+                        <Table2
+                            size={12}
+                            className={cn(
+                                "shrink-0",
+                                isActive ? "text-primary/80" : "text-blue-400/70",
+                            )}
+                        />
+                        <span
+                            className={cn(
+                                "text-[11px] font-mono flex-1 text-left min-w-0",
+                                isActive && "font-semibold",
+                            )}
+                        >
+                            {midTruncate(fn.tableName ?? "")}
+                        </span>
+                    </button>
+                </TooltipTrigger>
+                <TooltipContent side="right" sideOffset={6} className="font-mono text-[11px]">
                     {fn.tableName}
-                </span>
-            </button>
+                </TooltipContent>
+            </Tooltip>
 
             {/* columns */}
             {open && columns.length > 0 && (
@@ -188,7 +203,7 @@ function SchemaGroup({
             )}
 
             {open && (
-                <div className={showLabel ? "pl-4" : ""}>
+                <div className={cn("w-full min-w-0 overflow-hidden", showLabel ? "pl-4" : "")}>
                     {fns.map((fn) => (
                         <TableRow
                             key={fn.id}
@@ -382,7 +397,7 @@ function DatabaseNode({
                             No match
                         </p>
                     ) : (
-                        <div className="pl-2">
+                        <div className="pl-2 w-full min-w-0 overflow-hidden">
                             {schemaKeys.map((schema) => (
                                 <SchemaGroup
                                     key={schema}
