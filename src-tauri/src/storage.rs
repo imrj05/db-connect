@@ -1,7 +1,10 @@
 //! Persistent storage: SQLite + AES-256-GCM encrypted passwords.
 //!
-//! The encryption key is generated once and written to `{app_data_dir}/storage.key`
-//! as hex. The SQLite database lives at `{app_data_dir}/storage.db`.
+//! The encryption key is stored in the OS-native credential store (macOS Keychain,
+//! Windows Credential Manager, Linux Secret Service) under service `db-connect` /
+//! account `encryption-key`. On first launch it is generated and saved there.
+//! If a legacy `storage.key` file exists it is migrated to the keychain and deleted.
+//! The SQLite database lives at `{app_data_dir}/storage.db`.
 //! Passwords are never stored in plaintext — only the AES-GCM ciphertext
 //! (nonce prepended, then base64-encoded) is written to disk.
 
@@ -40,14 +43,30 @@ impl AppStorage {
 
         // ── Encryption key ────────────────────────────────────────────────────
         let key_path = data_dir.join("storage.key");
+        let kr_entry = keyring::Entry::new("db-connect", "encryption-key")
+            .map_err(|e| anyhow::anyhow!("Keychain entry: {}", e))?;
+
         let key_bytes: Vec<u8> = if key_path.exists() {
+            // Migrate legacy file → OS keychain, then remove the file.
             let hex_str = tokio::fs::read_to_string(&key_path).await?;
-            hex::decode(hex_str.trim())?
-        } else {
-            let mut key = vec![0u8; 32];
-            rand::thread_rng().fill_bytes(&mut key);
-            tokio::fs::write(&key_path, hex::encode(&key)).await?;
+            let key = hex::decode(hex_str.trim())?;
+            let _ = kr_entry.set_password(&hex::encode(&key)); // best-effort
+            let _ = tokio::fs::remove_file(&key_path).await;   // best-effort
             key
+        } else {
+            match kr_entry.get_password() {
+                Ok(hex_str) => hex::decode(hex_str.trim())?,
+                Err(keyring::Error::NoEntry) => {
+                    // First install — generate key and persist in OS keychain.
+                    let mut key = vec![0u8; 32];
+                    rand::thread_rng().fill_bytes(&mut key);
+                    kr_entry
+                        .set_password(&hex::encode(&key))
+                        .map_err(|e| anyhow::anyhow!("Keychain write: {}", e))?;
+                    key
+                }
+                Err(e) => return Err(anyhow::anyhow!("Keychain read: {}", e)),
+            }
         };
 
         let cipher = Aes256Gcm::new_from_slice(&key_bytes)

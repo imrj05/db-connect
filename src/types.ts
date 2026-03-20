@@ -123,6 +123,7 @@ export interface FilterCondition {
   col: string;
   op: FilterOp;
   value: string;
+  join: "AND" | "OR";
 }
 
 // ---------- Query history ----------

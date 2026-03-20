@@ -473,9 +473,11 @@ export const useAppStore = create<AppState>((set, get) => ({
           const page = args.page ?? 0;
           const ps = get().appSettings.tablePageSize;
           const result = await tauriApi.getTableData(fn.connectionId, database, fn.tableName!, page, ps);
+          const isMysqlTable = connections.find((c) => c.id === fn.connectionId)?.type === "mysql";
+          const qiTable = (n: string) => isMysqlTable ? `\`${n}\`` : `"${n}"`;
           const tableEntry: QueryHistoryEntry = {
             id: `${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
-            sql: `SELECT * FROM "${fn.tableName}" LIMIT ${ps} OFFSET ${page * ps}`,
+            sql: `SELECT * FROM ${qiTable(fn.tableName!)} LIMIT ${ps} OFFSET ${page * ps}`,
             executedAt: Date.now(),
             executionTimeMs: result.executionTimeMs,
             rowCount: result.rows.length,
@@ -501,9 +503,11 @@ export const useAppStore = create<AppState>((set, get) => ({
           const database = tableInfo?.schema ?? connections.find((c) => c.id === fn.connectionId)?.database ?? "default";
           const ps2 = get().appSettings.tablePageSize;
           const result = await tauriApi.getTableData(fn.connectionId, database, args.tableName, args.page ?? 0, ps2);
+          const isMysqlTbl = connections.find((c) => c.id === fn.connectionId)?.type === "mysql";
+          const qiTbl = (n: string) => isMysqlTbl ? `\`${n}\`` : `"${n}"`;
           const tblEntry: QueryHistoryEntry = {
             id: `${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
-            sql: `SELECT * FROM "${args.tableName}" LIMIT ${ps2} OFFSET ${(args.page ?? 0) * ps2}`,
+            sql: `SELECT * FROM ${qiTbl(args.tableName)} LIMIT ${ps2} OFFSET ${(args.page ?? 0) * ps2}`,
             executedAt: Date.now(),
             executionTimeMs: result.executionTimeMs,
             rowCount: result.rows.length,

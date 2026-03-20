@@ -12,7 +12,7 @@ Legend: `[x]` Done · `[~]` Partial · `[ ]` Not started
 - [x] MySQL support — SQLx driver in `src-tauri/src/db/mysql.rs`
 - [x] PostgreSQL support — SQLx driver in `src-tauri/src/db/postgres.rs`
 - [x] SQLite support — SQLx driver in `src-tauri/src/db/sqlite.rs`
-- [x] MongoDB support — basic driver in `src-tauri/src/db/mongodb.rs` (schema-less, limited query support)
+- [~] MongoDB support — basic driver in `src-tauri/src/db/mongodb.rs`; connect/list collections works but `run_query()` and `get_table_data()` are stubs (no real query results)
 - [x] Redis support — basic driver in `src-tauri/src/db/redis_driver.rs` (key-value command execution)
 - [ ] SQL Server support — no driver; not in roadmap yet
 - [x] Save connections — AES-encrypted in localStorage (`db_connections_v3`)
@@ -28,7 +28,7 @@ Legend: `[x]` Done · `[~]` Partial · `[ ]` Not started
 - [x] **Persist Zustand saved queries to SQLite** — `saveQuery` / `deleteSavedQuery` now call `storage_save_query` / `storage_delete_query` Tauri commands; loaded from SQLite on startup
 - [x] **Zustand store reads/writes via Tauri commands** — `loadConnections` is now async and calls `storage_load_connections`; writes are fire-and-forget Tauri calls keeping Zustand API synchronous for callers
 - [x] **Separate connection metadata from credentials** — SQLite stores host/port/type/prefix in plaintext columns; only `encrypted_password` column holds the AES-GCM ciphertext; decrypted in Rust before returning to frontend
-- [ ] **OS keychain for encryption key** — current approach stores the key as a file in app data dir; next step is `tauri-plugin-stronghold` or `tauri-plugin-keychain` for true OS keychain storage
+- [x] **OS keychain for encryption key** — `keyring` crate stores the key in macOS Keychain / Windows Credential Manager / Linux Secret Service; legacy `storage.key` file is migrated and deleted on first launch
 
 ---
 
@@ -55,11 +55,11 @@ Legend: `[x]` Done · `[~]` Partial · `[ ]` Not started
 ### Table Management
 
 - [x] View tables — `prefix_list()` fetches all tables; shown in sidebar tree
-- [ ] Create table — no DDL UI; writable via SQL editor only
-- [ ] Alter table — no UI; manual SQL only
-- [ ] Drop table — no UI; manual SQL only
-- [ ] Rename table — no UI; manual SQL only
-- [~] Manage indexes — index info shown in Structure tab (columns, uniqueness, type) but read-only
+- [x] Create table — "+ Table" button in table header opens a column-builder dialog with live SQL preview; executes `CREATE TABLE`
+- [x] Alter table — "+ Add Column" button in Structure tab footer opens column dialog with type select + NULL toggle + live SQL preview; trash icon on each column row opens Drop Column confirmation; both execute `ALTER TABLE … ADD/DROP COLUMN`
+- [x] Drop table — "Drop table" button in table header opens confirmation dialog with generated `DROP TABLE` SQL
+- [x] Rename table — pencil icon in table header opens dialog pre-filled with current name; live SQL preview; Enter or Rename button executes `ALTER TABLE … RENAME TO …`
+- [x] Manage indexes — trash icon on each index row drops it (MySQL: `DROP INDEX … ON table`, others: `DROP INDEX …`); "+ Add Index" button in Structure footer opens dialog with column checkboxes, UNIQUE toggle, and live SQL preview; executes `CREATE [UNIQUE] INDEX … ON … (cols)`
 - [ ] Visual schema editor — Structure tab is read-only; no editing UI
 
 ---
@@ -68,19 +68,20 @@ Legend: `[x]` Done · `[~]` Partial · `[ ]` Not started
 
 - [x] Spreadsheet view — TanStack React Table v8 with sortable columns and row numbers
 - [x] Inline editing — double-click cell generates UPDATE with primary key WHERE clause
-- [ ] Form view — grid only; no single-row form layout
-- [x] Pagination — 50 rows per page with navigation controls in table footer
+- [x] Form view — single-row vertical key→value editor with prev/next navigation, inline double-click editing, and per-row delete
+- [x] Pagination — configurable rows per page (25/50/100/200) with navigation controls in table footer
 - [x] Insert rows — via CSV/JSON import panel (batched INSERT statements, 200 rows/batch)
 - [x] Update rows — inline cell editing with auto-generated UPDATE
-- [ ] Delete rows — no delete row UI; requires manual DELETE in SQL editor
+- [x] Delete rows — trash icon per row opens a confirmation dialog with generated DELETE SQL; executes on confirm
 
 ---
 
 ### Data Filtering and Search
 
 - [x] Advanced filters — visual WHERE builder with column/operator/value inputs
-- [x] Multi condition filtering — multiple AND conditions, SQL WHERE clause generated and applied
-- [~] Quick search — table filter in sidebar (by name); no full-text cell search in grid
+- [x] Multi condition filtering — per-row AND/OR toggle between filter rows; click badge to switch; WHERE clause respects each row's join type
+- [x] Quick search — table filter in sidebar (by name); full-text cell search in data grid via Search icon button or ⌘F; filters all visible rows client-side across all columns instantly; shows "N of M" match count; Escape closes
+- [x] Column type icons in sidebar — data type icons displayed next to column names in sidebar tree
 
 ---
 
@@ -98,7 +99,7 @@ Legend: `[x]` Done · `[~]` Partial · `[ ]` Not started
 - [x] Import JSON — file upload, JSON array parse, batched INSERT
 - [x] Export CSV — download from grid data
 - [x] Export JSON — download from grid data
-- [ ] Export SQL dump — no schema+data dump; data export only (CSV/JSON)
+- [x] Export SQL dump — "Export as SQL" in dropdown generates `INSERT INTO … VALUES (…);` statements for all rows in current view
 
 ---
 
@@ -116,7 +117,7 @@ Legend: `[x]` Done · `[~]` Partial · `[ ]` Not started
 ### Safety and Review
 
 - [ ] Preview SQL before execution — no dry-run or preview mode; executes on Run
-- [ ] Safe mode — no confirmation dialog for destructive queries (DELETE, DROP, TRUNCATE)
+- [x] Safe mode — confirmation dialog intercepts DELETE / DROP / TRUNCATE before execution; "Run anyway" proceeds
 - [ ] Change tracking — no transaction/undo UI
 - [ ] Undo changes — no undo for inline cell edits once committed
 
@@ -133,13 +134,14 @@ Legend: `[x]` Done · `[~]` Partial · `[ ]` Not started
 ### Performance Tools
 
 - [x] Query execution time — shown in ms in result header after each query
-- [ ] Query plan viewer — no EXPLAIN/ANALYZE UI
+- [x] Query plan viewer — "Explain" button in SQL editor toolbar; prepends `EXPLAIN` and renders result in the standard results grid
 - [ ] Index suggestions — no automatic index recommendations
 
 ---
 
 ### Productivity
 
+- [x] TitleBar back navigation — back button for nested view navigation with drag region support
 - [x] Keyboard shortcuts — ⌘K (command palette), ⌘↵ (execute SQL), Esc (cancel edit)
 - [x] Command palette — fuzzy search across all functions grouped by connection prefix
 - [x] Quick navigation — sidebar tree + command palette cover all navigation needs
@@ -218,7 +220,7 @@ Legend: `[x]` Done · `[~]` Partial · `[ ]` Not started
 
 ### Offline Features
 
-- [x] Local query history — in-memory per-session history (lost on app restart)
+- [x] Local query history — persisted to SQLite via `storage_save_history_entry`; survives app restarts
 - [~] Offline schema browsing — schema cached in Zustand after first connect; requires live connection to refresh
 - [ ] Sync later — no offline queue or deferred sync
 
@@ -271,21 +273,24 @@ Legend: `[x]` Done · `[~]` Partial · `[ ]` Not started
 
 ## Progress Summary
 
+_Last audited: 2026-03-20. Counts reflect actual codebase state, not just todo entries._
+
 | Category | Done | Partial | Todo |
 |---|---|---|---|
-| Connections | 6 | 1 | 3 |
+| Connections | 6 | 2 | 2 |
+| Storage | 6 | 0 | 0 |
 | Security | 2 | 1 | 1 |
 | Query Editor | 6 | 0 | 0 |
-| Table Management | 2 | 1 | 5 |
-| Data Viewer | 5 | 0 | 2 |
-| Filtering | 2 | 1 | 0 |
+| Table Management | 6 | 0 | 1 |
+| Data Viewer | 7 | 0 | 0 |
+| Filtering | 3 | 1 | 0 |
 | Workspace | 3 | 0 | 0 |
-| Import/Export | 4 | 0 | 1 |
+| Import/Export | 5 | 0 | 0 |
 | Query Execution | 2 | 1 | 1 |
-| Safety | 0 | 0 | 4 |
+| Safety | 1 | 0 | 3 |
 | DB Management | 0 | 0 | 3 |
-| Performance | 1 | 0 | 2 |
-| Productivity | 3 | 0 | 0 |
+| Performance | 2 | 0 | 1 |
+| Productivity | 4 | 0 | 0 |
 | UI/UX | 7 | 0 | 0 |
 | Code Generation | 0 | 0 | 2 |
 | Versioning | 0 | 0 | 2 |
@@ -298,6 +303,28 @@ Legend: `[x]` Done · `[~]` Partial · `[ ]` Not started
 | Plugin System | 0 | 0 | 3 |
 | DevOps | 0 | 0 | 2 |
 | Cloud | 2 | 1 | 1 |
-| **Total** | **57** | **9** | **47** |
+| **Total** | **64** | **8** | **37** |
 
-**~50% of planned features implemented.** Core database client functionality (connect, query, browse, edit, import/export) is solid. Major upcoming work: SSH tunneling, DDL UI, safety/review mode, ER diagrams, AI features, and collaboration.
+**~58% of planned features implemented.** DDL surface is now complete (Create/Alter/Drop/Rename table + Create/Drop index). Core client (connect, query, browse, edit, filter, import/export) is solid. Key remaining work: full-text cell search, SSL/TLS wiring, group connections, SSH tunneling.
+
+---
+
+## Next Steps (Prioritized)
+
+### Completed ✓
+- [x] **Delete row UI** — trash icon per row with confirm dialog and generated DELETE SQL
+- [x] **Safe mode** — intercepts DELETE / DROP / TRUNCATE; shows SQL + "Run anyway" / "Cancel"
+- [x] **Query plan viewer** — "Explain" button prepends `EXPLAIN`; renders in results grid
+- [x] **OS keychain** — `keyring` v3 crate; migrates legacy file on first launch
+- [x] **Full DDL surface** — Create/Alter/Drop/Rename table + Create/Drop index with live SQL preview
+
+### Tier 1 — High Value, Low Effort (Frontend only)
+- [x] **Full-text cell search** — Search icon button + ⌘F shortcut; thin bar above filter bar; filters `effectiveResult.rows` client-side across all columns; "N of M" count badge; Escape closes; resets on new query
+- [ ] **Column resizing** — drag column header borders to resize; TanStack Table `columnResizing` plugin; widths stored in local state
+
+### Tier 2 — High Value, Medium Effort
+- [ ] **SSL/TLS wiring** — `ssl` field is already stored in SQLite and passed to Rust; needs to be applied to `PgPoolOptions` / `MySqlPoolOptions` via `sqlx::postgres::PgSslMode` / `MySqlSslMode`; no frontend changes
+- [ ] **Group connections (dev/staging/prod)** — add optional `group` tag field to `ConnectionConfig`; sidebar renders connections grouped under collapsible headers
+
+### Tier 3 — High Value, High Effort
+- [ ] **SSH tunneling** — SSH port-forward before driver connect; needs `russh` crate + new `src-tauri/src/ssh.rs`; significant backend work
