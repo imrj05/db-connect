@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import CodeMirror from "@uiw/react-codemirror";
 import { sql } from "@codemirror/lang-sql";
 import { oneDark } from "@codemirror/theme-one-dark";
@@ -40,6 +40,7 @@ import {
     TableProperties,
     ChevronLeft,
     ChevronRight,
+    WifiOff,
 } from "lucide-react";
 import {
     DropdownMenu,
@@ -86,15 +87,9 @@ import {
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import {
-    Select,
-    SelectContent,
-    SelectItem,
-    SelectTrigger,
-    SelectValue,
-} from "@/components/ui/select";
-import {
     TableInfo,
     ConnectionFunction,
+    ConnectionConfig,
     TableStructure,
     QueryHistoryEntry,
     SavedQuery,
@@ -102,6 +97,13 @@ import {
     FilterOp,
     DatabaseType,
 } from "@/types";
+import {
+    SiPostgresql,
+    SiMysql,
+    SiSqlite,
+    SiMongodb,
+    SiRedis,
+} from "react-icons/si";
 import { tauriApi } from "@/lib/tauri-api";
 import {
     Combobox,
@@ -114,24 +116,239 @@ import {
 // ─── Idle state ────────────────────────────────────────────────────────────────
 function IdleView({ onNewConnection }: { onNewConnection: () => void }) {
     return (
-        <div className="h-full flex flex-col items-center justify-center bg-background text-muted-foreground gap-4">
-            <div className="w-16 h-16 opacity-10 bg-primary/10 rounded-2xl flex items-center justify-center">
-                <Search size={32} className="text-primary/20" />
+        <div className="h-full flex flex-col items-center justify-center bg-background select-none gap-6">
+            {/* Icon */}
+            <div className="w-10 h-10 border border-border flex items-center justify-center">
+                <Search size={16} className="text-muted-foreground/30" />
             </div>
-            <div className="text-center space-y-2">
-                <p className="text-xs font-bold uppercase tracking-widest text-muted-foreground">
-                    No function selected
+
+            {/* Message */}
+            <div className="text-center space-y-1.5">
+                <p className="text-[11px] font-bold uppercase tracking-[0.18em] text-muted-foreground/70">
+                    Nothing open
                 </p>
-                <p className="text-[10px] text-muted-foreground/60">
-                    Click a function in the sidebar or press ⌘K to search
+                <p className="text-[11px] text-muted-foreground/40">
+                    Select a table from the sidebar or search with{" "}
+                    <kbd className="px-1.5 py-0.5 font-mono text-[10px] border border-border bg-muted text-muted-foreground/70">
+                        ⌘K
+                    </kbd>
                 </p>
             </div>
-            <Button
+
+            {/* Shortcuts */}
+            <div className="flex items-center gap-px border border-border">
+                {[
+                    { key: "⌘K", label: "Search" },
+                    { key: "⌘T", label: "New tab" },
+                    { key: "⌘↵", label: "Run" },
+                ].map(({ key, label }, i, arr) => (
+                    <div
+                        key={key}
+                        className={cn(
+                            "flex items-center gap-1.5 px-3 py-1.5 bg-card text-[10px] font-mono text-muted-foreground/50",
+                            i < arr.length - 1 && "border-r border-border",
+                        )}
+                    >
+                        <span className="text-muted-foreground/80 font-semibold">{key}</span>
+                        <span className="text-muted-foreground/35">{label}</span>
+                    </div>
+                ))}
+            </div>
+
+            <button
                 onClick={onNewConnection}
-                className="mt-2 text-xs font-bold uppercase tracking-widest"
+                className="text-[10px] font-mono text-muted-foreground/35 hover:text-muted-foreground/70 transition-colors underline underline-offset-4 decoration-muted-foreground/20"
             >
-                Add Connection
-            </Button>
+                + add connection
+            </button>
+        </div>
+    );
+}
+// ─── Connections Home ─────────────────────────────────────────────────────────
+const CONN_LOGOS: Record<string, ({ className }: { className?: string }) => React.ReactElement> = {
+    postgresql: ({ className }) => <SiPostgresql className={className} />,
+    mysql: ({ className }) => <SiMysql className={className} />,
+    sqlite: ({ className }) => <SiSqlite className={className} />,
+    mongodb: ({ className }) => <SiMongodb className={className} />,
+    redis: ({ className }) => <SiRedis className={className} />,
+};
+
+const CONN_COLORS: Record<string, string> = {
+    postgresql: "text-blue-400",
+    mysql: "text-cyan-400",
+    sqlite: "text-slate-400",
+    mongodb: "text-emerald-400",
+    redis: "text-red-400",
+};
+
+function buildConnectionUrl(conn: ConnectionConfig): string {
+    if (conn.uri) {
+        try {
+            const u = new URL(conn.uri);
+            return `${u.protocol}//${u.username ? u.username + "@" : ""}${u.host}`;
+        } catch {
+            return conn.uri.slice(0, 60);
+        }
+    }
+    const user = conn.user ? `${conn.user}@` : "";
+    const host = conn.host ?? "localhost";
+    const port = conn.port ? `:${conn.port}` : "";
+    const db = conn.database ? `/${conn.database}` : "";
+    return `${conn.type}://${user}${host}${port}${db}`;
+}
+
+function ConnectionsHome({
+    connections,
+    connectedIds,
+    onNewConnection,
+    onEdit,
+    onConnect,
+    onDisconnect,
+}: {
+    connections: ConnectionConfig[];
+    connectedIds: string[];
+    onNewConnection: () => void;
+    onEdit: (conn: ConnectionConfig) => void;
+    onConnect: (id: string) => void;
+    onDisconnect?: (id: string) => void;
+}) {
+    if (connections.length === 0) {
+        return (
+            <div className="h-full flex flex-col items-center justify-center bg-background gap-4">
+                <div className="w-14 h-14 rounded-xl bg-muted/40 flex items-center justify-center">
+                    <Database size={24} className="text-muted-foreground/25" />
+                </div>
+                <div className="text-center space-y-1.5">
+                    <p className="text-xs font-bold uppercase tracking-widest text-muted-foreground">
+                        No connections
+                    </p>
+                    <p className="text-[11px] text-muted-foreground/50">
+                        Add your first database connection to get started
+                    </p>
+                </div>
+                <Button
+                    onClick={onNewConnection}
+                    size="sm"
+                    className="mt-1 gap-1.5 text-xs"
+                >
+                    <Plus size={12} />
+                    New Connection
+                </Button>
+            </div>
+        );
+    }
+
+    return (
+        <div className="h-full overflow-auto scrollbar-thin bg-background">
+            {/* Header */}
+            <div className="flex items-center justify-between px-6 py-4 border-b border-border sticky top-0 bg-background z-10">
+                <div>
+                    <h2 className="text-sm font-bold text-foreground">Connections</h2>
+                    <p className="text-[11px] text-muted-foreground/50 mt-0.5">
+                        {connectedIds.length > 0
+                            ? `${connectedIds.length} of ${connections.length} connected`
+                            : `${connections.length} saved — not connected`}
+                    </p>
+                </div>
+                <Button
+                    onClick={onNewConnection}
+                    size="sm"
+                    className="gap-1.5 text-[11px]"
+                >
+                    <Plus size={12} />
+                    New Connection
+                </Button>
+            </div>
+
+            {/* Connection list */}
+            <div className="px-6 py-4 space-y-2 max-w-2xl">
+                {connections.map((conn) => {
+                    const isConnected = connectedIds.includes(conn.id);
+                    const Logo = CONN_LOGOS[conn.type] ?? CONN_LOGOS.postgresql;
+                    const logoColor = CONN_COLORS[conn.type] ?? "text-muted-foreground";
+                    const url = buildConnectionUrl(conn);
+
+                    return (
+                        <div
+                            key={conn.id}
+                            className="flex items-center gap-4 px-4 py-3.5 border border-border bg-card hover:border-border/60 transition-colors"
+                        >
+                            {/* DB logo */}
+                            <Logo className={cn("text-[22px] shrink-0", logoColor)} />
+
+                            {/* Name + URL */}
+                            <div className="flex-1 min-w-0">
+                                <p className="text-[13px] font-semibold text-foreground leading-tight">
+                                    {conn.name || conn.host || "Untitled"}
+                                </p>
+                                <p className="text-[11px] font-mono text-muted-foreground/50 truncate mt-0.5">
+                                    {url}
+                                </p>
+                            </div>
+
+                            {/* Status badge */}
+                            <div
+                                className={cn(
+                                    "flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wide shrink-0 px-2 py-1 rounded-sm",
+                                    isConnected
+                                        ? "text-emerald-600 dark:text-emerald-400 bg-emerald-500/10"
+                                        : "text-muted-foreground/50 bg-muted/40",
+                                )}
+                            >
+                                <span
+                                    className={cn(
+                                        "w-1.5 h-1.5 rounded-full shrink-0",
+                                        isConnected
+                                            ? "bg-emerald-500"
+                                            : "bg-muted-foreground/30",
+                                    )}
+                                />
+                                {isConnected ? "Connected" : "Idle"}
+                            </div>
+
+                            {/* Actions */}
+                            <div className="flex items-center gap-1.5 shrink-0">
+                                <Tooltip>
+                                    <TooltipTrigger asChild>
+                                        <Button
+                                            variant="ghost"
+                                            size="icon-xs"
+                                            className="size-7 text-muted-foreground/40 hover:text-foreground"
+                                            onClick={() => onEdit(conn)}
+                                        >
+                                            <Pencil size={12} />
+                                        </Button>
+                                    </TooltipTrigger>
+                                    <TooltipContent side="top">Edit connection</TooltipContent>
+                                </Tooltip>
+                                {isConnected && onDisconnect && (
+                                    <Tooltip>
+                                        <TooltipTrigger asChild>
+                                            <Button
+                                                variant="ghost"
+                                                size="icon-xs"
+                                                className="size-7 text-muted-foreground/40 hover:text-destructive hover:bg-destructive/10 transition-colors"
+                                                onClick={() => onDisconnect(conn.id)}
+                                            >
+                                                <WifiOff size={12} />
+                                            </Button>
+                                        </TooltipTrigger>
+                                        <TooltipContent side="top">Disconnect</TooltipContent>
+                                    </Tooltip>
+                                )}
+                                <Button
+                                    size="sm"
+                                    variant={isConnected ? "outline" : "default"}
+                                    className="text-[11px] h-7 px-3"
+                                    onClick={() => onConnect(conn.id)}
+                                >
+                                    {isConnected ? "Open" : "Connect"}
+                                </Button>
+                            </div>
+                        </div>
+                    );
+                })}
+            </div>
         </div>
     );
 }
@@ -154,7 +371,7 @@ function TableGridView({
     pageSize?: number;
 }) {
     const [viewMode, setViewMode] = useState<"data" | "form" | "structure">("data");
-    const [selectedRowIdx, setSelectedRowIdx] = useState(0);
+    const [selectedRowIdx, setSelectedRowIdx] = useState(-1);
     const [sorting, setSorting] = useState<SortingState>([]);
     const [columnSizing, setColumnSizing] = useState<ColumnSizingState>({});
     const [structure, setStructure] = useState<TableStructure | null>(null);
@@ -522,7 +739,8 @@ function TableGridView({
         if (mode === "structure") loadStructure();
     };
     useEffect(() => {
-        setSelectedRowIdx(0);
+        setSelectedRowIdx(-1);
+        setEditingCell(null);
         setCellSearch("");
         setShowSearchBar(false);
     }, [queryResult]);
@@ -841,13 +1059,8 @@ function TableGridView({
                         );
                     }
                     return (
-                        <span
-                            className={cn(
-                                "font-medium",
-                                info.getValue() === null
-                                    ? "text-muted-foreground italic"
-                                    : "",
-                            )}
+                        <div
+                            className="absolute inset-0 flex items-center px-4 overflow-hidden"
                             onDoubleClick={() =>
                                 fn.tableName &&
                                 setEditingCell({
@@ -860,10 +1073,19 @@ function TableGridView({
                                 })
                             }
                         >
-                            {info.getValue() === null
-                                ? "null"
-                                : String(info.getValue())}
-                        </span>
+                            <span
+                                className={cn(
+                                    "font-medium truncate",
+                                    info.getValue() === null
+                                        ? "text-muted-foreground italic"
+                                        : "",
+                                )}
+                            >
+                                {info.getValue() === null
+                                    ? "null"
+                                    : String(info.getValue())}
+                            </span>
+                        </div>
                     );
                 },
             })),
@@ -1385,13 +1607,27 @@ function TableGridView({
                                             <TableHead
                                                 key={header.id}
                                                 style={{ width: header.getSize(), position: "relative" }}
-                                                className="h-8 px-4 text-left font-bold text-muted-foreground border-r border-border last:border-r-0 hover:bg-accent cursor-pointer transition-colors select-none overflow-hidden"
+                                                className={cn(
+                                                    "h-8 px-4 text-left font-bold border-r border-border last:border-r-0 hover:bg-muted/40 cursor-pointer transition-colors select-none overflow-hidden group/th",
+                                                    header.column.getIsSorted()
+                                                        ? "text-foreground border-b-2 border-b-primary/50"
+                                                        : "text-muted-foreground",
+                                                )}
                                                 onClick={header.column.getToggleSortingHandler()}
                                             >
-                                                {flexRender(
-                                                    header.column.columnDef.header,
-                                                    header.getContext(),
-                                                )}
+                                                <div className="flex items-center gap-1">
+                                                    <span className="group-hover/th:text-foreground transition-colors">
+                                                        {flexRender(
+                                                            header.column.columnDef.header,
+                                                            header.getContext(),
+                                                        )}
+                                                    </span>
+                                                    {header.column.getIsSorted() && (
+                                                        <span className="text-primary/60 text-[9px] shrink-0">
+                                                            {header.column.getIsSorted() === "asc" ? "↑" : "↓"}
+                                                        </span>
+                                                    )}
+                                                </div>
                                                 {header.column.getCanResize() && (
                                                     <div
                                                         onMouseDown={(e) => {
@@ -1432,11 +1668,14 @@ function TableGridView({
                                         <TableRow
                                             key={row.id}
                                             className={cn(
-                                                "hover:bg-row-hover transition-colors group",
-                                                idx % 2 === 0
-                                                    ? "bg-table-bg"
-                                                    : "bg-row-alt",
+                                                "hover:bg-row-hover transition-colors group cursor-pointer",
+                                                selectedRowIdx === idx
+                                                    ? "bg-primary/5"
+                                                    : idx % 2 === 0
+                                                        ? "bg-table-bg"
+                                                        : "bg-row-alt",
                                             )}
+                                            onClick={() => setSelectedRowIdx(idx)}
                                         >
                                             <TableCell className="w-10 h-8 px-2 text-center text-muted-foreground/30 border-r border-border bg-card/30">
                                                 {page * pageSize + idx + 1}
@@ -1447,7 +1686,7 @@ function TableGridView({
                                                     <TableCell
                                                         key={cell.id}
                                                         style={{ width: cell.column.getSize() }}
-                                                        className="h-8 px-4 border-r border-border last:border-r-0 text-foreground/90 whitespace-nowrap overflow-hidden text-ellipsis"
+                                                        className="h-8 px-4 border-r border-border last:border-r-0 text-foreground/90 whitespace-nowrap overflow-hidden text-ellipsis relative"
                                                     >
                                                         {flexRender(
                                                             cell.column
@@ -1892,7 +2131,8 @@ function TableGridView({
                             0 rows
                         </div>
                     ) : (() => {
-                        const row = effectiveResult.rows[selectedRowIdx] ?? {};
+                        const formRowIdx = selectedRowIdx < 0 ? 0 : selectedRowIdx;
+                        const row = effectiveResult.rows[formRowIdx] ?? {};
                         const cols = effectiveResult.columns.length > 0 ? effectiveResult.columns : Object.keys(row);
                         return (
                             <div>
@@ -1902,15 +2142,15 @@ function TableGridView({
                                         <AlignLeft size={10} className="text-muted-foreground/40" />
                                         <span className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground/50">Record</span>
                                         <span className="text-[9px] font-mono bg-muted text-muted-foreground/50 rounded px-1.5 py-0.5 leading-none">
-                                            {page * pageSize + selectedRowIdx + 1} / {effectiveResult.rows.length}
+                                            {page * pageSize + formRowIdx + 1} / {effectiveResult.rows.length}
                                         </span>
                                     </div>
                                     <div className="flex items-center gap-0.5">
                                         <Button
                                             variant="ghost"
                                             size="icon-xs"
-                                            disabled={selectedRowIdx === 0}
-                                            onClick={() => setSelectedRowIdx((i) => Math.max(0, i - 1))}
+                                            disabled={formRowIdx === 0}
+                                            onClick={() => setSelectedRowIdx((i) => Math.max(0, (i < 0 ? 0 : i) - 1))}
                                             className="h-6 w-6 text-muted-foreground/50 hover:text-foreground disabled:opacity-20"
                                         >
                                             <ChevronLeft size={11} />
@@ -1918,8 +2158,8 @@ function TableGridView({
                                         <Button
                                             variant="ghost"
                                             size="icon-xs"
-                                            disabled={selectedRowIdx === effectiveResult.rows.length - 1}
-                                            onClick={() => setSelectedRowIdx((i) => Math.min(effectiveResult.rows.length - 1, i + 1))}
+                                            disabled={formRowIdx === effectiveResult.rows.length - 1}
+                                            onClick={() => setSelectedRowIdx((i) => Math.min(effectiveResult.rows.length - 1, (i < 0 ? 0 : i) + 1))}
                                             className="h-6 w-6 text-muted-foreground/50 hover:text-foreground disabled:opacity-20"
                                         >
                                             <ChevronRight size={11} />
@@ -1939,7 +2179,7 @@ function TableGridView({
                                 {/* Fields */}
                                 <div className="divide-y divide-border/40">
                                     {cols.map((col, colIdx) => {
-                                        const isEditing = editingCell?.rowIdx === selectedRowIdx && editingCell?.col === col;
+                                        const isEditing = editingCell?.rowIdx === formRowIdx && editingCell?.col === col;
                                         const val = row[col];
                                         return (
                                             <div
@@ -1975,7 +2215,7 @@ function TableGridView({
                                                         )}
                                                         onDoubleClick={() =>
                                                             fn.tableName && setEditingCell({
-                                                                rowIdx: selectedRowIdx,
+                                                                rowIdx: formRowIdx,
                                                                 col,
                                                                 value: val === null ? "" : String(val),
                                                             })
@@ -2645,7 +2885,7 @@ function SqlEditorView({
                                             onSqlChange(entry.sql);
                                             setPanel("editor");
                                         }}
-                                        className="border-b border-border px-3 py-2 hover:bg-accent cursor-pointer group transition-colors"
+                                        className="border-b border-border px-3 py-2 hover:bg-muted/40 cursor-pointer group transition-colors"
                                     >
                                         <div className="flex items-center justify-between mb-1">
                                             <div className="flex items-center gap-2 min-w-0">
@@ -3357,6 +3597,9 @@ const FunctionOutput = () => {
         connectionTables,
         connections,
         setConnectionDialogOpen,
+        setEditingConnection,
+        connectAndInit,
+        disconnectConnection,
         isLoading,
         tabs,
         activeTabId,
@@ -3365,6 +3608,8 @@ const FunctionOutput = () => {
         switchToTab,
         connectedIds,
         appSettings,
+        showConnectionsManager,
+        setShowConnectionsManager,
     } = useAppStore();
     const [page, setPage] = useState(0);
     const [pendingDangerSql, setPendingDangerSql] = useState<string | null>(
@@ -3453,7 +3698,25 @@ const FunctionOutput = () => {
                 </div>
             );
         }
-        if (outputType === "idle" || !invocationResult || !activeFunction) {
+        if (showConnectionsManager || outputType === "idle" || !invocationResult || !activeFunction) {
+            if (showConnectionsManager || connectedIds.length === 0) {
+                return (
+                    <ConnectionsHome
+                        connections={connections}
+                        connectedIds={connectedIds}
+                        onNewConnection={() => setConnectionDialogOpen(true)}
+                        onEdit={(conn) => {
+                            setEditingConnection(conn);
+                            setConnectionDialogOpen(true);
+                        }}
+                        onConnect={(id) => {
+                            setShowConnectionsManager(false);
+                            connectAndInit(id);
+                        }}
+                        onDisconnect={(id) => disconnectConnection(id)}
+                    />
+                );
+            }
             return (
                 <IdleView
                     onNewConnection={() => setConnectionDialogOpen(true)}

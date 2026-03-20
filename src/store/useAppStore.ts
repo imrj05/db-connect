@@ -123,6 +123,8 @@ interface AppState {
   setEditingConnection: (connection: ConnectionConfig | null) => void;
   setTheme: (theme: "dark" | "light") => void;
   setLoading: (loading: boolean) => void;
+  showConnectionsManager: boolean;
+  setShowConnectionsManager: (show: boolean) => void;
 
   // ---- Settings ----
   appSettings: AppSettings;
@@ -150,6 +152,7 @@ export const useAppStore = create<AppState>((set, get) => ({
   commandPaletteOpen: false,
   connectionDialogOpen: false,
   editingConnection: null,
+  showConnectionsManager: false,
   theme: "dark",
   isLoading: false,
   tabs: [],
@@ -593,6 +596,7 @@ export const useAppStore = create<AppState>((set, get) => ({
         activeFunction: fn,
         invocationResult: result,
         pendingSqlValue: "",
+        showConnectionsManager: false,
         tabs: s.tabs.map((t) => (t.id === s.activeTabId ? { ...t, fn, result, label: getTabLabel(fn), pendingSql: "" } : t)),
       };
     }),
@@ -744,4 +748,5 @@ export const useAppStore = create<AppState>((set, get) => ({
   setEditingConnection: (editingConnection) => set({ editingConnection }),
   setTheme: (theme) => set({ theme }),
   setLoading: (isLoading) => set({ isLoading }),
+  setShowConnectionsManager: (showConnectionsManager) => set({ showConnectionsManager }),
 }));
