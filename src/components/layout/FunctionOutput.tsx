@@ -9,6 +9,7 @@ import {
     useReactTable,
     getSortedRowModel,
     SortingState,
+    ColumnSizingState,
 } from "@tanstack/react-table";
 import {
     Play,
@@ -83,6 +84,7 @@ import {
     DialogFooter,
 } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
     Select,
     SelectContent,
@@ -101,6 +103,14 @@ import {
     DatabaseType,
 } from "@/types";
 import { tauriApi } from "@/lib/tauri-api";
+import {
+    Combobox,
+    ComboboxInput,
+    ComboboxContent,
+    ComboboxList,
+    ComboboxItem,
+    ComboboxEmpty,
+} from "@/components/ui/combobox";
 // ─── Idle state ────────────────────────────────────────────────────────────────
 function IdleView({ onNewConnection }: { onNewConnection: () => void }) {
     return (
@@ -146,6 +156,7 @@ function TableGridView({
     const [viewMode, setViewMode] = useState<"data" | "form" | "structure">("data");
     const [selectedRowIdx, setSelectedRowIdx] = useState(0);
     const [sorting, setSorting] = useState<SortingState>([]);
+    const [columnSizing, setColumnSizing] = useState<ColumnSizingState>({});
     const [structure, setStructure] = useState<TableStructure | null>(null);
     const [structureLoading, setStructureLoading] = useState(false);
     // Cell editing state
@@ -190,32 +201,9 @@ function TableGridView({
     const [showRenameTable, setShowRenameTable] = useState(false);
     const [renameTableName, setRenameTableName] = useState("");
     const [renameTableLoading, setRenameTableLoading] = useState(false);
-    // Create table state
-    type ColDef = {
-        id: string;
-        name: string;
-        type: string;
-        nullable: boolean;
-        isPrimary: boolean;
-    };
-    const [showCreateTable, setShowCreateTable] = useState(false);
-    const [newTableName, setNewTableName] = useState("");
-    const [colDefs, setColDefs] = useState<ColDef[]>([
-        {
-            id: "c0",
-            name: "id",
-            type: "INTEGER",
-            nullable: false,
-            isPrimary: true,
-        },
-    ]);
-    const [createTableLoading, setCreateTableLoading] = useState(false);
-    const [createTableError, setCreateTableError] = useState<string | null>(
-        null,
-    );
     // Query log state
     const [showQueryLogSyntax, setShowQueryLogSyntax] = useState(true);
-    const { queryHistory, clearHistory, connections } = useAppStore();
+    const { queryHistory, clearHistory, connections, closeTab, tabs, refreshTables } = useAppStore();
     const exportData = useCallback(
         (format: "csv" | "json" | "sql") => {
             if (!queryResult) return;
@@ -364,6 +352,11 @@ function TableGridView({
         setFilters([]);
         setFilteredResult(null);
         setShowFilterBar(false);
+        setStructure(null);
+        if (viewMode === "structure") {
+            reloadStructure();
+        }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [fn.id]);
     const effectiveResult = filteredResult ?? queryResult;
     const filtersActive = filteredResult !== null && filters.length > 0;
@@ -512,6 +505,18 @@ function TableGridView({
                 setStructureLoading(false);
             }
         }, [fn, database, structure]);
+    const reloadStructure = useCallback(async () => {
+        if (!fn.tableName) return;
+        setStructureLoading(true);
+        try {
+            const s = await tauriApi.getTableStructure(fn.connectionId, database, fn.tableName);
+            setStructure(s);
+        } catch {
+            setStructure(null);
+        } finally {
+            setStructureLoading(false);
+        }
+    }, [fn, database]);
     const handleViewMode = (mode: "data" | "form" | "structure") => {
         setViewMode(mode);
         if (mode === "structure") loadStructure();
@@ -661,25 +666,6 @@ function TableGridView({
         "postgresql";
     const qi = (n: string) =>
         dbType === "mysql" ? `\`${n}\`` : `"${n}"`;
-    function buildCreateTableSql(
-        tableName: string,
-        cols: ColDef[],
-    ): string {
-        const pkCols = cols.filter((c) => c.isPrimary);
-        const colLines = cols.map((c) => {
-            const parts = [qi(c.name), c.type];
-            if (!c.nullable && !c.isPrimary) parts.push("NOT NULL");
-            if (c.isPrimary && pkCols.length === 1)
-                parts.push("PRIMARY KEY");
-            return "  " + parts.join(" ");
-        });
-        if (pkCols.length > 1) {
-            colLines.push(
-                `  PRIMARY KEY (${pkCols.map((c) => qi(c.name)).join(", ")})`,
-            );
-        }
-        return `CREATE TABLE ${qi(tableName)} (\n${colLines.join(",\n")}\n)`;
-    }
     function buildCreateIndexSql(
         tableName: string,
         idxName: string,
@@ -696,30 +682,6 @@ function TableGridView({
         }
         return `DROP INDEX ${qi(idxName)}`;
     }
-    const executeCreateTable = useCallback(async () => {
-        if (!newTableName.trim() || colDefs.length === 0) return;
-        setCreateTableLoading(true);
-        setCreateTableError(null);
-        try {
-            const sql = buildCreateTableSql(newTableName.trim(), colDefs);
-            await tauriApi.executeQuery(fn.connectionId, sql);
-            setShowCreateTable(false);
-            setNewTableName("");
-            setColDefs([
-                {
-                    id: "c0",
-                    name: "id",
-                    type: "INTEGER",
-                    nullable: false,
-                    isPrimary: true,
-                },
-            ]);
-        } catch (e) {
-            setCreateTableError(String(e));
-        } finally {
-            setCreateTableLoading(false);
-        }
-    }, [newTableName, colDefs, fn]);
     const executeDropTable = useCallback(async () => {
         if (!fn.tableName) return;
         setDropTableLoading(true);
@@ -729,12 +691,17 @@ function TableGridView({
                 `DROP TABLE ${qi(fn.tableName)}`,
             );
             setShowDropTable(false);
+            // Close all tabs for this table and refresh the sidebar list
+            tabs
+                .filter((t) => t.fn.connectionId === fn.connectionId && t.fn.tableName === fn.tableName)
+                .forEach((t) => closeTab(t.id));
+            await refreshTables(fn.connectionId);
         } catch (e) {
             setCellEditError(String(e));
         } finally {
             setDropTableLoading(false);
         }
-    }, [fn, qi]);
+    }, [fn, qi, tabs, closeTab, refreshTables]);
     const executeRenameTable = useCallback(async () => {
         if (!fn.tableName || !renameTableName.trim()) return;
         setRenameTableLoading(true);
@@ -762,13 +729,13 @@ function TableGridView({
             );
             setShowAddColumn(false);
             setAddCol({ name: "", type: "TEXT", nullable: true });
-            setStructure(null);
+            await reloadStructure();
         } catch (e) {
             setAddColError(String(e));
         } finally {
             setAddColLoading(false);
         }
-    }, [fn, addCol, qi]);
+    }, [fn, addCol, qi, reloadStructure]);
     const executeDropColumn = useCallback(async () => {
         if (!fn.tableName || !dropColTarget) return;
         setDropColLoading(true);
@@ -778,13 +745,13 @@ function TableGridView({
                 `ALTER TABLE ${qi(fn.tableName)} DROP COLUMN ${qi(dropColTarget)}`,
             );
             setDropColTarget(null);
-            setStructure(null);
+            await reloadStructure();
         } catch (e) {
             setCellEditError(String(e));
         } finally {
             setDropColLoading(false);
         }
-    }, [fn, dropColTarget, qi]);
+    }, [fn, dropColTarget, qi, reloadStructure]);
     const executeCreateIndex = useCallback(async () => {
         if (!fn.tableName || !createIdxDef.name.trim() || createIdxDef.columns.length === 0) return;
         setCreateIdxLoading(true);
@@ -796,13 +763,13 @@ function TableGridView({
             );
             setShowCreateIndex(false);
             setCreateIdxDef({ name: "", columns: [], unique: false });
-            setStructure(null);
+            await reloadStructure();
         } catch (e) {
             setCreateIdxError(String(e));
         } finally {
             setCreateIdxLoading(false);
         }
-    }, [fn, createIdxDef, dbType, qi]);
+    }, [fn, createIdxDef, dbType, qi, reloadStructure]);
     const executeDropIndex = useCallback(async () => {
         if (!fn.tableName || !dropIdxTarget) return;
         setDropIdxLoading(true);
@@ -812,13 +779,13 @@ function TableGridView({
                 buildDropIndexSql(fn.tableName, dropIdxTarget),
             );
             setDropIdxTarget(null);
-            setStructure(null);
+            await reloadStructure();
         } catch (e) {
             setCellEditError(String(e));
         } finally {
             setDropIdxLoading(false);
         }
-    }, [fn, dropIdxTarget, dbType, qi]);
+    }, [fn, dropIdxTarget, dbType, qi, reloadStructure]);
     const table = useReactTable({
         data: searchedRows,
         columns: [
@@ -830,35 +797,47 @@ function TableGridView({
             ).map((col: string) => ({
                 accessorKey: col,
                 header: col,
+                size: 150,
+                minSize: 60,
                 cell: (info: any) => {
                     const rowIdx = info.row.index;
                     const isEditing =
                         editingCell?.rowIdx === rowIdx && editingCell?.col === col;
                     if (isEditing) {
                         return (
-                            <input
-                                autoFocus
-                                value={editingCell.value}
-                                onChange={(e) =>
-                                    setEditingCell((prev) =>
-                                        prev
-                                            ? { ...prev, value: e.target.value }
-                                            : null,
-                                    )
-                                }
-                                onKeyDown={(e) => {
-                                    if (e.key === "Enter") {
-                                        e.preventDefault();
-                                        commitEdit();
-                                    }
-                                    if (e.key === "Escape") {
-                                        e.preventDefault();
-                                        setEditingCell(null);
-                                    }
-                                }}
+                            <div
+                                className="flex items-stretch -mx-4 h-8"
                                 onClick={(e) => e.stopPropagation()}
-                                className="w-full bg-primary/10 border border-blue-500/50 rounded px-1 outline-none text-[11px] font-mono text-foreground"
-                            />
+                            >
+                                <input
+                                    autoFocus
+                                    value={editingCell.value}
+                                    onChange={(e) =>
+                                        setEditingCell((prev) =>
+                                            prev
+                                                ? { ...prev, value: e.target.value }
+                                                : null,
+                                        )
+                                    }
+                                    onKeyDown={(e) => {
+                                        if (e.key === "Enter") {
+                                            e.preventDefault();
+                                            commitEdit();
+                                        }
+                                        if (e.key === "Escape") {
+                                            e.preventDefault();
+                                            setEditingCell(null);
+                                        }
+                                    }}
+                                    className="flex-1 h-full min-w-0 bg-primary/10 border-0 border-b-2 border-primary/50 px-4 outline-none text-[11px] font-mono text-foreground"
+                                />
+                                <button
+                                    onClick={(e) => { e.stopPropagation(); setEditingCell(null); }}
+                                    className="h-8 w-7 shrink-0 flex items-center justify-center text-muted-foreground/40 hover:text-foreground hover:bg-muted/50 border-l border-border/30 transition-colors"
+                                >
+                                    <X size={10} />
+                                </button>
+                            </div>
                         );
                     }
                     return (
@@ -893,6 +872,8 @@ function TableGridView({
                     {
                         id: "_delete",
                         header: "",
+                        size: 40,
+                        enableResizing: false,
                         enableSorting: false,
                         cell: (info: any) => {
                             const rowData = info.row.original;
@@ -914,8 +895,10 @@ function TableGridView({
                 ]
                 : []),
         ],
-        state: { sorting },
+        columnResizeMode: "onChange",
+        state: { sorting, columnSizing },
         onSortingChange: setSorting,
+        onColumnSizingChange: setColumnSizing,
         getCoreRowModel: getCoreRowModel(),
         getSortedRowModel: getSortedRowModel(),
     });
@@ -1048,24 +1031,6 @@ function TableGridView({
                     </Tooltip>
                     {fn.tableName && (
                         <>
-                            {/* Create table */}
-                            <Tooltip>
-                                <TooltipTrigger asChild>
-                                    <Button
-                                        variant="ghost"
-                                        size="icon-xs"
-                                        onClick={() =>
-                                            setShowCreateTable(true)
-                                        }
-                                        className="text-muted-foreground"
-                                    >
-                                        <Plus size={11} />
-                                    </Button>
-                                </TooltipTrigger>
-                                <TooltipContent>
-                                    Create table
-                                </TooltipContent>
-                            </Tooltip>
                             {/* Rename table */}
                             <Tooltip>
                                 <TooltipTrigger asChild>
@@ -1403,7 +1368,10 @@ function TableGridView({
             {viewMode === "data" && (
                 <div className="flex-1 overflow-auto scrollbar-thin">
                     <div className="min-w-full inline-block align-middle">
-                        <Table className="w-full border-collapse text-[11px] font-mono border-separate border-spacing-0">
+                        <Table
+                            className="border-collapse text-[11px] font-mono border-separate border-spacing-0"
+                            style={{ width: table.getTotalSize() }}
+                        >
                             <TableHeader className="sticky top-0 z-10 bg-background shadow-[0_1px_0_var(--color-border-table)]">
                                 {table.getHeaderGroups().map((headerGroup) => (
                                     <TableRow
@@ -1416,13 +1384,31 @@ function TableGridView({
                                         {headerGroup.headers.map((header) => (
                                             <TableHead
                                                 key={header.id}
-                                                className="h-8 px-4 text-left font-bold text-muted-foreground border-r border-border last:border-r-0 hover:bg-accent cursor-pointer transition-colors"
+                                                style={{ width: header.getSize(), position: "relative" }}
+                                                className="h-8 px-4 text-left font-bold text-muted-foreground border-r border-border last:border-r-0 hover:bg-accent cursor-pointer transition-colors select-none overflow-hidden"
                                                 onClick={header.column.getToggleSortingHandler()}
                                             >
                                                 {flexRender(
-                                                    header.column.columnDef
-                                                        .header,
+                                                    header.column.columnDef.header,
                                                     header.getContext(),
+                                                )}
+                                                {header.column.getCanResize() && (
+                                                    <div
+                                                        onMouseDown={(e) => {
+                                                            e.stopPropagation();
+                                                            header.getResizeHandler()(e);
+                                                        }}
+                                                        onTouchStart={(e) => {
+                                                            e.stopPropagation();
+                                                            header.getResizeHandler()(e);
+                                                        }}
+                                                        className={cn(
+                                                            "absolute right-0 top-0 h-full w-1 cursor-col-resize touch-none select-none transition-colors",
+                                                            header.column.getIsResizing()
+                                                                ? "bg-primary/70"
+                                                                : "bg-transparent hover:bg-primary/50",
+                                                        )}
+                                                    />
                                                 )}
                                             </TableHead>
                                         ))}
@@ -1460,7 +1446,8 @@ function TableGridView({
                                                 .map((cell) => (
                                                     <TableCell
                                                         key={cell.id}
-                                                        className="h-8 px-4 border-r border-border last:border-r-0 text-foreground/90 whitespace-nowrap overflow-hidden text-ellipsis max-w-75"
+                                                        style={{ width: cell.column.getSize() }}
+                                                        className="h-8 px-4 border-r border-border last:border-r-0 text-foreground/90 whitespace-nowrap overflow-hidden text-ellipsis"
                                                     >
                                                         {flexRender(
                                                             cell.column
@@ -1587,7 +1574,7 @@ function TableGridView({
                     }
                 }}
             >
-                <DialogContent className="max-w-sm">
+                <DialogContent className="max-w-md">
                     <DialogHeader>
                         <DialogTitle>Add column</DialogTitle>
                         <DialogDescription>
@@ -1595,64 +1582,82 @@ function TableGridView({
                             <span className="font-mono">{fn.tableName}</span>.
                         </DialogDescription>
                     </DialogHeader>
-                    <div className="flex flex-col gap-3 py-2">
-                        <Input
-                            autoFocus
-                            value={addCol.name}
-                            onChange={(e) =>
-                                setAddCol((p) => ({
-                                    ...p,
-                                    name: e.target.value,
-                                }))
-                            }
-                            onKeyDown={(e) =>
-                                e.key === "Enter" && executeAddColumn()
-                            }
-                            placeholder="column_name"
-                            className="font-mono text-[12px]"
-                        />
-                        <select
-                            value={addCol.type}
-                            onChange={(e) =>
-                                setAddCol((p) => ({
-                                    ...p,
-                                    type: e.target.value,
-                                }))
-                            }
-                            className="h-9 px-3 rounded-md bg-background border border-input text-[12px] font-mono text-foreground outline-none"
-                        >
-                            {(
-                                COL_TYPES[dbType as DatabaseType] ?? ["TEXT"]
-                            ).map((t) => (
-                                <option key={t} value={t}>
-                                    {t}
-                                </option>
-                            ))}
-                        </select>
-                        <div className="flex items-center gap-2">
-                            <Button
-                                variant={
-                                    addCol.nullable ? "outline" : "default"
-                                }
-                                size="sm"
-                                onClick={() =>
+                    <div className="flex flex-col gap-4 py-2">
+                        {/* Column name */}
+                        <div className="flex flex-col gap-1.5">
+                            <Label className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">
+                                Column name
+                            </Label>
+                            <Input
+                                autoFocus
+                                value={addCol.name}
+                                onChange={(e) =>
                                     setAddCol((p) => ({
                                         ...p,
-                                        nullable: !p.nullable,
+                                        name: e.target.value,
                                     }))
                                 }
-                                className="h-6 text-[10px] font-bold uppercase tracking-widest"
-                            >
-                                {addCol.nullable ? "NULL" : "NOT NULL"}
-                            </Button>
+                                onKeyDown={(e) =>
+                                    e.key === "Enter" && executeAddColumn()
+                                }
+                                placeholder="column_name"
+                                className="font-mono text-[12px]"
+                            />
                         </div>
-                        <pre className="rounded bg-muted px-3 py-2 text-xs font-mono whitespace-pre-wrap break-all text-muted-foreground">
-                            {`ALTER TABLE ${qi(fn.tableName ?? "")} ADD COLUMN ${qi(addCol.name.trim() || "…")} ${addCol.type}${addCol.nullable ? "" : " NOT NULL"}`}
-                        </pre>
+                        {/* Data type */}
+                        <div className="flex flex-col gap-1.5">
+                            <Label className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">
+                                Data type
+                            </Label>
+                            <Combobox
+                                value={addCol.type}
+                                onValueChange={(value) =>
+                                    setAddCol((p) => ({ ...p, type: value as string }))
+                                }
+                            >
+                                <ComboboxInput
+                                    placeholder="Select type…"
+                                    className="h-9 text-[12px] font-mono"
+                                />
+                                <ComboboxContent>
+                                    <ComboboxList>
+                                        {(COL_TYPES[dbType as DatabaseType] ?? ["TEXT"]).map((t) => (
+                                            <ComboboxItem key={t} value={t}>
+                                                {t}
+                                            </ComboboxItem>
+                                        ))}
+                                        <ComboboxEmpty>No type found.</ComboboxEmpty>
+                                    </ComboboxList>
+                                </ComboboxContent>
+                            </Combobox>
+                        </div>
+                        {/* Nullable toggle */}
+                        <div className="flex items-center justify-between rounded-md border border-border px-3 py-2.5 bg-muted/20">
+                            <Label htmlFor="add-col-nullable" className="flex flex-col gap-0.5 cursor-pointer flex-1">
+                                <span className="text-[11px] font-semibold">Allow null</span>
+                                <span className="text-[10px] text-muted-foreground/60 font-normal">Column accepts NULL values</span>
+                            </Label>
+                            <Checkbox
+                                id="add-col-nullable"
+                                checked={addCol.nullable}
+                                onCheckedChange={(checked) =>
+                                    setAddCol((p) => ({ ...p, nullable: checked === true }))
+                                }
+                            />
+                        </div>
+                        {/* SQL preview */}
+                        <div className="flex flex-col gap-1.5">
+                            <Label className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">
+                                Preview
+                            </Label>
+                            <pre className="rounded-md bg-muted px-3 py-2 text-xs font-mono whitespace-pre-wrap break-all text-muted-foreground">
+                                {`ALTER TABLE ${qi(fn.tableName ?? "")} ADD COLUMN ${qi(addCol.name.trim() || "…")} ${addCol.type}${addCol.nullable ? "" : " NOT NULL"}`}
+                            </pre>
+                        </div>
                         {addColError && (
-                            <p className="text-[11px] text-destructive font-mono">
-                                {addColError}
-                            </p>
+                            <div className="flex items-start gap-2 rounded-md bg-destructive/10 border border-destructive/20 px-3 py-2">
+                                <p className="text-[11px] text-destructive font-mono leading-snug">{addColError}</p>
+                            </div>
                         )}
                     </div>
                     <DialogFooter>
@@ -1711,7 +1716,7 @@ function TableGridView({
                     }
                 }}
             >
-                <DialogContent className="max-w-sm">
+                <DialogContent className="max-w-md">
                     <DialogHeader>
                         <DialogTitle>Create index</DialogTitle>
                         <DialogDescription>
@@ -1719,74 +1724,112 @@ function TableGridView({
                             <span className="font-mono">{fn.tableName}</span>.
                         </DialogDescription>
                     </DialogHeader>
-                    <div className="flex flex-col gap-3 py-2">
-                        <Input
-                            autoFocus
-                            value={createIdxDef.name}
-                            onChange={(e) =>
-                                setCreateIdxDef((p) => ({
-                                    ...p,
-                                    name: e.target.value,
-                                }))
-                            }
-                            placeholder="index_name"
-                            className="font-mono text-[12px]"
-                        />
-                        <div className="flex flex-col gap-1 max-h-36 overflow-y-auto rounded border border-border p-2">
-                            {(structure?.columns ?? []).map((col) => (
-                                <label
-                                    key={col.name}
-                                    className="flex items-center gap-2 cursor-pointer hover:bg-accent/10 px-1 py-0.5 rounded text-[11px] font-mono"
-                                >
-                                    <input
-                                        type="checkbox"
-                                        checked={createIdxDef.columns.includes(col.name)}
-                                        onChange={(e) =>
-                                            setCreateIdxDef((p) => ({
-                                                ...p,
-                                                columns: e.target.checked
-                                                    ? [...p.columns, col.name]
-                                                    : p.columns.filter((c) => c !== col.name),
-                                            }))
-                                        }
-                                        className="accent-accent-blue"
-                                    />
-                                    {col.name}
-                                    <span className="text-muted-foreground/40 text-[9px]">
-                                        {col.dataType}
-                                    </span>
-                                </label>
-                            ))}
+                    <div className="flex flex-col gap-4 py-2">
+                        {/* Index name */}
+                        <div className="flex flex-col gap-1.5">
+                            <Label className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">
+                                Index name
+                            </Label>
+                            <Input
+                                autoFocus
+                                value={createIdxDef.name}
+                                onChange={(e) =>
+                                    setCreateIdxDef((p) => ({
+                                        ...p,
+                                        name: e.target.value,
+                                    }))
+                                }
+                                placeholder="index_name"
+                                className="font-mono text-[12px]"
+                            />
                         </div>
-                        <Button
-                            variant={createIdxDef.unique ? "default" : "outline"}
-                            size="sm"
-                            onClick={() =>
-                                setCreateIdxDef((p) => ({
-                                    ...p,
-                                    unique: !p.unique,
-                                }))
-                            }
-                            className="h-6 text-[10px] font-bold uppercase tracking-widest w-fit"
-                        >
-                            {createIdxDef.unique ? "UNIQUE" : "NOT UNIQUE"}
-                        </Button>
-                        <pre className="rounded bg-muted px-3 py-2 text-xs font-mono whitespace-pre-wrap break-all text-muted-foreground">
-                            {fn.tableName
-                                ? buildCreateIndexSql(
-                                      fn.tableName,
-                                      createIdxDef.name.trim() || "…",
-                                      createIdxDef.columns.length > 0
-                                          ? createIdxDef.columns
-                                          : ["…"],
-                                      createIdxDef.unique,
-                                  )
-                                : ""}
-                        </pre>
+                        {/* Columns */}
+                        <div className="flex flex-col gap-1.5">
+                            <div className="flex items-center justify-between">
+                                <Label className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">
+                                    Columns
+                                </Label>
+                                {createIdxDef.columns.length > 0 && (
+                                    <Badge variant="secondary" className="text-[9px] font-mono h-4 px-1.5">
+                                        {createIdxDef.columns.length} selected
+                                    </Badge>
+                                )}
+                            </div>
+                            <div className="flex flex-col gap-0.5 max-h-44 overflow-y-auto rounded-md border border-border bg-muted/20 p-1.5">
+                                {(structure?.columns ?? []).map((col) => {
+                                    const order = createIdxDef.columns.indexOf(col.name);
+                                    const isSelected = order !== -1;
+                                    return (
+                                        <label
+                                            key={col.name}
+                                            className={cn(
+                                                "flex items-center gap-2.5 cursor-pointer px-2 py-1.5 rounded transition-colors text-[11px] font-mono",
+                                                isSelected ? "bg-primary/10" : "hover:bg-accent/20",
+                                            )}
+                                        >
+                                            <Checkbox
+                                                checked={isSelected}
+                                                onCheckedChange={(checked) =>
+                                                    setCreateIdxDef((p) => ({
+                                                        ...p,
+                                                        columns: checked
+                                                            ? [...p.columns, col.name]
+                                                            : p.columns.filter((c) => c !== col.name),
+                                                    }))
+                                                }
+                                            />
+                                            <span className={cn("flex-1", isSelected ? "text-foreground font-semibold" : "text-foreground/80")}>
+                                                {col.name}
+                                            </span>
+                                            <span className="text-muted-foreground/40 text-[9px]">
+                                                {col.dataType}
+                                            </span>
+                                            {isSelected && (
+                                                <span className="w-4 h-4 rounded-full bg-primary text-primary-foreground text-[8px] font-black flex items-center justify-center shrink-0">
+                                                    {order + 1}
+                                                </span>
+                                            )}
+                                        </label>
+                                    );
+                                })}
+                            </div>
+                        </div>
+                        {/* Unique toggle */}
+                        <div className="flex items-center justify-between rounded-md border border-border px-3 py-2.5 bg-muted/20">
+                            <Label htmlFor="create-idx-unique" className="flex flex-col gap-0.5 cursor-pointer flex-1">
+                                <span className="text-[11px] font-semibold">Unique index</span>
+                                <span className="text-[10px] text-muted-foreground/60 font-normal">Enforce unique values on indexed columns</span>
+                            </Label>
+                            <Checkbox
+                                id="create-idx-unique"
+                                checked={createIdxDef.unique}
+                                onCheckedChange={(checked) =>
+                                    setCreateIdxDef((p) => ({ ...p, unique: checked === true }))
+                                }
+                            />
+                        </div>
+                        {/* SQL preview */}
+                        <div className="flex flex-col gap-1.5">
+                            <Label className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">
+                                Preview
+                            </Label>
+                            <pre className="rounded-md bg-muted px-3 py-2 text-xs font-mono whitespace-pre-wrap break-all text-muted-foreground">
+                                {fn.tableName
+                                    ? buildCreateIndexSql(
+                                          fn.tableName,
+                                          createIdxDef.name.trim() || "…",
+                                          createIdxDef.columns.length > 0
+                                              ? createIdxDef.columns
+                                              : ["…"],
+                                          createIdxDef.unique,
+                                      )
+                                    : ""}
+                            </pre>
+                        </div>
                         {createIdxError && (
-                            <p className="text-[11px] text-destructive font-mono">
-                                {createIdxError}
-                            </p>
+                            <div className="flex items-start gap-2 rounded-md bg-destructive/10 border border-destructive/20 px-3 py-2">
+                                <p className="text-[11px] text-destructive font-mono leading-snug">{createIdxError}</p>
+                            </div>
                         )}
                     </div>
                     <DialogFooter>
@@ -1841,356 +1884,113 @@ function TableGridView({
                     </AlertDialogFooter>
                 </AlertDialogContent>
             </AlertDialog>
-            {/* Create table dialog */}
-            <Dialog
-                open={showCreateTable}
-                onOpenChange={(o) => {
-                    setShowCreateTable(o);
-                    if (!o) setCreateTableError(null);
-                }}
-            >
-                <DialogContent className="max-w-lg">
-                    <DialogHeader>
-                        <DialogTitle>Create Table</DialogTitle>
-                    </DialogHeader>
-                    <div className="flex flex-col gap-4 py-1">
-                        {/* Table name */}
-                        <div className="flex flex-col gap-1.5">
-                            <Label className="text-[11px] font-bold uppercase tracking-widest text-muted-foreground">
-                                Table Name
-                            </Label>
-                            <Input
-                                value={newTableName}
-                                onChange={(e) =>
-                                    setNewTableName(e.target.value)
-                                }
-                                placeholder="e.g. users"
-                                className="h-8 text-[12px] font-mono"
-                            />
+            {/* Content: Form view */}
+            {viewMode === "form" && effectiveResult && (
+                <div className="flex-1 overflow-auto scrollbar-thin bg-background">
+                    {effectiveResult.rows.length === 0 ? (
+                        <div className="h-full flex items-center justify-center text-muted-foreground/25 text-[11px] font-mono">
+                            0 rows
                         </div>
-                        {/* Columns */}
-                        <div className="flex flex-col gap-1.5">
-                            <div className="flex items-center justify-between">
-                                <Label className="text-[11px] font-bold uppercase tracking-widest text-muted-foreground">
-                                    Columns
-                                </Label>
-                                <Button
-                                    variant="ghost"
-                                    size="xs"
-                                    className="h-6 text-[10px] gap-1 text-muted-foreground"
-                                    onClick={() =>
-                                        setColDefs((prev) => [
-                                            ...prev,
-                                            {
-                                                id: `c${Date.now()}`,
-                                                name: "",
-                                                type:
-                                                    COL_TYPES[
-                                                    dbType as DatabaseType
-                                                    ]?.[0] ?? "TEXT",
-                                                nullable: true,
-                                                isPrimary: false,
-                                            },
-                                        ])
-                                    }
-                                >
-                                    <Plus size={10} />
-                                    Add column
-                                </Button>
-                            </div>
-                            <div className="flex flex-col gap-1 max-h-52 overflow-y-auto">
-                                {colDefs.map((col) => (
-                                    <div
-                                        key={col.id}
-                                        className="flex items-center gap-2"
-                                    >
-                                        <Input
-                                            value={col.name}
-                                            onChange={(e) =>
-                                                setColDefs((prev) =>
-                                                    prev.map((c) =>
-                                                        c.id === col.id
-                                                            ? {
-                                                                ...c,
-                                                                name: e
-                                                                    .target
-                                                                    .value,
-                                                            }
-                                                            : c,
-                                                    ),
-                                                )
-                                            }
-                                            placeholder="column name"
-                                            className="h-7 text-[11px] font-mono flex-1"
-                                        />
-                                        <Select
-                                            value={col.type}
-                                            onValueChange={(v) =>
-                                                setColDefs((prev) =>
-                                                    prev.map((c) =>
-                                                        c.id === col.id
-                                                            ? {
-                                                                ...c,
-                                                                type: v,
-                                                            }
-                                                            : c,
-                                                    ),
-                                                )
-                                            }
+                    ) : (() => {
+                        const row = effectiveResult.rows[selectedRowIdx] ?? {};
+                        const cols = effectiveResult.columns.length > 0 ? effectiveResult.columns : Object.keys(row);
+                        return (
+                            <div>
+                                {/* Record header */}
+                                <div className="sticky top-0 z-10 flex items-center justify-between px-4 h-9 bg-card/95 backdrop-blur-sm border-b border-border">
+                                    <div className="flex items-center gap-2">
+                                        <AlignLeft size={10} className="text-muted-foreground/40" />
+                                        <span className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground/50">Record</span>
+                                        <span className="text-[9px] font-mono bg-muted text-muted-foreground/50 rounded px-1.5 py-0.5 leading-none">
+                                            {page * pageSize + selectedRowIdx + 1} / {effectiveResult.rows.length}
+                                        </span>
+                                    </div>
+                                    <div className="flex items-center gap-0.5">
+                                        <Button
+                                            variant="ghost"
+                                            size="icon-xs"
+                                            disabled={selectedRowIdx === 0}
+                                            onClick={() => setSelectedRowIdx((i) => Math.max(0, i - 1))}
+                                            className="h-6 w-6 text-muted-foreground/50 hover:text-foreground disabled:opacity-20"
                                         >
-                                            <SelectTrigger className="h-7 text-[11px] font-mono w-36">
-                                                <SelectValue />
-                                            </SelectTrigger>
-                                            <SelectContent>
-                                                {(
-                                                    COL_TYPES[
-                                                    dbType as DatabaseType
-                                                    ] ?? ["TEXT"]
-                                                ).map((t) => (
-                                                    <SelectItem
-                                                        key={t}
-                                                        value={t}
-                                                        className="text-[11px] font-mono"
-                                                    >
-                                                        {t}
-                                                    </SelectItem>
-                                                ))}
-                                            </SelectContent>
-                                        </Select>
-                                        <Tooltip>
-                                            <TooltipTrigger asChild>
-                                                <button
-                                                    onClick={() =>
-                                                        setColDefs((prev) =>
-                                                            prev.map((c) =>
-                                                                c.id ===
-                                                                    col.id
-                                                                    ? {
-                                                                        ...c,
-                                                                        nullable:
-                                                                            !c.nullable,
-                                                                    }
-                                                                    : c,
-                                                            ),
-                                                        )
-                                                    }
-                                                    className={cn(
-                                                        "text-[9px] font-bold uppercase px-1.5 py-0.5 rounded border transition-colors",
-                                                        col.nullable
-                                                            ? "border-border text-muted-foreground"
-                                                            : "border-primary/40 text-accent-blue",
-                                                    )}
-                                                >
-                                                    NULL
-                                                </button>
-                                            </TooltipTrigger>
-                                            <TooltipContent>
-                                                Toggle nullable
-                                            </TooltipContent>
-                                        </Tooltip>
-                                        <Tooltip>
-                                            <TooltipTrigger asChild>
-                                                <button
-                                                    onClick={() =>
-                                                        setColDefs((prev) =>
-                                                            prev.map((c) =>
-                                                                c.id ===
-                                                                    col.id
-                                                                    ? {
-                                                                        ...c,
-                                                                        isPrimary:
-                                                                            !c.isPrimary,
-                                                                    }
-                                                                    : c,
-                                                            ),
-                                                        )
-                                                    }
-                                                    className={cn(
-                                                        "text-[9px] font-bold uppercase px-1.5 py-0.5 rounded border transition-colors",
-                                                        col.isPrimary
-                                                            ? "border-primary/40 text-accent-green"
-                                                            : "border-border text-muted-foreground",
-                                                    )}
-                                                >
-                                                    PK
-                                                </button>
-                                            </TooltipTrigger>
-                                            <TooltipContent>
-                                                Toggle primary key
-                                            </TooltipContent>
-                                        </Tooltip>
-                                        {colDefs.length > 1 && (
+                                            <ChevronLeft size={11} />
+                                        </Button>
+                                        <Button
+                                            variant="ghost"
+                                            size="icon-xs"
+                                            disabled={selectedRowIdx === effectiveResult.rows.length - 1}
+                                            onClick={() => setSelectedRowIdx((i) => Math.min(effectiveResult.rows.length - 1, i + 1))}
+                                            className="h-6 w-6 text-muted-foreground/50 hover:text-foreground disabled:opacity-20"
+                                        >
+                                            <ChevronRight size={11} />
+                                        </Button>
+                                        {fn.tableName && (
                                             <Button
                                                 variant="ghost"
                                                 size="icon-xs"
-                                                className="text-muted-foreground/40 hover:text-destructive"
-                                                onClick={() =>
-                                                    setColDefs((prev) =>
-                                                        prev.filter(
-                                                            (c) =>
-                                                                c.id !==
-                                                                col.id,
-                                                        ),
-                                                    )
-                                                }
+                                                className="h-6 w-6 text-muted-foreground/30 hover:text-destructive hover:bg-destructive/10 ml-1"
+                                                onClick={() => buildAndShowDeleteSql(row)}
                                             >
-                                                <X size={10} />
+                                                <Trash2 size={10} />
                                             </Button>
                                         )}
                                     </div>
-                                ))}
-                            </div>
-                        </div>
-                        {/* SQL preview */}
-                        <div className="flex flex-col gap-1.5">
-                            <Label className="text-[11px] font-bold uppercase tracking-widest text-muted-foreground">
-                                Preview
-                            </Label>
-                            <pre className="rounded bg-muted p-2 text-[11px] font-mono overflow-x-auto whitespace-pre-wrap break-all text-muted-foreground">
-                                {newTableName.trim() && colDefs.length > 0
-                                    ? buildCreateTableSql(
-                                        newTableName.trim(),
-                                        colDefs,
-                                    )
-                                    : "—"}
-                            </pre>
-                        </div>
-                        {createTableError && (
-                            <p className="text-[11px] text-destructive font-mono">
-                                {createTableError}
-                            </p>
-                        )}
-                    </div>
-                    <DialogFooter>
-                        <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => setShowCreateTable(false)}
-                        >
-                            Cancel
-                        </Button>
-                        <Button
-                            size="sm"
-                            disabled={
-                                !newTableName.trim() ||
-                                colDefs.length === 0 ||
-                                createTableLoading
-                            }
-                            onClick={executeCreateTable}
-                        >
-                            {createTableLoading
-                                ? "Creating…"
-                                : "Create Table"}
-                        </Button>
-                    </DialogFooter>
-                </DialogContent>
-            </Dialog>
-            {/* Content: Form view */}
-            {viewMode === "form" && effectiveResult && (
-                <div className="flex-1 overflow-auto scrollbar-thin">
-                    {effectiveResult.rows.length === 0 ? (
-                        <div className="h-full flex items-center justify-center text-muted-foreground/40 text-[11px] font-mono">
-                            0 rows
-                        </div>
-                    ) : (
-                        (() => {
-                            const row =
-                                effectiveResult.rows[selectedRowIdx] ??
-                                {};
-                            const cols =
-                                effectiveResult.columns.length > 0
-                                    ? effectiveResult.columns
-                                    : Object.keys(row);
-                            return (
-                                <div className="flex flex-col divide-y divide-border">
-                                    {cols.map((col) => {
-                                        const isEditing =
-                                            editingCell?.rowIdx ===
-                                            selectedRowIdx &&
-                                            editingCell?.col === col;
+                                </div>
+                                {/* Fields */}
+                                <div className="divide-y divide-border/40">
+                                    {cols.map((col, colIdx) => {
+                                        const isEditing = editingCell?.rowIdx === selectedRowIdx && editingCell?.col === col;
                                         const val = row[col];
                                         return (
                                             <div
                                                 key={col}
-                                                className="flex items-center min-h-9 gap-4 py-1.5 hover:bg-accent/20 px-4"
+                                                className={cn(
+                                                    "group/field flex items-start gap-4 px-4 py-2.5 hover:bg-row-hover transition-colors",
+                                                    colIdx % 2 === 0 ? "bg-table-bg" : "bg-row-alt",
+                                                )}
                                             >
-                                                <span className="w-44 shrink-0 text-[11px] font-mono font-bold text-muted-foreground truncate">
+                                                <span className="w-40 shrink-0 text-[11px] font-mono font-semibold text-muted-foreground/50 truncate pt-0.5">
                                                     {col}
                                                 </span>
                                                 {isEditing ? (
                                                     <input
                                                         autoFocus
-                                                        value={
-                                                            editingCell.value
-                                                        }
+                                                        value={editingCell.value}
                                                         onChange={(e) =>
-                                                            setEditingCell(
-                                                                (prev) =>
-                                                                    prev
-                                                                        ? {
-                                                                            ...prev,
-                                                                            value: e
-                                                                                .target
-                                                                                .value,
-                                                                        }
-                                                                        : null,
-                                                            )
+                                                            setEditingCell((prev) => prev ? { ...prev, value: e.target.value } : null)
                                                         }
                                                         onKeyDown={(e) => {
-                                                            if (
-                                                                e.key ===
-                                                                "Enter"
-                                                            ) {
-                                                                e.preventDefault();
-                                                                commitEdit();
-                                                            }
-                                                            if (
-                                                                e.key ===
-                                                                "Escape"
-                                                            ) {
-                                                                e.preventDefault();
-                                                                setEditingCell(
-                                                                    null,
-                                                                );
-                                                            }
+                                                            if (e.key === "Enter") { e.preventDefault(); commitEdit(); }
+                                                            if (e.key === "Escape") { e.preventDefault(); setEditingCell(null); }
                                                         }}
-                                                        className="flex-1 bg-primary/10 border border-blue-500/50 rounded px-2 py-0.5 outline-none text-[12px] font-mono text-foreground"
+                                                        className="flex-1 bg-primary/10 border border-primary/30 rounded px-2 py-0.5 outline-none text-[12px] font-mono text-foreground"
                                                     />
                                                 ) : (
                                                     <span
                                                         className={cn(
-                                                            "flex-1 text-[12px] font-mono",
+                                                            "flex-1 text-[12px] font-mono break-all",
                                                             val === null
-                                                                ? "text-muted-foreground/40 italic"
+                                                                ? "text-muted-foreground/25 italic"
                                                                 : "text-foreground/90",
                                                         )}
                                                         onDoubleClick={() =>
-                                                            fn.tableName &&
-                                                            setEditingCell({
+                                                            fn.tableName && setEditingCell({
                                                                 rowIdx: selectedRowIdx,
                                                                 col,
-                                                                value:
-                                                                    val ===
-                                                                        null
-                                                                        ? ""
-                                                                        : String(
-                                                                            val,
-                                                                        ),
+                                                                value: val === null ? "" : String(val),
                                                             })
                                                         }
                                                     >
-                                                        {val === null
-                                                            ? "null"
-                                                            : String(val)}
+                                                        {val === null ? "null" : String(val)}
                                                     </span>
                                                 )}
                                             </div>
                                         );
                                     })}
                                 </div>
-                            );
-                        })()
-                    )}
+                            </div>
+                        );
+                    })()}
                 </div>
             )}
             {/* Content: Structure view */}
@@ -2198,208 +1998,165 @@ function TableGridView({
                 <div className="flex-1 overflow-auto scrollbar-thin bg-background">
                     {structureLoading ? (
                         <div className="h-full flex items-center justify-center">
-                            <Loader2
-                                size={18}
-                                className="animate-spin text-primary"
-                            />
+                            <Loader2 size={18} className="animate-spin text-primary" />
                         </div>
                     ) : structure ? (
-                        <div className="p-0">
-                            {/* Columns */}
-                            <div className="border-b border-border">
-                                <div className="px-4 py-2 bg-card flex items-center gap-2 border-b border-border">
-                                    <Key
-                                        size={11}
-                                        className="text-muted-foreground/50"
-                                    />
-                                    <span className="text-[9px] font-black uppercase tracking-widest text-muted-foreground/50">
-                                        Columns ({structure.columns.length})
-                                    </span>
-                                </div>
-                                <table className="w-full text-[11px] font-mono">
-                                    <thead className="sticky top-0 bg-sidebar z-10">
-                                        <tr>
-                                            <th className="h-7 px-3 text-left text-[9px] font-bold uppercase tracking-widest text-muted-foreground/40 border-b border-border w-6">
-                                                #
-                                            </th>
-                                            <th className="h-7 px-3 text-left text-[9px] font-bold uppercase tracking-widest text-muted-foreground/40 border-b border-border">
-                                                Name
-                                            </th>
-                                            <th className="h-7 px-3 text-left text-[9px] font-bold uppercase tracking-widest text-muted-foreground/40 border-b border-border">
-                                                Type
-                                            </th>
-                                            <th className="h-7 px-3 text-left text-[9px] font-bold uppercase tracking-widest text-muted-foreground/40 border-b border-border">
-                                                Null
-                                            </th>
-                                            <th className="h-7 px-3 text-left text-[9px] font-bold uppercase tracking-widest text-muted-foreground/40 border-b border-border">
-                                                Default
-                                            </th>
-                                            <th className="h-7 px-3 text-left text-[9px] font-bold uppercase tracking-widest text-muted-foreground/40 border-b border-border">
-                                                Key
-                                            </th>
-                                            <th className="h-7 px-3 text-left text-[9px] font-bold uppercase tracking-widest text-muted-foreground/40 border-b border-border">
-                                                Extra
-                                            </th>
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                                        {structure.columns.map((col, idx) => (
-                                            <tr
-                                                key={col.name}
-                                                className="group/row hover:bg-muted transition-colors border-b border-border"
-                                            >
-                                                <td className="h-8 px-3 text-muted-foreground/30">
-                                                    {idx + 1}
-                                                </td>
-                                                <td className="h-8 px-3 text-foreground font-semibold">
-                                                    {col.name}
-                                                </td>
-                                                <td className="h-8 px-3 text-accent-orange/80">
-                                                    {col.dataType}
-                                                </td>
-                                                <td className="h-8 px-3">
-                                                    <span
-                                                        className={cn(
-                                                            "text-[9px] font-bold uppercase",
-                                                            col.nullable
-                                                                ? "text-muted-foreground/40"
-                                                                : "text-destructive/70",
-                                                        )}
-                                                    >
-                                                        {col.nullable
-                                                            ? "YES"
-                                                            : "NO"}
-                                                    </span>
-                                                </td>
-                                                <td className="h-8 px-3 text-muted-foreground/50 italic">
-                                                    {col.defaultValue ?? (
-                                                        <span className="text-muted-foreground/70 not-italic">
-                                                            —
-                                                        </span>
-                                                    )}
-                                                </td>
-                                                <td className="h-8 px-3">
-                                                    <div className="flex items-center gap-1">
-                                                        {col.isPrimary && (
-                                                            <span className="px-1.5 py-0.5 rounded text-[8px] font-black uppercase tracking-wider bg-accent-orange/15 text-accent-orange border border-accent-orange/20">
-                                                                PK
-                                                            </span>
-                                                        )}
-                                                        {col.isUnique &&
-                                                            !col.isPrimary && (
-                                                                <span className="px-1.5 py-0.5 rounded text-[8px] font-black uppercase tracking-wider bg-accent-purple/15 text-accent-purple border border-accent-purple/20">
-                                                                    UNI
-                                                                </span>
-                                                            )}
-                                                    </div>
-                                                </td>
-                                                <td className="h-8 px-3 text-muted-foreground/40 italic text-[10px]">
-                                                    {col.extra ?? (
-                                                        <span className="text-muted-foreground/70 not-italic">
-                                                            —
-                                                        </span>
-                                                    )}
-                                                </td>
-                                                <td className="h-8 px-3 text-right">
-                                                    <Button
-                                                        variant="ghost"
-                                                        size="icon"
-                                                        className="h-5 w-5 opacity-0 group-hover/row:opacity-100 text-muted-foreground/40 hover:text-destructive"
-                                                        onClick={() => setDropColTarget(col.name)}
-                                                    >
-                                                        <Trash2 size={10} />
-                                                    </Button>
-                                                </td>
-                                            </tr>
-                                        ))}
-                                    </tbody>
-                                </table>
-                            </div>
-                            {/* Indexes */}
-                            {structure.indexes.length > 0 && (
-                                <div>
-                                    <div className="px-4 py-2 bg-card flex items-center gap-2 border-b border-border">
-                                        <Hash
-                                            size={11}
-                                            className="text-muted-foreground/50"
-                                        />
-                                        <span className="text-[9px] font-black uppercase tracking-widest text-muted-foreground/50">
-                                            Indexes ({structure.indexes.length})
+                        <div>
+                            {/* ── Columns ── */}
+                            <div>
+                                <div className="sticky top-0 z-10 flex items-center justify-between px-4 h-9 bg-card/95 backdrop-blur-sm border-b border-border">
+                                    <div className="flex items-center gap-2">
+                                        <Key size={10} className="text-muted-foreground/40" />
+                                        <span className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground/50">Columns</span>
+                                        <span className="text-[9px] font-mono bg-muted text-muted-foreground/50 rounded px-1.5 py-0.5 leading-none">
+                                            {structure.columns.length}
                                         </span>
                                     </div>
-                                    <table className="w-full text-[11px] font-mono">
-                                        <thead className="sticky top-0 bg-sidebar">
-                                            <tr>
-                                                <th className="h-7 px-3 text-left text-[9px] font-bold uppercase tracking-widest text-muted-foreground/40 border-b border-border">
-                                                    Name
-                                                </th>
-                                                <th className="h-7 px-3 text-left text-[9px] font-bold uppercase tracking-widest text-muted-foreground/40 border-b border-border">
-                                                    Columns
-                                                </th>
-                                                <th className="h-7 px-3 text-left text-[9px] font-bold uppercase tracking-widest text-muted-foreground/40 border-b border-border">
-                                                    Type
-                                                </th>
-                                                <th className="h-7 px-3 text-left text-[9px] font-bold uppercase tracking-widest text-muted-foreground/40 border-b border-border">
-                                                    Unique
-                                                </th>
-                                            </tr>
-                                        </thead>
-                                        <tbody>
-                                            {structure.indexes.map((idx) => (
-                                                <tr
-                                                    key={idx.name}
-                                                    className="group/row hover:bg-muted transition-colors border-b border-border"
-                                                >
-                                                    <td className="h-8 px-3 text-accent-blue/80">
-                                                        {idx.name}
-                                                    </td>
-                                                    <td className="h-8 px-3 text-foreground/80">
-                                                        <div className="flex flex-wrap gap-1">
-                                                            {idx.columns.map(
-                                                                (c) => (
-                                                                    <span
-                                                                        key={c}
-                                                                        className="px-1.5 py-0.5 bg-card rounded text-[9px]"
-                                                                    >
-                                                                        {c}
-                                                                    </span>
-                                                                ),
-                                                            )}
-                                                        </div>
-                                                    </td>
-                                                    <td className="h-8 px-3 text-muted-foreground/50 uppercase text-[9px]">
-                                                        {idx.indexType ?? "—"}
-                                                    </td>
-                                                    <td className="h-8 px-3">
-                                                        {idx.unique ? (
-                                                            <span className="px-1.5 py-0.5 rounded text-[8px] font-black uppercase tracking-wider bg-accent/15 text-accent-green border border-accent/20">
-                                                                YES
-                                                            </span>
-                                                        ) : (
-                                                            <span className="text-muted-foreground/30 text-[9px]">
-                                                                NO
-                                                            </span>
-                                                        )}
-                                                    </td>
-                                                    <td className="h-8 px-3 text-right">
-                                                        <Button
-                                                            variant="ghost"
-                                                            size="icon"
-                                                            className="h-5 w-5 opacity-0 group-hover/row:opacity-100 text-muted-foreground/40 hover:text-destructive"
-                                                            onClick={() => setDropIdxTarget(idx.name)}
-                                                        >
-                                                            <Trash2 size={10} />
-                                                        </Button>
-                                                    </td>
-                                                </tr>
-                                            ))}
-                                        </tbody>
-                                    </table>
+                                    {fn.tableName && (
+                                        <Button
+                                            variant="ghost"
+                                            size="icon-xs"
+                                            onClick={() => {
+                                                setAddCol({ name: "", type: COL_TYPES[dbType as DatabaseType]?.[0] ?? "TEXT", nullable: true });
+                                                setShowAddColumn(true);
+                                            }}
+                                            className="h-6 w-6 text-muted-foreground/50 hover:text-foreground"
+                                        >
+                                            <Plus size={11} />
+                                        </Button>
+                                    )}
                                 </div>
-                            )}
+                                <div className="divide-y divide-border/40">
+                                    {structure.columns.map((col, idx) => (
+                                        <div
+                                            key={col.name}
+                                            className={cn(
+                                                "group/row flex items-center gap-3 px-4 py-2.5 hover:bg-row-hover transition-colors",
+                                                idx % 2 === 0 ? "bg-table-bg" : "bg-row-alt",
+                                            )}
+                                        >
+                                            <span className="text-[10px] font-mono text-muted-foreground/20 w-4 shrink-0 text-right tabular-nums">
+                                                {idx + 1}
+                                            </span>
+                                            <span className="text-[12px] font-mono font-semibold text-foreground flex-1 min-w-0 truncate">
+                                                {col.name}
+                                            </span>
+                                            <div className="flex items-center gap-1.5 shrink-0 flex-wrap justify-end">
+                                                <span className="text-[10px] font-mono text-accent-orange/70 bg-accent-orange/8 border border-accent-orange/15 px-1.5 py-0.5 rounded">
+                                                    {col.dataType}
+                                                </span>
+                                                {col.isPrimary && (
+                                                    <span className="px-1.5 py-0.5 rounded text-[8px] font-black uppercase tracking-wider bg-accent-orange/15 text-accent-orange border border-accent-orange/20">
+                                                        PK
+                                                    </span>
+                                                )}
+                                                {col.isUnique && !col.isPrimary && (
+                                                    <span className="px-1.5 py-0.5 rounded text-[8px] font-black uppercase tracking-wider bg-accent-purple/15 text-accent-purple border border-accent-purple/20">
+                                                        UNI
+                                                    </span>
+                                                )}
+                                                {!col.nullable && (
+                                                    <span className="px-1.5 py-0.5 rounded text-[8px] font-black uppercase tracking-wider bg-destructive/8 text-destructive/60 border border-destructive/15">
+                                                        NOT NULL
+                                                    </span>
+                                                )}
+                                                {col.defaultValue != null && (
+                                                    <span className="px-1.5 py-0.5 rounded text-[8px] font-mono text-muted-foreground/50 bg-muted border border-border">
+                                                        default: {col.defaultValue}
+                                                    </span>
+                                                )}
+                                                {col.extra && (
+                                                    <span className="px-1.5 py-0.5 rounded text-[8px] font-mono text-muted-foreground/40 bg-muted border border-border">
+                                                        {col.extra}
+                                                    </span>
+                                                )}
+                                            </div>
+                                            <Button
+                                                variant="ghost"
+                                                size="icon-xs"
+                                                className="opacity-0 group-hover/row:opacity-100 transition-opacity text-muted-foreground/30 hover:text-destructive hover:bg-destructive/10 shrink-0"
+                                                onClick={() => setDropColTarget(col.name)}
+                                            >
+                                                <Trash2 size={10} />
+                                            </Button>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+                            {/* ── Indexes ── */}
+                            <div className="border-t border-border">
+                                <div className="sticky top-0 z-10 flex items-center justify-between px-4 h-9 bg-card/95 backdrop-blur-sm border-b border-border">
+                                    <div className="flex items-center gap-2">
+                                        <Hash size={10} className="text-muted-foreground/40" />
+                                        <span className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground/50">Indexes</span>
+                                        <span className="text-[9px] font-mono bg-muted text-muted-foreground/50 rounded px-1.5 py-0.5 leading-none">
+                                            {structure.indexes.length}
+                                        </span>
+                                    </div>
+                                    {fn.tableName && (
+                                        <Button
+                                            variant="ghost"
+                                            size="icon-xs"
+                                            onClick={() => {
+                                                setCreateIdxDef({ name: "", columns: [], unique: false });
+                                                setShowCreateIndex(true);
+                                            }}
+                                            className="h-6 w-6 text-muted-foreground/50 hover:text-foreground"
+                                        >
+                                            <Plus size={11} />
+                                        </Button>
+                                    )}
+                                </div>
+                                {structure.indexes.length === 0 ? (
+                                    <div className="px-4 py-8 text-center text-[11px] font-mono text-muted-foreground/25">
+                                        No indexes
+                                    </div>
+                                ) : (
+                                    <div className="divide-y divide-border/40">
+                                        {structure.indexes.map((idx, i) => (
+                                            <div
+                                                key={idx.name}
+                                                className={cn(
+                                                    "group/row flex items-center gap-3 px-4 py-2.5 hover:bg-row-hover transition-colors",
+                                                    i % 2 === 0 ? "bg-table-bg" : "bg-row-alt",
+                                                )}
+                                            >
+                                                <span className="text-[12px] font-mono text-accent-blue/70 flex-1 min-w-0 truncate">
+                                                    {idx.name}
+                                                </span>
+                                                <div className="flex items-center gap-1 shrink-0 flex-wrap justify-end">
+                                                    {idx.columns.map((c) => (
+                                                        <span key={c} className="px-1.5 py-0.5 bg-muted border border-border rounded text-[9px] font-mono text-foreground/60">
+                                                            {c}
+                                                        </span>
+                                                    ))}
+                                                    {idx.indexType && (
+                                                        <span className="text-[9px] font-mono text-muted-foreground/35 uppercase">
+                                                            {idx.indexType}
+                                                        </span>
+                                                    )}
+                                                    {idx.unique && (
+                                                        <span className="px-1.5 py-0.5 rounded text-[8px] font-black uppercase tracking-wider bg-accent-green/10 text-accent-green border border-accent-green/20">
+                                                            UNIQUE
+                                                        </span>
+                                                    )}
+                                                </div>
+                                                <Button
+                                                    variant="ghost"
+                                                    size="icon-xs"
+                                                    className="opacity-0 group-hover/row:opacity-100 transition-opacity text-muted-foreground/30 hover:text-destructive hover:bg-destructive/10 shrink-0"
+                                                    onClick={() => setDropIdxTarget(idx.name)}
+                                                >
+                                                    <Trash2 size={10} />
+                                                </Button>
+                                            </div>
+                                        ))}
+                                    </div>
+                                )}
+                            </div>
                         </div>
                     ) : (
-                        <div className="h-full flex items-center justify-center text-muted-foreground/30 text-[11px] font-mono">
+                        <div className="h-full flex items-center justify-center text-muted-foreground/25 text-[11px] font-mono">
                             No structure data
                         </div>
                     )}
@@ -2523,79 +2280,10 @@ function TableGridView({
                         </DropdownMenu>
                     </>
                 )}
-                {viewMode === "form" && effectiveResult && effectiveResult.rows.length > 0 && (
-                    <div className="flex items-center gap-2">
-                        <Button
-                            variant="ghost"
-                            size="icon-xs"
-                            disabled={selectedRowIdx === 0}
-                            onClick={() => setSelectedRowIdx((i) => Math.max(0, i - 1))}
-                        >
-                            <ChevronLeft size={11} />
-                        </Button>
-                        <span className="text-[10px] font-mono text-muted-foreground/60">
-                            Row {page * pageSize + selectedRowIdx + 1}
-                        </span>
-                        <Button
-                            variant="ghost"
-                            size="icon-xs"
-                            disabled={selectedRowIdx === effectiveResult.rows.length - 1}
-                            onClick={() => setSelectedRowIdx((i) => Math.min(effectiveResult.rows.length - 1, i + 1))}
-                        >
-                            <ChevronRight size={11} />
-                        </Button>
-                        {fn.tableName && (
-                            <Button
-                                variant="ghost"
-                                size="icon-xs"
-                                className="text-destructive/50 hover:text-destructive ml-2"
-                                onClick={() => buildAndShowDeleteSql(effectiveResult.rows[selectedRowIdx])}
-                            >
-                                <Trash2 size={11} />
-                            </Button>
-                        )}
-                    </div>
-                )}
-                {viewMode === "structure" && (
+                {viewMode === "structure" && structure && (
                     <span className="text-[9px] font-mono text-muted-foreground/30">
-                        {structure
-                            ? `${structure.columns.length} columns · ${structure.indexes.length} indexes`
-                            : ""}
+                        {structure.columns.length} cols · {structure.indexes.length} idx
                     </span>
-                )}
-                {fn.tableName && viewMode === "structure" && (
-                    <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => {
-                            setAddCol({
-                                name: "",
-                                type:
-                                    COL_TYPES[dbType as DatabaseType]?.[0] ??
-                                    "TEXT",
-                                nullable: true,
-                            });
-                            setShowAddColumn(true);
-                        }}
-                        className="h-6 text-[10px] font-bold uppercase tracking-widest gap-1"
-                    >
-                        <Plus size={10} />
-                        Add Column
-                    </Button>
-                )}
-                {fn.tableName && viewMode === "structure" && structure && (
-                    <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => {
-                            setCreateIdxDef({ name: "", columns: [], unique: false });
-                            setShowCreateIndex(true);
-                        }}
-                        className="h-6 text-[10px] font-bold uppercase tracking-widest gap-1"
-                    >
-                        <Plus size={10} />
-                        Add Index
-                    </Button>
                 )}
             </div>
             {/* Query Log */}

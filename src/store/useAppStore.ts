@@ -85,6 +85,9 @@ interface AppState {
   connectAndInit: (connectionId: string) => Promise<void>;
   disconnectConnection: (connectionId: string) => Promise<void>;
   selectDatabase: (connectionId: string, database: string) => Promise<void>;
+  refreshDatabases: (connectionId: string) => Promise<void>;
+  refreshTables: (connectionId: string, database?: string) => Promise<void>;
+  loadTableColumns: (connectionId: string, tableName: string) => Promise<void>;
 
   // ---- Result tabs ----
   tabs: ResultTab[];
@@ -372,6 +375,53 @@ export const useAppStore = create<AppState>((set, get) => ({
       toast.error(`Failed to switch database: ${String(error)}`);
     } finally {
       set({ isLoading: false });
+    }
+  },
+
+  refreshDatabases: async (connectionId) => {
+    try {
+      const userDbs = await tauriApi.getUserDatabases(connectionId);
+      set((state) => ({
+        connectionDatabases: { ...state.connectionDatabases, [connectionId]: userDbs },
+      }));
+    } catch (error) {
+      toast.error(`Failed to refresh databases: ${String(error)}`);
+    }
+  },
+
+  refreshTables: async (connectionId, database) => {
+    const { connections, selectedDatabases } = get();
+    const config = connections.find((c) => c.id === connectionId);
+    if (!config) return;
+    const db = database ?? selectedDatabases[connectionId];
+    try {
+      const tables = await tauriApi.listAllTables(connectionId, db);
+      const fns = buildConnectionFunctions(config, tables);
+      set((state) => ({
+        connectionTables: { ...state.connectionTables, [connectionId]: tables },
+        connectionFunctions: { ...state.connectionFunctions, [connectionId]: fns },
+      }));
+      toast.success(`${tables.length} tables loaded`);
+    } catch (error) {
+      toast.error(`Failed to refresh tables: ${String(error)}`);
+    }
+  },
+
+  loadTableColumns: async (connectionId, tableName) => {
+    const { selectedDatabases } = get();
+    const database = selectedDatabases[connectionId];
+    if (!database) return;
+    try {
+      const structure = await tauriApi.getTableStructure(connectionId, database, tableName);
+      set((state) => {
+        const tables = state.connectionTables[connectionId] ?? [];
+        const updated = tables.map((t) =>
+          t.name === tableName ? { ...t, columns: structure.columns } : t,
+        );
+        return { connectionTables: { ...state.connectionTables, [connectionId]: updated } };
+      });
+    } catch {
+      // silently ignore — no columns shown
     }
   },
 
