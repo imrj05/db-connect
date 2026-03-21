@@ -1,6 +1,6 @@
 import { useState, type CSSProperties } from "react";
 import { getCurrentWindow } from "@tauri-apps/api/window";
-import { Search, Settings, WifiOff, ChevronLeft, Pencil, ChevronDown, ExternalLink } from "lucide-react";
+import { Search, Settings, WifiOff, ChevronLeft, Pencil, ChevronDown, ExternalLink, PanelLeft, ScrollText } from "lucide-react";
 import {
 	SiPostgresql,
 	SiMysql,
@@ -75,10 +75,13 @@ function buildDisplayUrl(conn: ConnectionConfig): string {
 			return conn.uri.slice(0, 40);
 		}
 	}
-	const proto = conn.type;
-	const user = conn.user ? `${conn.user}@` : "";
+	const proto = conn.type === "postgresql" ? "postgres" : conn.type;
 	const host = conn.host ?? "localhost";
 	const port = conn.port ? `:${conn.port}` : "";
+	if (conn.type === "redis") {
+		return `redis://${host}${port}`;
+	}
+	const user = conn.user ? `${conn.user}@` : "";
 	const db = conn.database ? `/${conn.database}` : "";
 	return `${proto}://${user}${host}${port}${db}`;
 }
@@ -96,6 +99,10 @@ const TitleBar = () => {
 		setEditingConnection,
 		setConnectionDialogOpen,
 		setShowConnectionsManager,
+		sidebarCollapsed,
+		toggleSidebar,
+		queryLogOpen,
+		toggleQueryLog,
 	} = useAppStore();
 
 	const [connMenuOpen, setConnMenuOpen] = useState(false);
@@ -191,8 +198,54 @@ const TitleBar = () => {
 				)}
 			</div>
 
-			{/* ── Right: [Cmd+K] · Connection status · Settings ── */}
+			{/* ── Right: panel toggles · [Cmd+K] · Connection status · Settings ── */}
 			<div className="flex items-center gap-1.5 pr-3 shrink-0">
+				{/* Sidebar toggle */}
+				<Tooltip>
+					<TooltipTrigger asChild>
+						<Button
+							style={noDragStyle}
+							variant="outline"
+							size="sm"
+							onClick={toggleSidebar}
+							className={cn(
+								"h-6 px-2 border-border/60 transition-colors",
+								sidebarCollapsed
+									? "text-muted-foreground/60 hover:text-foreground"
+									: "text-foreground/70 hover:text-foreground",
+							)}
+						>
+							<PanelLeft size={10} className="shrink-0" />
+						</Button>
+					</TooltipTrigger>
+					<TooltipContent side="bottom" sideOffset={4}>
+						{sidebarCollapsed ? "Show sidebar" : "Hide sidebar"}
+					</TooltipContent>
+				</Tooltip>
+
+				{/* Query log toggle */}
+				<Tooltip>
+					<TooltipTrigger asChild>
+						<Button
+							style={noDragStyle}
+							variant="outline"
+							size="sm"
+							onClick={toggleQueryLog}
+							className={cn(
+								"h-6 px-2 border-border/60 transition-colors",
+								queryLogOpen
+									? "text-foreground/70 hover:text-foreground"
+									: "text-muted-foreground/60 hover:text-foreground",
+							)}
+						>
+							<ScrollText size={10} className="shrink-0" />
+						</Button>
+					</TooltipTrigger>
+					<TooltipContent side="bottom" sideOffset={4}>
+						{queryLogOpen ? "Hide query log" : "Show query log"}
+					</TooltipContent>
+				</Tooltip>
+
 				<Button
 					style={noDragStyle}
 					variant="outline"

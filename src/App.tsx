@@ -43,6 +43,7 @@ function App() {
 		setEditingConnection,
 		activeTabId,
 		closeTab,
+		sidebarCollapsed,
 	} = useAppStore();
 
 	const [onboardingDone, setOnboardingDone] = useState(false);
@@ -136,19 +137,24 @@ function App() {
 			<div className="h-screen flex flex-col bg-background text-foreground overflow-hidden font-sans selection:bg-accent/30">
 				<TitleBar />
 				<main className="flex-1 overflow-hidden relative flex">
-					{/* Sidebar */}
-					<div style={{ width: sidebarWidth, minWidth: sidebarWidth }} className="h-full shrink-0">
+					{/* Sidebar — collapses smoothly */}
+					<div
+						style={{ width: sidebarCollapsed ? 0 : sidebarWidth, minWidth: sidebarCollapsed ? 0 : sidebarWidth }}
+						className="h-full shrink-0 overflow-hidden transition-[width,min-width] duration-200 ease-in-out"
+					>
 						<Sidebar />
 					</div>
 
-					{/* Resize handle */}
-					<div
-						onMouseDown={onMouseDown}
-						className="w-0.5 h-full shrink-0 cursor-col-resize bg-border hover:bg-primary/60 transition-colors duration-150 relative z-10"
-					/>
+					{/* Sidebar resize handle — hidden when collapsed */}
+					{!sidebarCollapsed && (
+						<div
+							onMouseDown={onMouseDown}
+							className="w-0.5 h-full shrink-0 cursor-col-resize bg-border hover:bg-primary/60 transition-colors duration-150 relative z-10"
+						/>
+					)}
 
 					{/* Main content */}
-					<div className="flex-1 h-full min-w-0">
+					<div className="flex-1 h-full min-w-0 overflow-hidden">
 						{showOnboarding ? (
 							<Onboarding
 								onDone={() => setOnboardingDone(true)}

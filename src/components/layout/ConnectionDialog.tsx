@@ -141,7 +141,7 @@ function ConnectionUrlPreview({
         if (type === "mongodb") return uri || "mongodb://localhost:27017";
         if (type === "sqlite") return `sqlite://${database || "local.sqlite"}`;
         if (type === "redis")
-            return `redis://${host || "localhost"}:${port || 6379}`;
+            return `redis://${host || "localhost"}:${port || 6379}/0`;
         const scheme = type === "mysql" ? "mysql" : "postgres";
         return `${scheme}://${user || "user"}:****@${host || "localhost"}:${port || 5432}/${database || "db"}`;
     })();
@@ -201,7 +201,14 @@ const ConnectionDialog = ({ onClose, initialData }: ConnectionDialogProps) => {
         setFormData((prev) => ({ ...prev, ...partial }));
 
     const handleEngineChange = (id: string) => {
-        patch({ type: id as any, ...(ENGINE_DEFAULTS[id] || {}) });
+        setFormData((prev) => ({
+            id: prev.id,
+            name: prev.name,
+            prefix: prev.prefix,
+            ssl: false,
+            type: id as any,
+            ...(ENGINE_DEFAULTS[id] || {}),
+        }));
         setTestStatus("idle");
     };
 

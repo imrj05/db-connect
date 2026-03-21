@@ -68,13 +68,22 @@ Legend: `[x]` Done · `[~]` Partial · `[ ]` Not started
 ### Data Viewer
 
 - [x] Spreadsheet view — TanStack React Table v8 with sortable columns and row numbers
-- [x] Inline editing — double-click cell generates UPDATE with primary key WHERE clause
+- [x] Inline editing — double-click cell OR press Enter when cell is selected; generates UPDATE with primary key WHERE clause; Escape cancels
+- [x] Edit in modal — Shift+Enter or right-click → "Edit in modal"; CodeMirror editor with format dropdown (Text/JSON/HTML), gear menu (Minify text, Wrap Text), Copy and Apply buttons
 - [x] Form view — single-row vertical key→value editor with prev/next navigation, inline double-click editing, and per-row delete
 - [x] Pagination — configurable rows per page (25/50/100/200) with navigation controls in table footer
 - [x] Column resizing — drag column header borders to resize; widths stored in local state
+- [x] Column visibility — right-click column header → Hide; Reset layout restores all hidden columns
+- [x] Row selection — click row number cell → full row amber highlight; click again to deselect
+- [x] Cell selection — single-click any data cell → amber ring on selected cell; tracks rowIdx + colId
+- [x] Column selection — click column header → full column amber highlight; click again to deselect
+- [x] Row/cell right-click context menu — Edit in modal, Set as NULL, Quick Filter (hover submenu with 5 operators), Copy, Copy Column Name, Copy as TSV, Copy as JSON, Copy as Markdown, Copy as SQL, Copy for IN statement, Paste, Clone row, Delete row, See details
+- [x] Column header right-click context menu — Set column to NULL, Copy column values (plain/TSV/JSON/Markdown/SQL/IN), Sort asc/desc, Resize to fit content, Resize all columns to match, Hide column, Reset layout, Open filter for column
+- [x] Quick filter from cell — right-click → Quick Filter submenu; applies = / ≠ / Contains / IS NULL / IS NOT NULL filter for that cell's value instantly
+- [x] Clone row — right-click → Clone row; generates INSERT with same values; refreshes page
 - [x] Insert rows — via CSV/JSON import panel (batched INSERT statements, 200 rows/batch)
 - [x] Update rows — inline cell editing with auto-generated UPDATE
-- [x] Delete rows — trash icon per row opens a confirmation dialog with generated DELETE SQL; executes on confirm
+- [x] Delete rows — right-click → Delete row opens confirmation dialog with generated DELETE SQL; executes on confirm
 
 ---
 
@@ -144,7 +153,7 @@ Legend: `[x]` Done · `[~]` Partial · `[ ]` Not started
 ### Productivity
 
 - [x] TitleBar back navigation — back button for nested view navigation with drag region support
-- [x] Keyboard shortcuts — ⌘K (command palette), ⌘↵ (execute SQL), ⌘T (new tab), ⌘W (close tab), Esc (cancel edit)
+- [x] Keyboard shortcuts — ⌘K (command palette), ⌘↵ (execute SQL), ⌘T (new tab), ⌘W (close tab), Esc (cancel edit), Enter (inline edit selected cell), Shift+Enter (edit selected cell in modal), ⌘F (open search bar)
 - [x] Command palette — fuzzy search across all functions grouped by connection prefix
 - [x] Quick navigation — sidebar tree + command palette cover all navigation needs
 
@@ -287,7 +296,7 @@ _Last audited: 2026-03-21. Counts reflect actual codebase state, not just todo e
 | Security | 3 | 1 | 1 |
 | Query Editor | 6 | 0 | 0 |
 | Table Management | 6 | 0 | 1 |
-| Data Viewer | 8 | 0 | 0 |
+| Data Viewer | 17 | 0 | 0 |
 | Filtering | 3 | 1 | 0 |
 | Workspace | 3 | 0 | 0 |
 | Import/Export | 5 | 0 | 0 |
@@ -308,9 +317,9 @@ _Last audited: 2026-03-21. Counts reflect actual codebase state, not just todo e
 | Plugin System | 0 | 0 | 3 |
 | DevOps | 0 | 0 | 2 |
 | Cloud | 2 | 1 | 1 |
-| **Total** | **69** | **8** | **36** |
+| **Total** | **78** | **8** | **36** |
 
-**~61% of planned features implemented.** DDL surface is complete (Create/Alter/Drop/Rename table + Create/Drop index). Core client (connect, query, browse, edit, filter, import/export, column resizing) is solid. Settings dialog, onboarding, and UI zoom are now tracked. Key remaining work: SSL/TLS wiring, group connections, SSH tunneling.
+**~67% of planned features implemented.** DDL surface is complete. Data Viewer is now a full-featured spreadsheet: row/cell/column selection with amber highlights, rich right-click context menus (copy as TSV/JSON/Markdown/SQL, quick filter, clone row, set NULL), Edit in Modal with CodeMirror + format switching (Text/JSON/HTML), keyboard-driven editing (Enter / Shift+Enter), and column visibility. Key remaining work: SSL/TLS wiring, group connections, SSH tunneling.
 
 ---
 
@@ -326,6 +335,10 @@ _Last audited: 2026-03-21. Counts reflect actual codebase state, not just todo e
 ### Tier 1 — High Value, Low Effort (Frontend only)
 - [x] **Full-text cell search** — Search icon button + ⌘F shortcut; thin bar above filter bar; filters `effectiveResult.rows` client-side across all columns; "N of M" count badge; Escape closes; resets on new query
 - [x] **Column resizing** — drag column header borders to resize; TanStack Table `columnResizing` plugin; widths stored in local state
+- [x] **Row / cell / column selection** — click row number for full-row amber highlight; single-click cell for amber ring; click column header for full-column amber tint; all three are mutually tracked in state
+- [x] **Context menus** — right-click row number, data cell, or column header opens a portal-rendered menu with copy variants (TSV/JSON/Markdown/SQL/IN), Quick Filter submenu, clone row, set NULL, edit in modal, delete row, hide column, sort, resize
+- [x] **Edit in modal** — CodeMirror editor dialog; "Editing as" dropdown (Text/JSON/HTML) for syntax highlighting; gear menu with Minify and Wrap Text; auto-detects JSON/HTML on open; Apply runs UPDATE; Copy copies without saving
+- [x] **Keyboard editing shortcuts** — Enter opens inline edit on selected cell; Shift+Enter opens edit-in-modal; both fire only when a cell is selected and no input is focused
 
 ### Tier 2 — High Value, Medium Effort
 - [ ] **SSL/TLS wiring** — `ssl` field is already stored in SQLite and passed to Rust; needs to be applied to `PgPoolOptions` / `MySqlPoolOptions` via `sqlx::postgres::PgSslMode` / `MySqlSslMode`; no frontend changes

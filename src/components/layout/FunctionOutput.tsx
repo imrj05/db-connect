@@ -94,6 +94,7 @@ import {
 } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
+import { Kbd } from "@/components/ui/kbd";
 import {
     TableInfo,
     ConnectionFunction,
@@ -129,7 +130,6 @@ function IdleView({ onNewConnection }: { onNewConnection: () => void }) {
             <div className="w-10 h-10 border border-border flex items-center justify-center">
                 <Search size={16} className="text-muted-foreground/30" />
             </div>
-
             {/* Message */}
             <div className="text-center space-y-1.5">
                 <p className="text-[11px] font-bold uppercase tracking-[0.18em] text-muted-foreground/70">
@@ -137,12 +137,9 @@ function IdleView({ onNewConnection }: { onNewConnection: () => void }) {
                 </p>
                 <p className="text-[11px] text-muted-foreground/40">
                     Select a table from the sidebar or search with{" "}
-                    <kbd className="px-1.5 py-0.5 font-mono text-[10px] border border-border bg-muted text-muted-foreground/70">
-                        ⌘K
-                    </kbd>
+                    <Kbd>⌘K</Kbd>
                 </p>
             </div>
-
             {/* Shortcuts */}
             <div className="flex items-center gap-px border border-border">
                 {[
@@ -162,7 +159,6 @@ function IdleView({ onNewConnection }: { onNewConnection: () => void }) {
                     </div>
                 ))}
             </div>
-
             <button
                 onClick={onNewConnection}
                 className="text-[10px] font-mono text-muted-foreground/35 hover:text-muted-foreground/70 transition-colors underline underline-offset-4 decoration-muted-foreground/20"
@@ -180,7 +176,6 @@ const CONN_LOGOS: Record<string, ({ className }: { className?: string }) => Reac
     mongodb: ({ className }) => <SiMongodb className={className} />,
     redis: ({ className }) => <SiRedis className={className} />,
 };
-
 const CONN_COLORS: Record<string, string> = {
     postgresql: "text-blue-400",
     mysql: "text-cyan-400",
@@ -188,7 +183,6 @@ const CONN_COLORS: Record<string, string> = {
     mongodb: "text-emerald-400",
     redis: "text-red-400",
 };
-
 function buildConnectionUrl(conn: ConnectionConfig): string {
     if (conn.uri) {
         try {
@@ -204,7 +198,6 @@ function buildConnectionUrl(conn: ConnectionConfig): string {
     const db = conn.database ? `/${conn.database}` : "";
     return `${conn.type}://${user}${host}${port}${db}`;
 }
-
 function ConnectionsHome({
     connections,
     connectedIds,
@@ -245,7 +238,6 @@ function ConnectionsHome({
             </div>
         );
     }
-
     return (
         <div className="h-full overflow-auto scrollbar-thin bg-background">
             {/* Header */}
@@ -267,7 +259,6 @@ function ConnectionsHome({
                     New Connection
                 </Button>
             </div>
-
             {/* Connection list */}
             <div className="px-6 py-4 space-y-2 max-w-2xl">
                 {connections.map((conn) => {
@@ -275,7 +266,6 @@ function ConnectionsHome({
                     const Logo = CONN_LOGOS[conn.type] ?? CONN_LOGOS.postgresql;
                     const logoColor = CONN_COLORS[conn.type] ?? "text-muted-foreground";
                     const url = buildConnectionUrl(conn);
-
                     return (
                         <div
                             key={conn.id}
@@ -283,7 +273,6 @@ function ConnectionsHome({
                         >
                             {/* DB logo */}
                             <Logo className={cn("text-[22px] shrink-0", logoColor)} />
-
                             {/* Name + URL */}
                             <div className="flex-1 min-w-0">
                                 <p className="text-[13px] font-semibold text-foreground leading-tight">
@@ -293,7 +282,6 @@ function ConnectionsHome({
                                     {url}
                                 </p>
                             </div>
-
                             {/* Status badge */}
                             <div
                                 className={cn(
@@ -313,7 +301,6 @@ function ConnectionsHome({
                                 />
                                 {isConnected ? "Connected" : "Idle"}
                             </div>
-
                             {/* Actions */}
                             <div className="flex items-center gap-1.5 shrink-0">
                                 <Tooltip>
@@ -451,7 +438,7 @@ function TableGridView({
     const [renameTableLoading, setRenameTableLoading] = useState(false);
     // Query log state
     const [showQueryLogSyntax, setShowQueryLogSyntax] = useState(true);
-    const { queryHistory, clearHistory, connections, closeTab, tabs, refreshTables } = useAppStore();
+    const { queryHistory, clearHistory, connections, closeTab, tabs, refreshTables, queryLogOpen } = useAppStore();
     const exportData = useCallback(
         (format: "csv" | "json" | "sql") => {
             if (!queryResult) return;
@@ -630,6 +617,7 @@ function TableGridView({
     const [importing, setImporting] = useState(false);
     const [importDone, setImportDone] = useState<number | null>(null);
     const importFileRef = useRef<HTMLInputElement>(null);
+    const dblClickRef = useRef<{ key: string; timer: ReturnType<typeof setTimeout> } | null>(null);
     function parseCsvRow(line: string): string[] {
         const result: string[] = [];
         let cur = "",
@@ -788,6 +776,26 @@ function TableGridView({
         window.addEventListener("keydown", handler);
         return () => window.removeEventListener("keydown", handler);
     }, [viewMode]);
+    useEffect(() => {
+        const handler = (e: KeyboardEvent) => {
+            if (e.key !== "Enter") return;
+            if (!selectedCell || !fn.tableName) return;
+            // Ignore if already editing or a modal/input is focused
+            const tag = (document.activeElement as HTMLElement)?.tagName;
+            if (tag === "INPUT" || tag === "TEXTAREA") return;
+            e.preventDefault();
+            const rowData = searchedRows[selectedCell.rowIdx];
+            if (!rowData) return;
+            const value = rowData[selectedCell.colId] === null ? "" : String(rowData[selectedCell.colId] ?? "");
+            if (e.shiftKey) {
+                editCellInModal(selectedCell.rowIdx, selectedCell.colId, rowData[selectedCell.colId]);
+            } else {
+                setEditingCell({ rowIdx: selectedCell.rowIdx, col: selectedCell.colId, value });
+            }
+        };
+        window.addEventListener("keydown", handler);
+        return () => window.removeEventListener("keydown", handler);
+    }, [selectedCell, fn.tableName, searchedRows]);
     const commitEdit = useCallback(async () => {
         if (!editingCell || !fn.tableName || !queryResult) {
             setEditingCell(null);
@@ -881,7 +889,6 @@ function TableGridView({
     }, [deleteRowSql, fn, page, onPageChange]);
     // ── Row context menu helpers ────────────────────────────────────────────────
     const copyToClipboard = (text: string) => navigator.clipboard.writeText(text);
-
     const cloneRow = useCallback(async (rowData: Record<string, unknown>) => {
         if (!fn.tableName) return;
         const cols = Object.keys(rowData);
@@ -898,7 +905,6 @@ function TableGridView({
             setCellEditError(String(e));
         }
     }, [fn, page, onPageChange]);
-
     const setNullCell = useCallback(async (rowData: Record<string, unknown>, col: string) => {
         if (!fn.tableName || !effectiveResult) return;
         const s = structure ?? (await loadStructure());
@@ -927,14 +933,11 @@ function TableGridView({
             setCellEditError(String(e));
         }
     }, [fn, structure, effectiveResult, page, onPageChange, loadStructure]);
-
     // ── Cell context menu helpers ────────────────────────────────────────────────
     const copyCellAsTSV = (col: string, value: unknown) =>
         copyToClipboard(`${col}\t${value === null ? "" : String(value)}`);
-
     const copyCellAsJSON = (col: string, value: unknown) =>
         copyToClipboard(JSON.stringify({ [col]: value }, null, 2));
-
     const copyCellAsMarkdown = (col: string, value: unknown) => {
         const val = value === null ? "" : String(value);
         const w = Math.max(col.length, val.length, 1);
@@ -942,26 +945,22 @@ function TableGridView({
             `| ${col.padEnd(w)} |\n| ${"-".repeat(w)} |\n| ${val.padEnd(w)} |`,
         );
     };
-
     const copyCellAsSQL = (value: unknown) =>
         copyToClipboard(
             value === null ? "NULL" : `'${String(value).replace(/'/g, "''")}'`,
         );
-
     const copyCellForIN = (value: unknown) =>
         copyToClipboard(
             value === null
                 ? "(NULL)"
                 : `('${String(value).replace(/'/g, "''")}')`
         );
-
     const pasteToCell = async (rowIdx: number, col: string) => {
         try {
             const text = await navigator.clipboard.readText();
             if (fn.tableName) setEditingCell({ rowIdx, col, value: text });
         } catch { /* clipboard read denied — silently ignore */ }
     };
-
     const editCellInModal = (rowIdx: number, col: string, value: unknown) => {
         if (!fn.tableName) return;
         const strVal = value === null || value === undefined ? "" : String(value);
@@ -979,7 +978,6 @@ function TableGridView({
         setCellModalGearOpen(false);
         setCellModalFormatOpen(false);
     };
-
     const applyCellModal = useCallback(async () => {
         if (!cellModal || !fn.tableName || !queryResult) return;
         const row = queryResult.rows[cellModal.rowIdx];
@@ -1007,24 +1005,19 @@ function TableGridView({
             setCellEditLoading(false);
         }
     }, [cellModal, fn, queryResult, structure, page, onPageChange]);
-
     // ── Column context menu helpers ─────────────────────────────────────────────
     const getColValues = (col: string) =>
         searchedRows.map((r) =>
             r[col] === null || r[col] === undefined ? "" : String(r[col]),
         );
-
     const copyColValues = (col: string) =>
         copyToClipboard(getColValues(col).join("\n"));
-
     const copyColAsTSV = (col: string) =>
         copyToClipboard([col, ...getColValues(col)].join("\t"));
-
     const copyColAsJSON = (col: string) =>
         copyToClipboard(
             JSON.stringify(searchedRows.map((r) => r[col] ?? null), null, 2),
         );
-
     const copyColAsMarkdown = (col: string) => {
         const vals = getColValues(col);
         const width = Math.max(col.length, ...vals.map((v) => v.length), 1);
@@ -1037,27 +1030,23 @@ function TableGridView({
             ].join("\n"),
         );
     };
-
     const copyColAsSQL = (col: string) =>
         copyToClipboard(
             getColValues(col)
                 .map((v) => `'${v.replace(/'/g, "''")}'`)
                 .join(",\n"),
         );
-
     const copyColForIN = (col: string) =>
         copyToClipboard(
             `(${getColValues(col)
                 .map((v) => `'${v.replace(/'/g, "''")}'`)
                 .join(", ")})`,
         );
-
     const resizeAllToMatch = (size: number) => {
         const newSizing: ColumnSizingState = {};
         table.getAllColumns().forEach((c) => { newSizing[c.id] = size; });
         setColumnSizing(newSizing);
     };
-
     const resizeAllToFitContent = () => {
         const newSizing: ColumnSizingState = {};
         table.getAllColumns().forEach((c) => {
@@ -1070,13 +1059,11 @@ function TableGridView({
         });
         setColumnSizing(newSizing);
     };
-
     const resetLayout = () => {
         setColumnSizing({});
         setColumnVisibility({});
         setSelectedColId(null);
     };
-
     const executeColumnNull = useCallback(async () => {
         if (!columnNullConfirmCol || !fn.tableName) return;
         try {
@@ -1091,7 +1078,6 @@ function TableGridView({
             setColumnNullConfirmCol(null);
         }
     }, [columnNullConfirmCol, fn, page, onPageChange]);
-
     const openFilterForCol = (col: string) => {
         setFilters([
             {
@@ -1104,7 +1090,6 @@ function TableGridView({
         ]);
         setShowFilterBar(true);
     };
-
     // ── DDL helpers ────────────────────────────────────────────────────────────
     const COL_TYPES: Record<DatabaseType, string[]> = {
         postgresql: [
@@ -1281,7 +1266,7 @@ function TableGridView({
                     if (isEditing) {
                         return (
                             <div
-                                className="flex items-stretch -mx-4 h-8"
+                                className="flex items-stretch -mx-4 -my-2 h-8"
                                 onClick={(e) => e.stopPropagation()}
                             >
                                 <input
@@ -1304,11 +1289,11 @@ function TableGridView({
                                             setEditingCell(null);
                                         }
                                     }}
-                                    className="flex-1 h-full min-w-0 bg-primary/10 border-0 border-b-2 border-primary/50 px-4 outline-none text-[11px] font-mono text-foreground"
+                                    className="flex-1 h-full min-w-0 bg-primary/10 border-0 border-b-2 border-primary/50 px-4 py-0 outline-none text-[11px] font-mono text-foreground"
                                 />
                                 <button
                                     onClick={(e) => { e.stopPropagation(); setEditingCell(null); }}
-                                    className="h-8 w-7 shrink-0 flex items-center justify-center text-muted-foreground/40 hover:text-foreground hover:bg-muted/50 border-l border-border/30 transition-colors"
+                                    className="h-full w-7 shrink-0 flex items-center justify-center text-muted-foreground/40 hover:text-foreground hover:bg-muted/50 border-l border-border/30 transition-colors"
                                 >
                                     <X size={10} />
                                 </button>
@@ -1317,7 +1302,7 @@ function TableGridView({
                     }
                     return (
                         <div
-                            className="absolute inset-0 flex items-center px-4 overflow-hidden"
+                            className="absolute  inset-0 flex items-center px-4 overflow-hidden"
                         >
                             <span
                                 className={cn(
@@ -1402,8 +1387,8 @@ function TableGridView({
                                     filtersActive
                                         ? "text-accent-blue"
                                         : showFilterBar
-                                          ? "text-foreground"
-                                          : "text-muted-foreground"
+                                            ? "text-foreground"
+                                            : "text-muted-foreground"
                                 }
                             >
                                 <span className="relative">
@@ -1438,8 +1423,8 @@ function TableGridView({
                                     cellSearch
                                         ? "text-accent-blue"
                                         : showSearchBar
-                                          ? "text-foreground"
-                                          : "text-muted-foreground",
+                                            ? "text-foreground"
+                                            : "text-muted-foreground",
                                 )}
                             >
                                 <span className="relative">
@@ -1554,112 +1539,112 @@ function TableGridView({
                 <div className="shrink-0 border-b border-border bg-card px-3 py-2 flex flex-col gap-2">
                     {filters.map((f, i) => (
                         <div key={f.id}>
-                        {i > 0 && (
-                            <div className="flex items-center py-0.5 pl-1 mb-1">
-                                <button
-                                    onClick={() =>
+                            {i > 0 && (
+                                <div className="flex items-center py-0.5 pl-1 mb-1">
+                                    <button
+                                        onClick={() =>
+                                            setFilters((prev) =>
+                                                prev.map((x) =>
+                                                    x.id === f.id
+                                                        ? { ...x, join: x.join === "AND" ? "OR" : "AND" }
+                                                        : x,
+                                                ),
+                                            )
+                                        }
+                                        className="text-[9px] font-mono font-bold uppercase tracking-widest px-1.5 py-0.5 rounded border border-border text-muted-foreground hover:text-foreground hover:border-foreground/30 transition-colors"
+                                    >
+                                        {f.join}
+                                    </button>
+                                </div>
+                            )}
+                            <div className="flex items-center gap-2">
+                                <select
+                                    value={f.col}
+                                    onChange={(e) =>
                                         setFilters((prev) =>
                                             prev.map((x) =>
                                                 x.id === f.id
-                                                    ? { ...x, join: x.join === "AND" ? "OR" : "AND" }
+                                                    ? { ...x, col: e.target.value }
                                                     : x,
                                             ),
                                         )
                                     }
-                                    className="text-[9px] font-mono font-bold uppercase tracking-widest px-1.5 py-0.5 rounded border border-border text-muted-foreground hover:text-foreground hover:border-foreground/30 transition-colors"
+                                    className="h-6 px-2 rounded bg-background border border-border text-[11px] font-mono text-foreground outline-none"
                                 >
-                                    {f.join}
-                                </button>
-                            </div>
-                        )}
-                        <div className="flex items-center gap-2">
-                            <select
-                                value={f.col}
-                                onChange={(e) =>
-                                    setFilters((prev) =>
-                                        prev.map((x) =>
-                                            x.id === f.id
-                                                ? { ...x, col: e.target.value }
-                                                : x,
-                                        ),
-                                    )
-                                }
-                                className="h-6 px-2 rounded bg-background border border-border text-[11px] font-mono text-foreground outline-none"
-                            >
-                                {availableCols.map((c) => (
-                                    <option key={c} value={c}>
-                                        {c}
-                                    </option>
-                                ))}
-                            </select>
-                            <select
-                                value={f.op}
-                                onChange={(e) =>
-                                    setFilters((prev) =>
-                                        prev.map((x) =>
-                                            x.id === f.id
-                                                ? {
-                                                    ...x,
-                                                    op: e.target
-                                                        .value as FilterOp,
-                                                }
-                                                : x,
-                                        ),
-                                    )
-                                }
-                                className="h-6 px-2 rounded bg-background border border-border text-[11px] font-mono text-foreground outline-none"
-                            >
-                                {(
-                                    [
-                                        "=",
-                                        "!=",
-                                        ">",
-                                        "<",
-                                        ">=",
-                                        "<=",
-                                        "LIKE",
-                                        "NOT LIKE",
-                                        "IS NULL",
-                                        "IS NOT NULL",
-                                    ] as FilterOp[]
-                                ).map((op) => (
-                                    <option key={op} value={op}>
-                                        {op}
-                                    </option>
-                                ))}
-                            </select>
-                            {f.op !== "IS NULL" && f.op !== "IS NOT NULL" && (
-                                <Input
-                                    value={f.value}
+                                    {availableCols.map((c) => (
+                                        <option key={c} value={c}>
+                                            {c}
+                                        </option>
+                                    ))}
+                                </select>
+                                <select
+                                    value={f.op}
                                     onChange={(e) =>
                                         setFilters((prev) =>
                                             prev.map((x) =>
                                                 x.id === f.id
                                                     ? {
                                                         ...x,
-                                                        value: e.target
-                                                            .value,
+                                                        op: e.target
+                                                            .value as FilterOp,
                                                     }
                                                     : x,
                                             ),
                                         )
                                     }
-                                    onKeyDown={(e) =>
-                                        e.key === "Enter" && applyFilters()
-                                    }
-                                    placeholder="value"
-                                    className="h-6 text-[11px] font-mono w-36"
-                                />
-                            )}
-                            <Button
-                                variant="ghost"
-                                size="icon-xs"
-                                onClick={() => removeFilter(f.id)}
-                                className="text-muted-foreground/40 hover:text-destructive"
-                            >
-                                <X size={10} />
-                            </Button>
-                        </div>
+                                    className="h-6 px-2 rounded bg-background border border-border text-[11px] font-mono text-foreground outline-none"
+                                >
+                                    {(
+                                        [
+                                            "=",
+                                            "!=",
+                                            ">",
+                                            "<",
+                                            ">=",
+                                            "<=",
+                                            "LIKE",
+                                            "NOT LIKE",
+                                            "IS NULL",
+                                            "IS NOT NULL",
+                                        ] as FilterOp[]
+                                    ).map((op) => (
+                                        <option key={op} value={op}>
+                                            {op}
+                                        </option>
+                                    ))}
+                                </select>
+                                {f.op !== "IS NULL" && f.op !== "IS NOT NULL" && (
+                                    <Input
+                                        value={f.value}
+                                        onChange={(e) =>
+                                            setFilters((prev) =>
+                                                prev.map((x) =>
+                                                    x.id === f.id
+                                                        ? {
+                                                            ...x,
+                                                            value: e.target
+                                                                .value,
+                                                        }
+                                                        : x,
+                                                ),
+                                            )
+                                        }
+                                        onKeyDown={(e) =>
+                                            e.key === "Enter" && applyFilters()
+                                        }
+                                        placeholder="value"
+                                        className="h-6 text-[11px] font-mono w-36"
+                                    />
+                                )}
+                                <Button
+                                    variant="ghost"
+                                    size="icon-xs"
+                                    onClick={() => removeFilter(f.id)}
+                                    className="text-muted-foreground/40 hover:text-destructive"
+                                >
+                                    <X size={10} />
+                                </Button>
+                            </div>
                         </div>
                     ))}
                     <div className="flex items-center gap-2">
@@ -1936,37 +1921,47 @@ function TableGridView({
                                                 {row.getVisibleCells().map((cell) => {
                                                     const isCellSelected = selectedCell?.rowIdx === idx && selectedCell?.colId === cell.column.id;
                                                     return (
-                                                    <TableCell
-                                                        key={cell.id}
-                                                        style={{ width: cell.column.getSize() }}
-                                                        className={cn(
-                                                            "h-8 px-4 border-r border-border last:border-r-0 text-foreground/90 whitespace-nowrap overflow-hidden text-ellipsis relative",
-                                                            cell.column.id === selectedColId && "bg-amber-500/10",
-                                                            isCellSelected && "ring-1 ring-inset ring-amber-500",
-                                                        )}
-                                                        onClick={() => setSelectedCell({ rowIdx: idx, colId: cell.column.id })}
-                                                        onDoubleClick={() =>
-                                                            fn.tableName &&
-                                                            setEditingCell({
-                                                                rowIdx: idx,
-                                                                col: cell.column.id,
-                                                                value: rowData[cell.column.id] === null
-                                                                    ? ""
-                                                                    : String(rowData[cell.column.id] ?? ""),
-                                                            })
-                                                        }
-                                                        onContextMenu={(e) => {
-                                                            e.preventDefault();
-                                                            const rect = e.currentTarget.getBoundingClientRect();
-                                                            setSelectedCell({ rowIdx: idx, colId: cell.column.id });
-                                                            setContextMenuCell({ x: rect.left, y: rect.bottom, rowIdx: idx, col: cell.column.id, rowData });
-                                                        }}
-                                                    >
-                                                        {flexRender(
-                                                            cell.column.columnDef.cell,
-                                                            cell.getContext(),
-                                                        )}
-                                                    </TableCell>
+                                                        <TableCell
+                                                            key={cell.id}
+                                                            style={{ width: cell.column.getSize() }}
+                                                            className={cn(
+                                                                "h-8 px-4 border-r border-border last:border-r-0 text-foreground/90 whitespace-nowrap overflow-hidden text-ellipsis relative",
+                                                                cell.column.id === selectedColId && "bg-amber-500/10",
+                                                                isCellSelected && "ring-1 ring-inset ring-amber-500",
+                                                            )}
+                                                            onClick={() => {
+                                                                const key = `${idx}:${cell.column.id}`;
+                                                                setSelectedCell({ rowIdx: idx, colId: cell.column.id });
+                                                                if (dblClickRef.current?.key === key) {
+                                                                    clearTimeout(dblClickRef.current.timer);
+                                                                    dblClickRef.current = null;
+                                                                    if (fn.tableName) {
+                                                                        setEditingCell({
+                                                                            rowIdx: idx,
+                                                                            col: cell.column.id,
+                                                                            value: rowData[cell.column.id] === null
+                                                                                ? ""
+                                                                                : String(rowData[cell.column.id] ?? ""),
+                                                                        });
+                                                                    }
+                                                                } else {
+                                                                    if (dblClickRef.current) clearTimeout(dblClickRef.current.timer);
+                                                                    const timer = setTimeout(() => { dblClickRef.current = null; }, 300);
+                                                                    dblClickRef.current = { key, timer };
+                                                                }
+                                                            }}
+                                                            onContextMenu={(e) => {
+                                                                e.preventDefault();
+                                                                const rect = e.currentTarget.getBoundingClientRect();
+                                                                setSelectedCell({ rowIdx: idx, colId: cell.column.id });
+                                                                setContextMenuCell({ x: rect.left, y: rect.bottom, rowIdx: idx, col: cell.column.id, rowData });
+                                                            }}
+                                                        >
+                                                            {flexRender(
+                                                                cell.column.columnDef.cell,
+                                                                cell.getContext(),
+                                                            )}
+                                                        </TableCell>
                                                     );
                                                 })}
                                             </TableRow>
@@ -1992,7 +1987,6 @@ function TableGridView({
                         const menuH = fn.tableName ? 480 : 340;
                         const left = Math.min(x, window.innerWidth - menuW - 8);
                         const top = y + menuH > window.innerHeight - 8 ? Math.max(8, y - menuH) : y;
-
                         const close = () => { setContextMenuCell(null); setShowQFSubmenu(false); };
                         const item = (
                             label: string,
@@ -2017,7 +2011,6 @@ function TableGridView({
                             </button>
                         );
                         const sep = (k: string) => <div key={k} className="-mx-1 my-1 h-px bg-border" />;
-
                         const qfOps: Array<{ label: string; op: FilterOp; value: string }> = col ? [
                             { label: `= "${String(cellValue ?? "")}"`, op: "=", value: String(cellValue ?? "") },
                             { label: `≠ "${String(cellValue ?? "")}"`, op: "!=", value: String(cellValue ?? "") },
@@ -2025,7 +2018,6 @@ function TableGridView({
                             { label: "IS NULL", op: "IS NULL", value: "" },
                             { label: "IS NOT NULL", op: "IS NOT NULL", value: "" },
                         ] : [];
-
                         return (
                             <div
                                 className="absolute z-[9999] min-w-[14rem] rounded-lg bg-popover text-popover-foreground shadow-md ring-1 ring-foreground/10 p-1 text-[13px] animate-in fade-in-0 zoom-in-95 duration-100"
@@ -2277,7 +2269,6 @@ function TableGridView({
                             <X size={15} />
                         </button>
                     </div>
-
                     {/* CodeMirror editor */}
                     <div
                         className="overflow-hidden"
@@ -2291,8 +2282,8 @@ function TableGridView({
                                 theme={oneDark}
                                 extensions={[
                                     cellModalFormat === "JSON" ? jsonLang() :
-                                    cellModalFormat === "HTML" ? htmlLang() :
-                                    [],
+                                        cellModalFormat === "HTML" ? htmlLang() :
+                                            [],
                                     cellModalWrap ? EditorView.lineWrapping : [],
                                 ].flat()}
                                 style={{ fontSize: 13, height: "100%", minHeight: 320, maxHeight: 480 }}
@@ -2308,7 +2299,6 @@ function TableGridView({
                             />
                         )}
                     </div>
-
                     {/* Footer */}
                     <div className="flex items-center justify-end gap-2 px-5 py-3 border-t border-border/50 bg-[#1a1a1a]">
                         <Button
@@ -2691,13 +2681,13 @@ function TableGridView({
                             <pre className="rounded-md bg-muted px-3 py-2 text-xs font-mono whitespace-pre-wrap break-all text-muted-foreground">
                                 {fn.tableName
                                     ? buildCreateIndexSql(
-                                          fn.tableName,
-                                          createIdxDef.name.trim() || "…",
-                                          createIdxDef.columns.length > 0
-                                              ? createIdxDef.columns
-                                              : ["…"],
-                                          createIdxDef.unique,
-                                      )
+                                        fn.tableName,
+                                        createIdxDef.name.trim() || "…",
+                                        createIdxDef.columns.length > 0
+                                            ? createIdxDef.columns
+                                            : ["…"],
+                                        createIdxDef.unique,
+                                    )
                                     : ""}
                             </pre>
                         </div>
@@ -2740,9 +2730,9 @@ function TableGridView({
                             <pre className="mt-2 rounded bg-muted p-2 text-xs font-mono whitespace-pre-wrap break-all">
                                 {fn.tableName
                                     ? buildDropIndexSql(
-                                          fn.tableName,
-                                          dropIdxTarget ?? "",
-                                      )
+                                        fn.tableName,
+                                        dropIdxTarget ?? "",
+                                    )
                                     : ""}
                             </pre>
                         </AlertDialogDescription>
@@ -3084,8 +3074,12 @@ function TableGridView({
                                     className="animate-spin text-accent-blue"
                                 />
                             ) : (
-                                <span className="text-[9px] text-muted-foreground/70 hidden sm:inline">
-                                    dbl-click to edit
+                                <span className="flex items-center gap-1.5 text-[10px] text-muted-foreground/50 hidden sm:flex select-none">
+                                    <Kbd>↵</Kbd>
+                                    <span>inline edit</span>
+                                    <span className="text-muted-foreground/30">·</span>
+                                    <Kbd>⇧↵</Kbd>
+                                    <span>edit in modal</span>
                                 </span>
                             )}
                             <Button
@@ -3162,13 +3156,15 @@ function TableGridView({
                     </span>
                 )}
             </div>
-            {/* Query Log */}
-            <QueryLog
-                entries={queryHistory.filter((e) => e.connectionId === fn.connectionId)}
-                showSyntax={showQueryLogSyntax}
-                onSyntaxToggle={setShowQueryLogSyntax}
-                onClear={() => clearHistory(fn.connectionId)}
-            />
+            {/* Query Log — shown only when toggled via titlebar */}
+            {queryLogOpen && (
+                <QueryLog
+                    entries={queryHistory.filter((e) => e.connectionId === fn.connectionId)}
+                    showSyntax={showQueryLogSyntax}
+                    onSyntaxToggle={setShowQueryLogSyntax}
+                    onClear={() => clearHistory(fn.connectionId)}
+                />
+            )}
         </div>
     );
 }
@@ -3645,9 +3641,7 @@ function SqlEditorView({
                             />
                         </div>
                         <div className="absolute top-4 right-6 flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-10">
-                            <kbd className="px-1.5 h-5 rounded border border-border bg-background/80 backdrop-blur-sm text-[9px] font-mono text-muted-foreground/60 flex items-center gap-1">
-                                ⌘<span>↵</span>
-                            </kbd>
+                            <Kbd>⌘↵</Kbd>
                         </div>
                     </div>
                     {/* Execute + Format + Save bar */}

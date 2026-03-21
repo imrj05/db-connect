@@ -132,13 +132,16 @@ pub async fn list_all_tables(id: String, database: Option<String>) -> Result<Vec
 
     let mut all_tables: Vec<TableInfo> = Vec::new();
     for db in &target_dbs {
-        if let Ok(tables) = driver.get_tables(db, None).await {
-            for mut table in tables {
-                if table.schema.is_none() {
-                    table.schema = Some(db.clone());
+        match driver.get_tables(db, None).await {
+            Ok(tables) => {
+                for mut table in tables {
+                    if table.schema.is_none() {
+                        table.schema = Some(db.clone());
+                    }
+                    all_tables.push(table);
                 }
-                all_tables.push(table);
             }
+            Err(e) => eprintln!("[list_all_tables] get_tables({db}) failed: {e}"),
         }
     }
 

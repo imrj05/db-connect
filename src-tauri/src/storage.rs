@@ -42,31 +42,33 @@ impl AppStorage {
         tokio::fs::create_dir_all(&data_dir).await?;
 
         // ── Encryption key ────────────────────────────────────────────────────
+        // Strategy (in priority order):
+        //   1. File  `{data_dir}/storage.key`  — written on first run, always present after
+        //   2. OS keychain                      — legacy fallback for old installs
+        //   3. Generate new key                 — truly first install
+        // The key is always written back to the file so restarts are reliable.
         let key_path = data_dir.join("storage.key");
-        let kr_entry = keyring::Entry::new("db-connect", "encryption-key")
-            .map_err(|e| anyhow::anyhow!("Keychain entry: {}", e))?;
 
         let key_bytes: Vec<u8> = if key_path.exists() {
-            // Migrate legacy file → OS keychain, then remove the file.
             let hex_str = tokio::fs::read_to_string(&key_path).await?;
-            let key = hex::decode(hex_str.trim())?;
-            let _ = kr_entry.set_password(&hex::encode(&key)); // best-effort
-            let _ = tokio::fs::remove_file(&key_path).await;   // best-effort
-            key
+            hex::decode(hex_str.trim())?
         } else {
-            match kr_entry.get_password() {
-                Ok(hex_str) => hex::decode(hex_str.trim())?,
-                Err(keyring::Error::NoEntry) => {
-                    // First install — generate key and persist in OS keychain.
-                    let mut key = vec![0u8; 32];
-                    rand::thread_rng().fill_bytes(&mut key);
-                    kr_entry
-                        .set_password(&hex::encode(&key))
-                        .map_err(|e| anyhow::anyhow!("Keychain write: {}", e))?;
-                    key
-                }
-                Err(e) => return Err(anyhow::anyhow!("Keychain read: {}", e)),
-            }
+            // Try keychain (migration from old installs that stored key only there).
+            let from_keychain = keyring::Entry::new("db-connect", "encryption-key")
+                .ok()
+                .and_then(|e| e.get_password().ok())
+                .and_then(|s| hex::decode(s.trim()).ok())
+                .filter(|k| k.len() == 32);
+
+            let key = from_keychain.unwrap_or_else(|| {
+                let mut k = vec![0u8; 32];
+                rand::thread_rng().fill_bytes(&mut k);
+                k
+            });
+
+            // Write to file so next restart is always reliable.
+            tokio::fs::write(&key_path, hex::encode(&key)).await?;
+            key
         };
 
         let cipher = Aes256Gcm::new_from_slice(&key_bytes)
@@ -233,7 +235,7 @@ impl AppStorage {
 
             let encrypted_pw: Option<String> = row.get("encrypted_password");
             let password = match encrypted_pw {
-                Some(ref enc) if !enc.is_empty() => Some(self.decrypt(enc)?),
+                Some(ref enc) if !enc.is_empty() => self.decrypt(enc).ok(),
                 _ => None,
             };
 

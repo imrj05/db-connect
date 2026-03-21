@@ -68,6 +68,7 @@ interface AppState {
   // ---- UI state ----
   expandedConnections: string[]; // connectionIds with open tree in sidebar
   sidebarCollapsed: boolean;
+  queryLogOpen: boolean;
   commandPaletteOpen: boolean;
   connectionDialogOpen: boolean;
   editingConnection: ConnectionConfig | null;
@@ -118,6 +119,7 @@ interface AppState {
   // ---- Actions: UI ----
   toggleConnectionExpanded: (connectionId: string) => void;
   toggleSidebar: () => void;
+  toggleQueryLog: () => void;
   setCommandPaletteOpen: (open: boolean) => void;
   setConnectionDialogOpen: (open: boolean) => void;
   setEditingConnection: (connection: ConnectionConfig | null) => void;
@@ -149,6 +151,7 @@ export const useAppStore = create<AppState>((set, get) => ({
   pendingSqlValue: "",
   expandedConnections: [],
   sidebarCollapsed: false,
+  queryLogOpen: false,
   commandPaletteOpen: false,
   connectionDialogOpen: false,
   editingConnection: null,
@@ -741,6 +744,8 @@ export const useAppStore = create<AppState>((set, get) => ({
 
   toggleSidebar: () =>
     set((state) => ({ sidebarCollapsed: !state.sidebarCollapsed })),
+  toggleQueryLog: () =>
+    set((state) => ({ queryLogOpen: !state.queryLogOpen })),
 
   setCommandPaletteOpen: (commandPaletteOpen) => set({ commandPaletteOpen }),
   setConnectionDialogOpen: (connectionDialogOpen) =>
