@@ -7,14 +7,112 @@ use std::time::Instant;
 
 pub struct RedisDriver {
     pub client: tokio::sync::RwLock<Option<Client>>,
+    /// Tracks the last-used DB index so run_query can SELECT the right DB.
+    pub current_db: tokio::sync::RwLock<i64>,
 }
 
 impl RedisDriver {
     pub fn new() -> Self {
         Self {
             client: tokio::sync::RwLock::new(None),
+            current_db: tokio::sync::RwLock::new(0),
         }
     }
+}
+
+// ── SQL → Redis translators ────────────────────────────────────────────────────
+
+fn sql_unquote_name(s: &str) -> String {
+    let s = s.trim();
+    if s.len() >= 2 && ((s.starts_with('"') && s.ends_with('"')) || (s.starts_with('`') && s.ends_with('`'))) {
+        s[1..s.len() - 1].replace("\"\"", "\"").replace("``", "`")
+    } else {
+        s.to_string()
+    }
+}
+
+fn sql_unquote_value(s: &str) -> Option<String> {
+    let s = s.trim();
+    if s.eq_ignore_ascii_case("null") {
+        None
+    } else if s.len() >= 2 && s.starts_with('\'') && s.ends_with('\'') {
+        Some(s[1..s.len() - 1].replace("''", "'"))
+    } else {
+        Some(s.to_string())
+    }
+}
+
+/// Parse `UPDATE "table" SET "col" = 'val' [WHERE "key" = 'keyname' ...]`
+/// Returns `(redis_key, column, value)` — `value` is `None` for SQL NULL.
+fn parse_redis_update(query: &str) -> Option<(String, String, Option<String>)> {
+    let q = query.trim();
+    let upper = q.to_ascii_uppercase();
+    if !upper.starts_with("UPDATE ") {
+        return None;
+    }
+    let set_pos = upper.find(" SET ")?;
+    let table_name = sql_unquote_name(q[7..set_pos].trim());
+
+    let after_set = &q[set_pos + 5..];
+    let upper_after = after_set.to_ascii_uppercase();
+    let where_pos = upper_after.find(" WHERE ");
+
+    let set_clause = match where_pos {
+        Some(p) => after_set[..p].trim(),
+        None => after_set.trim(),
+    };
+    let where_str = where_pos.map(|p| &after_set[p + 7..]);
+
+    // Parse SET col = val
+    let eq_pos = set_clause.find('=')?;
+    let col = sql_unquote_name(set_clause[..eq_pos].trim());
+    let val = sql_unquote_value(set_clause[eq_pos + 1..].trim());
+
+    // Extract actual Redis key from WHERE "key" = 'keyname'
+    let redis_key = if let Some(ws) = where_str {
+        extract_key_from_where(ws).unwrap_or(table_name)
+    } else {
+        table_name
+    };
+
+    Some((redis_key, col, val))
+}
+
+/// Parse `DELETE FROM "table" WHERE "key" = 'keyname' [AND ...]`
+/// Returns the Redis key to delete.
+fn parse_redis_delete(query: &str) -> Option<String> {
+    let q = query.trim();
+    let upper = q.to_ascii_uppercase();
+    if !upper.starts_with("DELETE FROM ") {
+        return None;
+    }
+    let where_pos = upper.find(" WHERE ")?;
+    let table_name = sql_unquote_name(q[12..where_pos].trim());
+    let where_str = &q[where_pos + 7..];
+    Some(extract_key_from_where(where_str).unwrap_or(table_name))
+}
+
+/// Find `"key" = 'value'` (or `key = 'value'`) within a WHERE clause and return the value.
+fn extract_key_from_where(where_str: &str) -> Option<String> {
+    let upper = where_str.to_ascii_uppercase();
+    // Look for the key column in quoted or unquoted form
+    let search_terms = [r#""KEY""#, "`KEY`", "KEY "];
+    for term in &search_terms {
+        if let Some(kpos) = upper.find(term) {
+            let after = &where_str[kpos + term.len()..];
+            let upper_after = after.to_ascii_uppercase();
+            // Skip whitespace and find '='
+            let trimmed = upper_after.trim_start();
+            if trimmed.starts_with('=') || trimmed.starts_with("= ") {
+                let eq = after.find('=')?;
+                let after_eq = after[eq + 1..].trim();
+                // Value ends at AND or end of string
+                let end = after_eq.to_ascii_uppercase().find(" AND ").unwrap_or(after_eq.len());
+                return sql_unquote_value(after_eq[..end].trim());
+            }
+        }
+    }
+    None
 }
 
 #[async_trait]
@@ -93,8 +191,9 @@ impl DatabaseDriver for RedisDriver {
         };
         let mut conn = client.get_multiplexed_async_connection().await?;
 
-        // Switch to the requested database index
+        // Switch to the requested database index and remember it for run_query.
         let db_idx: i64 = database.parse().unwrap_or(0);
+        *self.current_db.write().await = db_idx;
         let _: () = redis::cmd("SELECT").arg(db_idx).query_async(&mut conn).await?;
 
         let mut keys: Vec<String> = redis::cmd("KEYS").arg("*").query_async(&mut conn).await?;
@@ -113,9 +212,58 @@ impl DatabaseDriver for RedisDriver {
         };
         let mut conn = client.get_multiplexed_async_connection().await?;
 
+        // Restore the last-used database index so edits land in the right DB.
+        let db_idx = *self.current_db.read().await;
+        let _: () = redis::cmd("SELECT").arg(db_idx).query_async(&mut conn).await?;
+
         let start = Instant::now();
-        // This is a very basic command execution
-        // Real implementation would parse the query into command and args
+        let upper_trim = query.trim().to_ascii_uppercase();
+
+        // ── Translate SQL UPDATE → Redis SET / EXPIRE ────────────────────────
+        if upper_trim.starts_with("UPDATE ") {
+            if let Some((key, col, val)) = parse_redis_update(query) {
+                match col.to_lowercase().as_str() {
+                    "value" => {
+                        if let Some(v) = val {
+                            let _: () = redis::cmd("SET").arg(&key).arg(&v).query_async(&mut conn).await?;
+                        }
+                        // NULL → leave key unchanged (Redis has no concept of a null string value)
+                    }
+                    "ttl" => {
+                        if let Some(v) = val {
+                            let seconds: i64 = v.parse().unwrap_or(-1);
+                            if seconds < 0 {
+                                let _: () = redis::cmd("PERSIST").arg(&key).query_async(&mut conn).await?;
+                            } else {
+                                let _: () = redis::cmd("EXPIRE").arg(&key).arg(seconds).query_async(&mut conn).await?;
+                            }
+                        }
+                    }
+                    _ => {} // type / encoding / memory are read-only metadata
+                }
+                let duration = start.elapsed().as_millis() as u64;
+                return Ok(QueryResult {
+                    columns: vec!["result".to_string()],
+                    rows: vec![serde_json::json!({"result": "OK"})],
+                    execution_time_ms: duration,
+                });
+            }
+        }
+
+        // ── Translate SQL DELETE FROM → Redis DEL ────────────────────────────
+        if upper_trim.starts_with("DELETE FROM ") {
+            if let Some(key) = parse_redis_delete(query) {
+                let _: () = redis::cmd("DEL").arg(&key).query_async(&mut conn).await?;
+                let duration = start.elapsed().as_millis() as u64;
+                return Ok(QueryResult {
+                    columns: vec!["result".to_string()],
+                    rows: vec![serde_json::json!({"result": "OK"})],
+                    execution_time_ms: duration,
+                });
+            }
+        }
+
+        // ── Generic Redis command passthrough ────────────────────────────────
         let parts: Vec<&str> = query.split_whitespace().collect();
         if parts.is_empty() {
             return Err(anyhow!("Empty query"));
@@ -145,6 +293,7 @@ impl DatabaseDriver for RedisDriver {
         let start = Instant::now();
 
         let db_idx: i64 = database.parse().unwrap_or(0);
+        *self.current_db.write().await = db_idx;
         let _: () = redis::cmd("SELECT").arg(db_idx).query_async(&mut conn).await?;
 
         // Get all keys sorted, then paginate

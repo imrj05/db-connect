@@ -114,6 +114,7 @@ import {
     SiRedis,
 } from "react-icons/si";
 import { tauriApi } from "@/lib/tauri-api";
+import { toast } from "sonner";
 import {
     Combobox,
     ComboboxInput,
@@ -818,18 +819,21 @@ function TableGridView({
         const row = queryResult.rows[editingCell.rowIdx];
         const whereParts = pkCols.map((pk) => {
             const v = row[pk.name];
-            if (v === null || v === undefined) return `"${pk.name}" IS NULL`;
-            return `"${pk.name}" = '${String(v).replace(/'/g, "''")}'`;
+            if (v === null || v === undefined) return `${qi(pk.name)} IS NULL`;
+            return `${qi(pk.name)} = '${String(v).replace(/'/g, "''")}'`;
         });
         const newVal = editingCell.value;
         const setVal =
             newVal === "" ? "NULL" : `'${newVal.replace(/'/g, "''")}'`;
-        const updateSql = `UPDATE "${fn.tableName}" SET "${editingCell.col}" = ${setVal} WHERE ${whereParts.join(" AND ")}`;
+        const updateSql = `UPDATE ${qi(fn.tableName!)} SET ${qi(editingCell.col)} = ${setVal} WHERE ${whereParts.join(" AND ")}`;
         setCellEditLoading(true);
         try {
             await tauriApi.executeQuery(fn.connectionId, updateSql);
             setEditingCell(null);
             setCellEditError(null);
+            toast.success(`Updated "${editingCell.col}"`, {
+                description: `${fn.tableName} → ${newVal === "" ? "NULL" : newVal}`,
+            });
             await onPageChange(page);
         } catch (e) {
             setCellEditError(String(e));
@@ -857,18 +861,18 @@ function TableGridView({
                 whereParts = pkCols.map((pk) => {
                     const v = rowData[pk.name];
                     if (v === null || v === undefined)
-                        return `"${pk.name}" IS NULL`;
-                    return `"${pk.name}" = '${String(v).replace(/'/g, "''")}'`;
+                        return `${qi(pk.name)} IS NULL`;
+                    return `${qi(pk.name)} = '${String(v).replace(/'/g, "''")}'`;
                 });
             } else {
                 whereParts = Object.entries(rowData).map(([col, v]) => {
                     if (v === null || v === undefined)
-                        return `"${col}" IS NULL`;
-                    return `"${col}" = '${String(v).replace(/'/g, "''")}'`;
+                        return `${qi(col)} IS NULL`;
+                    return `${qi(col)} = '${String(v).replace(/'/g, "''")}'`;
                 });
             }
             setDeleteRowSql(
-                `DELETE FROM "${fn.tableName}" WHERE ${whereParts.join(" AND ")}`,
+                `DELETE FROM ${qi(fn.tableName!)} WHERE ${whereParts.join(" AND ")}`,
             );
         },
         [fn, structure, queryResult, loadStructure],
@@ -915,17 +919,17 @@ function TableGridView({
             whereParts = pkCols.map((pk) => {
                 const v = rowData[pk.name];
                 return v === null || v === undefined
-                    ? `"${pk.name}" IS NULL`
-                    : `"${pk.name}" = '${String(v).replace(/'/g, "''")}'`;
+                    ? `${qi(pk.name)} IS NULL`
+                    : `${qi(pk.name)} = '${String(v).replace(/'/g, "''")}'`;
             });
         } else {
             whereParts = Object.entries(rowData).map(([c, v]) =>
                 v === null || v === undefined
-                    ? `"${c}" IS NULL`
-                    : `"${c}" = '${String(v).replace(/'/g, "''")}'`
+                    ? `${qi(c)} IS NULL`
+                    : `${qi(c)} = '${String(v).replace(/'/g, "''")}'`
             );
         }
-        const updateSql = `UPDATE "${fn.tableName}" SET "${col}" = NULL WHERE ${whereParts.join(" AND ")}`;
+        const updateSql = `UPDATE ${qi(fn.tableName!)} SET ${qi(col)} = NULL WHERE ${whereParts.join(" AND ")}`;
         try {
             await tauriApi.executeQuery(fn.connectionId, updateSql);
             await onPageChange(page);
@@ -988,16 +992,19 @@ function TableGridView({
             .filter((c) => c !== cellModal.col)
             .map((c) => {
                 const v = row[c];
-                if (v === null || v === undefined) return `"${c}" IS NULL`;
-                return `"${c}" = '${String(v).replace(/'/g, "''")}'`;
+                if (v === null || v === undefined) return `${qi(c)} IS NULL`;
+                return `${qi(c)} = '${String(v).replace(/'/g, "''")}'`;
             });
         const newVal = cellModal.value;
         const setVal = newVal === "" ? "NULL" : `'${newVal.replace(/'/g, "''")}'`;
-        const updateSql = `UPDATE "${fn.tableName}" SET "${cellModal.col}" = ${setVal}${whereParts.length ? ` WHERE ${whereParts.join(" AND ")}` : ""}`;
+        const updateSql = `UPDATE ${qi(fn.tableName!)} SET ${qi(cellModal.col)} = ${setVal}${whereParts.length ? ` WHERE ${whereParts.join(" AND ")}` : ""}`;
         try {
             setCellEditLoading(true);
             await tauriApi.executeQuery(fn.connectionId, updateSql);
             setCellModal(null);
+            toast.success(`Updated "${cellModal.col}"`, {
+                description: `${fn.tableName} → ${newVal === "" ? "NULL" : newVal}`,
+            });
             await onPageChange(page);
         } catch (e) {
             setCellEditError(String(e));
@@ -1069,7 +1076,7 @@ function TableGridView({
         try {
             await tauriApi.executeQuery(
                 fn.connectionId,
-                `UPDATE "${fn.tableName}" SET "${columnNullConfirmCol}" = NULL`,
+                `UPDATE ${qi(fn.tableName!)} SET ${qi(columnNullConfirmCol)} = NULL`,
             );
             await onPageChange(page);
         } catch (e) {
@@ -2342,7 +2349,7 @@ function TableGridView({
                             <strong>"{columnNullConfirmCol}"</strong> to NULL for every row in the
                             table. This cannot be undone.
                             <pre className="mt-2 rounded bg-muted p-2 text-xs font-mono overflow-x-auto whitespace-pre-wrap break-all">
-                                {`UPDATE "${fn.tableName}" SET "${columnNullConfirmCol}" = NULL`}
+                                {`UPDATE ${qi(fn.tableName!)} SET ${qi(columnNullConfirmCol ?? "")} = NULL`}
                             </pre>
                         </AlertDialogDescription>
                     </AlertDialogHeader>
