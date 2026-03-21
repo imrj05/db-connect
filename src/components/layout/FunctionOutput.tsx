@@ -1,6 +1,9 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import CodeMirror from "@uiw/react-codemirror";
 import { sql } from "@codemirror/lang-sql";
+import { json as jsonLang } from "@codemirror/lang-json";
+import { html as htmlLang } from "@codemirror/lang-html";
 import { oneDark } from "@codemirror/theme-one-dark";
 import { EditorView } from "@codemirror/view";
 import {
@@ -10,6 +13,7 @@ import {
     getSortedRowModel,
     SortingState,
     ColumnSizingState,
+    VisibilityState,
 } from "@tanstack/react-table";
 import {
     Play,
@@ -41,6 +45,10 @@ import {
     ChevronLeft,
     ChevronRight,
     WifiOff,
+    Settings,
+    ChevronDown,
+    WrapText,
+    Minimize2,
 } from "lucide-react";
 import {
     DropdownMenu,
@@ -372,6 +380,19 @@ function TableGridView({
 }) {
     const [viewMode, setViewMode] = useState<"data" | "form" | "structure">("data");
     const [selectedRowIdx, setSelectedRowIdx] = useState(-1);
+    const [contextMenuCell, setContextMenuCell] = useState<{
+        x: number;
+        y: number;
+        rowIdx: number;
+        col: string | null;
+        rowData: Record<string, unknown>;
+    } | null>(null);
+    const [selectedCell, setSelectedCell] = useState<{ rowIdx: number; colId: string } | null>(null);
+    const [selectedColId, setSelectedColId] = useState<string | null>(null);
+    const [showQFSubmenu, setShowQFSubmenu] = useState(false);
+    const [colCtxMenu, setColCtxMenu] = useState<{ x: number; y: number; colId: string } | null>(null);
+    const [columnVisibility, setColumnVisibility] = useState<VisibilityState>({});
+    const [columnNullConfirmCol, setColumnNullConfirmCol] = useState<string | null>(null);
     const [sorting, setSorting] = useState<SortingState>([]);
     const [columnSizing, setColumnSizing] = useState<ColumnSizingState>({});
     const [structure, setStructure] = useState<TableStructure | null>(null);
@@ -384,6 +405,16 @@ function TableGridView({
     } | null>(null);
     const [cellEditError, setCellEditError] = useState<string | null>(null);
     const [cellEditLoading, setCellEditLoading] = useState(false);
+    // Edit-in-modal state
+    const [cellModal, setCellModal] = useState<{
+        rowIdx: number;
+        col: string;
+        value: string;
+    } | null>(null);
+    const [cellModalFormat, setCellModalFormat] = useState<"Text" | "JSON" | "HTML">("Text");
+    const [cellModalWrap, setCellModalWrap] = useState(true);
+    const [cellModalGearOpen, setCellModalGearOpen] = useState(false);
+    const [cellModalFormatOpen, setCellModalFormatOpen] = useState(false);
     // Delete row state
     const [deleteRowSql, setDeleteRowSql] = useState<string | null>(null);
     const [deleteRowLoading, setDeleteRowLoading] = useState(false);
@@ -848,6 +879,232 @@ function TableGridView({
             setDeleteRowLoading(false);
         }
     }, [deleteRowSql, fn, page, onPageChange]);
+    // ── Row context menu helpers ────────────────────────────────────────────────
+    const copyToClipboard = (text: string) => navigator.clipboard.writeText(text);
+
+    const cloneRow = useCallback(async (rowData: Record<string, unknown>) => {
+        if (!fn.tableName) return;
+        const cols = Object.keys(rowData);
+        const vals = cols.map((c) => {
+            const v = rowData[c];
+            if (v === null || v === undefined) return "NULL";
+            return `'${String(v).replace(/'/g, "''")}'`;
+        });
+        const cloneSql = `INSERT INTO "${fn.tableName}" (${cols.map((c) => `"${c}"`).join(", ")}) VALUES (${vals.join(", ")})`;
+        try {
+            await tauriApi.executeQuery(fn.connectionId, cloneSql);
+            await onPageChange(page);
+        } catch (e) {
+            setCellEditError(String(e));
+        }
+    }, [fn, page, onPageChange]);
+
+    const setNullCell = useCallback(async (rowData: Record<string, unknown>, col: string) => {
+        if (!fn.tableName || !effectiveResult) return;
+        const s = structure ?? (await loadStructure());
+        if (!s) return;
+        const pkCols = s.columns.filter((c) => c.isPrimary);
+        let whereParts: string[];
+        if (pkCols.length > 0) {
+            whereParts = pkCols.map((pk) => {
+                const v = rowData[pk.name];
+                return v === null || v === undefined
+                    ? `"${pk.name}" IS NULL`
+                    : `"${pk.name}" = '${String(v).replace(/'/g, "''")}'`;
+            });
+        } else {
+            whereParts = Object.entries(rowData).map(([c, v]) =>
+                v === null || v === undefined
+                    ? `"${c}" IS NULL`
+                    : `"${c}" = '${String(v).replace(/'/g, "''")}'`
+            );
+        }
+        const updateSql = `UPDATE "${fn.tableName}" SET "${col}" = NULL WHERE ${whereParts.join(" AND ")}`;
+        try {
+            await tauriApi.executeQuery(fn.connectionId, updateSql);
+            await onPageChange(page);
+        } catch (e) {
+            setCellEditError(String(e));
+        }
+    }, [fn, structure, effectiveResult, page, onPageChange, loadStructure]);
+
+    // ── Cell context menu helpers ────────────────────────────────────────────────
+    const copyCellAsTSV = (col: string, value: unknown) =>
+        copyToClipboard(`${col}\t${value === null ? "" : String(value)}`);
+
+    const copyCellAsJSON = (col: string, value: unknown) =>
+        copyToClipboard(JSON.stringify({ [col]: value }, null, 2));
+
+    const copyCellAsMarkdown = (col: string, value: unknown) => {
+        const val = value === null ? "" : String(value);
+        const w = Math.max(col.length, val.length, 1);
+        copyToClipboard(
+            `| ${col.padEnd(w)} |\n| ${"-".repeat(w)} |\n| ${val.padEnd(w)} |`,
+        );
+    };
+
+    const copyCellAsSQL = (value: unknown) =>
+        copyToClipboard(
+            value === null ? "NULL" : `'${String(value).replace(/'/g, "''")}'`,
+        );
+
+    const copyCellForIN = (value: unknown) =>
+        copyToClipboard(
+            value === null
+                ? "(NULL)"
+                : `('${String(value).replace(/'/g, "''")}')`
+        );
+
+    const pasteToCell = async (rowIdx: number, col: string) => {
+        try {
+            const text = await navigator.clipboard.readText();
+            if (fn.tableName) setEditingCell({ rowIdx, col, value: text });
+        } catch { /* clipboard read denied — silently ignore */ }
+    };
+
+    const editCellInModal = (rowIdx: number, col: string, value: unknown) => {
+        if (!fn.tableName) return;
+        const strVal = value === null || value === undefined ? "" : String(value);
+        // Auto-detect JSON for smart default
+        let fmt: "Text" | "JSON" | "HTML" = "Text";
+        const trimmed = strVal.trimStart();
+        if ((trimmed.startsWith("{") || trimmed.startsWith("[")) && (() => { try { JSON.parse(strVal); return true; } catch { return false; } })()) {
+            fmt = "JSON";
+        } else if (trimmed.startsWith("<") && trimmed.includes(">")) {
+            fmt = "HTML";
+        }
+        setCellModal({ rowIdx, col, value: strVal });
+        setCellModalFormat(fmt);
+        setCellModalWrap(true);
+        setCellModalGearOpen(false);
+        setCellModalFormatOpen(false);
+    };
+
+    const applyCellModal = useCallback(async () => {
+        if (!cellModal || !fn.tableName || !queryResult) return;
+        const row = queryResult.rows[cellModal.rowIdx];
+        if (!row) return;
+        const pkCols = structure?.columns.filter((c) => c.isPrimary).map((c) => c.name) ?? [];
+        const whereCols = pkCols.length > 0 ? pkCols : Object.keys(row);
+        const whereParts = whereCols
+            .filter((c) => c !== cellModal.col)
+            .map((c) => {
+                const v = row[c];
+                if (v === null || v === undefined) return `"${c}" IS NULL`;
+                return `"${c}" = '${String(v).replace(/'/g, "''")}'`;
+            });
+        const newVal = cellModal.value;
+        const setVal = newVal === "" ? "NULL" : `'${newVal.replace(/'/g, "''")}'`;
+        const updateSql = `UPDATE "${fn.tableName}" SET "${cellModal.col}" = ${setVal}${whereParts.length ? ` WHERE ${whereParts.join(" AND ")}` : ""}`;
+        try {
+            setCellEditLoading(true);
+            await tauriApi.executeQuery(fn.connectionId, updateSql);
+            setCellModal(null);
+            await onPageChange(page);
+        } catch (e) {
+            setCellEditError(String(e));
+        } finally {
+            setCellEditLoading(false);
+        }
+    }, [cellModal, fn, queryResult, structure, page, onPageChange]);
+
+    // ── Column context menu helpers ─────────────────────────────────────────────
+    const getColValues = (col: string) =>
+        searchedRows.map((r) =>
+            r[col] === null || r[col] === undefined ? "" : String(r[col]),
+        );
+
+    const copyColValues = (col: string) =>
+        copyToClipboard(getColValues(col).join("\n"));
+
+    const copyColAsTSV = (col: string) =>
+        copyToClipboard([col, ...getColValues(col)].join("\t"));
+
+    const copyColAsJSON = (col: string) =>
+        copyToClipboard(
+            JSON.stringify(searchedRows.map((r) => r[col] ?? null), null, 2),
+        );
+
+    const copyColAsMarkdown = (col: string) => {
+        const vals = getColValues(col);
+        const width = Math.max(col.length, ...vals.map((v) => v.length), 1);
+        const pad = (s: string) => s.padEnd(width);
+        copyToClipboard(
+            [
+                `| ${pad(col)} |`,
+                `| ${"-".repeat(width)} |`,
+                ...vals.map((v) => `| ${pad(v)} |`),
+            ].join("\n"),
+        );
+    };
+
+    const copyColAsSQL = (col: string) =>
+        copyToClipboard(
+            getColValues(col)
+                .map((v) => `'${v.replace(/'/g, "''")}'`)
+                .join(",\n"),
+        );
+
+    const copyColForIN = (col: string) =>
+        copyToClipboard(
+            `(${getColValues(col)
+                .map((v) => `'${v.replace(/'/g, "''")}'`)
+                .join(", ")})`,
+        );
+
+    const resizeAllToMatch = (size: number) => {
+        const newSizing: ColumnSizingState = {};
+        table.getAllColumns().forEach((c) => { newSizing[c.id] = size; });
+        setColumnSizing(newSizing);
+    };
+
+    const resizeAllToFitContent = () => {
+        const newSizing: ColumnSizingState = {};
+        table.getAllColumns().forEach((c) => {
+            const maxLen = Math.max(
+                c.id.length,
+                ...searchedRows.map((r) => String(r[c.id] ?? "").length),
+                1,
+            );
+            newSizing[c.id] = Math.min(Math.max(maxLen * 8 + 32, 60), 400);
+        });
+        setColumnSizing(newSizing);
+    };
+
+    const resetLayout = () => {
+        setColumnSizing({});
+        setColumnVisibility({});
+        setSelectedColId(null);
+    };
+
+    const executeColumnNull = useCallback(async () => {
+        if (!columnNullConfirmCol || !fn.tableName) return;
+        try {
+            await tauriApi.executeQuery(
+                fn.connectionId,
+                `UPDATE "${fn.tableName}" SET "${columnNullConfirmCol}" = NULL`,
+            );
+            await onPageChange(page);
+        } catch (e) {
+            setCellEditError(String(e));
+        } finally {
+            setColumnNullConfirmCol(null);
+        }
+    }, [columnNullConfirmCol, fn, page, onPageChange]);
+
+    const openFilterForCol = (col: string) => {
+        setFilters([
+            {
+                id: `f-${Date.now()}`,
+                col,
+                op: "=" as FilterOp,
+                value: "",
+                join: "AND",
+            },
+        ]);
+        setShowFilterBar(true);
+    };
+
     // ── DDL helpers ────────────────────────────────────────────────────────────
     const COL_TYPES: Record<DatabaseType, string[]> = {
         postgresql: [
@@ -1061,17 +1318,6 @@ function TableGridView({
                     return (
                         <div
                             className="absolute inset-0 flex items-center px-4 overflow-hidden"
-                            onDoubleClick={() =>
-                                fn.tableName &&
-                                setEditingCell({
-                                    rowIdx,
-                                    col,
-                                    value:
-                                        info.getValue() === null
-                                            ? ""
-                                            : String(info.getValue()),
-                                })
-                            }
                         >
                             <span
                                 className={cn(
@@ -1089,38 +1335,12 @@ function TableGridView({
                     );
                 },
             })),
-            ...(fn.tableName
-                ? [
-                    {
-                        id: "_delete",
-                        header: "",
-                        size: 40,
-                        enableResizing: false,
-                        enableSorting: false,
-                        cell: (info: any) => {
-                            const rowData = info.row.original;
-                            return (
-                                <Button
-                                    variant="ghost"
-                                    size="icon-xs"
-                                    className="opacity-0 group-hover:opacity-100 transition-opacity text-destructive/50 hover:text-destructive hover:bg-destructive/10"
-                                    onClick={(e) => {
-                                        e.stopPropagation();
-                                        buildAndShowDeleteSql(rowData);
-                                    }}
-                                >
-                                    <Trash2 className="h-3 w-3" />
-                                </Button>
-                            );
-                        },
-                    },
-                ]
-                : []),
         ],
         columnResizeMode: "onChange",
-        state: { sorting, columnSizing },
+        state: { sorting, columnSizing, columnVisibility },
         onSortingChange: setSorting,
         onColumnSizingChange: setColumnSizing,
+        onColumnVisibilityChange: setColumnVisibility,
         getCoreRowModel: getCoreRowModel(),
         getSortedRowModel: getSortedRowModel(),
     });
@@ -1600,54 +1820,72 @@ function TableGridView({
                                         key={headerGroup.id}
                                         className="hover:bg-transparent border-none"
                                     >
-                                        <TableHead className="w-10 h-8 px-2 text-center font-bold text-muted-foreground/30 border-r border-border bg-card">
+                                        <TableHead
+                                            className="w-10 h-8 px-2 text-center font-bold text-muted-foreground/30 border-r border-border bg-card cursor-pointer hover:text-muted-foreground/60 transition-colors"
+                                            onClick={() => { setSelectedColId(null); setSelectedRowIdx(-1); }}
+                                        >
                                             #
                                         </TableHead>
-                                        {headerGroup.headers.map((header) => (
-                                            <TableHead
-                                                key={header.id}
-                                                style={{ width: header.getSize(), position: "relative" }}
-                                                className={cn(
-                                                    "h-8 px-4 text-left font-bold border-r border-border last:border-r-0 hover:bg-muted/40 cursor-pointer transition-colors select-none overflow-hidden group/th",
-                                                    header.column.getIsSorted()
-                                                        ? "text-foreground border-b-2 border-b-primary/50"
-                                                        : "text-muted-foreground",
-                                                )}
-                                                onClick={header.column.getToggleSortingHandler()}
-                                            >
-                                                <div className="flex items-center gap-1">
-                                                    <span className="group-hover/th:text-foreground transition-colors">
-                                                        {flexRender(
-                                                            header.column.columnDef.header,
-                                                            header.getContext(),
-                                                        )}
-                                                    </span>
-                                                    {header.column.getIsSorted() && (
-                                                        <span className="text-primary/60 text-[9px] shrink-0">
-                                                            {header.column.getIsSorted() === "asc" ? "↑" : "↓"}
-                                                        </span>
+                                        {headerGroup.headers.map((header) => {
+                                            const colId = header.column.id;
+                                            const isColSelected = selectedColId === colId;
+                                            const colSize = header.column.getSize();
+                                            return (
+                                                <TableHead
+                                                    key={header.id}
+                                                    style={{ width: colSize, position: "relative" }}
+                                                    className={cn(
+                                                        "h-8 px-4 text-left font-bold border-r border-border last:border-r-0 cursor-pointer transition-colors select-none overflow-hidden group/th",
+                                                        isColSelected
+                                                            ? "bg-amber-500 text-white"
+                                                            : header.column.getIsSorted()
+                                                                ? "text-foreground border-b-2 border-b-primary/50 hover:bg-muted/40"
+                                                                : "text-muted-foreground hover:bg-muted/40",
                                                     )}
-                                                </div>
-                                                {header.column.getCanResize() && (
-                                                    <div
-                                                        onMouseDown={(e) => {
-                                                            e.stopPropagation();
-                                                            header.getResizeHandler()(e);
-                                                        }}
-                                                        onTouchStart={(e) => {
-                                                            e.stopPropagation();
-                                                            header.getResizeHandler()(e);
-                                                        }}
-                                                        className={cn(
-                                                            "absolute right-0 top-0 h-full w-1 cursor-col-resize touch-none select-none transition-colors",
-                                                            header.column.getIsResizing()
-                                                                ? "bg-primary/70"
-                                                                : "bg-transparent hover:bg-primary/50",
+                                                    onClick={(e) => {
+                                                        setSelectedColId(isColSelected ? null : colId);
+                                                        header.column.getToggleSortingHandler()?.(e);
+                                                    }}
+                                                    onContextMenu={(e) => {
+                                                        e.preventDefault();
+                                                        const rect = e.currentTarget.getBoundingClientRect();
+                                                        setColCtxMenu({ x: rect.left, y: rect.bottom, colId });
+                                                    }}
+                                                >
+                                                    <div className="flex items-center gap-1">
+                                                        <span className={cn("transition-colors", !isColSelected && "group-hover/th:text-foreground")}>
+                                                            {flexRender(
+                                                                header.column.columnDef.header,
+                                                                header.getContext(),
+                                                            )}
+                                                        </span>
+                                                        {header.column.getIsSorted() && !isColSelected && (
+                                                            <span className="text-primary/60 text-[9px] shrink-0">
+                                                                {header.column.getIsSorted() === "asc" ? "↑" : "↓"}
+                                                            </span>
                                                         )}
-                                                    />
-                                                )}
-                                            </TableHead>
-                                        ))}
+                                                    </div>
+                                                    {header.column.getCanResize() && (
+                                                        <div
+                                                            onMouseDown={(e) => {
+                                                                e.stopPropagation();
+                                                                header.getResizeHandler()(e);
+                                                            }}
+                                                            onTouchStart={(e) => {
+                                                                e.stopPropagation();
+                                                                header.getResizeHandler()(e);
+                                                            }}
+                                                            className={cn(
+                                                                "absolute right-0 top-0 h-full w-1 cursor-col-resize touch-none select-none transition-colors",
+                                                                header.column.getIsResizing()
+                                                                    ? "bg-primary/70"
+                                                                    : "bg-transparent hover:bg-primary/50",
+                                                            )}
+                                                        />
+                                                    )}
+                                                </TableHead>
+                                            );
+                                        })}
                                     </TableRow>
                                 ))}
                             </TableHeader>
@@ -1664,44 +1902,256 @@ function TableGridView({
                                         </TableCell>
                                     </TableRow>
                                 ) : (
-                                    table.getRowModel().rows.map((row, idx) => (
-                                        <TableRow
-                                            key={row.id}
-                                            className={cn(
-                                                "hover:bg-row-hover transition-colors group cursor-pointer",
-                                                selectedRowIdx === idx
-                                                    ? "bg-primary/5"
-                                                    : idx % 2 === 0
-                                                        ? "bg-table-bg"
-                                                        : "bg-row-alt",
-                                            )}
-                                            onClick={() => setSelectedRowIdx(idx)}
-                                        >
-                                            <TableCell className="w-10 h-8 px-2 text-center text-muted-foreground/30 border-r border-border bg-card/30">
-                                                {page * pageSize + idx + 1}
-                                            </TableCell>
-                                            {row
-                                                .getVisibleCells()
-                                                .map((cell) => (
+                                    table.getRowModel().rows.map((row, idx) => {
+                                        const isSelected = selectedRowIdx === idx;
+                                        const rowData: Record<string, unknown> = row.original;
+                                        return (
+                                            <TableRow
+                                                key={row.id}
+                                                className={cn(
+                                                    "hover:bg-row-hover transition-colors group cursor-default",
+                                                    isSelected
+                                                        ? "bg-amber-500/10 border-l-2 border-amber-500"
+                                                        : idx % 2 === 0
+                                                            ? "bg-table-bg"
+                                                            : "bg-row-alt",
+                                                )}
+                                            >
+                                                <TableCell
+                                                    className={cn(
+                                                        "w-10 h-8 px-2 text-center border-r border-border cursor-pointer select-none transition-colors",
+                                                        isSelected
+                                                            ? "bg-amber-500 text-white font-bold"
+                                                            : "text-muted-foreground/30 bg-card/30 hover:bg-amber-500/20 hover:text-amber-500",
+                                                    )}
+                                                    onClick={() => setSelectedRowIdx(isSelected ? -1 : idx)}
+                                                    onContextMenu={(e) => {
+                                                        e.preventDefault();
+                                                        const rect = e.currentTarget.getBoundingClientRect();
+                                                        setContextMenuCell({ x: rect.left, y: rect.bottom, rowIdx: idx, col: null, rowData });
+                                                    }}
+                                                >
+                                                    {page * pageSize + idx + 1}
+                                                </TableCell>
+                                                {row.getVisibleCells().map((cell) => {
+                                                    const isCellSelected = selectedCell?.rowIdx === idx && selectedCell?.colId === cell.column.id;
+                                                    return (
                                                     <TableCell
                                                         key={cell.id}
                                                         style={{ width: cell.column.getSize() }}
-                                                        className="h-8 px-4 border-r border-border last:border-r-0 text-foreground/90 whitespace-nowrap overflow-hidden text-ellipsis relative"
+                                                        className={cn(
+                                                            "h-8 px-4 border-r border-border last:border-r-0 text-foreground/90 whitespace-nowrap overflow-hidden text-ellipsis relative",
+                                                            cell.column.id === selectedColId && "bg-amber-500/10",
+                                                            isCellSelected && "ring-1 ring-inset ring-amber-500",
+                                                        )}
+                                                        onClick={() => setSelectedCell({ rowIdx: idx, colId: cell.column.id })}
+                                                        onDoubleClick={() =>
+                                                            fn.tableName &&
+                                                            setEditingCell({
+                                                                rowIdx: idx,
+                                                                col: cell.column.id,
+                                                                value: rowData[cell.column.id] === null
+                                                                    ? ""
+                                                                    : String(rowData[cell.column.id] ?? ""),
+                                                            })
+                                                        }
+                                                        onContextMenu={(e) => {
+                                                            e.preventDefault();
+                                                            const rect = e.currentTarget.getBoundingClientRect();
+                                                            setSelectedCell({ rowIdx: idx, colId: cell.column.id });
+                                                            setContextMenuCell({ x: rect.left, y: rect.bottom, rowIdx: idx, col: cell.column.id, rowData });
+                                                        }}
                                                     >
                                                         {flexRender(
-                                                            cell.column
-                                                                .columnDef.cell,
+                                                            cell.column.columnDef.cell,
                                                             cell.getContext(),
                                                         )}
                                                     </TableCell>
-                                                ))}
-                                        </TableRow>
-                                    ))
+                                                    );
+                                                })}
+                                            </TableRow>
+                                        );
+                                    })
                                 )}
                             </TableBody>
                         </Table>
                     </div>
                 </div>
+            )}
+            {/* Row/cell context menu — portal-rendered at exact cell position */}
+            {contextMenuCell && createPortal(
+                <div
+                    className="fixed inset-0 z-[9999]"
+                    onClick={() => { setContextMenuCell(null); setShowQFSubmenu(false); }}
+                    onContextMenu={(e) => { e.preventDefault(); setContextMenuCell(null); setShowQFSubmenu(false); }}
+                >
+                    {(() => {
+                        const { x, y, rowIdx, col, rowData } = contextMenuCell;
+                        const cellValue = col !== null ? rowData[col] : null;
+                        const menuW = 224;
+                        const menuH = fn.tableName ? 480 : 340;
+                        const left = Math.min(x, window.innerWidth - menuW - 8);
+                        const top = y + menuH > window.innerHeight - 8 ? Math.max(8, y - menuH) : y;
+
+                        const close = () => { setContextMenuCell(null); setShowQFSubmenu(false); };
+                        const item = (
+                            label: string,
+                            action: () => void,
+                            shortcut?: string,
+                            destructive?: boolean,
+                            disabled?: boolean,
+                        ) => (
+                            <button
+                                key={label}
+                                disabled={disabled}
+                                className={cn(
+                                    "w-full flex items-center justify-between rounded-md px-2 py-1.5 text-left cursor-default select-none transition-colors focus:outline-none disabled:opacity-40 disabled:pointer-events-none",
+                                    destructive
+                                        ? "text-destructive hover:bg-destructive/10"
+                                        : "hover:bg-accent hover:text-accent-foreground",
+                                )}
+                                onClick={() => { action(); close(); }}
+                            >
+                                <span>{label}</span>
+                                {shortcut && <span className="ml-6 text-xs text-muted-foreground">{shortcut}</span>}
+                            </button>
+                        );
+                        const sep = (k: string) => <div key={k} className="-mx-1 my-1 h-px bg-border" />;
+
+                        const qfOps: Array<{ label: string; op: FilterOp; value: string }> = col ? [
+                            { label: `= "${String(cellValue ?? "")}"`, op: "=", value: String(cellValue ?? "") },
+                            { label: `≠ "${String(cellValue ?? "")}"`, op: "!=", value: String(cellValue ?? "") },
+                            { label: `Contains "${String(cellValue ?? "")}"`, op: "LIKE", value: String(cellValue ?? "") },
+                            { label: "IS NULL", op: "IS NULL", value: "" },
+                            { label: "IS NOT NULL", op: "IS NOT NULL", value: "" },
+                        ] : [];
+
+                        return (
+                            <div
+                                className="absolute z-[9999] min-w-[14rem] rounded-lg bg-popover text-popover-foreground shadow-md ring-1 ring-foreground/10 p-1 text-[13px] animate-in fade-in-0 zoom-in-95 duration-100"
+                                style={{ left, top }}
+                                onClick={(e) => e.stopPropagation()}
+                            >
+                                {/* Edit in modal */}
+                                {item("Edit in modal", () => col && editCellInModal(rowIdx, col, rowData[col]), "⇧Enter", false, !col || !fn.tableName)}
+                                {/* Set as NULL */}
+                                {fn.tableName && col && item("Set as NULL", () => setNullCell(rowData, col))}
+                                {/* Quick Filter submenu */}
+                                {col && (
+                                    <div className="relative">
+                                        <button
+                                            className="w-full flex items-center justify-between rounded-md px-2 py-1.5 text-left cursor-default select-none transition-colors hover:bg-accent hover:text-accent-foreground"
+                                            onMouseEnter={() => setShowQFSubmenu(true)}
+                                            onClick={(e) => { e.stopPropagation(); setShowQFSubmenu((v) => !v); }}
+                                        >
+                                            <span>Quick Filter</span>
+                                            <span className="ml-6 text-xs text-muted-foreground">›</span>
+                                        </button>
+                                        {showQFSubmenu && (
+                                            <div
+                                                className="absolute left-full top-0 ml-1 min-w-[13rem] rounded-lg bg-popover text-popover-foreground shadow-md ring-1 ring-foreground/10 p-1 text-[13px]"
+                                                style={{ left: left + menuW + 4 > window.innerWidth - 8 ? -4 : "100%" }}
+                                                onMouseLeave={() => setShowQFSubmenu(false)}
+                                                onClick={(e) => e.stopPropagation()}
+                                            >
+                                                {qfOps.map((op) => (
+                                                    <button
+                                                        key={op.label}
+                                                        className="w-full flex items-center rounded-md px-2 py-1.5 text-left cursor-default select-none transition-colors hover:bg-accent hover:text-accent-foreground truncate text-[12px] font-mono"
+                                                        onClick={() => {
+                                                            setFilters([{ id: `f-${Date.now()}`, col: col!, op: op.op, value: op.value, join: "AND" }]);
+                                                            setShowFilterBar(true);
+                                                            close();
+                                                        }}
+                                                    >
+                                                        {op.label}
+                                                    </button>
+                                                ))}
+                                            </div>
+                                        )}
+                                    </div>
+                                )}
+                                {sep("s0")}
+                                {/* Cell copy operations */}
+                                {item("Copy", () => col && copyToClipboard(String(cellValue ?? "")), "⌘C", false, !col)}
+                                {item("Copy Column Name", () => col && copyToClipboard(col), undefined, false, !col)}
+                                {item("Copy as TSV for Excel", () => col && copyCellAsTSV(col, cellValue), undefined, false, !col)}
+                                {item("Copy as JSON", () => col && copyCellAsJSON(col, cellValue), undefined, false, !col)}
+                                {item("Copy as Markdown", () => col && copyCellAsMarkdown(col, cellValue), undefined, false, !col)}
+                                {item("Copy as SQL", () => copyCellAsSQL(cellValue), undefined, false, !col)}
+                                {item("Copy for IN statement", () => copyCellForIN(cellValue), undefined, false, !col)}
+                                {sep("s1")}
+                                {item("Paste", () => col && pasteToCell(rowIdx, col), "⌘V", false, !col || !fn.tableName)}
+                                {fn.tableName && item("Clone row", () => cloneRow(rowData), "⌘D")}
+                                {fn.tableName && item("Delete row", () => buildAndShowDeleteSql(rowData), "Del", true)}
+                                {sep("s2")}
+                                {item("See details", () => { setSelectedRowIdx(rowIdx); setViewMode("form"); })}
+                            </div>
+                        );
+                    })()}
+                </div>,
+                document.body,
+            )}
+            {/* Column header context menu — portal-rendered at exact cursor position */}
+            {colCtxMenu && createPortal(
+                <div
+                    className="fixed inset-0 z-[9999]"
+                    onClick={() => setColCtxMenu(null)}
+                    onContextMenu={(e) => { e.preventDefault(); setColCtxMenu(null); }}
+                >
+                    <div
+                        className="absolute z-[9999] min-w-[14rem] rounded-lg bg-popover text-popover-foreground shadow-md ring-1 ring-foreground/10 p-1 text-[13px] animate-in fade-in-0 zoom-in-95 duration-100"
+                        style={{
+                            left: Math.min(colCtxMenu.x, window.innerWidth - 234),
+                            top: colCtxMenu.y,
+                        }}
+                        onClick={(e) => e.stopPropagation()}
+                    >
+                        {(() => {
+                            const { colId } = colCtxMenu;
+                            const colSize = table.getColumn(colId)?.getSize() ?? 150;
+                            const item = (label: string, action: () => void, shortcut?: string, destructive?: boolean) => (
+                                <button
+                                    key={label}
+                                    className={cn(
+                                        "w-full flex items-center justify-between rounded-md px-2 py-1.5 text-left cursor-default select-none transition-colors focus:outline-none",
+                                        destructive
+                                            ? "text-destructive hover:bg-destructive/10"
+                                            : "hover:bg-accent hover:text-accent-foreground",
+                                    )}
+                                    onClick={() => { action(); setColCtxMenu(null); }}
+                                >
+                                    <span>{label}</span>
+                                    {shortcut && <span className="ml-4 text-xs text-muted-foreground">{shortcut}</span>}
+                                </button>
+                            );
+                            const sep = (k: string) => <div key={k} className="-mx-1 my-1 h-px bg-border" />;
+                            return [
+                                fn.tableName && item("Set as NULL", () => setColumnNullConfirmCol(colId), undefined, true),
+                                fn.tableName && sep("s0"),
+                                item("Copy", () => copyColValues(colId), "⌘C"),
+                                item("Copy column name", () => copyToClipboard(colId)),
+                                item("Copy as TSV for Excel", () => copyColAsTSV(colId)),
+                                item("Copy as JSON", () => copyColAsJSON(colId)),
+                                item("Copy as Markdown", () => copyColAsMarkdown(colId)),
+                                item("Copy as SQL", () => copyColAsSQL(colId)),
+                                item("Copy for IN statement", () => copyColForIN(colId)),
+                                sep("s1"),
+                                item("Sort ascending", () => setSorting([{ id: colId, desc: false }])),
+                                item("Sort descending", () => setSorting([{ id: colId, desc: true }])),
+                                sep("s2"),
+                                item("Resize all columns to match", () => resizeAllToMatch(colSize)),
+                                item("Resize all columns to fit content", () => resizeAllToFitContent()),
+                                item("Resize all columns to fixed width", () => setColumnSizing({})),
+                                sep("s3"),
+                                item(`Hide ${colId}`, () => setColumnVisibility((v) => ({ ...v, [colId]: false }))),
+                                item("Reset layout", () => resetLayout()),
+                                item("Open column filter", () => openFilterForCol(colId)),
+                            ];
+                        })()}
+                    </div>
+                </div>,
+                document.body,
             )}
             {/* Delete row confirmation dialog */}
             <AlertDialog
@@ -1727,6 +2177,192 @@ function TableGridView({
                             className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
                         >
                             {deleteRowLoading ? "Deleting…" : "Delete"}
+                        </AlertDialogAction>
+                    </AlertDialogFooter>
+                </AlertDialogContent>
+            </AlertDialog>
+            {/* Edit in modal */}
+            <Dialog
+                open={!!cellModal}
+                onOpenChange={(o) => { if (!o) setCellModal(null); }}
+            >
+                <DialogContent
+                    className="sm:max-w-5xl w-full p-0 gap-0 overflow-hidden rounded-xl border border-border bg-[#1a1a1a]"
+                    onPointerDownOutside={(e) => e.preventDefault()}
+                    showCloseButton={false}
+                >
+                    <DialogTitle className="sr-only">Edit cell value</DialogTitle>
+                    <DialogDescription className="sr-only">
+                        Edit the cell value with syntax highlighting. Choose format and apply to save.
+                    </DialogDescription>
+                    {/* Header */}
+                    <div className="flex items-center gap-3 px-5 py-3 border-b border-border/50">
+                        <span className="text-sm font-semibold text-foreground">Editing as</span>
+                        {/* Format dropdown */}
+                        <div className="relative">
+                            <button
+                                className="flex items-center gap-2 rounded-lg border border-border bg-muted/40 px-3 py-1.5 text-sm text-foreground hover:bg-muted/70 transition-colors min-w-[100px] justify-between"
+                                onClick={() => { setCellModalFormatOpen((v) => !v); setCellModalGearOpen(false); }}
+                            >
+                                <span>{cellModalFormat}</span>
+                                <ChevronDown size={13} className="text-muted-foreground" />
+                            </button>
+                            {cellModalFormatOpen && (
+                                <div className="absolute left-0 top-full mt-1 z-50 min-w-[120px] rounded-lg border border-border bg-popover shadow-lg p-1 text-sm">
+                                    {(["Text", "JSON", "HTML"] as const).map((fmt) => (
+                                        <button
+                                            key={fmt}
+                                            className={cn(
+                                                "w-full flex items-center gap-2 px-3 py-1.5 rounded-md text-left hover:bg-accent hover:text-accent-foreground transition-colors",
+                                                cellModalFormat === fmt && "text-foreground font-medium",
+                                            )}
+                                            onClick={() => { setCellModalFormat(fmt); setCellModalFormatOpen(false); }}
+                                        >
+                                            {cellModalFormat === fmt && <Check size={12} />}
+                                            {cellModalFormat !== fmt && <span className="w-3" />}
+                                            {fmt}
+                                        </button>
+                                    ))}
+                                </div>
+                            )}
+                        </div>
+                        {/* Spacer */}
+                        <div className="flex-1" />
+                        {/* Gear / settings dropdown */}
+                        <div className="relative">
+                            <button
+                                className="flex items-center gap-1.5 rounded-lg border border-border bg-muted/40 px-3 py-1.5 text-sm text-foreground hover:bg-muted/70 transition-colors"
+                                onClick={() => { setCellModalGearOpen((v) => !v); setCellModalFormatOpen(false); }}
+                            >
+                                <Settings size={14} />
+                                <ChevronDown size={12} className="text-muted-foreground" />
+                            </button>
+                            {cellModalGearOpen && (
+                                <div className="absolute right-0 top-full mt-1 z-50 min-w-[160px] rounded-lg border border-border bg-popover shadow-lg p-1 text-sm">
+                                    <button
+                                        className="w-full flex items-center gap-2 px-3 py-1.5 rounded-md text-left hover:bg-accent hover:text-accent-foreground transition-colors"
+                                        onClick={() => {
+                                            if (cellModalFormat === "JSON" && cellModal) {
+                                                try {
+                                                    const parsed = JSON.parse(cellModal.value);
+                                                    setCellModal({ ...cellModal, value: JSON.stringify(parsed) });
+                                                } catch { /* not valid JSON, ignore */ }
+                                            }
+                                            setCellModalGearOpen(false);
+                                        }}
+                                    >
+                                        <Minimize2 size={13} className="text-muted-foreground" />
+                                        Minify text
+                                    </button>
+                                    <button
+                                        className="w-full flex items-center gap-2 px-3 py-1.5 rounded-md text-left hover:bg-accent hover:text-accent-foreground transition-colors"
+                                        onClick={() => { setCellModalWrap((v) => !v); setCellModalGearOpen(false); }}
+                                    >
+                                        {cellModalWrap ? (
+                                            <Check size={13} className="text-foreground" />
+                                        ) : (
+                                            <span className="w-[13px]" />
+                                        )}
+                                        <WrapText size={13} className="text-muted-foreground" />
+                                        Wrap Text
+                                    </button>
+                                </div>
+                            )}
+                        </div>
+                        {/* Close button */}
+                        <button
+                            className="ml-1 flex items-center justify-center rounded-md w-7 h-7 text-muted-foreground hover:bg-muted/60 hover:text-foreground transition-colors"
+                            onClick={() => setCellModal(null)}
+                        >
+                            <X size={15} />
+                        </button>
+                    </div>
+
+                    {/* CodeMirror editor */}
+                    <div
+                        className="overflow-hidden"
+                        style={{ minHeight: 320, maxHeight: 480 }}
+                        onClick={() => { setCellModalFormatOpen(false); setCellModalGearOpen(false); }}
+                    >
+                        {cellModal && (
+                            <CodeMirror
+                                value={cellModal.value}
+                                onChange={(val) => setCellModal({ ...cellModal, value: val })}
+                                theme={oneDark}
+                                extensions={[
+                                    cellModalFormat === "JSON" ? jsonLang() :
+                                    cellModalFormat === "HTML" ? htmlLang() :
+                                    [],
+                                    cellModalWrap ? EditorView.lineWrapping : [],
+                                ].flat()}
+                                style={{ fontSize: 13, height: "100%", minHeight: 320, maxHeight: 480 }}
+                                height="100%"
+                                minHeight="320px"
+                                maxHeight="480px"
+                                basicSetup={{
+                                    lineNumbers: true,
+                                    foldGutter: false,
+                                    highlightActiveLine: true,
+                                    autocompletion: true,
+                                }}
+                            />
+                        )}
+                    </div>
+
+                    {/* Footer */}
+                    <div className="flex items-center justify-end gap-2 px-5 py-3 border-t border-border/50 bg-[#1a1a1a]">
+                        <Button
+                            variant="ghost"
+                            size="sm"
+                            className="px-5"
+                            onClick={() => setCellModal(null)}
+                        >
+                            Cancel
+                        </Button>
+                        <Button
+                            variant="outline"
+                            size="sm"
+                            className="px-5"
+                            onClick={() => cellModal && copyToClipboard(cellModal.value)}
+                        >
+                            Copy
+                        </Button>
+                        <Button
+                            size="sm"
+                            className="px-6"
+                            disabled={cellEditLoading}
+                            onClick={applyCellModal}
+                        >
+                            {cellEditLoading ? <Loader2 size={13} className="animate-spin mr-1" /> : null}
+                            Apply
+                        </Button>
+                    </div>
+                </DialogContent>
+            </Dialog>
+            {/* Column set-null confirmation */}
+            <AlertDialog
+                open={!!columnNullConfirmCol}
+                onOpenChange={(o) => !o && setColumnNullConfirmCol(null)}
+            >
+                <AlertDialogContent className="max-w-md">
+                    <AlertDialogHeader>
+                        <AlertDialogTitle>Set entire column to NULL?</AlertDialogTitle>
+                        <AlertDialogDescription>
+                            This will set <strong>all</strong> values in column{" "}
+                            <strong>"{columnNullConfirmCol}"</strong> to NULL for every row in the
+                            table. This cannot be undone.
+                            <pre className="mt-2 rounded bg-muted p-2 text-xs font-mono overflow-x-auto whitespace-pre-wrap break-all">
+                                {`UPDATE "${fn.tableName}" SET "${columnNullConfirmCol}" = NULL`}
+                            </pre>
+                        </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                        <AlertDialogCancel>Cancel</AlertDialogCancel>
+                        <AlertDialogAction
+                            onClick={executeColumnNull}
+                            className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                        >
+                            Set NULL
                         </AlertDialogAction>
                     </AlertDialogFooter>
                 </AlertDialogContent>

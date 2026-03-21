@@ -38,6 +38,7 @@ Legend: `[x]` Done · `[~]` Partial · `[ ]` Not started
 - [~] SSL or TLS encryption — `ssl` field exists in `ConnectionConfig` but not wired into drivers
 - [x] Credential management — passwords stored encrypted via AES (`src/lib/encryption.ts`)
 - [x] Secure password storage — AES encryption on save/load; note: default key is hardcoded — see Storage Improvements below
+- [x] Test connection — "Test Connection" button in ConnectionDialog validates credentials before saving
 
 ---
 
@@ -70,6 +71,7 @@ Legend: `[x]` Done · `[~]` Partial · `[ ]` Not started
 - [x] Inline editing — double-click cell generates UPDATE with primary key WHERE clause
 - [x] Form view — single-row vertical key→value editor with prev/next navigation, inline double-click editing, and per-row delete
 - [x] Pagination — configurable rows per page (25/50/100/200) with navigation controls in table footer
+- [x] Column resizing — drag column header borders to resize; widths stored in local state
 - [x] Insert rows — via CSV/JSON import panel (batched INSERT statements, 200 rows/batch)
 - [x] Update rows — inline cell editing with auto-generated UPDATE
 - [x] Delete rows — trash icon per row opens a confirmation dialog with generated DELETE SQL; executes on confirm
@@ -142,7 +144,7 @@ Legend: `[x]` Done · `[~]` Partial · `[ ]` Not started
 ### Productivity
 
 - [x] TitleBar back navigation — back button for nested view navigation with drag region support
-- [x] Keyboard shortcuts — ⌘K (command palette), ⌘↵ (execute SQL), Esc (cancel edit)
+- [x] Keyboard shortcuts — ⌘K (command palette), ⌘↵ (execute SQL), ⌘T (new tab), ⌘W (close tab), Esc (cancel edit)
 - [x] Command palette — fuzzy search across all functions grouped by connection prefix
 - [x] Quick navigation — sidebar tree + command palette cover all navigation needs
 
@@ -157,6 +159,9 @@ Legend: `[x]` Done · `[~]` Partial · `[ ]` Not started
 - [x] Split view layout — `react-resizable-panels` for sidebar/main split + editor/results vertical split
 - [x] Sidebar navigation — collapsible connection tree with DB logos, table list, quick access
 - [x] Resizable panels — drag-to-resize sidebar and editor/results panels
+- [x] Settings dialog — multi-section settings (Appearance, Editor, Table, Storage, About) with persistent preferences; accessible via TitleBar gear icon and Command Palette
+- [x] UI zoom levels — 5 zoom options (80%, 90%, 100%, 110%, 125%) for accessibility via Settings › Appearance
+- [x] Onboarding experience — first-run welcome flow with DB type selection, feature showcase cards, and setup guidance; skippable
 
 ---
 
@@ -273,16 +278,16 @@ Legend: `[x]` Done · `[~]` Partial · `[ ]` Not started
 
 ## Progress Summary
 
-_Last audited: 2026-03-20. Counts reflect actual codebase state, not just todo entries._
+_Last audited: 2026-03-21. Counts reflect actual codebase state, not just todo entries._
 
 | Category | Done | Partial | Todo |
 |---|---|---|---|
 | Connections | 6 | 2 | 2 |
 | Storage | 6 | 0 | 0 |
-| Security | 2 | 1 | 1 |
+| Security | 3 | 1 | 1 |
 | Query Editor | 6 | 0 | 0 |
 | Table Management | 6 | 0 | 1 |
-| Data Viewer | 7 | 0 | 0 |
+| Data Viewer | 8 | 0 | 0 |
 | Filtering | 3 | 1 | 0 |
 | Workspace | 3 | 0 | 0 |
 | Import/Export | 5 | 0 | 0 |
@@ -291,7 +296,7 @@ _Last audited: 2026-03-20. Counts reflect actual codebase state, not just todo e
 | DB Management | 0 | 0 | 3 |
 | Performance | 2 | 0 | 1 |
 | Productivity | 4 | 0 | 0 |
-| UI/UX | 7 | 0 | 0 |
+| UI/UX | 10 | 0 | 0 |
 | Code Generation | 0 | 0 | 2 |
 | Versioning | 0 | 0 | 2 |
 | Logs | 1 | 1 | 1 |
@@ -303,9 +308,9 @@ _Last audited: 2026-03-20. Counts reflect actual codebase state, not just todo e
 | Plugin System | 0 | 0 | 3 |
 | DevOps | 0 | 0 | 2 |
 | Cloud | 2 | 1 | 1 |
-| **Total** | **64** | **8** | **37** |
+| **Total** | **69** | **8** | **36** |
 
-**~58% of planned features implemented.** DDL surface is now complete (Create/Alter/Drop/Rename table + Create/Drop index). Core client (connect, query, browse, edit, filter, import/export) is solid. Key remaining work: full-text cell search, SSL/TLS wiring, group connections, SSH tunneling.
+**~61% of planned features implemented.** DDL surface is complete (Create/Alter/Drop/Rename table + Create/Drop index). Core client (connect, query, browse, edit, filter, import/export, column resizing) is solid. Settings dialog, onboarding, and UI zoom are now tracked. Key remaining work: SSL/TLS wiring, group connections, SSH tunneling.
 
 ---
 
@@ -320,7 +325,7 @@ _Last audited: 2026-03-20. Counts reflect actual codebase state, not just todo e
 
 ### Tier 1 — High Value, Low Effort (Frontend only)
 - [x] **Full-text cell search** — Search icon button + ⌘F shortcut; thin bar above filter bar; filters `effectiveResult.rows` client-side across all columns; "N of M" count badge; Escape closes; resets on new query
-- [ ] **Column resizing** — drag column header borders to resize; TanStack Table `columnResizing` plugin; widths stored in local state
+- [x] **Column resizing** — drag column header borders to resize; TanStack Table `columnResizing` plugin; widths stored in local state
 
 ### Tier 2 — High Value, Medium Effort
 - [ ] **SSL/TLS wiring** — `ssl` field is already stored in SQLite and passed to Rust; needs to be applied to `PgPoolOptions` / `MySqlPoolOptions` via `sqlx::postgres::PgSslMode` / `MySqlSslMode`; no frontend changes
