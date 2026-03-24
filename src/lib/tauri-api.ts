@@ -1,5 +1,5 @@
 import { invoke } from "@tauri-apps/api/core";
-import { ConnectionConfig, QueryHistoryEntry, QueryResult, SavedQuery, TableInfo, TableStructure } from "@/types";
+import { ConnectionConfig, ExportOptions, ImportOptions, ImportResult, QueryHistoryEntry, QueryResult, SavedQuery, TableInfo, TableStructure } from "@/types";
 
 export const tauriApi = {
   // ── DB driver ──────────────────────────────────────────────────────────────
@@ -86,5 +86,51 @@ export const tauriApi = {
 
   async storageClearAllHistory(): Promise<void> {
     await invoke("storage_clear_all_history");
+  },
+
+  // ── Import / Export ────────────────────────────────────────────────────────
+
+  async exportConnections(opts: ExportOptions): Promise<string> {
+    return await invoke("export_connections", { opts });
+  },
+
+  async importConnections(content: string, opts: ImportOptions): Promise<ImportResult> {
+    return await invoke("import_connections", { content, opts });
+  },
+
+  async parseConnectionUri(uri: string): Promise<ConnectionConfig> {
+    return await invoke("parse_connection_uri", { uri });
+  },
+
+  async checkExportProtected(content: string): Promise<boolean> {
+    return await invoke("check_export_protected", { content });
+  },
+
+  async saveFileDialog(
+    defaultName: string,
+    filters: Array<{ name: string; extensions: string[] }>
+  ): Promise<string | null> {
+    const { save } = await import("@tauri-apps/plugin-dialog");
+    return await save({ defaultPath: defaultName, filters });
+  },
+
+  async openFileDialog(
+    filters: Array<{ name: string; extensions: string[] }>
+  ): Promise<string | null> {
+    const { open } = await import("@tauri-apps/plugin-dialog");
+    const result = await open({ multiple: false, filters });
+    if (typeof result === "string") return result;
+    if (Array.isArray(result)) return result[0] ?? null;
+    return null;
+  },
+
+  async writeTextFile(path: string, content: string): Promise<void> {
+    const { writeTextFile } = await import("@tauri-apps/plugin-fs");
+    await writeTextFile(path, content);
+  },
+
+  async readTextFile(path: string): Promise<string> {
+    const { readTextFile } = await import("@tauri-apps/plugin-fs");
+    return await readTextFile(path);
   },
 };

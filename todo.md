@@ -12,12 +12,12 @@ Legend: `[x]` Done · `[~]` Partial · `[ ]` Not started
 - [x] MySQL support — SQLx driver in `src-tauri/src/db/mysql.rs`
 - [x] PostgreSQL support — SQLx driver in `src-tauri/src/db/postgres.rs`
 - [x] SQLite support — SQLx driver in `src-tauri/src/db/sqlite.rs`
-- [~] MongoDB support — basic driver in `src-tauri/src/db/mongodb.rs`; connect/list collections works but `run_query()` and `get_table_data()` are stubs (no real query results)
+- [x] MongoDB support — full driver in `src-tauri/src/db/mongodb.rs`; `run_query()` handles SQL UPDATE/DELETE mapped to MongoDB ops; `get_table_data()` paginates collections
 - [x] Redis support — basic driver in `src-tauri/src/db/redis_driver.rs` (key-value command execution)
 - [ ] SQL Server support — no driver; not in roadmap yet
 - [x] Save connections — AES-encrypted in localStorage (`db_connections_v3`)
-- [ ] Group connections (dev, staging, prod) — connections are flat in sidebar; no tagging or grouping
-- [~] Quick connect — URI/connection string field supported; no one-click presets
+- [x] Group connections (dev, staging, prod) — optional `group` field on `ConnectionConfig`; persisted in SQLite `group_name` column; sidebar renders collapsible group headers with folder icons
+- [x] Quick connect — one-click preset chips (Local PG, Local MySQL, SQLite, MongoDB, Redis) at top of ConnectionDialog; clicking fills engine + connection fields automatically
 
 ---
 

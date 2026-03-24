@@ -15,7 +15,7 @@
 	--secondary: oklch(0.945 0 0);  /* subtle hover surface        */
 	--secondary-foreground: oklch(0.13 0 0);
 	--muted: oklch(0.945 0 0);      /* subtle muted bg             */
-	--muted-foreground: oklch(0.45 0 0); /* #6a6a6a  muted text    */
+	--muted-foreground: oklch(0.22 0 0); /* #333333  secondary text  */
 	--accent: oklch(0.52 0.13 265); /* muted indigo                */
 	--accent-foreground: oklch(0.98 0 0);
 	--destructive: oklch(0.6269 0.2966 25.33); /* #ff003c  error   */
@@ -117,7 +117,7 @@
 	--secondary: oklch(0.21 0 0);   /* subtle hover surface         */
 	--secondary-foreground: oklch(0.92 0 0);
 	--muted: oklch(0.21 0 0);       /* subtle muted bg              */
-	--muted-foreground: oklch(0.58 0 0); /* #888888  muted text     */
+	--muted-foreground: oklch(0.86 0 0); /* #dcdcdc  secondary text  */
 	--accent: oklch(0.68 0.11 265); /* muted indigo                 */
 	--accent-foreground: oklch(0.10 0 0);
 	--destructive: oklch(0.6269 0.2966 25.33); /* #ff003c           */
@@ -290,6 +290,11 @@
 		letter-spacing: var(--tracking-normal);
 	}
 
+	input::placeholder,
+	textarea::placeholder {
+		color: color-mix(in oklch, var(--muted-foreground) 30%, transparent);
+	}
+
 	html,
 	body {
 		height: 100%;
@@ -302,21 +307,6 @@
 	}
 }
 
-/* ── Command palette item overrides ── */
-[cmdk-item] {
-    background-color: var(--card) !important;
-    border-color: var(--border) !important;
-}
-
-[cmdk-item]:hover {
-    background-color: var(--muted) !important;
-}
-
-[cmdk-item][data-selected="true"] {
-    background-color: oklch(from var(--primary) l c h / 0.10) !important;
-    border-color: oklch(from var(--primary) l c h / 0.70) !important;
-    color: var(--primary) !important;
-}
 
 @layer utilities {
 	.no-scrollbar {

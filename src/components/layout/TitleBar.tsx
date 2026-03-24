@@ -22,6 +22,7 @@ import {
 	DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { cn } from "@/lib/utils";
+import { GROUP_PRESETS } from "@/components/layout/ConnectionDialog";;
 import type { ConnectionConfig } from "@/types";
 
 // Inline styles — only reliable way to set -webkit-app-region in Tauri 2
@@ -166,6 +167,17 @@ const TitleBar = () => {
 						<span className="font-mono text-[12px] font-bold text-foreground shrink-0">
 							{activeConn.name}
 						</span>
+						{activeConn.group && (() => {
+							const preset = GROUP_PRESETS.find(p => p.id === activeConn.group);
+							return (
+								<span className={cn(
+									"shrink-0 px-1.5 h-[14px] flex items-center rounded text-[8px] font-bold uppercase tracking-wide border",
+									preset ? preset.activeClass : "bg-muted/50 border-border/50 text-muted-foreground/60"
+								)}>
+									{activeConn.group}
+								</span>
+							);
+						})()}
 						{displayUrl && (
 							<span className="font-mono text-[11px] text-muted-foreground/50 truncate">
 								{displayUrl}
@@ -308,6 +320,17 @@ const TitleBar = () => {
 														Active
 													</span>
 												)}
+												{conn.group && (() => {
+													const preset = GROUP_PRESETS.find(p => p.id === conn.group);
+													return (
+														<span className={cn(
+															"shrink-0 px-1.5 h-[14px] flex items-center rounded text-[8px] font-bold uppercase tracking-wide border",
+															preset ? preset.activeClass : "bg-muted/50 border-border/50 text-muted-foreground/60"
+														)}>
+															{conn.group}
+														</span>
+													);
+												})()}
 											</div>
 											<p className="text-[10px] font-mono text-muted-foreground/50 truncate mt-0.5">
 												{url}

@@ -1,5 +1,16 @@
 import * as React from "react";
-import { Moon, Sun, Plus } from "lucide-react";
+import {
+    Moon, Sun, Plus,
+    List, Info, Code2, Zap, Table2, LayoutGrid,
+    Database, Settings,
+} from "lucide-react";
+import {
+    SiPostgresql,
+    SiMysql,
+    SiSqlite,
+    SiMongodb,
+    SiRedis,
+} from "react-icons/si";
 import {
     CommandDialog,
     CommandEmpty,
@@ -15,23 +26,30 @@ import { useAppStore } from "@/store/useAppStore";
 import { ConnectionFunction } from "@/types";
 import { filterFunctions } from "@/lib/db-functions";
 
-const TYPE_LABEL: Record<string, string> = {
-    list:    "list",
-    src:     "src",
-    query:   "query",
-    execute: "exec",
-    tbl:     "tbl",
-    table:   "table",
+const DB_ICON: Record<string, React.FC<{ className?: string }>> = {
+    postgresql: ({ className }) => <SiPostgresql className={className} />,
+    mysql:      ({ className }) => <SiMysql      className={className} />,
+    sqlite:     ({ className }) => <SiSqlite     className={className} />,
+    mongodb:    ({ className }) => <SiMongodb    className={className} />,
+    redis:      ({ className }) => <SiRedis      className={className} />,
 };
 
-// Neon color per function type
-const TYPE_COLOR: Record<string, string> = {
-    list:    "text-accent-purple/70 border-accent-purple/20",
-    src:     "text-muted-foreground/40 border-border",
-    query:   "text-primary/80 border-primary/25",
-    execute: "text-accent-orange/80 border-accent-orange/25",
-    tbl:     "text-accent-blue/80 border-accent-blue/25",
-    table:   "text-accent-blue/80 border-accent-blue/25",
+const DB_COLOR: Record<string, string> = {
+    postgresql: "text-blue-400",
+    mysql:      "text-cyan-400",
+    sqlite:     "text-slate-400",
+    mongodb:    "text-emerald-400",
+    redis:      "text-red-400",
+};
+
+// Unique icon + color per function type
+const TYPE_ICON: Record<string, { icon: React.FC<{ size?: number; className?: string }>; color: string }> = {
+    list:    { icon: List,       color: "text-accent-purple/70" },
+    src:     { icon: Info,       color: "text-muted-foreground/40" },
+    query:   { icon: Code2,      color: "text-primary/70" },
+    execute: { icon: Zap,        color: "text-accent-orange/70" },
+    tbl:     { icon: Table2,     color: "text-accent-blue/70" },
+    table:   { icon: LayoutGrid, color: "text-accent-blue/60" },
 };
 
 export function CommandPalette() {
@@ -113,10 +131,17 @@ export function CommandPalette() {
 
                 {Array.from(grouped.entries()).map(([prefix, fns], groupIdx) => {
                     const conn = connections.find((c) => c.prefix === prefix);
+                    const Icon = conn ? DB_ICON[conn.type] : undefined;
+                    const iconColor = conn ? DB_COLOR[conn.type] : "";
                     return (
                         <React.Fragment key={prefix}>
                             {groupIdx > 0 && <CommandSeparator />}
-                            <CommandGroup heading={conn?.name ?? prefix}>
+                            <CommandGroup heading={
+                                <span className="flex items-center gap-1.5">
+                                    {Icon && <Icon className={`size-3 ${iconColor}`} />}
+                                    {conn?.name ?? prefix}
+                                </span>
+                            }>
                                 {fns.map((fn) => {
                                     const name =
                                         fn.type === "table"
@@ -124,26 +149,30 @@ export function CommandPalette() {
                                             : fn.callSignature
                                                   .slice(fn.prefix.length + 1)
                                                   .replace(/\(.*$/, "");
+                                    const typeEntry = TYPE_ICON[fn.type];
+                                    const TypeIcon = typeEntry?.icon;
                                     return (
                                         <CommandItem
                                             key={fn.id}
                                             value={fn.callSignature}
                                             onSelect={() => handleSelect(fn)}
-                                            className="border-border bg-card"
                                         >
+                                            {TypeIcon && (
+                                                <TypeIcon
+                                                    size={13}
+                                                    className={`shrink-0 ${typeEntry.color}`}
+                                                />
+                                            )}
                                             <div className="flex flex-col flex-1 min-w-0">
-                                                <span className="text-[12px] font-sans font-medium text-foreground leading-tight">
+                                                <span className="text-[13px] font-medium leading-tight">
                                                     {name}
                                                 </span>
                                                 {fn.description && (
-                                                    <span className="text-[10px] font-sans text-muted-foreground/40 mt-0.5 leading-tight truncate">
+                                                    <span className="text-xs text-muted-foreground/40 mt-0.5 leading-tight truncate">
                                                         {fn.description}
                                                     </span>
                                                 )}
                                             </div>
-                                            <span className={`text-[9px] font-label font-bold uppercase tracking-widest shrink-0 px-1.5 py-0.5 border ${TYPE_COLOR[fn.type] ?? "text-muted-foreground/30 border-border"}`}>
-                                                {TYPE_LABEL[fn.type] ?? fn.type}
-                                            </span>
                                         </CommandItem>
                                     );
                                 })}
@@ -155,19 +184,23 @@ export function CommandPalette() {
                 {allFunctions.length === 0 && connectedIds.length === 0 && (
                     <>
                         <CommandSeparator />
-                        <CommandGroup heading="Connections">
+                        <CommandGroup heading={
+                            <span className="flex items-center gap-1.5">
+                                <Database size={11} className="text-muted-foreground/50" />
+                                Connections
+                            </span>
+                        }>
                             <CommandItem
                                 onSelect={() => {
                                     setEditingConnection(null);
                                     setConnectionDialogOpen(true);
                                     setCommandPaletteOpen(false);
                                 }}
-                                className="border-border bg-card"
                             >
-                                <Plus size={12} className="text-primary/60 shrink-0" />
+                                <Plus size={13} className="text-muted-foreground/50 shrink-0" />
                                 <div className="flex flex-col flex-1">
-                                    <span className="text-[12px] font-sans font-medium">Add New Connection</span>
-                                    <span className="text-[10px] font-sans text-muted-foreground/40">Connect to a database</span>
+                                    <span className="text-[13px] font-medium">Add New Connection</span>
+                                    <span className="text-xs text-muted-foreground/40">Connect to a database</span>
                                 </div>
                             </CommandItem>
                         </CommandGroup>
@@ -176,35 +209,39 @@ export function CommandPalette() {
 
                 <CommandSeparator />
 
-                <CommandGroup heading="General">
+                <CommandGroup heading={
+                    <span className="flex items-center gap-1.5">
+                        <Settings size={11} className="text-muted-foreground/50" />
+                        General
+                    </span>
+                }>
                     <CommandItem
                         onSelect={() => {
                             setEditingConnection(null);
                             setConnectionDialogOpen(true);
                             setCommandPaletteOpen(false);
                         }}
-                        className="border-border bg-card"
                     >
-                        <Plus size={12} className="text-primary/60 shrink-0" />
+                        <Plus size={13} className="text-muted-foreground/50 shrink-0" />
                         <div className="flex flex-col flex-1">
-                            <span className="text-[12px] font-sans font-medium">New Connection</span>
-                            <span className="text-[10px] font-sans text-muted-foreground/40">Add a new database connection</span>
+                            <span className="text-[13px] font-medium">New Connection</span>
+                            <span className="text-xs text-muted-foreground/40">Add a new database connection</span>
                         </div>
                         <KbdGroup>
                             <Kbd>⌘</Kbd>
                             <Kbd>N</Kbd>
                         </KbdGroup>
                     </CommandItem>
-                    <CommandItem onSelect={toggleTheme} className="border-border bg-card">
+                    <CommandItem onSelect={toggleTheme}>
                         {theme === "dark"
-                            ? <Sun size={12} className="text-primary/60 shrink-0" />
-                            : <Moon size={12} className="text-primary/60 shrink-0" />
+                            ? <Sun size={13} className="text-muted-foreground/50 shrink-0" />
+                            : <Moon size={13} className="text-muted-foreground/50 shrink-0" />
                         }
                         <div className="flex flex-col flex-1">
-                            <span className="text-[12px] font-sans font-medium">
+                            <span className="text-[13px] font-medium">
                                 Switch to {theme === "dark" ? "Light" : "Dark"} Mode
                             </span>
-                            <span className="text-[10px] font-sans text-muted-foreground/40">Toggle the app theme</span>
+                            <span className="text-xs text-muted-foreground/40">Toggle the app theme</span>
                         </div>
                     </CommandItem>
                 </CommandGroup>

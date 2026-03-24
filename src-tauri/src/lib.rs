@@ -1,5 +1,6 @@
 pub mod commands;
 pub mod db;
+pub mod import_export;
 pub mod storage;
 pub mod types;
 
@@ -9,6 +10,8 @@ use tauri::Manager;
 pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
+        .plugin(tauri_plugin_dialog::init())
+        .plugin(tauri_plugin_fs::init())
         .setup(|app| {
             let data_dir = app
                 .path()
@@ -44,6 +47,11 @@ pub fn run() {
             commands::storage_save_history_entry,
             commands::storage_clear_history,
             commands::storage_clear_all_history,
+            // ── Import / Export commands ───────────────────────────────────────
+            commands::export_connections,
+            commands::import_connections,
+            commands::parse_connection_uri,
+            commands::check_export_protected,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

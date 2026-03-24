@@ -96,11 +96,17 @@ impl AppStorage {
                 ssl                INTEGER NOT NULL DEFAULT 0,
                 uri                TEXT,
                 encrypted_password TEXT,
+                group_name         TEXT,
                 created_at         TEXT DEFAULT (datetime('now'))
             )",
         )
         .execute(&pool)
         .await?;
+
+        // Migrate: add group_name column if it doesn't exist yet (safe to ignore error)
+        let _ = sqlx::query("ALTER TABLE connections ADD COLUMN group_name TEXT")
+            .execute(&pool)
+            .await;
 
         sqlx::query(
             "CREATE TABLE IF NOT EXISTS saved_queries (
@@ -186,8 +192,8 @@ impl AppStorage {
         sqlx::query(
             "INSERT INTO connections
                 (id, name, prefix, db_type, host, port, username,
-                 database_name, schema_name, ssl, uri, encrypted_password)
-             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                 database_name, schema_name, ssl, uri, encrypted_password, group_name)
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
              ON CONFLICT(id) DO UPDATE SET
                 name               = excluded.name,
                 prefix             = excluded.prefix,
@@ -199,7 +205,8 @@ impl AppStorage {
                 schema_name        = excluded.schema_name,
                 ssl                = excluded.ssl,
                 uri                = excluded.uri,
-                encrypted_password = excluded.encrypted_password",
+                encrypted_password = excluded.encrypted_password,
+                group_name         = excluded.group_name",
         )
         .bind(&conn.id)
         .bind(&conn.name)
@@ -213,6 +220,7 @@ impl AppStorage {
         .bind(ssl_int)
         .bind(&conn.uri)
         .bind(&encrypted_pw)
+        .bind(&conn.group)
         .execute(&self.pool)
         .await?;
 
@@ -222,7 +230,7 @@ impl AppStorage {
     pub async fn load_connections(&self) -> Result<Vec<ConnectionConfig>> {
         let rows = sqlx::query(
             "SELECT id, name, prefix, db_type, host, port, username,
-                    database_name, schema_name, ssl, uri, encrypted_password
+                    database_name, schema_name, ssl, uri, encrypted_password, group_name
              FROM connections ORDER BY created_at ASC",
         )
         .fetch_all(&self.pool)
@@ -255,6 +263,7 @@ impl AppStorage {
                 schema: row.get("schema_name"),
                 ssl: Some(ssl_int != 0),
                 uri: row.get("uri"),
+                group: row.get("group_name"),
             });
         }
         Ok(result)

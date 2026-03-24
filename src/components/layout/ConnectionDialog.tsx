@@ -16,6 +16,14 @@ import {
     Eye,
     EyeOff,
     ChevronRight,
+    Zap,
+    Layers,
+    Laptop,
+    Code2,
+    FlaskConical,
+    TestTube,
+    X,
+    Link2,
 } from "lucide-react";
 import { ConnectionConfig } from "@/types";
 import { useAppStore } from "@/store/useAppStore";
@@ -61,6 +69,14 @@ const ENGINE_DEFAULTS: Record<string, Partial<ConnectionConfig>> = {
     redis: { host: "localhost", port: 6379 },
 };
 
+const QUICK_PRESETS = [
+    { label: "Local PG",    engine: "postgresql" as const, name: "Local PostgreSQL", host: "localhost", port: 5432, user: "postgres",  database: "postgres" },
+    { label: "Local MySQL", engine: "mysql"      as const, name: "Local MySQL",      host: "localhost", port: 3306, user: "root",       database: "mysql" },
+    { label: "SQLite",      engine: "sqlite"     as const, name: "Local SQLite",     database: "local.sqlite" },
+    { label: "MongoDB",     engine: "mongodb"    as const, name: "Local MongoDB",    uri: "mongodb://localhost:27017" },
+    { label: "Redis",       engine: "redis"      as const, name: "Local Redis",      host: "localhost", port: 6379 },
+];
+
 const DB_LOGOS: Record<string, React.FC<{ className?: string }>> = {
     postgresql: ({ className }) => <SiPostgresql className={className} />,
     mysql: ({ className }) => <SiMysql className={className} />,
@@ -69,49 +85,30 @@ const DB_LOGOS: Record<string, React.FC<{ className?: string }>> = {
     redis: ({ className }) => <SiRedis className={className} />,
 };
 
+// ── Group presets ──────────────────────────────────────────────────────────────
+
+export const GROUP_PRESETS: {
+    id: string;
+    label: string;
+    icon: React.FC<{ size?: number; className?: string }>;
+    color: string;
+    activeClass: string;
+}[] = [
+    { id: "local",   label: "local",   icon: Laptop,        color: "text-sky-400",    activeClass: "border-sky-400/50 bg-sky-400/10 text-sky-400" },
+    { id: "dev",     label: "dev",     icon: Code2,         color: "text-cyan-400",   activeClass: "border-cyan-400/50 bg-cyan-400/10 text-cyan-400" },
+    { id: "staging", label: "staging", icon: FlaskConical,  color: "text-amber-400",  activeClass: "border-amber-400/50 bg-amber-400/10 text-amber-400" },
+    { id: "prod",    label: "prod",    icon: Globe,         color: "text-emerald-400",activeClass: "border-emerald-400/50 bg-emerald-400/10 text-emerald-400" },
+    { id: "testing", label: "testing", icon: TestTube,      color: "text-purple-400", activeClass: "border-purple-400/50 bg-purple-400/10 text-purple-400" },
+];
+
 // ── Engine definitions ─────────────────────────────────────────────────────────
 
 const DATABASE_ENGINES = [
-    {
-        id: "postgresql",
-        label: "PostgreSQL",
-        bg: "bg-chart-1/10",
-        text: "text-chart-1",
-        border: "border-chart-1/30",
-        description: "Advanced open source RDBMS",
-    },
-    {
-        id: "mysql",
-        label: "MySQL",
-        bg: "bg-chart-1/10",
-        text: "text-chart-1",
-        border: "border-chart-1/30",
-        description: "World's most popular open source DB",
-    },
-    {
-        id: "sqlite",
-        label: "SQLite",
-        bg: "bg-muted/10",
-        text: "text-muted-foreground",
-        border: "border-muted/30",
-        description: "Lightweight embedded database",
-    },
-    {
-        id: "mongodb",
-        label: "MongoDB",
-        bg: "bg-chart-3/10",
-        text: "text-chart-3",
-        border: "border-chart-3/30",
-        description: "Flexible document database",
-    },
-    {
-        id: "redis",
-        label: "Redis",
-        bg: "bg-chart-5/10",
-        text: "text-chart-5",
-        border: "border-chart-5/30",
-        description: "In-memory data structure store",
-    },
+    { id: "postgresql", label: "PostgreSQL", description: "Advanced open source RDBMS" },
+    { id: "mysql",      label: "MySQL",      description: "Most popular open source DB" },
+    { id: "sqlite",     label: "SQLite",     description: "Lightweight embedded database" },
+    { id: "mongodb",    label: "MongoDB",    description: "Flexible document database" },
+    { id: "redis",      label: "Redis",      description: "In-memory data structure store" },
 ] as const;
 
 // ── Sub-components ─────────────────────────────────────────────────────────────
@@ -170,10 +167,17 @@ const ConnectionDialog = ({ onClose, initialData }: ConnectionDialogProps) => {
         isLoading,
     } = useAppStore();
 
+    const [customGroup, setCustomGroup] = useState(
+        initialData?.group && !GROUP_PRESETS.find(p => p.id === initialData.group)
+            ? initialData.group
+            : ""
+    );
     const [isTesting, setIsTesting] = useState(false);
     const [testStatus, setTestStatus] = useState<"idle" | "success" | "error">("idle");
     const [showPassword, setShowPassword] = useState(false);
     const [prefixManuallyEdited, setPrefixManuallyEdited] = useState(!!initialData?.prefix);
+    const [uriInput, setUriInput] = useState("");
+    const [isParsingUri, setIsParsingUri] = useState(false);
 
     const [formData, setFormData] = useState<Partial<ConnectionConfig>>(
         initialData || {
@@ -210,6 +214,45 @@ const ConnectionDialog = ({ onClose, initialData }: ConnectionDialogProps) => {
             ...(ENGINE_DEFAULTS[id] || {}),
         }));
         setTestStatus("idle");
+    };
+
+    const handlePreset = (preset: (typeof QUICK_PRESETS)[number]) => {
+        const { label: _label, engine, name, ...fields } = preset;
+        setFormData((prev) => ({
+            id: prev.id,
+            group: prev.group,
+            ssl: false,
+            type: engine,
+            name,
+            prefix: suggestPrefix(name),
+            ...fields,
+        }));
+        setPrefixManuallyEdited(true);
+        setTestStatus("idle");
+    };
+
+    const handleParseUri = async (rawUri?: string) => {
+        const uri = (rawUri ?? uriInput).trim();
+        if (!uri) return;
+        setIsParsingUri(true);
+        try {
+            const parsed = await tauriApi.parseConnectionUri(uri);
+            setFormData((prev) => ({
+                ...parsed,
+                id: prev.id || parsed.id,
+                name: parsed.name || prev.name || "",
+                prefix: parsed.prefix || suggestPrefix(parsed.name || ""),
+                group: prev.group,
+            }));
+            setUriInput("");
+            setPrefixManuallyEdited(true);
+            setTestStatus("idle");
+            toast.success("URI parsed");
+        } catch (err) {
+            toast.error(`Could not parse URI: ${String(err)}`);
+        } finally {
+            setIsParsingUri(false);
+        }
     };
 
     const buildConfig = (): ConnectionConfig =>
@@ -286,11 +329,11 @@ const ConnectionDialog = ({ onClose, initialData }: ConnectionDialogProps) => {
             >
                 <div className="flex h-[560px]">
                     {/* ── Left panel: engine selector ─────────────────────────────── */}
-                    <div className="w-52 shrink-0 bg-muted/30 border-r border-border flex flex-col">
+                    <div className="w-48 shrink-0 bg-muted/20 border-r border-border flex flex-col">
                         {/* Panel header */}
                         <div className="h-14 px-4 flex items-end pb-3 border-b border-border">
                             <span className="text-[9px] font-black uppercase tracking-[0.2em] text-muted-foreground/40">
-                                Database Engine
+                                Engine
                             </span>
                         </div>
 
@@ -298,48 +341,30 @@ const ConnectionDialog = ({ onClose, initialData }: ConnectionDialogProps) => {
                         <div className="flex-1 p-2 space-y-0.5 overflow-y-auto">
                             {DATABASE_ENGINES.map((engine) => {
                                 const isActive = formData.type === engine.id;
+                                const Logo = DB_LOGOS[engine.id];
                                 return (
                                     <button
                                         key={engine.id}
                                         onClick={() => handleEngineChange(engine.id)}
                                         className={cn(
-                                            "w-full flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all duration-150 text-left group",
+                                            "w-full flex items-center gap-2.5 px-2.5 py-2 rounded-lg transition-all duration-100 text-left group",
                                             isActive
-                                                ? `${engine.bg} border ${engine.border}`
-                                                : "hover:bg-muted border border-transparent",
+                                                ? "bg-card border border-border shadow-sm"
+                                                : "border border-transparent hover:bg-muted/50",
                                         )}
                                     >
-                                        {/* Engine icon */}
-                                        <div
-                                            className={cn(
-                                                "size-8 rounded-lg flex items-center justify-center shrink-0 transition-all",
-                                                isActive
-                                                    ? `${engine.bg} border ${engine.border}`
-                                                    : "bg-muted/50 opacity-50 group-hover:opacity-80 group-hover:bg-muted/80",
-                                            )}
-                                        >
-                                            {(() => {
-                                                const Logo = DB_LOGOS[engine.id];
-                                                return (
-                                                    <Logo
-                                                        className={cn(
-                                                            "text-lg",
-                                                            isActive
-                                                                ? engine.text
-                                                                : "text-muted-foreground",
-                                                        )}
-                                                    />
-                                                );
-                                            })()}
+                                        <div className={cn(
+                                            "size-7 rounded-md flex items-center justify-center shrink-0 transition-all",
+                                            isActive ? "bg-muted" : "bg-muted/40 opacity-50 group-hover:opacity-75",
+                                        )}>
+                                            <Logo className={cn("text-base", isActive ? "text-foreground" : "text-muted-foreground")} />
                                         </div>
 
                                         <div className="min-w-0 flex-1">
-                                            <div
-                                                className={cn(
-                                                    "text-[12px] font-semibold leading-none",
-                                                    isActive ? engine.text : "text-muted-foreground",
-                                                )}
-                                            >
+                                            <div className={cn(
+                                                "text-[11px] font-semibold leading-none",
+                                                isActive ? "text-foreground" : "text-muted-foreground",
+                                            )}>
                                                 {engine.label}
                                             </div>
                                             <div className="text-[9px] text-muted-foreground/40 mt-0.5 leading-tight truncate">
@@ -348,26 +373,21 @@ const ConnectionDialog = ({ onClose, initialData }: ConnectionDialogProps) => {
                                         </div>
 
                                         {isActive && (
-                                            <ChevronRight
-                                                size={12}
-                                                className={cn("shrink-0", engine.text)}
-                                            />
+                                            <ChevronRight size={11} className="shrink-0 text-muted-foreground/40" />
                                         )}
                                     </button>
                                 );
                             })}
                         </div>
 
-                        {/* Panel footer: active engine pill */}
+                        {/* Panel footer */}
                         <div className="p-3 border-t border-border">
-                            <div className={cn("flex items-center gap-2 px-3 py-2 rounded-lg", activeEngine.bg)}>
-                                <div className="size-5 flex items-center justify-center">
-                                    {(() => {
-                                        const Logo = DB_LOGOS[activeEngine.id];
-                                        return <Logo className={cn("text-sm", activeEngine.text)} />;
-                                    })()}
-                                </div>
-                                <span className={cn("text-[10px] font-bold", activeEngine.text)}>
+                            <div className="flex items-center gap-2 px-2.5 py-1.5 rounded-md bg-muted/40">
+                                {(() => {
+                                    const Logo = DB_LOGOS[activeEngine.id];
+                                    return <Logo className="text-sm text-muted-foreground/60 shrink-0" />;
+                                })()}
+                                <span className="text-[10px] font-semibold text-muted-foreground/60 truncate">
                                     {activeEngine.label}
                                 </span>
                             </div>
@@ -392,6 +412,73 @@ const ConnectionDialog = ({ onClose, initialData }: ConnectionDialogProps) => {
 
                         {/* Scrollable form body */}
                         <div className="flex-1 overflow-y-auto p-6 space-y-5">
+                            {/* ── Paste Connection URI ── */}
+                            <div className="space-y-2">
+                                <div className="flex items-center gap-2">
+                                    <Link2 size={11} className="text-muted-foreground/40 shrink-0" />
+                                    <span className="text-[9px] font-bold uppercase tracking-widest text-muted-foreground/40">
+                                        Paste Connection URI
+                                    </span>
+                                </div>
+                                <div className="flex gap-2">
+                                    <Input
+                                        value={uriInput}
+                                        onChange={(e) => setUriInput(e.target.value)}
+                                        placeholder="postgresql://user:pass@host:5432/db"
+                                        className="h-8 bg-muted/30 font-mono text-[11px] flex-1"
+                                        onPaste={(e) => {
+                                            const pasted = e.clipboardData.getData("text").trim();
+                                            if (/^(postgresql|postgres|mysql|sqlite|mongodb|redis):/.test(pasted)) {
+                                                e.preventDefault();
+                                                handleParseUri(pasted);
+                                            }
+                                        }}
+                                        onKeyDown={(e) => {
+                                            if (e.key === "Enter" && uriInput.trim()) {
+                                                e.preventDefault();
+                                                handleParseUri();
+                                            }
+                                        }}
+                                    />
+                                    <Button
+                                        type="button"
+                                        variant="outline"
+                                        size="sm"
+                                        onClick={() => handleParseUri()}
+                                        disabled={!uriInput.trim() || isParsingUri}
+                                        className="h-8 text-[10px] font-bold uppercase tracking-widest shrink-0"
+                                    >
+                                        {isParsingUri ? <Loader2 size={11} className="animate-spin" /> : "Parse"}
+                                    </Button>
+                                </div>
+                            </div>
+
+                            {/* ── Quick Connect presets ── */}
+                            <div className="space-y-2">
+                                <div className="flex items-center gap-2">
+                                    <Zap size={11} className="text-muted-foreground/40 shrink-0" />
+                                    <span className="text-[9px] font-bold uppercase tracking-widest text-muted-foreground/40">
+                                        Quick Connect
+                                    </span>
+                                </div>
+                                <div className="flex flex-wrap gap-1.5">
+                                    {QUICK_PRESETS.map((preset) => {
+                                        const Logo = DB_LOGOS[preset.engine];
+                                        return (
+                                            <button
+                                                key={preset.label}
+                                                type="button"
+                                                onClick={() => handlePreset(preset)}
+                                                className="flex items-center gap-1.5 h-6 px-2.5 rounded-full border border-border bg-muted/50 text-[10px] font-medium text-muted-foreground transition-all hover:bg-muted hover:text-foreground hover:border-border/80"
+                                            >
+                                                <Logo className="text-[10px]" />
+                                                {preset.label}
+                                            </button>
+                                        );
+                                    })}
+                                </div>
+                            </div>
+
                             {/* ── Identity row ── */}
                             <div className="grid grid-cols-2 gap-4">
                                 <div>
@@ -437,11 +524,80 @@ const ConnectionDialog = ({ onClose, initialData }: ConnectionDialogProps) => {
                                     </div>
                                     {formData.prefix && (
                                         <p className="mt-1.5 text-[10px] font-mono text-muted-foreground/40">
-                                            <span className={activeEngine.text}>{formData.prefix}_list()</span>
+                                            <span className="text-foreground/50">{formData.prefix}_list()</span>
                                             {" · "}
-                                            <span className={activeEngine.text}>{formData.prefix}_query()</span>
+                                            <span className="text-foreground/50">{formData.prefix}_query()</span>
                                             {" · ..."}
                                         </p>
+                                    )}
+                                </div>
+                            </div>
+
+                            {/* ── Group field ── */}
+                            <div className="space-y-2">
+                                <FormLabel>
+                                    <Layers className="inline size-3 mr-1 opacity-60" />
+                                    Group
+                                </FormLabel>
+                                {/* Preset pills */}
+                                <div className="flex flex-wrap gap-1.5">
+                                    {GROUP_PRESETS.map(({ id, label, icon: Icon, activeClass }) => {
+                                        const isActive = formData.group === id;
+                                        return (
+                                            <button
+                                                key={id}
+                                                type="button"
+                                                onClick={() => {
+                                                    patch({ group: isActive ? undefined : id });
+                                                    setCustomGroup("");
+                                                }}
+                                                className={cn(
+                                                    "flex items-center gap-1.5 h-7 px-2.5 rounded-md border text-xs font-medium transition-all",
+                                                    isActive
+                                                        ? activeClass
+                                                        : "border-border/60 text-muted-foreground/60 hover:border-border hover:text-foreground bg-transparent"
+                                                )}
+                                            >
+                                                <Icon size={11} />
+                                                {label}
+                                            </button>
+                                        );
+                                    })}
+                                </div>
+                                {/* Custom group input */}
+                                <div className="relative">
+                                    <input
+                                        type="text"
+                                        placeholder="Custom group…"
+                                        value={
+                                            formData.group && !GROUP_PRESETS.find(p => p.id === formData.group)
+                                                ? formData.group
+                                                : customGroup
+                                        }
+                                        onChange={(e) => {
+                                            const val = e.target.value;
+                                            setCustomGroup(val);
+                                            patch({ group: val || undefined });
+                                        }}
+                                        onFocus={() => {
+                                            if (GROUP_PRESETS.find(p => p.id === formData.group)) {
+                                                patch({ group: undefined });
+                                            }
+                                        }}
+                                        className={cn(
+                                            "w-full h-8 px-3 rounded-md border bg-transparent text-xs outline-none transition-colors",
+                                            "placeholder:text-muted-foreground/35 text-foreground",
+                                            "border-border/60 focus:border-border",
+                                        )}
+                                    />
+                                    {customGroup && !GROUP_PRESETS.find(p => p.id === formData.group) && formData.group && (
+                                        <button
+                                            type="button"
+                                            onClick={() => { setCustomGroup(""); patch({ group: undefined }); }}
+                                            className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground/40 hover:text-foreground transition-colors"
+                                        >
+                                            <X size={11} />
+                                        </button>
                                     )}
                                 </div>
                             </div>
@@ -706,13 +862,7 @@ const ConnectionDialog = ({ onClose, initialData }: ConnectionDialogProps) => {
                                     size="sm"
                                     onClick={handleConnect}
                                     disabled={isLoading || !formData.name}
-                                    className={cn(
-                                        "h-8 px-5 text-[10px] font-black uppercase tracking-widest gap-1.5 active:scale-[0.97]",
-                                        activeEngine.bg,
-                                        activeEngine.text,
-                                        `border ${activeEngine.border}`,
-                                        "bg-transparent hover:brightness-125",
-                                    )}
+                                    className="h-8 px-5 text-[10px] font-black uppercase tracking-widest gap-1.5 active:scale-[0.97]"
                                 >
                                     {isLoading ? (
                                         <Loader2 size={11} className="animate-spin" />

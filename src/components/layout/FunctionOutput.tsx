@@ -130,6 +130,7 @@ import {
 	ComboboxItem,
 	ComboboxEmpty,
 } from "@/components/ui/combobox";
+import { GROUP_PRESETS } from "@/components/layout/ConnectionDialog";
 // ─── Idle state ────────────────────────────────────────────────────────────────
 function IdleView({ onNewConnection }: { onNewConnection: () => void }) {
 	return (
@@ -297,9 +298,22 @@ function ConnectionsHome({
 							/>
 							{/* Name + URL */}
 							<div className="flex-1 min-w-0">
-								<p className="text-[13px] font-semibold text-foreground leading-tight">
-									{conn.name || conn.host || "Untitled"}
-								</p>
+								<div className="flex items-center gap-2">
+									<p className="text-[13px] font-semibold text-foreground leading-tight truncate">
+										{conn.name || conn.host || "Untitled"}
+									</p>
+									{conn.group && (() => {
+										const preset = GROUP_PRESETS.find(p => p.id === conn.group);
+										return (
+											<span className={cn(
+												"shrink-0 px-1.5 h-[15px] flex items-center rounded text-[8px] font-bold uppercase tracking-wide border",
+												preset ? preset.activeClass : "bg-muted/50 border-border/50 text-muted-foreground/60"
+											)}>
+												{conn.group}
+											</span>
+										);
+									})()}
+								</div>
 								<p className="text-[11px] font-mono text-muted-foreground/50 truncate mt-0.5">
 									{url}
 								</p>

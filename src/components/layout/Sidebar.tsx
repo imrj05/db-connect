@@ -26,6 +26,7 @@ import {
     TableProperties,
     X,
     GripVertical,
+    ArrowUpDown,
 } from "lucide-react";
 import {
     SiPostgresql,
@@ -35,6 +36,8 @@ import {
     SiRedis,
 } from "react-icons/si";
 import { useAppStore } from "@/store/useAppStore";
+import { GROUP_PRESETS } from "@/components/layout/ConnectionDialog";
+import { ImportExportDialog } from "@/components/layout/ImportExportDialog";
 import { tauriApi } from "@/lib/tauri-api";
 import { ConnectionConfig, ConnectionFunction, ColumnInfo, DatabaseType } from "@/types";
 import { cn } from "@/lib/utils";
@@ -459,9 +462,20 @@ function DatabaseNode({
                         : <ChevronRight size={11} />}
                 </span>
                 <Logo className={cn("text-[14px] shrink-0", logoColor)} />
-                <span className="text-[12px] font-mono font-semibold flex-1 text-left truncate">
+                <span className="text-[12px] font-mono font-semibold flex-1 text-left truncate min-w-0">
                     {connection.name}
                 </span>
+                {connection.group && (() => {
+                    const preset = GROUP_PRESETS.find(p => p.id === connection.group);
+                    return (
+                        <span className={cn(
+                            "shrink-0 px-1.5 h-[14px] flex items-center rounded text-[8px] font-bold uppercase tracking-wide border",
+                            preset ? preset.activeClass : "bg-muted/50 border-border/50 text-muted-foreground/60"
+                        )}>
+                            {connection.group}
+                        </span>
+                    );
+                })()}
                 {isLoading && <Loader2 size={10} className="animate-spin text-muted-foreground/40 shrink-0" />}
                 {!isConnected && !isLoading && (
                     <Plug size={10} className="text-muted-foreground/70 shrink-0 group-hover:text-primary/60 transition-colors" />
@@ -494,7 +508,7 @@ function DatabaseNode({
                                 side="right"
                                 align="start"
                                 sideOffset={8}
-                                className="w-52 p-0 rounded-none border border-primary/30 bg-card shadow-none ring-0"
+                                className="w-52 p-0 rounded-xl border border-border/70 bg-popover shadow-xl ring-0"
                             >
                                 {/* search input */}
                                 <div className={cn(
@@ -960,10 +974,22 @@ const Sidebar = () => {
         setActiveFunctionOnly,
         setConnectionDialogOpen,
         setEditingConnection,
+        addConnection,
     } = useAppStore();
 
     const [filter, setFilter] = useState("");
     const [loadingIds, setLoadingIds] = useState<Set<string>>(new Set());
+    const [collapsedGroups, setCollapsedGroups] = useState<Set<string>>(new Set());
+    const [importExportOpen, setImportExportOpen] = useState(false);
+
+    const toggleGroup = (group: string) => {
+        setCollapsedGroups((prev) => {
+            const next = new Set(prev);
+            if (next.has(group)) next.delete(group);
+            else next.add(group);
+            return next;
+        });
+    };
 
     const handleConnect = async (connId: string) => {
         setLoadingIds((prev) => new Set(prev).add(connId));
@@ -1011,6 +1037,19 @@ const Sidebar = () => {
                     {loadingIds.size > 0 && (
                         <Loader2 size={10} className="animate-spin text-muted-foreground/40" />
                     )}
+                    <Tooltip>
+                        <TooltipTrigger asChild>
+                            <Button
+                                variant="ghost"
+                                size="icon-xs"
+                                onClick={() => setImportExportOpen(true)}
+                                className="text-muted-foreground/40 hover:text-foreground"
+                            >
+                                <ArrowUpDown size={14} />
+                            </Button>
+                        </TooltipTrigger>
+                        <TooltipContent side="bottom" sideOffset={4}>Import / Export</TooltipContent>
+                    </Tooltip>
                     <Tooltip>
                         <TooltipTrigger asChild>
                             <Button
@@ -1071,51 +1110,106 @@ const Sidebar = () => {
             ) : (
                 <ScrollArea className="flex-1 min-h-0">
                     <div className="py-1">
-                        {connections.map((conn) => {
-                            const fns = connectionFunctions[conn.id] ?? [];
-                            const tableFns = fns.filter((f) => f.type === "table");
-                            const tables = connectionTables[conn.id] ?? [];
-
-                            // build tableInfoMap: tableName → ColumnInfo[]
-                            const tableInfoMap: Record<string, ColumnInfo[]> =
-                                Object.fromEntries(
-                                    tables.map((t) => [t.name, t.columns ?? []]),
+                        {(() => {
+                            const renderNode = (conn: ConnectionConfig) => {
+                                const fns = connectionFunctions[conn.id] ?? [];
+                                const tableFns = fns.filter((f) => f.type === "table");
+                                const tables = connectionTables[conn.id] ?? [];
+                                const tableInfoMap: Record<string, ColumnInfo[]> =
+                                    Object.fromEntries(tables.map((t) => [t.name, t.columns ?? []]));
+                                return (
+                                    <DatabaseNode
+                                        key={conn.id}
+                                        connection={conn}
+                                        isConnected={connectedIds.includes(conn.id)}
+                                        isLoading={loadingIds.has(conn.id)}
+                                        tableFns={tableFns}
+                                        tableInfoMap={tableInfoMap}
+                                        activeFunctionId={activeFunction?.id}
+                                        filter={filter}
+                                        databases={connectionDatabases[conn.id] ?? []}
+                                        selectedDb={selectedDatabases[conn.id]}
+                                        onConnect={() => handleConnect(conn.id)}
+                                        onInvoke={handleInvoke}
+                                        onSelectDb={(db) => selectDatabase(conn.id, db)}
+                                        onRefreshDbs={() => refreshDatabases(conn.id)}
+                                        onCreateDb={async (name) => {
+                                            const q = conn.type === "postgresql"
+                                                ? `CREATE DATABASE "${name}"`
+                                                : `CREATE DATABASE \`${name}\``;
+                                            const result = await tauriApi.executeQuery(conn.id, q);
+                                            if (result.error) throw new Error(result.error);
+                                            await refreshDatabases(conn.id);
+                                        }}
+                                        onRefreshTables={() => refreshTables(conn.id)}
+                                        onAddTable={async (sql) => {
+                                            const result = await tauriApi.executeQuery(conn.id, sql);
+                                            if (result.error) throw new Error(result.error);
+                                            await refreshTables(conn.id);
+                                        }}
+                                        onLoadColumns={(tableName) => loadTableColumns(conn.id, tableName)}
+                                    />
                                 );
+                            };
+
+                            const ungrouped = connections.filter((c) => !c.group);
+                            const grouped: Record<string, ConnectionConfig[]> = {};
+                            connections.filter((c) => c.group).forEach((c) => {
+                                (grouped[c.group!] ??= []).push(c);
+                            });
+                            const groupNames = Object.keys(grouped).sort();
 
                             return (
-                                <DatabaseNode
-                                    key={conn.id}
-                                    connection={conn}
-                                    isConnected={connectedIds.includes(conn.id)}
-                                    isLoading={loadingIds.has(conn.id)}
-                                    tableFns={tableFns}
-                                    tableInfoMap={tableInfoMap}
-                                    activeFunctionId={activeFunction?.id}
-                                    filter={filter}
-                                    databases={connectionDatabases[conn.id] ?? []}
-                                    selectedDb={selectedDatabases[conn.id]}
-                                    onConnect={() => handleConnect(conn.id)}
-                                    onInvoke={handleInvoke}
-                                    onSelectDb={(db) => selectDatabase(conn.id, db)}
-                                    onRefreshDbs={() => refreshDatabases(conn.id)}
-                                    onCreateDb={async (name) => {
-                                        const q = conn.type === "postgresql"
-                                            ? `CREATE DATABASE "${name}"`
-                                            : `CREATE DATABASE \`${name}\``;
-                                        const result = await tauriApi.executeQuery(conn.id, q);
-                                        if (result.error) throw new Error(result.error);
-                                        await refreshDatabases(conn.id);
-                                    }}
-                                    onRefreshTables={() => refreshTables(conn.id)}
-                                    onAddTable={async (sql) => {
-                                        const result = await tauriApi.executeQuery(conn.id, sql);
-                                        if (result.error) throw new Error(result.error);
-                                        await refreshTables(conn.id);
-                                    }}
-                                    onLoadColumns={(tableName) => loadTableColumns(conn.id, tableName)}
-                                />
+                                <>
+                                    {ungrouped.map(renderNode)}
+                                    {groupNames.map((group) => {
+                                        const isCollapsed = collapsedGroups.has(group);
+                                        const preset = GROUP_PRESETS.find(p => p.id === group);
+                                        const GroupIcon = preset?.icon ?? (isCollapsed ? Folder : FolderOpen);
+                                        const iconColor = preset?.color ?? (isCollapsed ? "text-muted-foreground/50" : "text-primary/50");
+                                        return (
+                                            <div key={group} className="mt-1">
+                                                <button
+                                                    onClick={() => toggleGroup(group)}
+                                                    className="w-full flex items-center gap-2 h-8 px-2 hover:bg-muted/40 transition-colors group/grp"
+                                                >
+                                                    <span className="text-muted-foreground/35 shrink-0 w-3">
+                                                        {isCollapsed
+                                                            ? <ChevronRight size={10} />
+                                                            : <ChevronDown size={10} />
+                                                        }
+                                                    </span>
+                                                    <GroupIcon size={13} className={cn("shrink-0 transition-colors", iconColor)} />
+                                                    <span className="text-[12px] font-medium flex-1 text-left truncate text-muted-foreground/70 group-hover/grp:text-foreground transition-colors">
+                                                        {group}
+                                                    </span>
+                                                    <span className={cn(
+                                                        "ml-auto shrink-0 px-1.5 h-4 flex items-center justify-center rounded text-[9px] font-semibold",
+                                                        preset
+                                                            ? `${preset.activeClass} opacity-80`
+                                                            : "bg-muted text-muted-foreground/50"
+                                                    )}>
+                                                        {grouped[group].length}
+                                                    </span>
+                                                </button>
+                                                {!isCollapsed && (
+                                                    <div className={cn(
+                                                        "mx-1 mt-0.5 mb-1 rounded-md border overflow-hidden",
+                                                        preset
+                                                            ? "border-border/20 bg-primary/[0.04]"
+                                                            : "border-border/25 bg-muted/[0.06]"
+                                                    )}>
+                                                        <div className="ml-3 border-l border-primary/20">
+                                                            {grouped[group].map(renderNode)}
+                                                        </div>
+                                                    </div>
+                                                )}
+                                            </div>
+                                        );
+                                    })}
+                                </>
                             );
-                        })}
+                        })()}
                     </div>
                 </ScrollArea>
             )}
@@ -1136,6 +1230,15 @@ const Sidebar = () => {
                     {currentDb ?? <span className="text-muted-foreground/40">no db</span>}
                 </span>
             </div>
+
+            {importExportOpen && (
+                <ImportExportDialog
+                    onClose={() => setImportExportOpen(false)}
+                    onImportComplete={(newConns) => {
+                        newConns.forEach((c) => addConnection(c));
+                    }}
+                />
+            )}
         </div>
     );
 };

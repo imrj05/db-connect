@@ -13,6 +13,7 @@ export interface ConnectionConfig {
   schema?: string;
   ssl?: boolean;
   uri?: string; // For MongoDB or connection strings
+  group?: string; // Optional group label e.g. "dev", "staging", "prod"
 }
 
 export interface TableInfo {
@@ -156,4 +157,38 @@ export interface RedisKey {
 
 export interface MongoCollection {
   name: string;
+}
+
+// ---------- Import / Export ----------
+
+export type ExportFormat = 'json' | 'uri';
+export type ImportFormat = 'json' | 'uri' | 'dbeaver';
+export type ConflictStrategy = 'skip' | 'overwrite' | 'rename';
+
+export interface ExportOptions {
+  format: ExportFormat;
+  includePasswords: boolean;
+  passphrase?: string;
+  connectionIds?: string[]; // undefined = all
+}
+
+export interface ImportOptions {
+  format: ImportFormat;
+  passphrase?: string;
+  conflictStrategy: ConflictStrategy;
+}
+
+export interface ImportResult {
+  imported: number;
+  skipped: number;
+  errors: string[];
+  connections: ConnectionConfig[];
+}
+
+export interface ConnectionExport {
+  version: number;
+  app: string;
+  exportedAt: string;
+  passwordProtected: boolean;
+  connections: ConnectionConfig[];
 }

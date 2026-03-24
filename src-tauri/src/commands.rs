@@ -258,3 +258,70 @@ pub async fn storage_clear_all_history() -> Result<(), String> {
         .await
         .map_err(|e| e.to_string())
 }
+
+// ── Import / Export commands ────────────────────────────────────────────────
+
+#[tauri::command]
+pub async fn export_connections(opts: crate::types::ExportOptions) -> Result<String, String> {
+    let conns = AppStorage::get()
+        .load_connections()
+        .await
+        .map_err(|e| e.to_string())?;
+
+    match opts.format {
+        crate::types::ExportFormat::Json => {
+            crate::import_export::export_native_json(&conns, &opts).map_err(|e| e.to_string())
+        }
+        crate::types::ExportFormat::Uri => {
+            Ok(crate::import_export::export_uri_text(&conns, opts.include_passwords))
+        }
+    }
+}
+
+#[tauri::command]
+pub async fn import_connections(
+    content: String,
+    opts: crate::types::ImportOptions,
+) -> Result<crate::types::ImportResult, String> {
+    let existing = AppStorage::get()
+        .load_connections()
+        .await
+        .map_err(|e| e.to_string())?;
+    let existing_ids: std::collections::HashSet<String> =
+        existing.iter().map(|c| c.id.clone()).collect();
+
+    let result = match opts.format {
+        crate::types::ImportFormat::Json => {
+            crate::import_export::import_native_json(&content, &opts, &existing_ids)
+                .map_err(|e| e.to_string())?
+        }
+        crate::types::ImportFormat::Dbeaver => {
+            crate::import_export::import_dbeaver(&content, &opts, &existing_ids)
+                .map_err(|e| e.to_string())?
+        }
+        crate::types::ImportFormat::Uri => {
+            return Err("Use parse_connection_uri for single URIs".to_string());
+        }
+    };
+
+    for conn in &result.connections {
+        AppStorage::get()
+            .save_connection(conn)
+            .await
+            .map_err(|e| e.to_string())?;
+    }
+
+    Ok(result)
+}
+
+#[tauri::command]
+pub async fn parse_connection_uri(uri: String) -> Result<crate::types::ConnectionConfig, String> {
+    crate::import_export::parse_uri(&uri).map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub async fn check_export_protected(content: String) -> Result<bool, String> {
+    let export: crate::types::ConnectionExport =
+        serde_json::from_str(&content).map_err(|e| e.to_string())?;
+    Ok(export.password_protected)
+}

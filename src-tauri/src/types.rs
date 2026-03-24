@@ -26,6 +26,8 @@ pub struct ConnectionConfig {
     pub schema: Option<String>,
     pub ssl: Option<bool>,
     pub uri: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub group: Option<String>,
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
@@ -95,3 +97,65 @@ pub struct SavedQuery {
     pub connection_id: Option<String>,
     pub created_at: i64, // Unix ms
 }
+
+// ── Import / Export types ────────────────────────────────────────────────────
+
+#[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
+#[serde(rename_all = "lowercase")]
+pub enum ExportFormat {
+    Json,
+    Uri,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
+#[serde(rename_all = "lowercase")]
+pub enum ImportFormat {
+    Json,
+    Uri,
+    Dbeaver,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
+#[serde(rename_all = "lowercase")]
+pub enum ConflictStrategy {
+    Skip,
+    Overwrite,
+    Rename,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ExportOptions {
+    pub format: ExportFormat,
+    pub include_passwords: bool,
+    pub passphrase: Option<String>,
+    pub connection_ids: Option<Vec<String>>,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ImportOptions {
+    pub format: ImportFormat,
+    pub passphrase: Option<String>,
+    pub conflict_strategy: ConflictStrategy,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ImportResult {
+    pub imported: u32,
+    pub skipped: u32,
+    pub errors: Vec<String>,
+    pub connections: Vec<ConnectionConfig>,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+#[serde(rename_all = "camelCase")]
+pub struct ConnectionExport {
+    pub version: u32,
+    pub app: String,
+    pub exported_at: String,
+    pub password_protected: bool,
+    pub connections: Vec<ConnectionConfig>,
+}
+
