@@ -1,6 +1,7 @@
 pub mod commands;
 pub mod db;
 pub mod import_export;
+pub mod ssh;
 pub mod storage;
 pub mod types;
 
@@ -34,6 +35,7 @@ pub fn run() {
             commands::list_all_tables,
             commands::get_user_databases,
             commands::get_table_structure,
+            commands::switch_database,
             // ── App info ──────────────────────────────────────────────────────
             commands::get_app_data_dir,
             // ── Storage commands ───────────────────────────────────────────────

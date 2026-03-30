@@ -5,6 +5,7 @@ use crate::db::postgres::PostgresDriver;
 use crate::db::mysql::MySqlDriver;
 use crate::db::sqlite::SqliteDriver;
 use crate::db::DatabaseDriver;
+use crate::ssh::{SshAuth, SshTunnel};
 use std::sync::Arc;
 use anyhow::Result;
 
@@ -22,7 +23,38 @@ const SYSTEM_DATABASES: &[&str] = &[
 ];
 
 #[tauri::command]
-pub async fn connect_database(config: ConnectionConfig) -> Result<(), String> {
+pub async fn connect_database(mut config: ConnectionConfig) -> Result<(), String> {
+    // ── SSH tunnel setup ───────────────────────────────────────────────────────
+    if config.ssh_enabled.unwrap_or(false) {
+        let ssh_host = config.ssh_host.clone().ok_or("SSH host is required")?;
+        let ssh_port = config.ssh_port.unwrap_or(22);
+        let ssh_user = config.ssh_user.clone().ok_or("SSH user is required")?;
+
+        let auth = if let Some(key_path) = config.ssh_key_path.clone().filter(|p| !p.is_empty()) {
+            SshAuth::Key {
+                path: key_path,
+                passphrase: config.ssh_key_passphrase.clone().filter(|p| !p.is_empty()),
+            }
+        } else {
+            let pw = config.ssh_password.clone().unwrap_or_default();
+            SshAuth::Password(pw)
+        };
+
+        // The DB host/port to forward to (from the connection config)
+        let db_host = config.host.clone().unwrap_or_else(|| "localhost".to_string());
+        let db_port = config.port.unwrap_or(5432);
+
+        let tunnel = SshTunnel::establish(&ssh_host, ssh_port, &ssh_user, auth, db_host, db_port)
+            .await
+            .map_err(|e| format!("SSH tunnel failed: {e}"))?;
+
+        // Redirect the driver to connect via the local tunnel port
+        config.host = Some("127.0.0.1".to_string());
+        config.port = Some(tunnel.local_port);
+
+        REGISTRY.tunnels.insert(config.id.clone(), tunnel);
+    }
+
     let driver: Arc<dyn DatabaseDriver> = match config.db_type {
         DatabaseType::Postgresql => Arc::new(PostgresDriver::new()),
         DatabaseType::Mysql => Arc::new(MySqlDriver::new()),
@@ -31,7 +63,13 @@ pub async fn connect_database(config: ConnectionConfig) -> Result<(), String> {
         DatabaseType::Redis => Arc::new(RedisDriver::new()),
     };
 
-    driver.connect(&config).await.map_err(|e| e.to_string())?;
+    if let Err(e) = driver.connect(&config).await {
+        // If the driver connect fails, clean up the tunnel we just opened
+        if let Some((_, tunnel)) = REGISTRY.tunnels.remove(&config.id) {
+            tunnel.close();
+        }
+        return Err(e.to_string());
+    }
 
     REGISTRY.connections.insert(config.id.clone(), driver);
     REGISTRY.configs.insert(config.id.clone(), config);
@@ -43,6 +81,10 @@ pub async fn connect_database(config: ConnectionConfig) -> Result<(), String> {
 pub async fn disconnect_database(id: String) -> Result<(), String> {
     if let Some((_, driver)) = REGISTRY.connections.remove(&id) {
         driver.disconnect().await.map_err(|e| e.to_string())?;
+    }
+    // Close SSH tunnel after the driver disconnects
+    if let Some((_, tunnel)) = REGISTRY.tunnels.remove(&id) {
+        tunnel.close();
     }
     REGISTRY.configs.remove(&id);
     Ok(())
@@ -162,6 +204,29 @@ pub async fn get_table_structure(id: String, database: String, table: String, sc
         .unwrap_or_default();
 
     Ok(TableStructure { columns, indexes })
+}
+
+/// Reconnect the driver to a different database within the same server.
+/// Required for PostgreSQL where you cannot change the database of an existing
+/// connection — a new pool must be created. For other drivers this is a no-op
+/// reconnect that also updates the active database.
+#[tauri::command]
+pub async fn switch_database(id: String, database: String) -> Result<(), String> {
+    let driver = REGISTRY.connections.get(&id)
+        .ok_or_else(|| "Not connected".to_string())?
+        .clone();
+
+    let mut new_config = REGISTRY.configs.get(&id)
+        .ok_or_else(|| "Connection config not found".to_string())?
+        .clone();
+
+    new_config.database = Some(database.clone());
+
+    driver.connect(&new_config).await.map_err(|e| e.to_string())?;
+
+    REGISTRY.configs.entry(id).and_modify(|c| c.database = Some(database));
+
+    Ok(())
 }
 
 // ── App info commands ──────────────────────────────────────────────────────────

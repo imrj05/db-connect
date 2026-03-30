@@ -97,14 +97,42 @@ impl AppStorage {
                 uri                TEXT,
                 encrypted_password TEXT,
                 group_name         TEXT,
+                ssh_enabled        INTEGER NOT NULL DEFAULT 0,
+                ssh_host           TEXT,
+                ssh_port           INTEGER,
+                ssh_user           TEXT,
+                encrypted_ssh_password     TEXT,
+                ssh_key_path               TEXT,
+                encrypted_ssh_key_passphrase TEXT,
                 created_at         TEXT DEFAULT (datetime('now'))
             )",
         )
         .execute(&pool)
         .await?;
 
-        // Migrate: add group_name column if it doesn't exist yet (safe to ignore error)
+        // Migrations: add new columns if they don't exist yet (safe to ignore errors)
         let _ = sqlx::query("ALTER TABLE connections ADD COLUMN group_name TEXT")
+            .execute(&pool)
+            .await;
+        let _ = sqlx::query("ALTER TABLE connections ADD COLUMN ssh_enabled INTEGER NOT NULL DEFAULT 0")
+            .execute(&pool)
+            .await;
+        let _ = sqlx::query("ALTER TABLE connections ADD COLUMN ssh_host TEXT")
+            .execute(&pool)
+            .await;
+        let _ = sqlx::query("ALTER TABLE connections ADD COLUMN ssh_port INTEGER")
+            .execute(&pool)
+            .await;
+        let _ = sqlx::query("ALTER TABLE connections ADD COLUMN ssh_user TEXT")
+            .execute(&pool)
+            .await;
+        let _ = sqlx::query("ALTER TABLE connections ADD COLUMN encrypted_ssh_password TEXT")
+            .execute(&pool)
+            .await;
+        let _ = sqlx::query("ALTER TABLE connections ADD COLUMN ssh_key_path TEXT")
+            .execute(&pool)
+            .await;
+        let _ = sqlx::query("ALTER TABLE connections ADD COLUMN encrypted_ssh_key_passphrase TEXT")
             .execute(&pool)
             .await;
 
@@ -188,25 +216,43 @@ impl AppStorage {
             _ => None,
         };
         let ssl_int: i64 = conn.ssl.unwrap_or(false) as i64;
+        let ssh_enabled_int: i64 = conn.ssh_enabled.unwrap_or(false) as i64;
+        let encrypted_ssh_pw = match &conn.ssh_password {
+            Some(pw) if !pw.is_empty() => Some(self.encrypt(pw)?),
+            _ => None,
+        };
+        let encrypted_ssh_passphrase = match &conn.ssh_key_passphrase {
+            Some(pp) if !pp.is_empty() => Some(self.encrypt(pp)?),
+            _ => None,
+        };
 
         sqlx::query(
             "INSERT INTO connections
                 (id, name, prefix, db_type, host, port, username,
-                 database_name, schema_name, ssl, uri, encrypted_password, group_name)
-             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                 database_name, schema_name, ssl, uri, encrypted_password, group_name,
+                 ssh_enabled, ssh_host, ssh_port, ssh_user,
+                 encrypted_ssh_password, ssh_key_path, encrypted_ssh_key_passphrase)
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
              ON CONFLICT(id) DO UPDATE SET
-                name               = excluded.name,
-                prefix             = excluded.prefix,
-                db_type            = excluded.db_type,
-                host               = excluded.host,
-                port               = excluded.port,
-                username           = excluded.username,
-                database_name      = excluded.database_name,
-                schema_name        = excluded.schema_name,
-                ssl                = excluded.ssl,
-                uri                = excluded.uri,
-                encrypted_password = excluded.encrypted_password,
-                group_name         = excluded.group_name",
+                name                         = excluded.name,
+                prefix                       = excluded.prefix,
+                db_type                      = excluded.db_type,
+                host                         = excluded.host,
+                port                         = excluded.port,
+                username                     = excluded.username,
+                database_name                = excluded.database_name,
+                schema_name                  = excluded.schema_name,
+                ssl                          = excluded.ssl,
+                uri                          = excluded.uri,
+                encrypted_password           = excluded.encrypted_password,
+                group_name                   = excluded.group_name,
+                ssh_enabled                  = excluded.ssh_enabled,
+                ssh_host                     = excluded.ssh_host,
+                ssh_port                     = excluded.ssh_port,
+                ssh_user                     = excluded.ssh_user,
+                encrypted_ssh_password       = excluded.encrypted_ssh_password,
+                ssh_key_path                 = excluded.ssh_key_path,
+                encrypted_ssh_key_passphrase = excluded.encrypted_ssh_key_passphrase",
         )
         .bind(&conn.id)
         .bind(&conn.name)
@@ -221,6 +267,13 @@ impl AppStorage {
         .bind(&conn.uri)
         .bind(&encrypted_pw)
         .bind(&conn.group)
+        .bind(ssh_enabled_int)
+        .bind(&conn.ssh_host)
+        .bind(conn.ssh_port.map(|p| p as i64))
+        .bind(&conn.ssh_user)
+        .bind(&encrypted_ssh_pw)
+        .bind(&conn.ssh_key_path)
+        .bind(&encrypted_ssh_passphrase)
         .execute(&self.pool)
         .await?;
 
@@ -230,7 +283,9 @@ impl AppStorage {
     pub async fn load_connections(&self) -> Result<Vec<ConnectionConfig>> {
         let rows = sqlx::query(
             "SELECT id, name, prefix, db_type, host, port, username,
-                    database_name, schema_name, ssl, uri, encrypted_password, group_name
+                    database_name, schema_name, ssl, uri, encrypted_password, group_name,
+                    ssh_enabled, ssh_host, ssh_port, ssh_user,
+                    encrypted_ssh_password, ssh_key_path, encrypted_ssh_key_passphrase
              FROM connections ORDER BY created_at ASC",
         )
         .fetch_all(&self.pool)
@@ -250,6 +305,21 @@ impl AppStorage {
             let port_i64: Option<i64> = row.get("port");
             let ssl_int: i64 = row.get("ssl");
 
+            let ssh_enabled_int: i64 = row.try_get("ssh_enabled").unwrap_or(0);
+            let ssh_port_i64: Option<i64> = row.try_get("ssh_port").unwrap_or(None);
+
+            let enc_ssh_pw: Option<String> = row.try_get("encrypted_ssh_password").unwrap_or(None);
+            let ssh_password = match enc_ssh_pw {
+                Some(ref enc) if !enc.is_empty() => self.decrypt(enc).ok(),
+                _ => None,
+            };
+
+            let enc_ssh_pp: Option<String> = row.try_get("encrypted_ssh_key_passphrase").unwrap_or(None);
+            let ssh_key_passphrase = match enc_ssh_pp {
+                Some(ref enc) if !enc.is_empty() => self.decrypt(enc).ok(),
+                _ => None,
+            };
+
             result.push(ConnectionConfig {
                 id: row.get("id"),
                 name: row.get("name"),
@@ -264,6 +334,13 @@ impl AppStorage {
                 ssl: Some(ssl_int != 0),
                 uri: row.get("uri"),
                 group: row.get("group_name"),
+                ssh_enabled: if ssh_enabled_int != 0 { Some(true) } else { None },
+                ssh_host: row.try_get("ssh_host").unwrap_or(None),
+                ssh_port: ssh_port_i64.map(|p| p as u16),
+                ssh_user: row.try_get("ssh_user").unwrap_or(None),
+                ssh_password,
+                ssh_key_path: row.try_get("ssh_key_path").unwrap_or(None),
+                ssh_key_passphrase,
             });
         }
         Ok(result)

@@ -128,16 +128,17 @@ impl DatabaseDriver for RedisDriver {
                 .unwrap_or("0")
                 .parse()
                 .unwrap_or(0);
+            let scheme = if config.ssl.unwrap_or(false) { "rediss" } else { "redis" };
             match (config.user.as_deref(), config.password.as_deref()) {
                 // Both username and password
                 (Some(user), Some(pass)) if !user.is_empty() && !pass.is_empty() =>
-                    format!("redis://{}:{}@{}:{}/{}", user, pass, host, port, db),
+                    format!("{}://{}:{}@{}:{}/{}", scheme, user, pass, host, port, db),
                 // Password only (most common for Redis AUTH)
                 (_, Some(pass)) if !pass.is_empty() =>
-                    format!("redis://:{}@{}:{}/{}", pass, host, port, db),
+                    format!("{}://:{}@{}:{}/{}", scheme, pass, host, port, db),
                 // No credentials
                 _ =>
-                    format!("redis://{}:{}/{}", host, port, db),
+                    format!("{}://{}:{}/{}", scheme, host, port, db),
             }
         };
 

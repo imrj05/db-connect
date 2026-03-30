@@ -40,6 +40,10 @@ export const tauriApi = {
     return await invoke("get_table_structure", { id, database, table, schema: schema ?? null });
   },
 
+  async switchDatabase(id: string, database: string): Promise<void> {
+    await invoke("switch_database", { id, database });
+  },
+
   // ── App info ───────────────────────────────────────────────────────────────
 
   async getAppDataDir(): Promise<string> {

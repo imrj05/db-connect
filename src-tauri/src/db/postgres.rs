@@ -1,5 +1,5 @@
 use async_trait::async_trait;
-use sqlx::{postgres::PgPoolOptions, Pool, Postgres, Row, Column};
+use sqlx::{postgres::{PgConnectOptions, PgPoolOptions, PgSslMode}, Pool, Postgres, Row, Column};
 use crate::types::*;
 use crate::db::DatabaseDriver;
 use anyhow::{Result, anyhow};
@@ -20,22 +20,26 @@ impl PostgresDriver {
 #[async_trait]
 impl DatabaseDriver for PostgresDriver {
     async fn connect(&self, config: &ConnectionConfig) -> Result<()> {
-        let url = if let Some(uri) = &config.uri {
-            uri.clone()
+        let options: PgConnectOptions = if let Some(uri) = &config.uri {
+            uri.parse()?
         } else {
-            format!(
-                "postgres://{}:{}@{}:{}/{}",
-                config.user.as_deref().unwrap_or("postgres"),
-                config.password.as_deref().unwrap_or(""),
-                config.host.as_deref().unwrap_or("localhost"),
-                config.port.unwrap_or(5432),
-                config.database.as_deref().unwrap_or("postgres")
-            )
+            PgConnectOptions::new()
+                .host(config.host.as_deref().unwrap_or("localhost"))
+                .port(config.port.unwrap_or(5432))
+                .username(config.user.as_deref().unwrap_or("postgres"))
+                .password(config.password.as_deref().unwrap_or(""))
+                .database(config.database.as_deref().unwrap_or("postgres"))
+        };
+
+        let ssl_mode = if config.ssl.unwrap_or(false) {
+            PgSslMode::Require
+        } else {
+            PgSslMode::Prefer
         };
 
         let pool = PgPoolOptions::new()
             .max_connections(5)
-            .connect(&url)
+            .connect_with(options.ssl_mode(ssl_mode))
             .await?;
 
         let mut pool_lock = self.pool.write().await;

@@ -127,7 +127,7 @@ function AppearanceSection() {
             </SettingRow>
             <SettingRow label="UI Zoom" description="Scale the entire interface up or down">
                 <SegmentedControl<AppSettings["uiZoom"]>
-                    options={[80, 90, 100, 110, 125]}
+                    options={[100, 110, 125, 140, 150]}
                     value={appSettings.uiZoom}
                     onChange={(v) => updateAppSetting("uiZoom", v)}
                     format={(v) => `${v}%`}

@@ -341,8 +341,8 @@ _Last audited: 2026-03-21. Counts reflect actual codebase state, not just todo e
 - [x] **Keyboard editing shortcuts** — Enter opens inline edit on selected cell; Shift+Enter opens edit-in-modal; both fire only when a cell is selected and no input is focused
 
 ### Tier 2 — High Value, Medium Effort
-- [ ] **SSL/TLS wiring** — `ssl` field is already stored in SQLite and passed to Rust; needs to be applied to `PgPoolOptions` / `MySqlPoolOptions` via `sqlx::postgres::PgSslMode` / `MySqlSslMode`; no frontend changes
-- [ ] **Group connections (dev/staging/prod)** — add optional `group` tag field to `ConnectionConfig`; sidebar renders connections grouped under collapsible headers
+- [x] **SSL/TLS wiring** — `ssl` field is already stored in SQLite and passed to Rust; needs to be applied to `PgPoolOptions` / `MySqlPoolOptions` via `sqlx::postgres::PgSslMode` / `MySqlSslMode`; no frontend changes
+- [x] **Group connections (dev/staging/prod)** — add optional `group` tag field to `ConnectionConfig`; sidebar renders connections grouped under collapsible headers
 
 ### Tier 3 — High Value, High Effort
 - [ ] **SSH tunneling** — SSH port-forward before driver connect; needs `russh` crate + new `src-tauri/src/ssh.rs`; significant backend work

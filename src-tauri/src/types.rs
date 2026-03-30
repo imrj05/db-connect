@@ -28,6 +28,21 @@ pub struct ConnectionConfig {
     pub uri: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub group: Option<String>,
+    // ── SSH tunnel ──
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub ssh_enabled: Option<bool>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub ssh_host: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub ssh_port: Option<u16>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub ssh_user: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub ssh_password: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub ssh_key_path: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub ssh_key_passphrase: Option<String>,
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]

@@ -19,7 +19,6 @@ import {
     ToggleLeft,
     CircleDot,
     HardDrive,
-    ChevronsUpDown,
     ChevronsDown,
     ChevronsUp,
     RefreshCw,
@@ -45,7 +44,6 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import {
     Dialog,
     DialogContent,
@@ -308,13 +306,9 @@ function DatabaseNode({
     tableInfoMap,
     activeFunctionId,
     filter,
-    databases,
     selectedDb,
     onConnect,
     onInvoke,
-    onSelectDb,
-    onRefreshDbs,
-    onCreateDb,
     onRefreshTables,
     onAddTable,
     onLoadColumns,
@@ -326,24 +320,14 @@ function DatabaseNode({
     tableInfoMap: Record<string, ColumnInfo[]>;
     activeFunctionId?: string;
     filter: string;
-    databases: string[];
     selectedDb?: string;
     onConnect: () => void;
     onInvoke: (fn: ConnectionFunction) => void;
-    onSelectDb: (db: string) => void;
-    onRefreshDbs: () => Promise<void>;
-    onCreateDb: (name: string) => Promise<void>;
     onRefreshTables: () => Promise<void>;
     onAddTable: (sql: string) => Promise<void>;
     onLoadColumns: (tableName: string) => Promise<void>;
 }) {
     const [open, setOpen] = useState(true);
-    const [dbPickerOpen, setDbPickerOpen] = useState(false);
-    const [dbSearch, setDbSearch] = useState("");
-    const [createDbOpen, setCreateDbOpen] = useState(false);
-    const [newDbName, setNewDbName] = useState("");
-    const [isRefreshing, setIsRefreshing] = useState(false);
-    const [isCreating, setIsCreating] = useState(false);
 
     // Tables section state
     const [expandAll, setExpandAll] = useState<boolean | null>(null);
@@ -389,31 +373,6 @@ function DatabaseNode({
             setCreateTableError(String(e));
         } finally {
             setCreateTableLoading(false);
-        }
-    };
-
-    const handleRefresh = async () => {
-        setIsRefreshing(true);
-        try {
-            await Promise.all([onRefreshDbs(), new Promise((r) => setTimeout(r, 800))]);
-        } finally {
-            setIsRefreshing(false);
-        }
-    };
-
-    const isValidDbName = /^[a-zA-Z_][a-zA-Z0-9_$]*$/.test(newDbName.trim());
-
-    const handleCreateDb = async (e: React.FormEvent) => {
-        e.preventDefault();
-        const name = newDbName.trim();
-        if (!name || !isValidDbName) return;
-        setIsCreating(true);
-        try {
-            await onCreateDb(name);
-            setCreateDbOpen(false);
-            setNewDbName("");
-        } finally {
-            setIsCreating(false);
         }
     };
 
@@ -481,195 +440,6 @@ function DatabaseNode({
                     <Plug size={10} className="text-muted-foreground/70 shrink-0 group-hover:text-primary/60 transition-colors" />
                 )}
             </button>
-
-            {/* DB picker */}
-            {isConnected && open && databases.length > 0 && (
-                <div className="px-2 py-1 border-b border-border/40 space-y-1">
-                    <div className="flex items-center gap-1">
-                        <Popover open={dbPickerOpen} onOpenChange={(v) => { setDbPickerOpen(v); if (!v) setDbSearch(""); }}>
-                            <PopoverTrigger asChild>
-                                <button className={cn(
-                                    "flex-1 flex items-center gap-1.5 h-7 px-2.5 text-[11px] font-mono border transition-colors",
-                                    "bg-background border-border text-foreground/70",
-                                    "hover:border-primary/60 hover:text-foreground",
-                                    dbPickerOpen && "border-primary/60 text-foreground",
-                                )}>
-                                    <Database size={10} className="shrink-0 text-muted-foreground/50" />
-                                    <span className="flex-1 text-left truncate">
-                                        {selectedDb
-                                            ? <span className="text-foreground">{selectedDb}</span>
-                                            : <span className="text-muted-foreground/40">Select database…</span>
-                                        }
-                                    </span>
-                                    <ChevronsUpDown size={10} className="shrink-0 text-muted-foreground/40" />
-                                </button>
-                            </PopoverTrigger>
-                            <PopoverContent
-                                side="right"
-                                align="start"
-                                sideOffset={8}
-                                className="w-52 p-0 rounded-xl border border-border/70 bg-popover shadow-xl ring-0"
-                            >
-                                {/* search input */}
-                                <div className={cn(
-                                    "flex items-center gap-2 px-3 h-9 border-b border-border",
-                                    "focus-within:border-primary/50 transition-colors",
-                                )}>
-                                    <Search size={11} className="shrink-0 text-primary/50" />
-                                    <input
-                                        autoFocus
-                                        value={dbSearch}
-                                        onChange={(e) => setDbSearch(e.target.value)}
-                                        placeholder="Search databases…"
-                                        className="flex-1 bg-transparent text-[11px] font-mono text-foreground placeholder:text-muted-foreground/35 outline-none caret-primary"
-                                    />
-                                </div>
-                                {/* list */}
-                                <div className="max-h-52 overflow-y-auto py-1">
-                                    {databases
-                                        .filter((db) => db.toLowerCase().includes(dbSearch.toLowerCase()))
-                                        .map((db) => (
-                                            <button
-                                                key={db}
-                                                onClick={() => { onSelectDb(db); setDbPickerOpen(false); setDbSearch(""); }}
-                                                className={cn(
-                                                    "w-full flex items-center gap-2 h-7 px-3 text-[11px] font-mono transition-colors text-left",
-                                                    db === selectedDb
-                                                        ? "bg-primary/10 text-primary"
-                                                        : "text-foreground/70 hover:bg-muted/60 hover:text-foreground",
-                                                )}
-                                            >
-                                                {db === selectedDb
-                                                    ? <span className="w-1.5 h-1.5 rounded-full bg-primary shrink-0" />
-                                                    : <span className="w-1.5 h-1.5 shrink-0" />
-                                                }
-                                                <span className="truncate">{db}</span>
-                                            </button>
-                                        ))}
-                                    {databases.filter((db) => db.toLowerCase().includes(dbSearch.toLowerCase())).length === 0 && (
-                                        <p className="px-3 py-3 text-[10px] font-mono text-muted-foreground/40 text-center">No match</p>
-                                    )}
-                                </div>
-                            </PopoverContent>
-                        </Popover>
-
-                        {/* + create database */}
-                        <Tooltip>
-                            <TooltipTrigger asChild>
-                                <button
-                                    onClick={() => { setCreateDbOpen(true); setNewDbName(""); }}
-                                    className="shrink-0 flex items-center justify-center w-6 h-7 text-muted-foreground/40 hover:text-foreground transition-colors"
-                                >
-                                    <Plus size={10} />
-                                </button>
-                            </TooltipTrigger>
-                            <TooltipContent side="bottom" sideOffset={4}>Create database</TooltipContent>
-                        </Tooltip>
-
-                        {/* ↻ refresh list */}
-                        <Tooltip>
-                            <TooltipTrigger asChild>
-                                <button
-                                    onClick={handleRefresh}
-                                    disabled={isRefreshing}
-                                    className="shrink-0 flex items-center justify-center w-6 h-7 text-muted-foreground/40 hover:text-foreground transition-colors disabled:opacity-40"
-                                >
-                                    <RefreshCw size={10} className={isRefreshing ? "animate-spin" : ""} />
-                                </button>
-                            </TooltipTrigger>
-                            <TooltipContent side="bottom" sideOffset={4}>Refresh databases</TooltipContent>
-                        </Tooltip>
-                    </div>
-
-                    {/* Create Database dialog */}
-                    <Dialog open={createDbOpen} onOpenChange={(v) => { setCreateDbOpen(v); if (!v) setNewDbName(""); }}>
-                        <DialogContent className="!max-w-sm p-0 gap-0 overflow-hidden rounded-none border border-border bg-card">
-                            {/* header */}
-                            <DialogHeader className="px-5 pt-5 pb-4 border-b border-border/60">
-                                <div className="flex items-center gap-2.5">
-                                    <div className="flex items-center justify-center w-7 h-7 rounded-sm bg-primary/10 border border-primary/20 shrink-0">
-                                        <Database size={13} className="text-primary" />
-                                    </div>
-                                    <div>
-                                        <DialogTitle className="text-[13px] font-mono font-semibold text-foreground">
-                                            Create Database
-                                        </DialogTitle>
-                                        <DialogDescription className="text-[10px] font-mono text-muted-foreground/60 mt-0.5">
-                                            on <span className="text-foreground/70">{connection.name}</span>
-                                        </DialogDescription>
-                                    </div>
-                                </div>
-                            </DialogHeader>
-
-                            {/* body */}
-                            <form onSubmit={handleCreateDb}>
-                                <div className="px-5 py-4 space-y-3">
-                                    <div className="space-y-1.5">
-                                        <label className="text-[10px] font-mono font-semibold uppercase tracking-widest text-muted-foreground/50">
-                                            Database Name
-                                        </label>
-                                        <Input
-                                            autoFocus
-                                            value={newDbName}
-                                            onChange={(e) => setNewDbName(e.target.value)}
-                                            placeholder="my_database"
-                                            className={cn(
-                                                "h-8 text-[12px] font-mono rounded-none border-border/60 bg-background",
-                                                "focus-visible:ring-0 focus-visible:border-primary/60",
-                                                newDbName && !isValidDbName && "border-red-500/60 focus-visible:border-red-500/60",
-                                            )}
-                                        />
-                                        {newDbName && !isValidDbName ? (
-                                            <p className="text-[10px] font-mono text-red-400/80">
-                                                Must start with a letter or underscore, no spaces or special chars.
-                                            </p>
-                                        ) : (
-                                            <p className="text-[10px] font-mono text-muted-foreground/40">
-                                                Letters, numbers, and underscores only.
-                                            </p>
-                                        )}
-                                    </div>
-
-                                    {/* SQL preview */}
-                                    {newDbName.trim() && isValidDbName && (
-                                        <div className="rounded-none border border-border/40 bg-muted/30 px-3 py-2">
-                                            <p className="text-[9px] font-mono uppercase tracking-widest text-muted-foreground/40 mb-1">Preview</p>
-                                            <p className="text-[11px] font-mono text-primary/70">
-                                                {connection.type === "postgresql"
-                                                    ? `CREATE DATABASE "${newDbName.trim()}";`
-                                                    : `CREATE DATABASE \`${newDbName.trim()}\`;`}
-                                            </p>
-                                        </div>
-                                    )}
-                                </div>
-
-                                <DialogFooter className="px-5 py-3 border-t border-border/60 bg-muted/20 flex-row justify-end gap-2 rounded-none mx-0 mb-0">
-                                    <Button
-                                        type="button"
-                                        variant="ghost"
-                                        size="sm"
-                                        onClick={() => setCreateDbOpen(false)}
-                                        className="h-7 text-[10px] font-mono uppercase tracking-wider"
-                                    >
-                                        Cancel
-                                    </Button>
-                                    <Button
-                                        type="submit"
-                                        size="sm"
-                                        disabled={!newDbName.trim() || !isValidDbName || isCreating}
-                                        className="h-7 text-[10px] font-mono uppercase tracking-wider gap-1.5"
-                                    >
-                                        {isCreating
-                                            ? <><Loader2 size={10} className="animate-spin" /> Creating…</>
-                                            : <><Plus size={10} /> Create</>
-                                        }
-                                    </Button>
-                                </DialogFooter>
-                            </form>
-                        </DialogContent>
-                    </Dialog>
-                </div>
-            )}
 
             {/* Tables header */}
             {isConnected && open && (
@@ -962,12 +732,12 @@ const Sidebar = () => {
         connectedIds,
         connectionFunctions,
         connectionTables,
-        connectionDatabases,
         selectedDatabases,
+        openDatabases,
         activeFunction,
         connectAndInit,
         selectDatabase,
-        refreshDatabases,
+        closeOpenDatabase,
         refreshTables,
         loadTableColumns,
         invokeFunction,
@@ -975,21 +745,13 @@ const Sidebar = () => {
         setConnectionDialogOpen,
         setEditingConnection,
         addConnection,
+        setActiveConnection,
     } = useAppStore();
 
     const [filter, setFilter] = useState("");
     const [loadingIds, setLoadingIds] = useState<Set<string>>(new Set());
-    const [collapsedGroups, setCollapsedGroups] = useState<Set<string>>(new Set());
     const [importExportOpen, setImportExportOpen] = useState(false);
-
-    const toggleGroup = (group: string) => {
-        setCollapsedGroups((prev) => {
-            const next = new Set(prev);
-            if (next.has(group)) next.delete(group);
-            else next.add(group);
-            return next;
-        });
-    };
+    const [dbCtxMenu, setDbCtxMenu] = useState<{ db: string; x: number; y: number } | null>(null);
 
     const handleConnect = async (connId: string) => {
         setLoadingIds((prev) => new Set(prev).add(connId));
@@ -1004,18 +766,17 @@ const Sidebar = () => {
         }
     };
 
-    // derive current db info from active function
+    // active connection: prefer activeFunction's connection, then first connected
     const activeConn = useMemo(() => {
-        if (!activeFunction) return null;
-        return connections.find((c) => c.id === activeFunction.connectionId) ?? null;
-    }, [activeFunction, connections]);
+        return (activeFunction
+            ? connections.find((c) => c.id === activeFunction.connectionId)
+            : null) ?? connections.find((c) => connectedIds.includes(c.id)) ?? null;
+    }, [activeFunction, connections, connectedIds]);
 
     const currentDb = useMemo(() => {
-        if (!activeFunction) return null;
-        return selectedDatabases[activeFunction.connectionId]
-            ?? activeConn?.database
-            ?? null;
-    }, [activeFunction, activeConn, selectedDatabases]);
+        if (!activeConn) return null;
+        return selectedDatabases[activeConn.id] ?? activeConn.database ?? null;
+    }, [activeConn, selectedDatabases]);
 
     const handleInvoke = (fn: ConnectionFunction) => {
         if (fn.type === "query" || fn.type === "execute") {
@@ -1025,8 +786,98 @@ const Sidebar = () => {
         }
     };
 
+    const activeDatabases = activeConn ? (openDatabases[activeConn.id] ?? []) : [];
+    const selectedDb = activeConn ? (selectedDatabases[activeConn.id] ?? null) : null;
+
     return (
-        <div className="h-full flex flex-col bg-sidebar border-r border-sidebar-border overflow-hidden min-h-0">
+        <div className="h-full flex bg-sidebar border-r border-sidebar-border overflow-hidden min-h-0">
+
+            {/* ── Left: open database tabs ── */}
+            {activeDatabases.length > 0 && (
+                <div className="flex flex-col shrink-0 border-r border-border bg-sidebar overflow-y-auto" style={{ width: 64 }}>
+                    {activeDatabases.map((db) => {
+                        const isActive = db === selectedDb;
+                        return (
+                            <button
+                                key={db}
+                                onClick={() => selectDatabase(activeConn!.id, db)}
+                                onContextMenu={(e) => {
+                                    e.preventDefault();
+                                    const rect = e.currentTarget.getBoundingClientRect();
+                                    setDbCtxMenu({ db, x: rect.right + 4, y: e.clientY });
+                                }}
+                                title={db}
+                                className={cn(
+                                    "flex flex-col items-center gap-1.5 py-3 px-1 w-full transition-colors border-r-2 shrink-0",
+                                    isActive
+                                        ? "border-r-primary bg-background text-foreground"
+                                        : "border-r-transparent text-muted-foreground/40 hover:text-muted-foreground/70 hover:bg-muted/20"
+                                )}
+                            >
+                                <Database
+                                    size={18}
+                                    className={cn("shrink-0", isActive ? "text-primary/70" : "text-muted-foreground/30")}
+                                />
+                                <span className="text-[8px] font-mono leading-tight text-center break-all line-clamp-2 w-full px-0.5">
+                                    {db}
+                                </span>
+                            </button>
+                        );
+                    })}
+                </div>
+            )}
+
+            {/* ── DB tab context menu ── */}
+            {dbCtxMenu && activeConn && (() => {
+                const menuW = 172;
+                const menuH = 96;
+                const left = dbCtxMenu.x;
+                const top = Math.min(dbCtxMenu.y, window.innerHeight - menuH - 8);
+                return (
+                <>
+                    <div
+                        className="fixed inset-0 z-40"
+                        onClick={() => setDbCtxMenu(null)}
+                        onContextMenu={(e) => { e.preventDefault(); setDbCtxMenu(null); }}
+                    />
+                    <div
+                        className="fixed z-50 bg-popover border border-border rounded-lg shadow-xl p-1 text-popover-foreground"
+                        style={{ top, left, width: menuW }}
+                    >
+                        <div className="px-2 py-1 mb-1">
+                            <p className="text-[9px] font-mono font-bold uppercase tracking-widest text-muted-foreground/40 truncate max-w-[140px]">
+                                {dbCtxMenu.db}
+                            </p>
+                        </div>
+                        <button
+                            className="w-full flex items-center gap-2 px-2 py-1.5 rounded-sm text-[11px] text-foreground/80 hover:bg-muted/40 transition-colors"
+                            onClick={() => {
+                                refreshTables(activeConn.id, dbCtxMenu.db);
+                                if (selectedDb !== dbCtxMenu.db) selectDatabase(activeConn.id, dbCtxMenu.db);
+                                setDbCtxMenu(null);
+                            }}
+                        >
+                            <RefreshCw size={10} className="shrink-0 text-muted-foreground/60" />
+                            Refresh DB
+                        </button>
+                        <div className="my-1 h-px bg-border" />
+                        <button
+                            className="w-full flex items-center gap-2 px-2 py-1.5 rounded-sm text-[11px] text-destructive/80 hover:bg-destructive/10 transition-colors"
+                            onClick={() => {
+                                closeOpenDatabase(activeConn.id, dbCtxMenu.db);
+                                setDbCtxMenu(null);
+                            }}
+                        >
+                            <X size={10} className="shrink-0" />
+                            Close DB
+                        </button>
+                    </div>
+                </>
+                );
+            })()}
+
+            {/* ── Right: main content ── */}
+            <div className="flex-1 flex flex-col overflow-hidden min-w-0">
 
             {/* ── Header ── */}
             <div className="h-10 flex items-center justify-between px-3 border-b border-border shrink-0">
@@ -1110,106 +961,40 @@ const Sidebar = () => {
             ) : (
                 <ScrollArea className="flex-1 min-h-0">
                     <div className="py-1">
-                        {(() => {
-                            const renderNode = (conn: ConnectionConfig) => {
-                                const fns = connectionFunctions[conn.id] ?? [];
-                                const tableFns = fns.filter((f) => f.type === "table");
-                                const tables = connectionTables[conn.id] ?? [];
-                                const tableInfoMap: Record<string, ColumnInfo[]> =
-                                    Object.fromEntries(tables.map((t) => [t.name, t.columns ?? []]));
-                                return (
-                                    <DatabaseNode
-                                        key={conn.id}
-                                        connection={conn}
-                                        isConnected={connectedIds.includes(conn.id)}
-                                        isLoading={loadingIds.has(conn.id)}
-                                        tableFns={tableFns}
-                                        tableInfoMap={tableInfoMap}
-                                        activeFunctionId={activeFunction?.id}
-                                        filter={filter}
-                                        databases={connectionDatabases[conn.id] ?? []}
-                                        selectedDb={selectedDatabases[conn.id]}
-                                        onConnect={() => handleConnect(conn.id)}
-                                        onInvoke={handleInvoke}
-                                        onSelectDb={(db) => selectDatabase(conn.id, db)}
-                                        onRefreshDbs={() => refreshDatabases(conn.id)}
-                                        onCreateDb={async (name) => {
-                                            const q = conn.type === "postgresql"
-                                                ? `CREATE DATABASE "${name}"`
-                                                : `CREATE DATABASE \`${name}\``;
-                                            const result = await tauriApi.executeQuery(conn.id, q);
-                                            if (result.error) throw new Error(result.error);
-                                            await refreshDatabases(conn.id);
-                                        }}
-                                        onRefreshTables={() => refreshTables(conn.id)}
-                                        onAddTable={async (sql) => {
-                                            const result = await tauriApi.executeQuery(conn.id, sql);
-                                            if (result.error) throw new Error(result.error);
-                                            await refreshTables(conn.id);
-                                        }}
-                                        onLoadColumns={(tableName) => loadTableColumns(conn.id, tableName)}
-                                    />
-                                );
-                            };
-
-                            const ungrouped = connections.filter((c) => !c.group);
-                            const grouped: Record<string, ConnectionConfig[]> = {};
-                            connections.filter((c) => c.group).forEach((c) => {
-                                (grouped[c.group!] ??= []).push(c);
-                            });
-                            const groupNames = Object.keys(grouped).sort();
-
+                        {activeConn ? (() => {
+                            const conn = activeConn;
+                            const fns = connectionFunctions[conn.id] ?? [];
+                            const tableFns = fns.filter((f) => f.type === "table");
+                            const tables = connectionTables[conn.id] ?? [];
+                            const tableInfoMap: Record<string, ColumnInfo[]> =
+                                Object.fromEntries(tables.map((t) => [t.name, t.columns ?? []]));
                             return (
-                                <>
-                                    {ungrouped.map(renderNode)}
-                                    {groupNames.map((group) => {
-                                        const isCollapsed = collapsedGroups.has(group);
-                                        const preset = GROUP_PRESETS.find(p => p.id === group);
-                                        const GroupIcon = preset?.icon ?? (isCollapsed ? Folder : FolderOpen);
-                                        const iconColor = preset?.color ?? (isCollapsed ? "text-muted-foreground/50" : "text-primary/50");
-                                        return (
-                                            <div key={group} className="mt-1">
-                                                <button
-                                                    onClick={() => toggleGroup(group)}
-                                                    className="w-full flex items-center gap-2 h-8 px-2 hover:bg-muted/40 transition-colors group/grp"
-                                                >
-                                                    <span className="text-muted-foreground/35 shrink-0 w-3">
-                                                        {isCollapsed
-                                                            ? <ChevronRight size={10} />
-                                                            : <ChevronDown size={10} />
-                                                        }
-                                                    </span>
-                                                    <GroupIcon size={13} className={cn("shrink-0 transition-colors", iconColor)} />
-                                                    <span className="text-[12px] font-medium flex-1 text-left truncate text-muted-foreground/70 group-hover/grp:text-foreground transition-colors">
-                                                        {group}
-                                                    </span>
-                                                    <span className={cn(
-                                                        "ml-auto shrink-0 px-1.5 h-4 flex items-center justify-center rounded text-[9px] font-semibold",
-                                                        preset
-                                                            ? `${preset.activeClass} opacity-80`
-                                                            : "bg-muted text-muted-foreground/50"
-                                                    )}>
-                                                        {grouped[group].length}
-                                                    </span>
-                                                </button>
-                                                {!isCollapsed && (
-                                                    <div className={cn(
-                                                        "mx-1 mt-0.5 mb-1 rounded-md border overflow-hidden",
-                                                        preset
-                                                            ? "border-border/20 bg-primary/[0.04]"
-                                                            : "border-border/25 bg-muted/[0.06]"
-                                                    )}>
-                                                        <div className="ml-3 border-l border-primary/20">
-                                                            {grouped[group].map(renderNode)}
-                                                        </div>
-                                                    </div>
-                                                )}
-                                            </div>
-                                        );
-                                    })}
-                                </>
+                                <DatabaseNode
+                                    key={conn.id}
+                                    connection={conn}
+                                    isConnected={connectedIds.includes(conn.id)}
+                                    isLoading={loadingIds.has(conn.id)}
+                                    tableFns={tableFns}
+                                    tableInfoMap={tableInfoMap}
+                                    activeFunctionId={activeFunction?.id}
+                                    filter={filter}
+                                    selectedDb={selectedDatabases[conn.id]}
+                                    onConnect={() => handleConnect(conn.id)}
+                                    onInvoke={handleInvoke}
+                                    onRefreshTables={() => refreshTables(conn.id)}
+                                    onAddTable={async (sql) => {
+                                        const result = await tauriApi.executeQuery(conn.id, sql);
+                                        if (result.error) throw new Error(result.error);
+                                        await refreshTables(conn.id);
+                                    }}
+                                    onLoadColumns={(tableName) => loadTableColumns(conn.id, tableName)}
+                                />
                             );
-                        })()}
+                        })() : (
+                            <div className="flex flex-col items-center justify-center gap-3 py-8 px-4 text-center">
+                                <p className="text-[10px] font-mono text-muted-foreground/40">No active connection</p>
+                            </div>
+                        )}
                     </div>
                 </ScrollArea>
             )}
@@ -1230,6 +1015,8 @@ const Sidebar = () => {
                     {currentDb ?? <span className="text-muted-foreground/40">no db</span>}
                 </span>
             </div>
+
+            </div>{/* end right content */}
 
             {importExportOpen && (
                 <ImportExportDialog

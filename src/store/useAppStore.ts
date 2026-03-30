@@ -23,13 +23,13 @@ const SETTINGS_KEY = "db_connect_settings_v1";
 export interface AppSettings {
   editorFontSize: 12 | 13 | 14 | 16;
   tablePageSize: 25 | 50 | 100 | 200;
-  uiZoom: 80 | 90 | 100 | 110 | 125;
+  uiZoom: 100 | 110 | 125 | 140 | 150;
 }
 
 const DEFAULT_SETTINGS: AppSettings = {
   editorFontSize: 13,
   tablePageSize: 50,
-  uiZoom: 100,
+  uiZoom: 125,
 };
 
 function loadSettings(): AppSettings {
@@ -59,6 +59,7 @@ interface AppState {
   connectionTables: Record<string, TableInfo[]>; // connectionId → discovered tables
   connectionDatabases: Record<string, string[]>; // connectionId → available user databases
   selectedDatabases: Record<string, string>; // connectionId → currently selected database
+  openDatabases: Record<string, string[]>; // connectionId → explicitly opened databases (shown as tabs)
 
   // ---- Active function invocation ----
   activeFunction: ConnectionFunction | null;
@@ -86,6 +87,7 @@ interface AppState {
   connectAndInit: (connectionId: string) => Promise<void>;
   disconnectConnection: (connectionId: string) => Promise<void>;
   selectDatabase: (connectionId: string, database: string) => Promise<void>;
+  closeOpenDatabase: (connectionId: string, database: string) => Promise<void>;
   refreshDatabases: (connectionId: string) => Promise<void>;
   refreshTables: (connectionId: string, database?: string) => Promise<void>;
   loadTableColumns: (connectionId: string, tableName: string) => Promise<void>;
@@ -104,6 +106,7 @@ interface AppState {
     args?: { sql?: string; tableName?: string; page?: number },
   ) => Promise<void>;
   setActiveFunctionOnly: (fn: ConnectionFunction) => void;
+  setActiveConnection: (connectionId: string) => void;
   setPendingSql: (sql: string) => void;
 
   // ---- Query history (persisted, all connections) ----
@@ -146,6 +149,7 @@ export const useAppStore = create<AppState>((set, get) => ({
   connectionTables: {},
   connectionDatabases: {},
   selectedDatabases: {},
+  openDatabases: {},
   activeFunction: null,
   invocationResult: null,
   pendingSqlValue: "",
@@ -309,6 +313,9 @@ export const useAppStore = create<AppState>((set, get) => ({
         selectedDatabases: autoSelected
           ? { ...state.selectedDatabases, [connectionId]: autoSelected }
           : state.selectedDatabases,
+        openDatabases: autoSelected
+          ? { ...state.openDatabases, [connectionId]: [autoSelected] }
+          : state.openDatabases,
         expandedConnections: state.expandedConnections.includes(connectionId)
           ? state.expandedConnections
           : [...state.expandedConnections, connectionId],
@@ -333,6 +340,7 @@ export const useAppStore = create<AppState>((set, get) => ({
       const { [connectionId]: _tables, ...restTables } = state.connectionTables;
       const { [connectionId]: _dbs, ...restDbs } = state.connectionDatabases;
       const { [connectionId]: _sel, ...restSel } = state.selectedDatabases;
+      const { [connectionId]: _open, ...restOpen } = state.openDatabases;
       const newTabs = state.tabs.filter((t) => t.fn.connectionId !== connectionId);
       const activeBelongsToConn = state.activeFunction?.connectionId === connectionId;
       const newActiveTab = activeBelongsToConn ? newTabs[newTabs.length - 1] ?? null : null;
@@ -342,6 +350,7 @@ export const useAppStore = create<AppState>((set, get) => ({
         connectionTables: restTables,
         connectionDatabases: restDbs,
         selectedDatabases: restSel,
+        openDatabases: restOpen,
         tabs: newTabs,
         activeTabId: activeBelongsToConn ? (newActiveTab?.id ?? null) : state.activeTabId,
         activeFunction: activeBelongsToConn ? (newActiveTab?.fn ?? null) : state.activeFunction,
@@ -358,6 +367,7 @@ export const useAppStore = create<AppState>((set, get) => ({
 
     set({ isLoading: true });
     try {
+      await tauriApi.switchDatabase(connectionId, database);
       const tables = await tauriApi.listAllTables(connectionId, database);
       const fns = buildConnectionFunctions(config, tables);
 
@@ -365,10 +375,17 @@ export const useAppStore = create<AppState>((set, get) => ({
         selectedDatabases: { ...state.selectedDatabases, [connectionId]: database },
         connectionTables: { ...state.connectionTables, [connectionId]: tables },
         connectionFunctions: { ...state.connectionFunctions, [connectionId]: fns },
-        // Clear active function/result if it belonged to this connection
+        openDatabases: {
+          ...state.openDatabases,
+          [connectionId]: state.openDatabases[connectionId]?.includes(database)
+            ? state.openDatabases[connectionId]
+            : [...(state.openDatabases[connectionId] ?? []), database],
+        },
+        // If active function belonged to this connection, point it to the new fn list
+        // (keeps the connection "active" in the titlebar after a DB switch)
         activeFunction:
           state.activeFunction?.connectionId === connectionId
-            ? null
+            ? (fns[0] ?? null)
             : state.activeFunction,
         invocationResult:
           state.invocationResult?.fn.connectionId === connectionId
@@ -381,6 +398,18 @@ export const useAppStore = create<AppState>((set, get) => ({
       toast.error(`Failed to switch database: ${String(error)}`);
     } finally {
       set({ isLoading: false });
+    }
+  },
+
+  closeOpenDatabase: async (connectionId, database) => {
+    const { openDatabases, selectedDatabases, selectDatabase } = get();
+    const remaining = (openDatabases[connectionId] ?? []).filter((db) => db !== database);
+    set((state) => ({
+      openDatabases: { ...state.openDatabases, [connectionId]: remaining },
+    }));
+    // If we closed the currently selected DB, switch to another open one
+    if (selectedDatabases[connectionId] === database && remaining.length > 0) {
+      await selectDatabase(connectionId, remaining[remaining.length - 1]);
     }
   },
 
@@ -603,6 +632,11 @@ export const useAppStore = create<AppState>((set, get) => ({
         tabs: s.tabs.map((t) => (t.id === s.activeTabId ? { ...t, fn, result, label: getTabLabel(fn), pendingSql: "" } : t)),
       };
     }),
+
+  setActiveConnection: (connectionId) =>
+    set((s) => ({
+      activeFunction: s.connectionFunctions[connectionId]?.[0] ?? null,
+    })),
 
   setPendingSql: (pendingSqlValue) =>
     set((s) => ({

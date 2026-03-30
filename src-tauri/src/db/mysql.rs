@@ -1,5 +1,5 @@
 use async_trait::async_trait;
-use sqlx::{mysql::MySqlPoolOptions, Pool, MySql, Row, Column, Executor};
+use sqlx::{mysql::{MySqlConnectOptions, MySqlPoolOptions, MySqlSslMode}, Pool, MySql, Row, Column, Executor};
 use crate::types::*;
 use crate::db::DatabaseDriver;
 use anyhow::{Result, anyhow};
@@ -21,22 +21,27 @@ impl MySqlDriver {
 impl DatabaseDriver for MySqlDriver {
     async fn connect(&self, config: &ConnectionConfig) -> Result<()> {
         let database = config.database.as_deref().unwrap_or("mysql");
-        let url = if let Some(uri) = &config.uri {
-            uri.clone()
+
+        let options: MySqlConnectOptions = if let Some(uri) = &config.uri {
+            uri.parse()?
         } else {
-            format!(
-                "mysql://{}:{}@{}:{}/{}",
-                config.user.as_deref().unwrap_or("root"),
-                config.password.as_deref().unwrap_or(""),
-                config.host.as_deref().unwrap_or("localhost"),
-                config.port.unwrap_or(3306),
-                database
-            )
+            MySqlConnectOptions::new()
+                .host(config.host.as_deref().unwrap_or("localhost"))
+                .port(config.port.unwrap_or(3306))
+                .username(config.user.as_deref().unwrap_or("root"))
+                .password(config.password.as_deref().unwrap_or(""))
+                .database(database)
+        };
+
+        let ssl_mode = if config.ssl.unwrap_or(false) {
+            MySqlSslMode::Required
+        } else {
+            MySqlSslMode::Disabled
         };
 
         let pool = MySqlPoolOptions::new()
             .max_connections(5)
-            .connect(&url)
+            .connect_with(options.ssl_mode(ssl_mode))
             .await?;
 
         // Ensure we are using the correct database after connection

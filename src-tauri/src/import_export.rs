@@ -206,6 +206,13 @@ pub fn parse_uri(uri: &str) -> Result<ConnectionConfig> {
         ssl: if ssl || scheme_ssl { Some(true) } else { ssl_val },
         uri: uri_field,
         group: None,
+        ssh_enabled: None,
+        ssh_host: None,
+        ssh_port: None,
+        ssh_user: None,
+        ssh_password: None,
+        ssh_key_path: None,
+        ssh_key_passphrase: None,
     })
 }
 
@@ -455,6 +462,13 @@ pub fn import_dbeaver(
             ssl: None,
             uri: None,
             group,
+            ssh_enabled: None,
+            ssh_host: None,
+            ssh_port: None,
+            ssh_user: None,
+            ssh_password: None,
+            ssh_key_path: None,
+            ssh_key_passphrase: None,
         };
 
         result

@@ -134,7 +134,7 @@ function App() {
 
 	return (
 		<TooltipProvider>
-			<div className="h-screen flex flex-col bg-background text-foreground overflow-hidden font-sans selection:bg-accent/30">
+			<div className="h-full flex flex-col bg-background text-foreground overflow-hidden font-sans selection:bg-accent/30">
 				<TitleBar />
 				<main className="flex-1 overflow-hidden relative flex">
 					{/* Sidebar — collapses smoothly */}

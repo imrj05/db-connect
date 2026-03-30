@@ -14,6 +14,14 @@ export interface ConnectionConfig {
   ssl?: boolean;
   uri?: string; // For MongoDB or connection strings
   group?: string; // Optional group label e.g. "dev", "staging", "prod"
+  // SSH tunnel
+  sshEnabled?: boolean;
+  sshHost?: string;
+  sshPort?: number;
+  sshUser?: string;
+  sshPassword?: string;
+  sshKeyPath?: string;
+  sshKeyPassphrase?: string;
 }
 
 export interface TableInfo {
