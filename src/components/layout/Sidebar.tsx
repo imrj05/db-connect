@@ -803,8 +803,8 @@ const Sidebar = () => {
                                 onClick={() => selectDatabase(activeConn!.id, db)}
                                 onContextMenu={(e) => {
                                     e.preventDefault();
-                                    const rect = e.currentTarget.getBoundingClientRect();
-                                    setDbCtxMenu({ db, x: rect.right + 4, y: e.clientY });
+                                    const zoom = parseFloat(document.documentElement.style.zoom || "100") / 100;
+                                    setDbCtxMenu({ db, x: e.clientX / zoom, y: e.clientY / zoom });
                                 }}
                                 title={db}
                                 className={cn(
@@ -831,7 +831,7 @@ const Sidebar = () => {
             {dbCtxMenu && activeConn && (() => {
                 const menuW = 172;
                 const menuH = 96;
-                const left = dbCtxMenu.x;
+                const left = Math.min(dbCtxMenu.x, window.innerWidth - menuW - 8);
                 const top = Math.min(dbCtxMenu.y, window.innerHeight - menuH - 8);
                 return (
                 <>

@@ -424,13 +424,9 @@ function TableGridView({
 		rowIdx: number;
 		colId: string;
 	} | null>(null);
-	const [selectedColId, setSelectedColId] = useState<string | null>(null);
+	const [colCtxMenu, setColCtxMenu] = useState<{ x: number; y: number; colId: string } | null>(null);
 	const [showQFSubmenu, setShowQFSubmenu] = useState(false);
-	const [colCtxMenu, setColCtxMenu] = useState<{
-		x: number;
-		y: number;
-		colId: string;
-	} | null>(null);
+	const [selectedColId, setSelectedColId] = useState<string | null>(null);
 	const [columnVisibility, setColumnVisibility] = useState<VisibilityState>(
 		{},
 	);
@@ -2036,15 +2032,10 @@ function TableGridView({
 														);
 													}}
 													onContextMenu={(e) => {
-														e.preventDefault();
-														const rect =
-															e.currentTarget.getBoundingClientRect();
-														setColCtxMenu({
-															x: rect.left,
-															y: rect.bottom,
-															colId,
-														});
-													}}
+													e.preventDefault();
+													const zoom = parseFloat(document.documentElement.style.zoom || "100") / 100;
+													setColCtxMenu({ x: e.clientX / zoom, y: e.clientY / zoom, colId });
+												}}
 												>
 													<div className="flex items-center gap-1">
 														<span
@@ -2148,17 +2139,10 @@ function TableGridView({
 														)
 													}
 													onContextMenu={(e) => {
-														e.preventDefault();
-														const rect =
-															e.currentTarget.getBoundingClientRect();
-														setContextMenuCell({
-															x: rect.left,
-															y: rect.bottom,
-															rowIdx: idx,
-															col: null,
-															rowData,
-														});
-													}}
+													e.preventDefault();
+													const zoom = parseFloat(document.documentElement.style.zoom || "100") / 100;
+													setContextMenuCell({ x: e.clientX / zoom, y: e.clientY / zoom, rowIdx: idx, col: null, rowData });
+												}}
 												>
 													{page * pageSize + idx + 1}
 												</TableCell>
@@ -2264,8 +2248,7 @@ function TableGridView({
 																	e,
 																) => {
 																	e.preventDefault();
-																	const rect =
-																		e.currentTarget.getBoundingClientRect();
+																	const zoom = parseFloat(document.documentElement.style.zoom || "100") / 100;
 																	setSelectedCell(
 																		{
 																			rowIdx: idx,
@@ -2276,8 +2259,8 @@ function TableGridView({
 																	);
 																	setContextMenuCell(
 																		{
-																			x: rect.left,
-																			y: rect.bottom,
+																			x: e.clientX / zoom,
+																			y: e.clientY / zoom,
 																			rowIdx: idx,
 																			col: cell
 																				.column
@@ -2604,11 +2587,8 @@ function TableGridView({
 						<div
 							className="absolute z-[9999] min-w-[14rem] rounded-lg bg-popover text-popover-foreground shadow-md ring-1 ring-foreground/10 p-1 text-[13px] animate-in fade-in-0 zoom-in-95 duration-100"
 							style={{
-								left: Math.min(
-									colCtxMenu.x,
-									window.innerWidth - 234,
-								),
-								top: colCtxMenu.y,
+								left: Math.min(colCtxMenu.x, window.innerWidth - 234),
+								top: Math.min(colCtxMenu.y, window.innerHeight - 400),
 							}}
 							onClick={(e) => e.stopPropagation()}
 						>
