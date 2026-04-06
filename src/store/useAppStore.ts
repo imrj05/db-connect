@@ -12,7 +12,7 @@ import {
 import { EncryptionUtils } from "@/lib/encryption";
 import { buildConnectionFunctions, suggestPrefix } from "@/lib/db-functions";
 import { tauriApi } from "@/lib/tauri-api";
-import { toast } from "sonner";
+import { toast } from "@/components/ui/sonner";
 
 // Legacy localStorage keys — kept only for one-time migration
 const LEGACY_CONNECTIONS_KEY = "db_connections_v3";

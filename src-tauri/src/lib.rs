@@ -35,6 +35,7 @@ pub fn run() {
             commands::list_all_tables,
             commands::get_user_databases,
             commands::get_table_structure,
+            commands::get_schema_graph,
             commands::switch_database,
             // ── App info ──────────────────────────────────────────────────────
             commands::get_app_data_dir,

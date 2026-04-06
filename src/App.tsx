@@ -11,7 +11,7 @@ import {
 } from "./components/layout/Onboarding";
 import { SettingsDialog } from "./components/layout/SettingsDialog";
 import { TooltipProvider } from "./components/ui/tooltip";
-import { Toaster } from "sonner";
+import { Toaster } from "@/components/ui/sonner";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import {
 	AlertDialog,

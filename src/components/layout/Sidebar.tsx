@@ -27,14 +27,8 @@ import {
     GripVertical,
     ArrowUpDown,
 } from "lucide-react";
-import {
-    SiPostgresql,
-    SiMysql,
-    SiSqlite,
-    SiMongodb,
-    SiRedis,
-} from "react-icons/si";
 import { useAppStore } from "@/store/useAppStore";
+import { DB_LOGO, DB_COLOR } from "@/lib/db-ui";
 import { GROUP_PRESETS } from "@/components/layout/ConnectionDialog";
 import { ImportExportDialog } from "@/components/layout/ImportExportDialog";
 import { tauriApi } from "@/lib/tauri-api";
@@ -55,23 +49,6 @@ import {
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-
-// ── DB type logos ──────────────────────────────────────────────────────────────
-const DB_LOGO: Record<string, React.FC<{ className?: string }>> = {
-    postgresql: ({ className }) => <SiPostgresql className={className} />,
-    mysql:      ({ className }) => <SiMysql      className={className} />,
-    sqlite:     ({ className }) => <SiSqlite     className={className} />,
-    mongodb:    ({ className }) => <SiMongodb    className={className} />,
-    redis:      ({ className }) => <SiRedis      className={className} />,
-};
-
-const DB_COLOR: Record<string, string> = {
-    postgresql: "text-blue-400",
-    mysql:      "text-cyan-400",
-    sqlite:     "text-slate-400",
-    mongodb:    "text-emerald-400",
-    redis:      "text-red-400",
-};
 
 // ── Column type → icon ─────────────────────────────────────────────────────────
 function ColumnIcon({ col }: { col: ColumnInfo }) {
@@ -745,7 +722,6 @@ const Sidebar = () => {
         setConnectionDialogOpen,
         setEditingConnection,
         addConnection,
-        setActiveConnection,
     } = useAppStore();
 
     const [filter, setFilter] = useState("");

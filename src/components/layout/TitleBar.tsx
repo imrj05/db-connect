@@ -1,14 +1,8 @@
 import { useState, useEffect, useRef, type CSSProperties } from "react";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { Search, Settings, WifiOff, ChevronLeft, Pencil, ChevronDown, ExternalLink, PanelLeft, ScrollText, Database } from "lucide-react";
-import {
-	SiPostgresql,
-	SiMysql,
-	SiSqlite,
-	SiMongodb,
-	SiRedis,
-} from "react-icons/si";
 import { useAppStore } from "@/store/useAppStore";
+import { DB_LOGO, DB_COLOR } from "@/lib/db-ui";
 import { Button } from "@/components/ui/button";
 import {
 	Tooltip,
@@ -41,23 +35,6 @@ function handleTitleBarDoubleClick(e: React.MouseEvent<HTMLElement>) {
 		return;
 	getCurrentWindow().toggleMaximize();
 }
-
-// ── DB type logos ──────────────────────────────────────────────────────────────
-const DB_LOGO: Record<string, React.FC<{ className?: string }>> = {
-	postgresql: ({ className }) => <SiPostgresql className={className} />,
-	mysql: ({ className }) => <SiMysql className={className} />,
-	sqlite: ({ className }) => <SiSqlite className={className} />,
-	mongodb: ({ className }) => <SiMongodb className={className} />,
-	redis: ({ className }) => <SiRedis className={className} />,
-};
-
-const DB_COLOR: Record<string, string> = {
-	postgresql: "text-blue-400",
-	mysql: "text-cyan-400",
-	sqlite: "text-slate-400",
-	mongodb: "text-emerald-400",
-	redis: "text-red-400",
-};
 
 // Build a short display URL from a connection config
 function buildDisplayUrl(conn: ConnectionConfig): string {

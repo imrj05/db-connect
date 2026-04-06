@@ -1,6 +1,29 @@
 import { useTheme } from "next-themes"
-import { Toaster as Sonner, type ToasterProps } from "sonner"
+import { Toaster as Sonner, toast as sonnerToast, type ToasterProps } from "sonner"
 import { CircleCheckIcon, InfoIcon, TriangleAlertIcon, OctagonXIcon, Loader2Icon } from "lucide-react"
+
+function replaceToast<T>(show: () => T) {
+  sonnerToast.dismiss()
+  return show()
+}
+
+const toast = Object.assign(
+  (...args: Parameters<typeof sonnerToast>) => replaceToast(() => sonnerToast(...args)),
+  {
+    success: (...args: Parameters<typeof sonnerToast.success>) =>
+      replaceToast(() => sonnerToast.success(...args)),
+    info: (...args: Parameters<typeof sonnerToast.info>) =>
+      replaceToast(() => sonnerToast.info(...args)),
+    warning: (...args: Parameters<typeof sonnerToast.warning>) =>
+      replaceToast(() => sonnerToast.warning(...args)),
+    error: (...args: Parameters<typeof sonnerToast.error>) =>
+      replaceToast(() => sonnerToast.error(...args)),
+    loading: (...args: Parameters<typeof sonnerToast.loading>) =>
+      replaceToast(() => sonnerToast.loading(...args)),
+    promise: sonnerToast.promise,
+    dismiss: sonnerToast.dismiss,
+  },
+)
 
 const Toaster = ({ ...props }: ToasterProps) => {
   const { theme = "system" } = useTheme()
@@ -39,9 +62,10 @@ const Toaster = ({ ...props }: ToasterProps) => {
           toast: "cn-toast",
         },
       }}
+      visibleToasts={1}
       {...props}
     />
   )
 }
 
-export { Toaster }
+export { Toaster, toast }

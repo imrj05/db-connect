@@ -120,6 +120,50 @@ impl DatabaseDriver for SqliteDriver {
         Ok(indexes)
     }
 
+    async fn get_foreign_keys(&self, _database: &str, _schema: Option<&str>) -> Result<Vec<ForeignKeyRelation>> {
+        let pool_lock = self.pool.read().await;
+        let pool = pool_lock.as_ref().ok_or_else(|| anyhow!("Not connected"))?;
+
+        let table_rows = sqlx::query("SELECT name FROM sqlite_master WHERE type='table'")
+            .fetch_all(pool)
+            .await?;
+
+        use std::collections::BTreeMap;
+
+        let mut relationships = Vec::new();
+
+        for table_row in table_rows {
+            let source_table: String = table_row.get(0);
+            let pragma = format!("PRAGMA foreign_key_list(\"{}\")", source_table.replace('"', "\"\""));
+            let fk_rows = sqlx::query(&pragma).fetch_all(pool).await.unwrap_or_default();
+            let mut relation_map: BTreeMap<i64, ForeignKeyRelation> = BTreeMap::new();
+
+            for row in fk_rows {
+                let fk_id: i64 = row.try_get::<i64, _>(0).unwrap_or_default();
+                let source_column: String = row.try_get(3).unwrap_or_default();
+                let target_table: String = row.try_get(2).unwrap_or_default();
+                let target_column: String = row.try_get(4).unwrap_or_default();
+
+                let relation = relation_map.entry(fk_id).or_insert_with(|| ForeignKeyRelation {
+                    name: format!("{}_fk_{}", source_table, fk_id),
+                    source_table: source_table.clone(),
+                    source_schema: Some("main".to_string()),
+                    source_columns: Vec::new(),
+                    target_table: target_table.clone(),
+                    target_schema: Some("main".to_string()),
+                    target_columns: Vec::new(),
+                });
+
+                relation.source_columns.push(source_column);
+                relation.target_columns.push(target_column);
+            }
+
+            relationships.extend(relation_map.into_values());
+        }
+
+        Ok(relationships)
+    }
+
     async fn run_query(&self, query: &str) -> Result<QueryResult> {
         let pool_lock = self.pool.read().await;
         let pool = pool_lock.as_ref().ok_or_else(|| anyhow!("Not connected"))?;

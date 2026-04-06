@@ -17,7 +17,7 @@ import {
 import { ConnectionConfig, ConflictStrategy, ExportFormat, ImportFormat, ImportResult } from "@/types";
 import { useAppStore } from "@/store/useAppStore";
 import { tauriApi } from "@/lib/tauri-api";
-import { toast } from "sonner";
+import { toast } from "@/components/ui/sonner";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";

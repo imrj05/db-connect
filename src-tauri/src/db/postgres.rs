@@ -173,6 +173,78 @@ impl DatabaseDriver for PostgresDriver {
         }).collect())
     }
 
+    async fn get_foreign_keys(&self, _database: &str, schema: Option<&str>) -> Result<Vec<ForeignKeyRelation>> {
+        let pool_lock = self.pool.read().await;
+        let pool = pool_lock.as_ref().ok_or_else(|| anyhow!("Not connected"))?;
+
+        let schema_name = schema.unwrap_or("public");
+        let rows = sqlx::query(
+            "SELECT
+                tc.constraint_name,
+                kcu.table_schema AS source_schema,
+                kcu.table_name AS source_table,
+                kcu.column_name AS source_column,
+                kcu.ordinal_position AS ordinal_position,
+                ccu.table_schema AS target_schema,
+                ccu.table_name AS target_table,
+                ccu.column_name AS target_column
+             FROM information_schema.table_constraints tc
+             JOIN information_schema.key_column_usage kcu
+               ON tc.constraint_name = kcu.constraint_name
+              AND tc.table_schema = kcu.table_schema
+             JOIN information_schema.referential_constraints rc
+               ON tc.constraint_name = rc.constraint_name
+              AND tc.table_schema = rc.constraint_schema
+             JOIN information_schema.key_column_usage ccu
+               ON rc.unique_constraint_name = ccu.constraint_name
+              AND rc.unique_constraint_schema = ccu.constraint_schema
+              AND ccu.ordinal_position = kcu.position_in_unique_constraint
+             WHERE tc.constraint_type = 'FOREIGN KEY'
+               AND tc.table_schema = $1
+             ORDER BY kcu.table_name, tc.constraint_name, kcu.ordinal_position"
+        )
+        .bind(schema_name)
+        .fetch_all(pool)
+        .await?;
+
+        use std::collections::BTreeMap;
+
+        let mut relation_map: BTreeMap<(String, String, String, String, String), ForeignKeyRelation> =
+            BTreeMap::new();
+
+        for row in rows {
+            let name: String = row.get(0);
+            let source_schema: String = row.get(1);
+            let source_table: String = row.get(2);
+            let source_column: String = row.get(3);
+            let target_schema: String = row.get(5);
+            let target_table: String = row.get(6);
+            let target_column: String = row.get(7);
+            let key = (
+                source_schema.clone(),
+                source_table.clone(),
+                name.clone(),
+                target_schema.clone(),
+                target_table.clone(),
+            );
+
+            let relation = relation_map.entry(key).or_insert_with(|| ForeignKeyRelation {
+                name: name.clone(),
+                source_table: source_table.clone(),
+                source_schema: Some(source_schema.clone()),
+                source_columns: Vec::new(),
+                target_table: target_table.clone(),
+                target_schema: Some(target_schema.clone()),
+                target_columns: Vec::new(),
+            });
+
+            relation.source_columns.push(source_column);
+            relation.target_columns.push(target_column);
+        }
+
+        Ok(relation_map.into_values().collect())
+    }
+
     async fn run_query(&self, query: &str) -> Result<QueryResult> {
         let pool_lock = self.pool.read().await;
         let pool = pool_lock.as_ref().ok_or_else(|| anyhow!("Not connected"))?;

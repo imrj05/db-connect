@@ -86,6 +86,33 @@ pub struct TableStructure {
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 #[serde(rename_all = "camelCase")]
+pub struct ForeignKeyRelation {
+    pub name: String,
+    pub source_table: String,
+    pub source_schema: Option<String>,
+    pub source_columns: Vec<String>,
+    pub target_table: String,
+    pub target_schema: Option<String>,
+    pub target_columns: Vec<String>,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+#[serde(rename_all = "camelCase")]
+pub struct SchemaGraphTable {
+    pub name: String,
+    pub schema: Option<String>,
+    pub columns: Vec<ColumnInfo>,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+#[serde(rename_all = "camelCase")]
+pub struct SchemaGraph {
+    pub tables: Vec<SchemaGraphTable>,
+    pub relationships: Vec<ForeignKeyRelation>,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+#[serde(rename_all = "camelCase")]
 pub struct QueryResult {
     pub columns: Vec<String>,
     pub rows: Vec<serde_json::Value>,
@@ -173,4 +200,3 @@ pub struct ConnectionExport {
     pub password_protected: bool,
     pub connections: Vec<ConnectionConfig>,
 }
-

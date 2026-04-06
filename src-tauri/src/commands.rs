@@ -206,6 +206,49 @@ pub async fn get_table_structure(id: String, database: String, table: String, sc
     Ok(TableStructure { columns, indexes })
 }
 
+#[tauri::command]
+pub async fn get_schema_graph(id: String, database: String, schema: Option<String>) -> Result<SchemaGraph, String> {
+    let driver = REGISTRY.connections.get(&id)
+        .ok_or_else(|| "Not connected".to_string())?;
+
+    let config = REGISTRY.configs.get(&id)
+        .ok_or_else(|| "Connection config not found".to_string())?;
+
+    let resolved_schema = match config.db_type {
+        DatabaseType::Postgresql | DatabaseType::Sqlite => {
+            schema.clone().or_else(|| Some(database.clone()))
+        }
+        _ => schema.clone(),
+    };
+
+    let tables = driver.get_tables(&database, resolved_schema.as_deref())
+        .await
+        .map_err(|e| e.to_string())?;
+
+    let mut graph_tables = Vec::new();
+    for table in tables {
+        let table_schema = table.schema.clone().or_else(|| resolved_schema.clone());
+        let columns = driver.get_columns(&database, &table.name, table_schema.as_deref())
+            .await
+            .map_err(|e| e.to_string())?;
+
+        graph_tables.push(SchemaGraphTable {
+            name: table.name,
+            schema: table_schema,
+            columns,
+        });
+    }
+
+    let relationships = driver.get_foreign_keys(&database, resolved_schema.as_deref())
+        .await
+        .unwrap_or_default();
+
+    Ok(SchemaGraph {
+        tables: graph_tables,
+        relationships,
+    })
+}
+
 /// Reconnect the driver to a different database within the same server.
 /// Required for PostgreSQL where you cannot change the database of an existing
 /// connection — a new pool must be created. For other drivers this is a no-op

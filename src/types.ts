@@ -52,6 +52,27 @@ export interface TableStructure {
   indexes: IndexInfo[];
 }
 
+export interface ForeignKeyRelation {
+  name: string;
+  sourceTable: string;
+  sourceSchema?: string;
+  sourceColumns: string[];
+  targetTable: string;
+  targetSchema?: string;
+  targetColumns: string[];
+}
+
+export interface SchemaGraphTable {
+  name: string;
+  schema?: string;
+  columns: ColumnInfo[];
+}
+
+export interface SchemaGraph {
+  tables: SchemaGraphTable[];
+  relationships: ForeignKeyRelation[];
+}
+
 export interface QueryResult {
   columns: string[];
   rows: any[];

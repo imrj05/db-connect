@@ -34,7 +34,7 @@ Legend: `[x]` Done · `[~]` Partial · `[ ]` Not started
 
 ### Connection Security
 
-- [ ] SSH tunneling — not implemented; listed in README upcoming
+- [x] SSH tunneling — connection dialog includes SSH tunnel fields and backend tunnel setup/cleanup is handled in `src-tauri/src/commands.rs` + `src-tauri/src/ssh.rs`
 - [~] SSL or TLS encryption — `ssl` field exists in `ConnectionConfig` but not wired into drivers
 - [x] Credential management — passwords stored encrypted via AES (`src/lib/encryption.ts`)
 - [x] Secure password storage — AES encryption on save/load; note: default key is hardcoded — see Storage Improvements below
@@ -127,7 +127,7 @@ Legend: `[x]` Done · `[~]` Partial · `[ ]` Not started
 
 ### Safety and Review
 
-- [ ] Preview SQL before execution — no dry-run or preview mode; executes on Run
+- [x] Preview SQL before execution — SQL editor includes a Preview dialog with current SQL plus Explain and Run actions; destructive SQL still flows through the existing confirmation step
 - [x] Safe mode — confirmation dialog intercepts DELETE / DROP / TRUNCATE before execution; "Run anyway" proceeds
 - [ ] Change tracking — no transaction/undo UI
 - [ ] Undo changes — no undo for inline cell edits once committed
@@ -153,7 +153,8 @@ Legend: `[x]` Done · `[~]` Partial · `[ ]` Not started
 ### Productivity
 
 - [x] TitleBar back navigation — back button for nested view navigation with drag region support
-- [x] Keyboard shortcuts — ⌘K (command palette), ⌘↵ (execute SQL), ⌘T (new tab), ⌘W (close tab), Esc (cancel edit), Enter (inline edit selected cell), Shift+Enter (edit selected cell in modal), ⌘F (open search bar)
+- [x] Keyboard shortcuts — ⌘K (command palette), ⌘↵ (execute SQL), ⌘T (new tab), ⌘W (close tab), ⌘1…⌘9 (switch tabs), Esc (cancel edit), Enter (inline edit selected cell), Shift+Enter (edit selected cell in modal), ⌘F (open search bar)
+- [x] Switch tabs — `Cmd/Ctrl+1..9` jumps instantly to the first nine open result tabs in left-to-right tab order
 - [x] Command palette — fuzzy search across all functions grouped by connection prefix
 - [x] Quick navigation — sidebar tree + command palette cover all navigation needs
 
@@ -218,8 +219,8 @@ Legend: `[x]` Done · `[~]` Partial · `[ ]` Not started
 
 ### Visual Tools
 
-- [ ] ER diagram generator — in README upcoming list
-- [ ] Schema visualization — no visual schema or relationship map
+- [x] ER diagram generator — read-only ER mode added to table viewer for PostgreSQL, MySQL, and SQLite with pan/zoom, auto-layout, and node click-through navigation
+- [x] Schema visualization — connection-wide schema graph renders tables and foreign-key relationships for relational databases
 - [ ] Drag and edit relations — not implemented
 
 ---

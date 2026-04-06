@@ -152,6 +152,71 @@ impl DatabaseDriver for MySqlDriver {
         }).collect())
     }
 
+    async fn get_foreign_keys(&self, database: &str, _schema: Option<&str>) -> Result<Vec<ForeignKeyRelation>> {
+        let pool_lock = self.pool.read().await;
+        let pool = pool_lock.as_ref().ok_or_else(|| anyhow!("Not connected"))?;
+
+        pool.execute(format!("USE `{}`", database).as_str()).await?;
+
+        let rows = pool.fetch_all(
+            format!(
+                "SELECT
+                    CONSTRAINT_NAME,
+                    TABLE_SCHEMA,
+                    TABLE_NAME,
+                    COLUMN_NAME,
+                    ORDINAL_POSITION,
+                    REFERENCED_TABLE_SCHEMA,
+                    REFERENCED_TABLE_NAME,
+                    REFERENCED_COLUMN_NAME
+                 FROM information_schema.KEY_COLUMN_USAGE
+                 WHERE TABLE_SCHEMA = '{}'
+                   AND REFERENCED_TABLE_NAME IS NOT NULL
+                 ORDER BY TABLE_NAME, CONSTRAINT_NAME, ORDINAL_POSITION",
+                database.replace('\'', "''"),
+            )
+            .as_str()
+        ).await?;
+
+        use std::collections::BTreeMap;
+
+        let mut relation_map: BTreeMap<(String, String, String, String, String), ForeignKeyRelation> =
+            BTreeMap::new();
+
+        for row in rows {
+            let name: String = row.try_get(0).unwrap_or_default();
+            let source_schema: String = row.try_get(1).unwrap_or_else(|_| database.to_string());
+            let source_table: String = row.try_get(2).unwrap_or_default();
+            let source_column: String = row.try_get(3).unwrap_or_default();
+            let target_schema: String = row.try_get(5).unwrap_or_else(|_| database.to_string());
+            let target_table: String = row.try_get(6).unwrap_or_default();
+            let target_column: String = row.try_get(7).unwrap_or_default();
+
+            let key = (
+                source_schema.clone(),
+                source_table.clone(),
+                name.clone(),
+                target_schema.clone(),
+                target_table.clone(),
+            );
+
+            let relation = relation_map.entry(key).or_insert_with(|| ForeignKeyRelation {
+                name: name.clone(),
+                source_table: source_table.clone(),
+                source_schema: Some(source_schema.clone()),
+                source_columns: Vec::new(),
+                target_table: target_table.clone(),
+                target_schema: Some(target_schema.clone()),
+                target_columns: Vec::new(),
+            });
+
+            relation.source_columns.push(source_column);
+            relation.target_columns.push(target_column);
+        }
+
+        Ok(relation_map.into_values().collect())
+    }
+
     async fn run_query(&self, query: &str) -> Result<QueryResult> {
         let pool_lock = self.pool.read().await;
         let pool = pool_lock.as_ref().ok_or_else(|| anyhow!("Not connected"))?;

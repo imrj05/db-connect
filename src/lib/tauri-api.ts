@@ -1,5 +1,5 @@
 import { invoke } from "@tauri-apps/api/core";
-import { ConnectionConfig, ExportOptions, ImportOptions, ImportResult, QueryHistoryEntry, QueryResult, SavedQuery, TableInfo, TableStructure } from "@/types";
+import { ConnectionConfig, ExportOptions, ImportOptions, ImportResult, QueryHistoryEntry, QueryResult, SavedQuery, SchemaGraph, TableInfo, TableStructure } from "@/types";
 
 export const tauriApi = {
   // ── DB driver ──────────────────────────────────────────────────────────────
@@ -38,6 +38,10 @@ export const tauriApi = {
 
   async getTableStructure(id: string, database: string, table: string, schema?: string): Promise<TableStructure> {
     return await invoke("get_table_structure", { id, database, table, schema: schema ?? null });
+  },
+
+  async getSchemaGraph(id: string, database: string, schema?: string): Promise<SchemaGraph> {
+    return await invoke("get_schema_graph", { id, database, schema: schema ?? null });
   },
 
   async switchDatabase(id: string, database: string): Promise<void> {

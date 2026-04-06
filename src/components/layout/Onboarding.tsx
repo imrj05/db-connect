@@ -1,11 +1,5 @@
 import { useState } from "react";
-import {
-    SiPostgresql,
-    SiMysql,
-    SiSqlite,
-    SiMongodb,
-    SiRedis,
-} from "react-icons/si";
+import { DB_LOGOS_ARRAY as DB_LOGOS } from "@/lib/db-ui";
 import {
     Table2,
     Zap,
@@ -61,14 +55,6 @@ const FEATURES = [
         desc: "Jump to any table or query with ⌘K.",
     },
 ] as const;
-
-const DB_LOGOS = [
-    { Icon: SiPostgresql, color: "text-blue-500",    label: "PostgreSQL" },
-    { Icon: SiMysql,      color: "text-cyan-500",    label: "MySQL"      },
-    { Icon: SiSqlite,     color: "text-slate-400",   label: "SQLite"     },
-    { Icon: SiMongodb,    color: "text-emerald-500",  label: "MongoDB"    },
-    { Icon: SiRedis,      color: "text-red-500",      label: "Redis"      },
-];
 
 // ── Steps ─────────────────────────────────────────────────────────────────────
 
