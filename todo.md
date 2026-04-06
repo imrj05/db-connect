@@ -15,7 +15,7 @@ Legend: `[x]` Done · `[~]` Partial · `[ ]` Not started
 - [x] MongoDB support — full driver in `src-tauri/src/db/mongodb.rs`; `run_query()` handles SQL UPDATE/DELETE mapped to MongoDB ops; `get_table_data()` paginates collections
 - [x] Redis support — basic driver in `src-tauri/src/db/redis_driver.rs` (key-value command execution)
 - [ ] SQL Server support — no driver; not in roadmap yet
-- [x] Save connections — AES-encrypted in localStorage (`db_connections_v3`)
+- [x] Save connections — persisted in Tauri-side SQLite via `src-tauri/src/storage.rs`; credentials remain encrypted at rest
 - [x] Group connections (dev, staging, prod) — optional `group` field on `ConnectionConfig`; persisted in SQLite `group_name` column; sidebar renders collapsible group headers with folder icons
 - [x] Quick connect — one-click preset chips (Local PG, Local MySQL, SQLite, MongoDB, Redis) at top of ConnectionDialog; clicking fills engine + connection fields automatically
 
@@ -24,7 +24,7 @@ Legend: `[x]` Done · `[~]` Partial · `[ ]` Not started
 ### Storage Improvements (Priority)
 
 - [x] **Migrate connection storage from localStorage to SQLite (Tauri side)** — `src-tauri/src/storage.rs` manages a SQLite DB at `{app_data_dir}/storage.db` via sqlx; 6 new Tauri commands handle CRUD; one-time migration from legacy localStorage on first launch
-- [x] **Encrypt connection credentials at rest with a machine-generated key** — replaced hardcoded AES key in `encryption.ts` with a random 32-byte key generated on first run and stored at `{app_data_dir}/storage.key`; AES-256-GCM used on the Rust side; key never touches JS
+- [x] **Encrypt connection credentials at rest with a machine-generated key** — Rust generates a random 32-byte key on first run; AES-256-GCM is used on the storage layer and the key is kept out of JS
 - [x] **Persist Zustand saved queries to SQLite** — `saveQuery` / `deleteSavedQuery` now call `storage_save_query` / `storage_delete_query` Tauri commands; loaded from SQLite on startup
 - [x] **Zustand store reads/writes via Tauri commands** — `loadConnections` is now async and calls `storage_load_connections`; writes are fire-and-forget Tauri calls keeping Zustand API synchronous for callers
 - [x] **Separate connection metadata from credentials** — SQLite stores host/port/type/prefix in plaintext columns; only `encrypted_password` column holds the AES-GCM ciphertext; decrypted in Rust before returning to frontend
@@ -35,9 +35,9 @@ Legend: `[x]` Done · `[~]` Partial · `[ ]` Not started
 ### Connection Security
 
 - [x] SSH tunneling — connection dialog includes SSH tunnel fields and backend tunnel setup/cleanup is handled in `src-tauri/src/commands.rs` + `src-tauri/src/ssh.rs`
-- [~] SSL or TLS encryption — `ssl` field exists in `ConnectionConfig` but not wired into drivers
-- [x] Credential management — passwords stored encrypted via AES (`src/lib/encryption.ts`)
-- [x] Secure password storage — AES encryption on save/load; note: default key is hardcoded — see Storage Improvements below
+- [x] SSL or TLS encryption — PostgreSQL and MySQL drivers apply `ssl` via `PgSslMode` / `MySqlSslMode`; Redis URI export also supports `rediss://`
+- [x] Credential management — passwords and SSH secrets are encrypted in the Tauri storage layer and decrypted only when Rust returns connection configs to the frontend
+- [x] Secure password storage — AES-256-GCM at rest with a per-machine key stored via OS keychain integration
 - [x] Test connection — "Test Connection" button in ConnectionDialog validates credentials before saving
 
 ---
@@ -49,7 +49,7 @@ Legend: `[x]` Done · `[~]` Partial · `[ ]` Not started
 - [x] Auto completion — schema-aware autocomplete using table/column names injected into CodeMirror
 - [x] Multi query tabs — multiple `ResultTab[]` managed in Zustand; tabs persist across function switches
 - [x] Query history — per-connection history (max 100 entries), `QueryHistoryEntry[]`
-- [x] Favorite queries — `SavedQuery` type persisted to localStorage; inline save UI in editor panel
+- [x] Favorite queries — `SavedQuery` records are persisted to SQLite via `storage_save_query` / `storage_load_queries`; inline save UI lives in the editor panel
 
 ---
 
@@ -170,7 +170,7 @@ Legend: `[x]` Done · `[~]` Partial · `[ ]` Not started
 - [x] Sidebar navigation — collapsible connection tree with DB logos, table list, quick access
 - [x] Resizable panels — drag-to-resize sidebar and editor/results panels
 - [x] Settings dialog — multi-section settings (Appearance, Editor, Table, Storage, About) with persistent preferences; accessible via TitleBar gear icon and Command Palette
-- [x] UI zoom levels — 5 zoom options (80%, 90%, 100%, 110%, 125%) for accessibility via Settings › Appearance
+- [x] UI zoom levels — 5 zoom options (100%, 110%, 125%, 140%, 150%) via Settings › Appearance
 - [x] Onboarding experience — first-run welcome flow with DB type selection, feature showcase cards, and setup guidance; skippable
 
 ---
@@ -193,7 +193,7 @@ Legend: `[x]` Done · `[~]` Partial · `[ ]` Not started
 
 ### Logs and Debugging
 
-- [x] Query logs — in-memory query history per connection with timestamps and duration
+- [x] Query logs — per-connection history with timestamps, row counts, and duration; persisted to SQLite via `storage_save_history_entry`
 - [~] Error logs — errors shown as toast notifications; not persisted or filterable
 - [ ] Debug mode — no verbose logging toggle or debug panel
 
@@ -201,7 +201,7 @@ Legend: `[x]` Done · `[~]` Partial · `[ ]` Not started
 
 ## Collaboration Features
 
-- [ ] Share connections — connections stored in local storage only
+- [x] Share connections — Import/Export dialog supports JSON, URI / `.env`, and DBeaver formats; JSON exports can include passphrase-protected passwords
 - [ ] Team workspace — single-user app; no sync or sharing
 - [ ] Role based access — no user/role system
 
@@ -263,7 +263,7 @@ Legend: `[x]` Done · `[~]` Partial · `[ ]` Not started
 - [x] AWS RDS support — works via standard PostgreSQL/MySQL connection config + URI field
 - [x] Supabase support — PostgreSQL driver connects to Supabase using connection string
 - [ ] Firebase support — no Firestore/Firebase driver
-- [~] Remote database management — URI field supports remote connections; no SSH/bastion/proxy
+- [x] Remote database management — standard host/port and URI-based remote connections work, and SSH tunneling covers bastion-style access
 
 ---
 
@@ -288,39 +288,39 @@ Legend: `[x]` Done · `[~]` Partial · `[ ]` Not started
 
 ## Progress Summary
 
-_Last audited: 2026-03-21. Counts reflect actual codebase state, not just todo entries._
+_Last audited: 2026-04-06. Counts reflect actual codebase state, not just todo entries._
 
 | Category | Done | Partial | Todo |
 |---|---|---|---|
-| Connections | 6 | 2 | 2 |
+| Connections | 9 | 0 | 1 |
 | Storage | 6 | 0 | 0 |
-| Security | 3 | 1 | 1 |
+| Security | 5 | 0 | 0 |
 | Query Editor | 6 | 0 | 0 |
 | Table Management | 6 | 0 | 1 |
 | Data Viewer | 17 | 0 | 0 |
-| Filtering | 3 | 1 | 0 |
+| Filtering | 4 | 0 | 0 |
 | Workspace | 3 | 0 | 0 |
 | Import/Export | 5 | 0 | 0 |
 | Query Execution | 2 | 1 | 1 |
-| Safety | 1 | 0 | 3 |
+| Safety | 2 | 0 | 2 |
 | DB Management | 0 | 0 | 3 |
 | Performance | 2 | 0 | 1 |
-| Productivity | 4 | 0 | 0 |
+| Productivity | 5 | 0 | 0 |
 | UI/UX | 10 | 0 | 0 |
 | Code Generation | 0 | 0 | 2 |
 | Versioning | 0 | 0 | 2 |
 | Logs | 1 | 1 | 1 |
-| Collaboration | 0 | 0 | 3 |
+| Collaboration | 1 | 0 | 2 |
 | AI Features | 0 | 0 | 3 |
-| Visual Tools | 0 | 0 | 3 |
+| Visual Tools | 2 | 0 | 1 |
 | Multi DB Insights | 0 | 0 | 3 |
 | Offline | 1 | 1 | 1 |
 | Plugin System | 0 | 0 | 3 |
 | DevOps | 0 | 0 | 2 |
-| Cloud | 2 | 1 | 1 |
-| **Total** | **78** | **8** | **36** |
+| Cloud | 3 | 0 | 1 |
+| **Total** | **90** | **3** | **30** |
 
-**~67% of planned features implemented.** DDL surface is complete. Data Viewer is now a full-featured spreadsheet: row/cell/column selection with amber highlights, rich right-click context menus (copy as TSV/JSON/Markdown/SQL, quick filter, clone row, set NULL), Edit in Modal with CodeMirror + format switching (Text/JSON/HTML), keyboard-driven editing (Enter / Shift+Enter), and column visibility. Key remaining work: SSL/TLS wiring, group connections, SSH tunneling.
+**~73% of planned features implemented.** DDL surface is complete. Data Viewer is now a full-featured spreadsheet: row/cell/column selection with amber highlights, rich right-click context menus (copy as TSV/JSON/Markdown/SQL, quick filter, clone row, set NULL), Edit in Modal with CodeMirror + format switching (Text/JSON/HTML), keyboard-driven editing (Enter / Shift+Enter), and column visibility. Key remaining work: streaming results, visual schema editing, change tracking / undo, and schema comparison workflows.
 
 ---
 
@@ -332,6 +332,7 @@ _Last audited: 2026-03-21. Counts reflect actual codebase state, not just todo e
 - [x] **Query plan viewer** — "Explain" button prepends `EXPLAIN`; renders in results grid
 - [x] **OS keychain** — `keyring` v3 crate; migrates legacy file on first launch
 - [x] **Full DDL surface** — Create/Alter/Drop/Rename table + Create/Drop index with live SQL preview
+- [x] **SSH tunneling** — SSH port-forward is implemented in `src-tauri/src/ssh.rs` and wired into connection setup / teardown in `src-tauri/src/commands.rs`
 
 ### Tier 1 — High Value, Low Effort (Frontend only)
 - [x] **Full-text cell search** — Search icon button + ⌘F shortcut; thin bar above filter bar; filters `effectiveResult.rows` client-side across all columns; "N of M" count badge; Escape closes; resets on new query
@@ -342,8 +343,5 @@ _Last audited: 2026-03-21. Counts reflect actual codebase state, not just todo e
 - [x] **Keyboard editing shortcuts** — Enter opens inline edit on selected cell; Shift+Enter opens edit-in-modal; both fire only when a cell is selected and no input is focused
 
 ### Tier 2 — High Value, Medium Effort
-- [x] **SSL/TLS wiring** — `ssl` field is already stored in SQLite and passed to Rust; needs to be applied to `PgPoolOptions` / `MySqlPoolOptions` via `sqlx::postgres::PgSslMode` / `MySqlSslMode`; no frontend changes
+- [x] **SSL/TLS wiring** — `ssl` is persisted in storage and applied in the PostgreSQL / MySQL drivers via `PgSslMode` / `MySqlSslMode`
 - [x] **Group connections (dev/staging/prod)** — add optional `group` tag field to `ConnectionConfig`; sidebar renders connections grouped under collapsible headers
-
-### Tier 3 — High Value, High Effort
-- [ ] **SSH tunneling** — SSH port-forward before driver connect; needs `russh` crate + new `src-tauri/src/ssh.rs`; significant backend work
