@@ -1,5 +1,5 @@
 use async_trait::async_trait;
-use sqlx::{mysql::{MySqlConnectOptions, MySqlPoolOptions, MySqlSslMode}, Pool, MySql, Row, Column, Executor};
+use sqlx::{mysql::{MySqlConnectOptions, MySqlPoolOptions, MySqlSslMode}, Pool, MySql, Row, Executor};
 use crate::types::*;
 use crate::db::DatabaseDriver;
 use anyhow::{Result, anyhow};
@@ -230,17 +230,8 @@ impl DatabaseDriver for MySqlDriver {
         let duration = start.elapsed().as_millis() as u64;
 
         if rows.is_empty() {
-            let columns = if let Ok(metadata) = pool.fetch_optional(query).await {
-                // This is a bit of a hack to get column names for empty results if possible
-                // but fetch_all already returns the rows which contain metadata.
-                // If rows is empty, we might not have a clean way without a separate query
-                vec![]
-            } else {
-                vec![]
-            };
-
             return Ok(QueryResult {
-                columns,
+                columns: vec![],
                 rows: vec![],
                 execution_time_ms: duration,
             });

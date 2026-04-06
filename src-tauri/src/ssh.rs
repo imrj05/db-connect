@@ -90,7 +90,7 @@ impl SshTunnel {
 
                 tokio::spawn(async move {
                     let channel = {
-                        let mut s = session.lock().await;
+                        let s = session.lock().await;
                         s.channel_open_direct_tcpip(
                             &db_host,
                             db_port as u32,
