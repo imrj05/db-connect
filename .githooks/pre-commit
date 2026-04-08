@@ -1,0 +1,36 @@
+#!/usr/bin/env bash
+set -e
+
+# Read version from package.json (single source of truth)
+VERSION=$(grep '"version"' package.json | head -1 | sed 's/.*"version": *"\(.*\)".*/\1/')
+
+if [ -z "$VERSION" ]; then
+  echo "pre-commit: could not read version from package.json" >&2
+  exit 1
+fi
+
+# ── Sync to src-tauri/tauri.conf.json ────────────────────────────────────────
+TAURI_VERSION=$(grep '"version"' src-tauri/tauri.conf.json | head -1 | sed 's/.*"version": *"\(.*\)".*/\1/')
+
+if [ "$VERSION" != "$TAURI_VERSION" ]; then
+  echo "pre-commit: syncing version $TAURI_VERSION → $VERSION in tauri.conf.json"
+  node -e "
+    const fs = require('fs');
+    const raw = fs.readFileSync('src-tauri/tauri.conf.json', 'utf8');
+    const conf = JSON.parse(raw);
+    conf.version = '$VERSION';
+    const indent = raw.match(/^(\s+)/m)?.[1] || '    ';
+    fs.writeFileSync('src-tauri/tauri.conf.json', JSON.stringify(conf, null, indent) + '\n');
+  "
+  git add src-tauri/tauri.conf.json
+fi
+
+# ── Sync to src-tauri/Cargo.toml ─────────────────────────────────────────────
+CARGO_VERSION=$(grep '^version = ' src-tauri/Cargo.toml | head -1 | sed 's/version = "\(.*\)"/\1/')
+
+if [ "$VERSION" != "$CARGO_VERSION" ]; then
+  echo "pre-commit: syncing version $CARGO_VERSION → $VERSION in Cargo.toml"
+  sed -i.bak "0,/^version = \"[^\"]*\"/s/^version = \"[^\"]*\"/version = \"$VERSION\"/" src-tauri/Cargo.toml
+  rm -f src-tauri/Cargo.toml.bak
+  git add src-tauri/Cargo.toml
+fi

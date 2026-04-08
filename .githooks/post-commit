@@ -1,0 +1,29 @@
+#!/usr/bin/env bash
+
+# Read current version from package.json
+VERSION=$(grep '"version"' package.json | head -1 | sed 's/.*"version": *"\(.*\)".*/\1/')
+
+if [ -z "$VERSION" ]; then
+  exit 0
+fi
+
+# Read previous commit's version (skip on very first commit)
+if git rev-parse HEAD~1 >/dev/null 2>&1; then
+  PREV_VERSION=$(git show HEAD~1:package.json 2>/dev/null \
+    | grep '"version"' | head -1 \
+    | sed 's/.*"version": *"\(.*\)".*/\1/' || echo "")
+else
+  PREV_VERSION=""
+fi
+
+# Create tag if version changed
+if [ "$VERSION" != "$PREV_VERSION" ]; then
+  TAG="v$VERSION"
+  if git rev-parse "$TAG" >/dev/null 2>&1; then
+    echo "post-commit: tag $TAG already exists, skipping."
+  else
+    git tag "$TAG"
+    echo "post-commit: created tag $TAG"
+    echo "post-commit: run 'git push origin $TAG' to trigger the GitHub release workflow."
+  fi
+fi
