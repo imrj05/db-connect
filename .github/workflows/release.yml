@@ -138,5 +138,86 @@ jobs:
           TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
         with:
           releaseId: ${{ needs.create-release.outputs.release_id }}
-          includeUpdaterJson: true
+          includeUpdaterJson: false
           args: ${{ matrix.args }}
+
+  # ── Job 3: Assemble latest.json from all platform .sig files ────────────────
+  publish-updater:
+    needs: [create-release, build]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: Generate and upload latest.json
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          RELEASE_ID: ${{ needs.create-release.outputs.release_id }}
+          TAG: ${{ github.ref_name }}
+        run: |
+          set -euo pipefail
+          VERSION="${TAG#v}"
+
+          # Download only .sig files from the release
+          mkdir -p /tmp/sigs
+          gh release download "$TAG" \
+            --dir /tmp/sigs \
+            --repo "$GITHUB_REPOSITORY" \
+            --pattern "*.sig"
+
+          # Fetch asset metadata and release info
+          ASSETS=$(gh api "repos/$GITHUB_REPOSITORY/releases/$RELEASE_ID/assets" --paginate)
+          RELEASE=$(gh api "repos/$GITHUB_REPOSITORY/releases/$RELEASE_ID")
+          PUB_DATE=$(echo "$RELEASE" | jq -r '.published_at')
+          NOTES=$(echo "$RELEASE" | jq -r '.body // ""')
+
+          PLATFORMS="{}"
+
+          for SIG_FILE in /tmp/sigs/*.sig; do
+            [ -f "$SIG_FILE" ] || continue
+            BASENAME=$(basename "$SIG_FILE")
+            ARCHIVE_NAME="${BASENAME%.sig}"
+
+            PLATFORM=""
+            if [[ "$BASENAME" == *aarch64.app.tar.gz.sig ]]; then
+              PLATFORM="darwin-aarch64"
+            elif [[ "$BASENAME" == *x86_64.app.tar.gz.sig ]]; then
+              PLATFORM="darwin-x86_64"
+            elif [[ "$BASENAME" == *.AppImage.tar.gz.sig ]]; then
+              PLATFORM="linux-x86_64"
+            elif [[ "$BASENAME" == *x64-setup.exe.sig || "$BASENAME" == *x64_en-US.msi.zip.sig ]]; then
+              PLATFORM="windows-x86_64"
+            else
+              echo "Skipping unrecognised sig: $BASENAME"
+              continue
+            fi
+
+            SIG=$(tr -d '\n' < "$SIG_FILE")
+            URL=$(echo "$ASSETS" | jq -r --arg n "$ARCHIVE_NAME" \
+              '.[] | select(.name == $n) | .browser_download_url')
+
+            if [ -z "$URL" ]; then
+              echo "Warning: no archive URL found for $ARCHIVE_NAME"
+              continue
+            fi
+
+            echo "  ✓ $PLATFORM → $ARCHIVE_NAME"
+            PLATFORMS=$(echo "$PLATFORMS" | jq \
+              --arg p "$PLATFORM" --arg s "$SIG" --arg u "$URL" \
+              '.[$p] = {signature: $s, url: $u}')
+          done
+
+          jq -n \
+            --arg version "$VERSION" \
+            --arg notes "$NOTES" \
+            --arg pub_date "$PUB_DATE" \
+            --argjson platforms "$PLATFORMS" \
+            '{version: $version, notes: $notes, pub_date: $pub_date, platforms: $platforms}' \
+            > latest.json
+
+          echo "=== latest.json ==="
+          cat latest.json
+
+          gh release upload "$TAG" latest.json \
+            --repo "$GITHUB_REPOSITORY" \
+            --clobber
