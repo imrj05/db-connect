@@ -120,6 +120,17 @@ jobs:
           releaseId: ${{ needs.create-release.outputs.release_id }}
           includeUpdaterJson: false
           args: ${{ matrix.args }}
+      - name: Upload .sig files to release
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          find src-tauri/target -path "*/bundle/*" -name "*.sig" | while IFS= read -r f; do
+            echo "Uploading: $(basename "$f")"
+            gh release upload "${{ github.ref_name }}" "$f" \
+              --repo "$GITHUB_REPOSITORY" \
+              --clobber
+          done
   # ── Job 3: Assemble latest.json from all platform .sig files ────────────────
   publish-updater:
     needs: [create-release, build]
