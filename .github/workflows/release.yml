@@ -6,7 +6,72 @@ on:
       - 'v*'
 
 jobs:
-  release:
+  # ── Job 1: Generate changelog and create the GitHub release ─────────────────
+  create-release:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    outputs:
+      release_id: ${{ steps.create.outputs.result }}
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # full history needed for git log
+
+      - name: Generate changelog from commits
+        id: changelog
+        run: |
+          CURRENT_TAG="${{ github.ref_name }}"
+          PREV_TAG=$(git tag --sort=-version:refname | grep -v "^${CURRENT_TAG}$" | head -1 || echo "")
+
+          {
+            echo 'body<<EOF'
+
+            if [ -n "$PREV_TAG" ]; then
+              echo "## What's changed since \`${PREV_TAG}\`"
+              echo ""
+              git log --pretty=format:"- %s" "${PREV_TAG}..HEAD" | grep -v "^- $"
+            else
+              echo "## Initial release"
+              echo ""
+              git log --pretty=format:"- %s" | grep -v "^- $"
+            fi
+
+            echo ""
+            echo "---"
+            echo ""
+            echo "### macOS — Gatekeeper warning"
+            echo "If macOS blocks the app, run once in Terminal after installing:"
+            echo '```sh'
+            echo 'xattr -cr /Applications/DB\ Connect.app'
+            echo '```'
+
+            echo 'EOF'
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Create GitHub release
+        id: create
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const body = `${{ steps.changelog.outputs.body }}`;
+            const { data } = await github.rest.repos.createRelease({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              tag_name: '${{ github.ref_name }}',
+              name: 'DB Connect ${{ github.ref_name }}',
+              body,
+              draft: false,
+              prerelease: false,
+            });
+            return data.id;
+          result-encoding: string
+
+  # ── Job 2: Build for each platform and upload to the release ────────────────
+  build:
+    needs: create-release
     permissions:
       contents: write
 
@@ -60,31 +125,13 @@ jobs:
       - name: Install frontend dependencies
         run: npm ci
 
-      - name: Build and release with Tauri Action
+      - name: Build and upload assets
         uses: tauri-apps/tauri-action@v0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          # Updater bundle signing
           TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
           TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
         with:
-          tagName: ${{ github.ref_name }}
-          releaseName: 'DB Connect ${{ github.ref_name }}'
-          releaseBody: |
-            See the [CHANGELOG](https://github.com/imrj05/db-connect/blob/main/CHANGELOG.md) for details.
-
-            ---
-
-            ### macOS — Gatekeeper warning
-
-            If macOS says the app "cannot be opened because it is from an unidentified developer", run this once in Terminal after installing:
-
-            ```sh
-            xattr -cr /Applications/DB\ Connect.app
-            ```
-
-            Then open the app normally.
-          releaseDraft: false
-          prerelease: false
-          args: ${{ matrix.args }}
+          releaseId: ${{ needs.create-release.outputs.release_id }}
           includeUpdaterJson: true
+          args: ${{ matrix.args }}

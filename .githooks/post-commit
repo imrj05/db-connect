@@ -16,14 +16,17 @@ else
   PREV_VERSION=""
 fi
 
-# Create tag if version changed
+# Create and push tag if version changed
 if [ "$VERSION" != "$PREV_VERSION" ]; then
   TAG="v$VERSION"
   if git rev-parse "$TAG" >/dev/null 2>&1; then
-    echo "post-commit: tag $TAG already exists, skipping."
+    echo "post-commit: tag $TAG already exists — pushing it now..."
+    git push origin "$TAG"
   else
+    echo "post-commit: version changed ($PREV_VERSION → $VERSION), creating tag $TAG..."
     git tag "$TAG"
-    echo "post-commit: created tag $TAG"
-    echo "post-commit: run 'git push origin $TAG' to trigger the GitHub release workflow."
+    echo "post-commit: pushing tag $TAG to origin..."
+    git push origin "$TAG"
+    echo "post-commit: done — GitHub Actions release workflow triggered."
   fi
 fi
