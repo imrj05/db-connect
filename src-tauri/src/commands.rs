@@ -1,13 +1,13 @@
-use crate::storage::AppStorage;
-use crate::types::*;
-use crate::db::registry::REGISTRY;
-use crate::db::postgres::PostgresDriver;
 use crate::db::mysql::MySqlDriver;
+use crate::db::postgres::PostgresDriver;
+use crate::db::registry::REGISTRY;
 use crate::db::sqlite::SqliteDriver;
 use crate::db::DatabaseDriver;
 use crate::ssh::{SshAuth, SshTunnel};
-use std::sync::Arc;
+use crate::storage::AppStorage;
+use crate::types::*;
 use anyhow::Result;
+use std::sync::Arc;
 use tauri_plugin_updater::UpdaterExt;
 
 use crate::db::mongodb::MongoDriver;
@@ -16,11 +16,19 @@ use crate::db::redis_driver::RedisDriver;
 // System databases/schemas to always exclude
 const SYSTEM_DATABASES: &[&str] = &[
     // MySQL / MariaDB
-    "information_schema", "performance_schema", "mysql", "sys",
+    "information_schema",
+    "performance_schema",
+    "mysql",
+    "sys",
     // PostgreSQL
-    "postgres", "template0", "template1",
+    "postgres",
+    "template0",
+    "template1",
     // PostgreSQL schemas
-    "pg_catalog", "pg_toast", "pg_temp_1", "pg_toast_temp_1",
+    "pg_catalog",
+    "pg_toast",
+    "pg_temp_1",
+    "pg_toast_temp_1",
 ];
 
 #[tauri::command]
@@ -42,7 +50,10 @@ pub async fn connect_database(mut config: ConnectionConfig) -> Result<(), String
         };
 
         // The DB host/port to forward to (from the connection config)
-        let db_host = config.host.clone().unwrap_or_else(|| "localhost".to_string());
+        let db_host = config
+            .host
+            .clone()
+            .unwrap_or_else(|| "localhost".to_string());
         let db_port = config.port.unwrap_or(5432);
 
         let tunnel = SshTunnel::establish(&ssh_host, ssh_port, &ssh_user, auth, db_host, db_port)
@@ -93,34 +104,56 @@ pub async fn disconnect_database(id: String) -> Result<(), String> {
 
 #[tauri::command]
 pub async fn get_databases(id: String) -> Result<Vec<String>, String> {
-    let driver = REGISTRY.connections.get(&id)
+    let driver = REGISTRY
+        .connections
+        .get(&id)
         .ok_or_else(|| "Not connected".to_string())?;
 
     driver.get_databases().await.map_err(|e| e.to_string())
 }
 
 #[tauri::command]
-pub async fn get_tables(id: String, database: String, schema: Option<String>) -> Result<Vec<TableInfo>, String> {
-    let driver = REGISTRY.connections.get(&id)
+pub async fn get_tables(
+    id: String,
+    database: String,
+    schema: Option<String>,
+) -> Result<Vec<TableInfo>, String> {
+    let driver = REGISTRY
+        .connections
+        .get(&id)
         .ok_or_else(|| "Not connected".to_string())?;
 
-    driver.get_tables(&database, schema.as_deref()).await.map_err(|e| e.to_string())
+    driver
+        .get_tables(&database, schema.as_deref())
+        .await
+        .map_err(|e| e.to_string())
 }
 
 #[tauri::command]
 pub async fn execute_query(id: String, query: String) -> Result<QueryResult, String> {
-    let driver = REGISTRY.connections.get(&id)
+    let driver = REGISTRY
+        .connections
+        .get(&id)
         .ok_or_else(|| "Not connected".to_string())?;
 
     driver.run_query(&query).await.map_err(|e| e.to_string())
 }
 
 #[tauri::command]
-pub async fn get_table_data(id: String, database: String, table: String, page: u32, page_size: u32) -> Result<QueryResult, String> {
-    let driver = REGISTRY.connections.get(&id)
+pub async fn get_table_data(
+    id: String,
+    database: String,
+    table: String,
+    page: u32,
+    page_size: u32,
+) -> Result<QueryResult, String> {
+    let driver = REGISTRY
+        .connections
+        .get(&id)
         .ok_or_else(|| "Not connected".to_string())?;
 
-    let mut result = driver.get_table_data(&database, &table, page, page_size)
+    let mut result = driver
+        .get_table_data(&database, &table, page, page_size)
         .await
         .map_err(|e| e.to_string())?;
 
@@ -136,7 +169,9 @@ pub async fn get_table_data(id: String, database: String, table: String, page: u
 
 #[tauri::command]
 pub async fn get_user_databases(id: String) -> Result<Vec<String>, String> {
-    let driver = REGISTRY.connections.get(&id)
+    let driver = REGISTRY
+        .connections
+        .get(&id)
         .ok_or_else(|| "Not connected".to_string())?;
 
     // Return all databases — let the user pick which one to work with
@@ -144,8 +179,13 @@ pub async fn get_user_databases(id: String) -> Result<Vec<String>, String> {
 }
 
 #[tauri::command]
-pub async fn list_all_tables(id: String, database: Option<String>) -> Result<Vec<TableInfo>, String> {
-    let driver = REGISTRY.connections.get(&id)
+pub async fn list_all_tables(
+    id: String,
+    database: Option<String>,
+) -> Result<Vec<TableInfo>, String> {
+    let driver = REGISTRY
+        .connections
+        .get(&id)
         .ok_or_else(|| "Not connected".to_string())?;
 
     // Determine which databases to query:
@@ -161,7 +201,8 @@ pub async fn list_all_tables(id: String, database: Option<String>) -> Result<Vec
             vec![db]
         } else {
             let all_dbs = driver.get_databases().await.map_err(|e| e.to_string())?;
-            all_dbs.into_iter()
+            all_dbs
+                .into_iter()
                 .filter(|db| !SYSTEM_DATABASES.contains(&db.to_lowercase().as_str()))
                 .collect()
         }
@@ -192,15 +233,24 @@ pub async fn list_all_tables(id: String, database: Option<String>) -> Result<Vec
 }
 
 #[tauri::command]
-pub async fn get_table_structure(id: String, database: String, table: String, schema: Option<String>) -> Result<TableStructure, String> {
-    let driver = REGISTRY.connections.get(&id)
+pub async fn get_table_structure(
+    id: String,
+    database: String,
+    table: String,
+    schema: Option<String>,
+) -> Result<TableStructure, String> {
+    let driver = REGISTRY
+        .connections
+        .get(&id)
         .ok_or_else(|| "Not connected".to_string())?;
 
-    let columns = driver.get_columns(&database, &table, schema.as_deref())
+    let columns = driver
+        .get_columns(&database, &table, schema.as_deref())
         .await
         .map_err(|e| e.to_string())?;
 
-    let indexes = driver.get_indexes(&database, &table, schema.as_deref())
+    let indexes = driver
+        .get_indexes(&database, &table, schema.as_deref())
         .await
         .unwrap_or_default();
 
@@ -208,11 +258,19 @@ pub async fn get_table_structure(id: String, database: String, table: String, sc
 }
 
 #[tauri::command]
-pub async fn get_schema_graph(id: String, database: String, schema: Option<String>) -> Result<SchemaGraph, String> {
-    let driver = REGISTRY.connections.get(&id)
+pub async fn get_schema_graph(
+    id: String,
+    database: String,
+    schema: Option<String>,
+) -> Result<SchemaGraph, String> {
+    let driver = REGISTRY
+        .connections
+        .get(&id)
         .ok_or_else(|| "Not connected".to_string())?;
 
-    let config = REGISTRY.configs.get(&id)
+    let config = REGISTRY
+        .configs
+        .get(&id)
         .ok_or_else(|| "Connection config not found".to_string())?;
 
     let resolved_schema = match config.db_type {
@@ -222,14 +280,16 @@ pub async fn get_schema_graph(id: String, database: String, schema: Option<Strin
         _ => schema.clone(),
     };
 
-    let tables = driver.get_tables(&database, resolved_schema.as_deref())
+    let tables = driver
+        .get_tables(&database, resolved_schema.as_deref())
         .await
         .map_err(|e| e.to_string())?;
 
     let mut graph_tables = Vec::new();
     for table in tables {
         let table_schema = table.schema.clone().or_else(|| resolved_schema.clone());
-        let columns = driver.get_columns(&database, &table.name, table_schema.as_deref())
+        let columns = driver
+            .get_columns(&database, &table.name, table_schema.as_deref())
             .await
             .map_err(|e| e.to_string())?;
 
@@ -240,7 +300,8 @@ pub async fn get_schema_graph(id: String, database: String, schema: Option<Strin
         });
     }
 
-    let relationships = driver.get_foreign_keys(&database, resolved_schema.as_deref())
+    let relationships = driver
+        .get_foreign_keys(&database, resolved_schema.as_deref())
         .await
         .unwrap_or_default();
 
@@ -256,19 +317,29 @@ pub async fn get_schema_graph(id: String, database: String, schema: Option<Strin
 /// reconnect that also updates the active database.
 #[tauri::command]
 pub async fn switch_database(id: String, database: String) -> Result<(), String> {
-    let driver = REGISTRY.connections.get(&id)
+    let driver = REGISTRY
+        .connections
+        .get(&id)
         .ok_or_else(|| "Not connected".to_string())?
         .clone();
 
-    let mut new_config = REGISTRY.configs.get(&id)
+    let mut new_config = REGISTRY
+        .configs
+        .get(&id)
         .ok_or_else(|| "Connection config not found".to_string())?
         .clone();
 
     new_config.database = Some(database.clone());
 
-    driver.connect(&new_config).await.map_err(|e| e.to_string())?;
+    driver
+        .connect(&new_config)
+        .await
+        .map_err(|e| e.to_string())?;
 
-    REGISTRY.configs.entry(id).and_modify(|c| c.database = Some(database));
+    REGISTRY
+        .configs
+        .entry(id)
+        .and_modify(|c| c.database = Some(database));
 
     Ok(())
 }
@@ -345,7 +416,9 @@ pub async fn storage_load_history() -> Result<Vec<crate::types::QueryHistoryEntr
 }
 
 #[tauri::command]
-pub async fn storage_save_history_entry(entry: crate::types::QueryHistoryEntry) -> Result<(), String> {
+pub async fn storage_save_history_entry(
+    entry: crate::types::QueryHistoryEntry,
+) -> Result<(), String> {
     AppStorage::get()
         .save_history_entry(&entry)
         .await
@@ -381,9 +454,10 @@ pub async fn export_connections(opts: crate::types::ExportOptions) -> Result<Str
         crate::types::ExportFormat::Json => {
             crate::import_export::export_native_json(&conns, &opts).map_err(|e| e.to_string())
         }
-        crate::types::ExportFormat::Uri => {
-            Ok(crate::import_export::export_uri_text(&conns, opts.include_passwords))
-        }
+        crate::types::ExportFormat::Uri => Ok(crate::import_export::export_uri_text(
+            &conns,
+            opts.include_passwords,
+        )),
     }
 }
 
@@ -448,10 +522,7 @@ pub struct UpdateInfo {
 #[tauri::command]
 pub async fn check_for_updates(app: tauri::AppHandle) -> Result<UpdateInfo, String> {
     let current = app.package_info().version.to_string();
-    let updater = app
-        .updater_builder()
-        .build()
-        .map_err(|e| e.to_string())?;
+    let updater = app.updater_builder().build().map_err(|e| e.to_string())?;
     match updater.check().await.map_err(|e| e.to_string())? {
         Some(update) => Ok(UpdateInfo {
             available: true,
@@ -470,10 +541,7 @@ pub async fn check_for_updates(app: tauri::AppHandle) -> Result<UpdateInfo, Stri
 
 #[tauri::command]
 pub async fn install_update(app: tauri::AppHandle) -> Result<(), String> {
-    let updater = app
-        .updater_builder()
-        .build()
-        .map_err(|e| e.to_string())?;
+    let updater = app.updater_builder().build().map_err(|e| e.to_string())?;
     let update = updater
         .check()
         .await
@@ -482,5 +550,11 @@ pub async fn install_update(app: tauri::AppHandle) -> Result<(), String> {
     update
         .download_and_install(|_, _| {}, || {})
         .await
-        .map_err(|e| e.to_string())
+        .map_err(|e| e.to_string())?;
+
+    // The updater installs the new bundle, but the app still needs to relaunch
+    // into it explicitly.
+    app.request_restart();
+
+    Ok(())
 }

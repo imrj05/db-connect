@@ -114,9 +114,11 @@ impl AppStorage {
         let _ = sqlx::query("ALTER TABLE connections ADD COLUMN group_name TEXT")
             .execute(&pool)
             .await;
-        let _ = sqlx::query("ALTER TABLE connections ADD COLUMN ssh_enabled INTEGER NOT NULL DEFAULT 0")
-            .execute(&pool)
-            .await;
+        let _ = sqlx::query(
+            "ALTER TABLE connections ADD COLUMN ssh_enabled INTEGER NOT NULL DEFAULT 0",
+        )
+        .execute(&pool)
+        .await;
         let _ = sqlx::query("ALTER TABLE connections ADD COLUMN ssh_host TEXT")
             .execute(&pool)
             .await;
@@ -314,7 +316,8 @@ impl AppStorage {
                 _ => None,
             };
 
-            let enc_ssh_pp: Option<String> = row.try_get("encrypted_ssh_key_passphrase").unwrap_or(None);
+            let enc_ssh_pp: Option<String> =
+                row.try_get("encrypted_ssh_key_passphrase").unwrap_or(None);
             let ssh_key_passphrase = match enc_ssh_pp {
                 Some(ref enc) if !enc.is_empty() => self.decrypt(enc).ok(),
                 _ => None,
@@ -334,7 +337,11 @@ impl AppStorage {
                 ssl: Some(ssl_int != 0),
                 uri: row.get("uri"),
                 group: row.get("group_name"),
-                ssh_enabled: if ssh_enabled_int != 0 { Some(true) } else { None },
+                ssh_enabled: if ssh_enabled_int != 0 {
+                    Some(true)
+                } else {
+                    None
+                },
                 ssh_host: row.try_get("ssh_host").unwrap_or(None),
                 ssh_port: ssh_port_i64.map(|p| p as u16),
                 ssh_user: row.try_get("ssh_user").unwrap_or(None),

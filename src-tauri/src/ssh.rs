@@ -37,7 +37,10 @@ impl client::Handler for SshClientHandler {
 
 pub enum SshAuth {
     Password(String),
-    Key { path: String, passphrase: Option<String> },
+    Key {
+        path: String,
+        passphrase: Option<String>,
+    },
 }
 
 // ── Tunnel ─────────────────────────────────────────────────────────────────────
@@ -59,8 +62,7 @@ impl SshTunnel {
     ) -> Result<Self> {
         let config = Arc::new(client::Config::default());
 
-        let mut session =
-            client::connect(config, (ssh_host, ssh_port), SshClientHandler).await?;
+        let mut session = client::connect(config, (ssh_host, ssh_port), SshClientHandler).await?;
 
         let authenticated = match auth {
             SshAuth::Password(pw) => session.authenticate_password(ssh_user, pw).await?,
@@ -91,19 +93,13 @@ impl SshTunnel {
                 tokio::spawn(async move {
                     let channel = {
                         let s = session.lock().await;
-                        s.channel_open_direct_tcpip(
-                            &db_host,
-                            db_port as u32,
-                            "127.0.0.1",
-                            0,
-                        )
-                        .await
+                        s.channel_open_direct_tcpip(&db_host, db_port as u32, "127.0.0.1", 0)
+                            .await
                     };
                     match channel {
                         Ok(channel) => {
                             let mut stream = channel.into_stream();
-                            if let Err(e) =
-                                copy_bidirectional(&mut local_stream, &mut stream).await
+                            if let Err(e) = copy_bidirectional(&mut local_stream, &mut stream).await
                             {
                                 eprintln!("[SSH] I/O error: {e}");
                             }

@@ -1,15 +1,21 @@
-use async_trait::async_trait;
-use mongodb::{Client, options::{ClientOptions, FindOptions}, bson::{doc, Document, Bson}};
-use mongodb::bson::oid::ObjectId;
-use futures::stream::TryStreamExt;
-use crate::types::*;
 use crate::db::DatabaseDriver;
-use anyhow::{Result, anyhow};
+use crate::types::*;
+use anyhow::{anyhow, Result};
+use async_trait::async_trait;
+use futures::stream::TryStreamExt;
+use mongodb::bson::oid::ObjectId;
+use mongodb::{
+    bson::{doc, Bson, Document},
+    options::{ClientOptions, FindOptions},
+    Client,
+};
 use std::time::Instant;
 
 fn bson_to_json(bson: &Bson) -> serde_json::Value {
     match bson {
-        Bson::Double(v) => serde_json::Value::Number(serde_json::Number::from_f64(*v).unwrap_or(serde_json::Number::from(0))),
+        Bson::Double(v) => serde_json::Value::Number(
+            serde_json::Number::from_f64(*v).unwrap_or(serde_json::Number::from(0)),
+        ),
         Bson::String(v) => serde_json::Value::String(v.clone()),
         Bson::Boolean(v) => serde_json::Value::Bool(*v),
         Bson::Null => serde_json::Value::Null,
@@ -42,7 +48,9 @@ fn parse_bson_id(id_str: &str) -> Bson {
 
 fn sql_unquote_name(s: &str) -> String {
     let s = s.trim();
-    if s.len() >= 2 && ((s.starts_with('"') && s.ends_with('"')) || (s.starts_with('`') && s.ends_with('`'))) {
+    if s.len() >= 2
+        && ((s.starts_with('"') && s.ends_with('"')) || (s.starts_with('`') && s.ends_with('`')))
+    {
         s[1..s.len() - 1].replace("\"\"", "\"").replace("``", "`")
     } else {
         s.to_string()
@@ -112,7 +120,10 @@ fn extract_id_from_where(where_str: &str) -> Option<String> {
             let after = &where_str[kpos + term.len()..];
             let eq = after.find('=')?;
             let after_eq = after[eq + 1..].trim();
-            let end = after_eq.to_ascii_uppercase().find(" AND ").unwrap_or(after_eq.len());
+            let end = after_eq
+                .to_ascii_uppercase()
+                .find(" AND ")
+                .unwrap_or(after_eq.len());
             return sql_unquote_value(after_eq[..end].trim());
         }
     }
@@ -139,12 +150,18 @@ impl MongoDriver {
 #[async_trait]
 impl DatabaseDriver for MongoDriver {
     async fn connect(&self, config: &ConnectionConfig) -> Result<()> {
-        let uri = config.uri.as_deref().ok_or_else(|| anyhow!("MongoDB URI required"))?;
+        let uri = config
+            .uri
+            .as_deref()
+            .ok_or_else(|| anyhow!("MongoDB URI required"))?;
         let options = ClientOptions::parse(uri).await?;
         let client = Client::with_options(options)?;
 
         // Ping the server to verify connection
-        client.database("admin").run_command(doc! {"ping": 1}, None).await?;
+        client
+            .database("admin")
+            .run_command(doc! {"ping": 1}, None)
+            .await?;
 
         // Seed current_db from the connection config if provided.
         if let Some(db) = &config.database {
@@ -164,7 +181,9 @@ impl DatabaseDriver for MongoDriver {
 
     async fn get_databases(&self) -> Result<Vec<String>> {
         let client_lock = self.client.read().await;
-        let client = client_lock.as_ref().ok_or_else(|| anyhow!("Not connected"))?;
+        let client = client_lock
+            .as_ref()
+            .ok_or_else(|| anyhow!("Not connected"))?;
 
         Ok(client.list_database_names(None, None).await?)
     }
@@ -175,23 +194,35 @@ impl DatabaseDriver for MongoDriver {
 
     async fn get_tables(&self, database: &str, _schema: Option<&str>) -> Result<Vec<TableInfo>> {
         let client_lock = self.client.read().await;
-        let client = client_lock.as_ref().ok_or_else(|| anyhow!("Not connected"))?;
+        let client = client_lock
+            .as_ref()
+            .ok_or_else(|| anyhow!("Not connected"))?;
 
         *self.current_db.write().await = database.to_string();
 
         let db = client.database(database);
         let collections = db.list_collection_names(None).await?;
 
-        Ok(collections.into_iter().map(|name| TableInfo {
-            name,
-            schema: None,
-            columns: None,
-        }).collect())
+        Ok(collections
+            .into_iter()
+            .map(|name| TableInfo {
+                name,
+                schema: None,
+                columns: None,
+            })
+            .collect())
     }
 
-    async fn get_columns(&self, database: &str, table: &str, _schema: Option<&str>) -> Result<Vec<ColumnInfo>> {
+    async fn get_columns(
+        &self,
+        database: &str,
+        table: &str,
+        _schema: Option<&str>,
+    ) -> Result<Vec<ColumnInfo>> {
         let client_lock = self.client.read().await;
-        let client = client_lock.as_ref().ok_or_else(|| anyhow!("Not connected"))?;
+        let client = client_lock
+            .as_ref()
+            .ok_or_else(|| anyhow!("Not connected"))?;
 
         // Sample one document to infer field names; always include _id as primary key.
         let db = client.database(database);
@@ -244,7 +275,9 @@ impl DatabaseDriver for MongoDriver {
 
     async fn run_query(&self, query_str: &str) -> Result<QueryResult> {
         let client_lock = self.client.read().await;
-        let client = client_lock.as_ref().ok_or_else(|| anyhow!("Not connected"))?;
+        let client = client_lock
+            .as_ref()
+            .ok_or_else(|| anyhow!("Not connected"))?;
 
         let start = Instant::now();
         let trimmed = query_str.trim();
@@ -299,11 +332,15 @@ impl DatabaseDriver for MongoDriver {
         }
 
         // ── Existing JSON query format ────────────────────────────────────────
-        let query_json: serde_json::Value = serde_json::from_str(trimmed)
-            .map_err(|e| anyhow!("Invalid query JSON: {}", e))?;
+        let query_json: serde_json::Value =
+            serde_json::from_str(trimmed).map_err(|e| anyhow!("Invalid query JSON: {}", e))?;
 
-        let database = query_json["db"].as_str().ok_or_else(|| anyhow!("Missing 'db' field"))?;
-        let collection_name = query_json["collection"].as_str().ok_or_else(|| anyhow!("Missing 'collection' field"))?;
+        let database = query_json["db"]
+            .as_str()
+            .ok_or_else(|| anyhow!("Missing 'db' field"))?;
+        let collection_name = query_json["collection"]
+            .as_str()
+            .ok_or_else(|| anyhow!("Missing 'collection' field"))?;
         let limit = query_json["limit"].as_i64().unwrap_or(100);
 
         let filter = if let Some(f) = query_json.get("filter") {
@@ -315,9 +352,7 @@ impl DatabaseDriver for MongoDriver {
         let db = client.database(database);
         let collection: mongodb::Collection<Document> = db.collection(collection_name);
 
-        let options = FindOptions::builder()
-            .limit(Some(limit))
-            .build();
+        let options = FindOptions::builder().limit(Some(limit)).build();
 
         let mut cursor = collection.find(filter, options).await?;
         let mut rows: Vec<serde_json::Value> = Vec::new();
@@ -336,7 +371,10 @@ impl DatabaseDriver for MongoDriver {
         for doc in docs {
             let mut row = serde_json::Map::new();
             for key in &columns {
-                let val = doc.get(key).map(bson_to_json).unwrap_or(serde_json::Value::Null);
+                let val = doc
+                    .get(key)
+                    .map(bson_to_json)
+                    .unwrap_or(serde_json::Value::Null);
                 row.insert(key.clone(), val);
             }
             rows.push(serde_json::Value::Object(row));
@@ -349,9 +387,17 @@ impl DatabaseDriver for MongoDriver {
         })
     }
 
-    async fn get_table_data(&self, database: &str, table: &str, page: u32, page_size: u32) -> Result<QueryResult> {
+    async fn get_table_data(
+        &self,
+        database: &str,
+        table: &str,
+        page: u32,
+        page_size: u32,
+    ) -> Result<QueryResult> {
         let client_lock = self.client.read().await;
-        let client = client_lock.as_ref().ok_or_else(|| anyhow!("Not connected"))?;
+        let client = client_lock
+            .as_ref()
+            .ok_or_else(|| anyhow!("Not connected"))?;
 
         let start = Instant::now();
         let skip = (page * page_size) as u64;
@@ -383,7 +429,10 @@ impl DatabaseDriver for MongoDriver {
         for doc in docs {
             let mut row = serde_json::Map::new();
             for key in &columns {
-                let val = doc.get(key).map(bson_to_json).unwrap_or(serde_json::Value::Null);
+                let val = doc
+                    .get(key)
+                    .map(bson_to_json)
+                    .unwrap_or(serde_json::Value::Null);
                 row.insert(key.clone(), val);
             }
             rows.push(serde_json::Value::Object(row));

@@ -124,7 +124,7 @@ pub struct QueryResult {
 pub struct QueryHistoryEntry {
     pub id: String,
     pub sql: String,
-    pub executed_at: i64,       // Unix ms
+    pub executed_at: i64, // Unix ms
     pub execution_time_ms: i64,
     pub row_count: i64,
     pub connection_id: String,

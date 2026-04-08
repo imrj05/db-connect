@@ -3,6 +3,7 @@ import {
   ConnectionConfig,
   ConnectionFunction,
   FunctionInvocationResult,
+  PendingCellEdit,
   TableInfo,
   ConnectionSourceInfo,
   QueryHistoryEntry,
@@ -99,6 +100,10 @@ interface AppState {
   openFnInNewTab: (fn: ConnectionFunction) => Promise<void>;
   closeTab: (tabId: string) => void;
   switchToTab: (tabId: string) => void;
+  queuePendingCellEdit: (tabId: string, edit: PendingCellEdit) => void;
+  clearPendingCellEdits: (tabId: string) => void;
+  removePendingCellEdits: (tabId: string, editIds: string[]) => void;
+  tabHasPendingCellEdits: (tabId: string) => boolean;
 
   // ---- Actions: function invocation ----
   invokeFunction: (
@@ -478,13 +483,13 @@ export const useAppStore = create<AppState>((set, get) => ({
     } else if (!activeTabId || tabs.length === 0) {
       const newId = `tab-${Date.now()}`;
       activeTabId = newId;
-      set({ activeTabId: newId, tabs: [{ id: newId, fn, result: null, pendingSql: get().pendingSqlValue, label: getTabLabel(fn) }] });
+      set({ activeTabId: newId, tabs: [{ id: newId, fn, result: null, pendingSql: get().pendingSqlValue, pendingEdits: [], label: getTabLabel(fn) }] });
     } else {
       // No existing tab for this fn — open a new tab instead of overwriting
       const newId = `tab-${Date.now()}`;
       activeTabId = newId;
       set((s) => ({
-        tabs: [...s.tabs, { id: newId, fn, result: null, pendingSql: "", label: getTabLabel(fn) }],
+        tabs: [...s.tabs, { id: newId, fn, result: null, pendingSql: "", pendingEdits: [], label: getTabLabel(fn) }],
         activeTabId: newId,
       }));
     }
@@ -655,7 +660,7 @@ export const useAppStore = create<AppState>((set, get) => ({
     const id = `tab-${Date.now()}`;
     const result: FunctionInvocationResult = { fn: queryFn, outputType: "sql-editor", isLoading: false, invokedAt: Date.now() };
     set((s) => ({
-      tabs: [...s.tabs, { id, fn: queryFn, result, pendingSql: "", label: "query" }],
+      tabs: [...s.tabs, { id, fn: queryFn, result, pendingSql: "", pendingEdits: [], label: "query" }],
       activeTabId: id,
       activeFunction: queryFn,
       invocationResult: result,
@@ -667,7 +672,7 @@ export const useAppStore = create<AppState>((set, get) => ({
     const id = `tab-${Date.now()}`;
     const loadingResult: FunctionInvocationResult = { fn, outputType: "idle", isLoading: true, invokedAt: Date.now() };
     set((s) => ({
-      tabs: [...s.tabs, { id, fn, result: loadingResult, pendingSql: "", label: getTabLabel(fn) }],
+      tabs: [...s.tabs, { id, fn, result: loadingResult, pendingSql: "", pendingEdits: [], label: getTabLabel(fn) }],
       activeTabId: id,
       activeFunction: fn,
       invocationResult: loadingResult,
@@ -707,6 +712,48 @@ export const useAppStore = create<AppState>((set, get) => ({
       activeFunction: target.fn, invocationResult: target.result, pendingSqlValue: target.pendingSql,
     });
   },
+
+  queuePendingCellEdit: (tabId, edit) =>
+    set((state) => ({
+      tabs: state.tabs.map((tab) => {
+        if (tab.id !== tabId) return tab;
+        const existingIdx = tab.pendingEdits.findIndex(
+          (candidate) =>
+            candidate.rowKey === edit.rowKey &&
+            candidate.columnId === edit.columnId,
+        );
+        if (existingIdx === -1) {
+          return { ...tab, pendingEdits: [...tab.pendingEdits, edit] };
+        }
+        const next = [...tab.pendingEdits];
+        next[existingIdx] = edit;
+        return { ...tab, pendingEdits: next };
+      }),
+    })),
+
+  clearPendingCellEdits: (tabId) =>
+    set((state) => ({
+      tabs: state.tabs.map((tab) =>
+        tab.id === tabId ? { ...tab, pendingEdits: [] } : tab,
+      ),
+    })),
+
+  removePendingCellEdits: (tabId, editIds) =>
+    set((state) => ({
+      tabs: state.tabs.map((tab) =>
+        tab.id === tabId
+          ? {
+              ...tab,
+              pendingEdits: tab.pendingEdits.filter(
+                (edit) => !editIds.includes(edit.id),
+              ),
+            }
+          : tab,
+      ),
+    })),
+
+  tabHasPendingCellEdits: (tabId) =>
+    (get().tabs.find((tab) => tab.id === tabId)?.pendingEdits.length ?? 0) > 0,
 
   // ---- Query history ----
 

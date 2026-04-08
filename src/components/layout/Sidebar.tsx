@@ -83,7 +83,7 @@ function ColumnRow({ col }: { col: ColumnInfo }) {
 function midTruncate(name: string, max = 26): string {
     if (name.length <= max) return name;
     const front = Math.ceil((max - 1) * 0.55);
-    const back  = Math.floor((max - 1) * 0.45);
+    const back = Math.floor((max - 1) * 0.45);
     return `${name.slice(0, front)}…${name.slice(-back)}`;
 }
 
@@ -211,7 +211,7 @@ function SchemaGroup({
                     </span>
                     {open
                         ? <FolderOpen size={11} className="shrink-0 text-muted-foreground/40" />
-                        : <Folder     size={11} className="shrink-0 text-muted-foreground/30" />}
+                        : <Folder size={11} className="shrink-0 text-muted-foreground/30" />}
                     <span className="text-[10px] font-mono flex-1 text-left">{schema}</span>
                     <span className="text-[9px] font-mono text-muted-foreground/70">{fns.length}</span>
                 </button>
@@ -240,11 +240,11 @@ function SchemaGroup({
 type ColDef = { id: string; name: string; type: string; nullable: boolean; isPrimary: boolean; defaultValue: string; comment: string };
 
 const COL_TYPES: Record<DatabaseType, string[]> = {
-    postgresql: ["TEXT","INTEGER","BIGINT","BOOLEAN","TIMESTAMP","FLOAT","DECIMAL","JSON","UUID","SERIAL","VARCHAR(255)"],
-    mysql:      ["VARCHAR(255)","INT","BIGINT","TEXT","BOOLEAN","DATETIME","FLOAT","DOUBLE","DECIMAL","JSON"],
-    sqlite:     ["TEXT","INTEGER","REAL","BLOB","NUMERIC"],
-    mongodb:    [],
-    redis:      [],
+    postgresql: ["TEXT", "INTEGER", "BIGINT", "BOOLEAN", "TIMESTAMP", "FLOAT", "DECIMAL", "JSON", "UUID", "SERIAL", "VARCHAR(255)"],
+    mysql: ["VARCHAR(255)", "INT", "BIGINT", "TEXT", "BOOLEAN", "DATETIME", "FLOAT", "DOUBLE", "DECIMAL", "JSON"],
+    sqlite: ["TEXT", "INTEGER", "REAL", "BLOB", "NUMERIC"],
+    mongodb: [],
+    redis: [],
 };
 
 function qi(n: string, dbType: string): string {
@@ -313,7 +313,7 @@ function DatabaseNode({
     const dtType = connection.type === "postgresql" ? "TIMESTAMPTZ" : connection.type === "sqlite" ? "TEXT" : "DATETIME";
     const idType = connection.type === "mysql" ? "INT" : "INTEGER";
     const defaultCols = (): ColDef[] => [
-        { id: "c0", name: "id",         type: idType, nullable: false, isPrimary: true,  defaultValue: "", comment: "Primary key" },
+        { id: "c0", name: "id", type: idType, nullable: false, isPrimary: true, defaultValue: "", comment: "Primary key" },
         { id: "c1", name: "created_at", type: dtType, nullable: false, isPrimary: false, defaultValue: "CURRENT_TIMESTAMP", comment: "Record creation timestamp" },
         { id: "c2", name: "updated_at", type: dtType, nullable: false, isPrimary: false, defaultValue: "CURRENT_TIMESTAMP", comment: "Record last update timestamp" },
     ];
@@ -769,35 +769,68 @@ const Sidebar = () => {
         <div className="h-full flex bg-sidebar border-r border-sidebar-border overflow-hidden min-h-0">
 
             {/* ── Left: open database tabs ── */}
-            {activeDatabases.length > 0 && (
-                <div className="flex flex-col shrink-0 border-r border-border bg-sidebar overflow-y-auto" style={{ width: 64 }}>
-                    {activeDatabases.map((db) => {
+            {activeDatabases.length > 0 && activeConn && (
+                <div className="flex flex-col shrink-0 border-r border-border/60 bg-sidebar overflow-y-auto" style={{ width: 72 }}>
+                    {activeDatabases.map((db, idx) => {
                         const isActive = db === selectedDb;
+                        const DbLogo = DB_LOGO[activeConn.type] ?? DB_LOGO.postgresql;
+                        const logoColor = DB_COLOR[activeConn.type] ?? "text-muted-foreground";
                         return (
-                            <button
-                                key={db}
-                                onClick={() => selectDatabase(activeConn!.id, db)}
-                                onContextMenu={(e) => {
-                                    e.preventDefault();
-                                    const zoom = parseFloat(document.documentElement.style.zoom || "100") / 100;
-                                    setDbCtxMenu({ db, x: e.clientX / zoom, y: e.clientY / zoom });
-                                }}
-                                title={db}
-                                className={cn(
-                                    "flex flex-col items-center gap-1.5 py-3 px-1 w-full transition-colors border-r-2 shrink-0",
-                                    isActive
-                                        ? "border-r-primary bg-background text-foreground"
-                                        : "border-r-transparent text-muted-foreground/40 hover:text-muted-foreground/70 hover:bg-muted/20"
+                            <div key={db} className="flex flex-col">
+                                {idx > 0 && (
+                                    <div className="mx-3 h-px bg-border/40 shrink-0" />
                                 )}
-                            >
-                                <Database
-                                    size={18}
-                                    className={cn("shrink-0", isActive ? "text-primary/70" : "text-muted-foreground/30")}
-                                />
-                                <span className="text-[8px] font-mono leading-tight text-center break-all line-clamp-2 w-full px-0.5">
-                                    {db}
-                                </span>
-                            </button>
+                                <Tooltip delayDuration={600}>
+                                    <TooltipTrigger asChild>
+                                        <button
+                                            onClick={() => selectDatabase(activeConn.id, db)}
+                                            onContextMenu={(e) => {
+                                                e.preventDefault();
+                                                const zoom = parseFloat(document.documentElement.style.zoom || "100") / 100;
+                                                setDbCtxMenu({ db, x: e.clientX / zoom, y: e.clientY / zoom });
+                                            }}
+                                            className={cn(
+                                                "group relative flex flex-col items-center gap-1.5 py-3 px-1.5 w-full transition-colors shrink-0",
+                                                isActive
+                                                    ? "bg-background text-foreground"
+                                                    : "text-muted-foreground/50 hover:text-muted-foreground hover:bg-muted/20"
+                                            )}
+                                        >
+                                            {/* Left accent bar */}
+                                            <div className={cn(
+                                                "absolute left-0 top-3 bottom-3 w-[2px] rounded-r-full transition-opacity",
+                                                isActive ? "bg-primary opacity-100" : "opacity-0"
+                                            )} />
+
+                                            {/* Icon container */}
+                                            <div className={cn(
+                                                "flex items-center justify-center w-9 h-9 rounded-lg transition-colors",
+                                                isActive
+                                                    ? "bg-primary/10 ring-1 ring-primary/20"
+                                                    : "group-hover:bg-muted/40"
+                                            )}>
+                                                <DbLogo className={cn(
+                                                    "text-[18px] shrink-0 transition-colors",
+                                                    isActive ? logoColor : "text-muted-foreground/35 group-hover:text-muted-foreground/60"
+                                                )} />
+                                            </div>
+
+                                            {/* DB label */}
+                                            <span className={cn(
+                                                "text-[8px] font-mono leading-tight text-center w-full px-1 truncate transition-colors",
+                                                isActive
+                                                    ? "text-foreground/80"
+                                                    : "text-muted-foreground/40 group-hover:text-muted-foreground/60"
+                                            )}>
+                                                {db}
+                                            </span>
+                                        </button>
+                                    </TooltipTrigger>
+                                    <TooltipContent side="right" sideOffset={6} className="font-mono text-[11px]">
+                                        {db}
+                                    </TooltipContent>
+                                </Tooltip>
+                            </div>
                         );
                     })}
                 </div>
@@ -810,187 +843,187 @@ const Sidebar = () => {
                 const left = Math.min(dbCtxMenu.x, window.innerWidth - menuW - 8);
                 const top = Math.min(dbCtxMenu.y, window.innerHeight - menuH - 8);
                 return (
-                <>
-                    <div
-                        className="fixed inset-0 z-40"
-                        onClick={() => setDbCtxMenu(null)}
-                        onContextMenu={(e) => { e.preventDefault(); setDbCtxMenu(null); }}
-                    />
-                    <div
-                        className="fixed z-50 bg-popover border border-border rounded-lg shadow-xl p-1 text-popover-foreground"
-                        style={{ top, left, width: menuW }}
-                    >
-                        <div className="px-2 py-1 mb-1">
-                            <p className="text-[9px] font-mono font-bold uppercase tracking-widest text-muted-foreground/40 truncate max-w-[140px]">
-                                {dbCtxMenu.db}
-                            </p>
+                    <>
+                        <div
+                            className="fixed inset-0 z-40"
+                            onClick={() => setDbCtxMenu(null)}
+                            onContextMenu={(e) => { e.preventDefault(); setDbCtxMenu(null); }}
+                        />
+                        <div
+                            className="fixed z-50 bg-popover border border-border rounded-lg shadow-xl p-1 text-popover-foreground"
+                            style={{ top, left, width: menuW }}
+                        >
+                            <div className="px-2 py-1 mb-1">
+                                <p className="text-[9px] font-mono font-bold uppercase tracking-widest text-muted-foreground/40 truncate max-w-[140px]">
+                                    {dbCtxMenu.db}
+                                </p>
+                            </div>
+                            <button
+                                className="w-full flex items-center gap-2 px-2 py-1.5 rounded-sm text-[11px] text-foreground/80 hover:bg-muted/40 transition-colors"
+                                onClick={() => {
+                                    refreshTables(activeConn.id, dbCtxMenu.db);
+                                    if (selectedDb !== dbCtxMenu.db) selectDatabase(activeConn.id, dbCtxMenu.db);
+                                    setDbCtxMenu(null);
+                                }}
+                            >
+                                <RefreshCw size={10} className="shrink-0 text-muted-foreground/60" />
+                                Refresh DB
+                            </button>
+                            <div className="my-1 h-px bg-border" />
+                            <button
+                                className="w-full flex items-center gap-2 px-2 py-1.5 rounded-sm text-[11px] text-destructive/80 hover:bg-destructive/10 transition-colors"
+                                onClick={() => {
+                                    closeOpenDatabase(activeConn.id, dbCtxMenu.db);
+                                    setDbCtxMenu(null);
+                                }}
+                            >
+                                <X size={10} className="shrink-0" />
+                                Close DB
+                            </button>
                         </div>
-                        <button
-                            className="w-full flex items-center gap-2 px-2 py-1.5 rounded-sm text-[11px] text-foreground/80 hover:bg-muted/40 transition-colors"
-                            onClick={() => {
-                                refreshTables(activeConn.id, dbCtxMenu.db);
-                                if (selectedDb !== dbCtxMenu.db) selectDatabase(activeConn.id, dbCtxMenu.db);
-                                setDbCtxMenu(null);
-                            }}
-                        >
-                            <RefreshCw size={10} className="shrink-0 text-muted-foreground/60" />
-                            Refresh DB
-                        </button>
-                        <div className="my-1 h-px bg-border" />
-                        <button
-                            className="w-full flex items-center gap-2 px-2 py-1.5 rounded-sm text-[11px] text-destructive/80 hover:bg-destructive/10 transition-colors"
-                            onClick={() => {
-                                closeOpenDatabase(activeConn.id, dbCtxMenu.db);
-                                setDbCtxMenu(null);
-                            }}
-                        >
-                            <X size={10} className="shrink-0" />
-                            Close DB
-                        </button>
-                    </div>
-                </>
+                    </>
                 );
             })()}
 
             {/* ── Right: main content ── */}
             <div className="flex-1 flex flex-col overflow-hidden min-w-0">
 
-            {/* ── Header ── */}
-            <div className="h-10 flex items-center justify-between px-3 border-b border-border shrink-0">
-                <span className="text-[10px] font-mono font-bold uppercase tracking-[0.18em] text-muted-foreground/40">
-                    Explorer
-                </span>
-                <div className="flex items-center gap-1">
-                    {loadingIds.size > 0 && (
-                        <Loader2 size={10} className="animate-spin text-muted-foreground/40" />
-                    )}
-                    <Tooltip>
-                        <TooltipTrigger asChild>
-                            <Button
-                                variant="ghost"
-                                size="icon-xs"
-                                onClick={() => setImportExportOpen(true)}
-                                className="text-muted-foreground/40 hover:text-foreground"
-                            >
-                                <ArrowUpDown size={14} />
-                            </Button>
-                        </TooltipTrigger>
-                        <TooltipContent side="bottom" sideOffset={4}>Import / Export</TooltipContent>
-                    </Tooltip>
-                    <Tooltip>
-                        <TooltipTrigger asChild>
-                            <Button
-                                variant="ghost"
-                                size="icon-xs"
-                                onClick={() => {
-                                    setEditingConnection(null);
-                                    setConnectionDialogOpen(true);
-                                }}
-                                className="text-muted-foreground/40 hover:text-foreground"
-                            >
-                                <Plus size={14} />
-                            </Button>
-                        </TooltipTrigger>
-                        <TooltipContent side="bottom" sideOffset={4}>New connection</TooltipContent>
-                    </Tooltip>
-                </div>
-            </div>
-
-            {/* ── Filter ── */}
-            {connections.length > 0 && (
-                <div className="px-2 py-1.5 border-b border-border shrink-0">
-                    <div className="relative">
-                        <Search size={10} className="absolute left-2 top-1/2 -translate-y-1/2 text-muted-foreground/30 pointer-events-none" />
-                        <Input
-                            value={filter}
-                            onChange={(e) => setFilter(e.target.value)}
-                            placeholder="Filter tables…"
-                            className="h-7 pl-6 pr-2 text-[11px] font-mono bg-muted/30 border-border/40 placeholder:text-muted-foreground/30 focus-visible:ring-0 focus-visible:border-primary/40"
-                        />
-                    </div>
-                </div>
-            )}
-
-            {/* ── Tree ── */}
-            {connections.length === 0 ? (
-                <div className="flex-1 min-h-0 flex flex-col items-center justify-center gap-4 px-4 pb-10">
-                    <div className="size-10 border border-border flex items-center justify-center">
-                        <Database size={18} className="text-muted-foreground/70" />
-                    </div>
-                    <div className="text-center space-y-1">
-                        <p className="text-[10px] font-mono font-bold text-muted-foreground/40 uppercase tracking-widest">
-                            No connections
-                        </p>
-                        <p className="text-[9px] font-mono text-muted-foreground/70">
-                            Add a database to get started
-                        </p>
-                    </div>
-                    <Button
-                        size="sm"
-                        onClick={() => { setEditingConnection(null); setConnectionDialogOpen(true); }}
-                        className="h-7 text-[10px] font-mono font-bold uppercase tracking-widest gap-1.5"
-                    >
-                        <Plus size={11} />
-                        Add Connection
-                    </Button>
-                </div>
-            ) : (
-                <ScrollArea className="flex-1 min-h-0">
-                    <div className="py-1">
-                        {activeConn ? (() => {
-                            const conn = activeConn;
-                            const fns = connectionFunctions[conn.id] ?? [];
-                            const tableFns = fns.filter((f) => f.type === "table");
-                            const tables = connectionTables[conn.id] ?? [];
-                            const tableInfoMap: Record<string, ColumnInfo[]> =
-                                Object.fromEntries(tables.map((t) => [t.name, t.columns ?? []]));
-                            return (
-                                <DatabaseNode
-                                    key={conn.id}
-                                    connection={conn}
-                                    isConnected={connectedIds.includes(conn.id)}
-                                    isLoading={loadingIds.has(conn.id)}
-                                    tableFns={tableFns}
-                                    tableInfoMap={tableInfoMap}
-                                    activeFunctionId={activeFunction?.id}
-                                    filter={filter}
-                                    selectedDb={selectedDatabases[conn.id]}
-                                    onConnect={() => handleConnect(conn.id)}
-                                    onInvoke={handleInvoke}
-                                    onRefreshTables={() => refreshTables(conn.id)}
-                                    onAddTable={async (sql) => {
-                                        const result = await tauriApi.executeQuery(conn.id, sql);
-                                        if (result.error) throw new Error(result.error);
-                                        await refreshTables(conn.id);
-                                    }}
-                                    onLoadColumns={(tableName) => loadTableColumns(conn.id, tableName)}
-                                />
-                            );
-                        })() : (
-                            <div className="flex flex-col items-center justify-center gap-3 py-8 px-4 text-center">
-                                <p className="text-[10px] font-mono text-muted-foreground/40">No active connection</p>
-                            </div>
+                {/* ── Header ── */}
+                <div className="h-10 flex items-center justify-between px-3 border-b border-border shrink-0">
+                    <span className="text-[10px] font-mono font-bold uppercase tracking-[0.18em] text-muted-foreground/40">
+                        Explorer
+                    </span>
+                    <div className="flex items-center gap-1">
+                        {loadingIds.size > 0 && (
+                            <Loader2 size={10} className="animate-spin text-muted-foreground/40" />
                         )}
+                        <Tooltip>
+                            <TooltipTrigger asChild>
+                                <Button
+                                    variant="ghost"
+                                    size="icon-xs"
+                                    onClick={() => setImportExportOpen(true)}
+                                    className="text-muted-foreground/40 hover:text-foreground"
+                                >
+                                    <ArrowUpDown size={14} />
+                                </Button>
+                            </TooltipTrigger>
+                            <TooltipContent side="bottom" sideOffset={4}>Import / Export</TooltipContent>
+                        </Tooltip>
+                        <Tooltip>
+                            <TooltipTrigger asChild>
+                                <Button
+                                    variant="ghost"
+                                    size="icon-xs"
+                                    onClick={() => {
+                                        setEditingConnection(null);
+                                        setConnectionDialogOpen(true);
+                                    }}
+                                    className="text-muted-foreground/40 hover:text-foreground"
+                                >
+                                    <Plus size={14} />
+                                </Button>
+                            </TooltipTrigger>
+                            <TooltipContent side="bottom" sideOffset={4}>New connection</TooltipContent>
+                        </Tooltip>
                     </div>
-                </ScrollArea>
-            )}
+                </div>
 
-            {/* ── Status Footer ── always pinned to bottom */}
-            <div className="shrink-0 border-t border-border px-3 h-7 flex items-center gap-2 bg-sidebar overflow-hidden">
-                <CircleDot
-                    size={8}
-                    className={cn("shrink-0", connectedIds.length > 0 ? "text-primary" : "text-muted-foreground/50")}
-                />
-                <span className="text-[10px] font-mono shrink-0 whitespace-nowrap">
-                    <span className={connectedIds.length > 0 ? "text-primary" : "text-muted-foreground/70"}>{connectedIds.length}</span>
-                    <span className="text-muted-foreground/60">/{connections.length} conn</span>
-                </span>
-                <span className="text-muted-foreground/40 shrink-0">·</span>
-                <HardDrive size={8} className="shrink-0 text-muted-foreground/50" />
-                <span className="text-[10px] font-mono truncate text-muted-foreground/70 min-w-0">
-                    {currentDb ?? <span className="text-muted-foreground/40">no db</span>}
-                </span>
-            </div>
+                {/* ── Filter ── */}
+                {connections.length > 0 && (
+                    <div className="px-2 py-1.5 border-b border-border shrink-0">
+                        <div className="relative">
+                            <Search size={10} className="absolute left-2 top-1/2 -translate-y-1/2 text-muted-foreground/30 pointer-events-none" />
+                            <Input
+                                value={filter}
+                                onChange={(e) => setFilter(e.target.value)}
+                                placeholder="Filter tables…"
+                                className="h-7 pl-6 pr-2 text-[11px] font-mono bg-muted/30 border-border/40 placeholder:text-muted-foreground/30 focus-visible:ring-0 focus-visible:border-primary/40"
+                            />
+                        </div>
+                    </div>
+                )}
+
+                {/* ── Tree ── */}
+                {connections.length === 0 ? (
+                    <div className="flex-1 min-h-0 flex flex-col items-center justify-center gap-4 px-4 pb-10">
+                        <div className="size-10 border border-border flex items-center justify-center">
+                            <Database size={18} className="text-muted-foreground/70" />
+                        </div>
+                        <div className="text-center space-y-1">
+                            <p className="text-[10px] font-mono font-bold text-muted-foreground/40 uppercase tracking-widest">
+                                No connections
+                            </p>
+                            <p className="text-[9px] font-mono text-muted-foreground/70">
+                                Add a database to get started
+                            </p>
+                        </div>
+                        <Button
+                            size="sm"
+                            onClick={() => { setEditingConnection(null); setConnectionDialogOpen(true); }}
+                            className="h-7 text-[10px] font-mono font-bold uppercase tracking-widest gap-1.5"
+                        >
+                            <Plus size={11} />
+                            Add Connection
+                        </Button>
+                    </div>
+                ) : (
+                    <ScrollArea className="flex-1 min-h-0">
+                        <div className="py-1">
+                            {activeConn ? (() => {
+                                const conn = activeConn;
+                                const fns = connectionFunctions[conn.id] ?? [];
+                                const tableFns = fns.filter((f) => f.type === "table");
+                                const tables = connectionTables[conn.id] ?? [];
+                                const tableInfoMap: Record<string, ColumnInfo[]> =
+                                    Object.fromEntries(tables.map((t) => [t.name, t.columns ?? []]));
+                                return (
+                                    <DatabaseNode
+                                        key={conn.id}
+                                        connection={conn}
+                                        isConnected={connectedIds.includes(conn.id)}
+                                        isLoading={loadingIds.has(conn.id)}
+                                        tableFns={tableFns}
+                                        tableInfoMap={tableInfoMap}
+                                        activeFunctionId={activeFunction?.id}
+                                        filter={filter}
+                                        selectedDb={selectedDatabases[conn.id]}
+                                        onConnect={() => handleConnect(conn.id)}
+                                        onInvoke={handleInvoke}
+                                        onRefreshTables={() => refreshTables(conn.id)}
+                                        onAddTable={async (sql) => {
+                                            const result = await tauriApi.executeQuery(conn.id, sql);
+                                            if (result.error) throw new Error(result.error);
+                                            await refreshTables(conn.id);
+                                        }}
+                                        onLoadColumns={(tableName) => loadTableColumns(conn.id, tableName)}
+                                    />
+                                );
+                            })() : (
+                                <div className="flex flex-col items-center justify-center gap-3 py-8 px-4 text-center">
+                                    <p className="text-[10px] font-mono text-muted-foreground/40">No active connection</p>
+                                </div>
+                            )}
+                        </div>
+                    </ScrollArea>
+                )}
+
+                {/* ── Status Footer ── always pinned to bottom */}
+                <div className="shrink-0 border-t border-border px-3 h-7 flex items-center gap-2 bg-sidebar overflow-hidden">
+                    <CircleDot
+                        size={8}
+                        className={cn("shrink-0", connectedIds.length > 0 ? "text-primary" : "text-muted-foreground/50")}
+                    />
+                    <span className="text-[10px] font-mono shrink-0 whitespace-nowrap">
+                        <span className={connectedIds.length > 0 ? "text-primary" : "text-muted-foreground/70"}>{connectedIds.length}</span>
+                        <span className="text-muted-foreground/60">/{connections.length} conn</span>
+                    </span>
+                    <span className="text-muted-foreground/40 shrink-0">·</span>
+                    <HardDrive size={8} className="shrink-0 text-muted-foreground/50" />
+                    <span className="text-[10px] font-mono truncate text-muted-foreground/70 min-w-0">
+                        {currentDb ?? <span className="text-muted-foreground/40">no db</span>}
+                    </span>
+                </div>
 
             </div>{/* end right content */}
 

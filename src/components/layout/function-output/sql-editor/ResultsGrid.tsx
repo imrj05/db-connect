@@ -43,7 +43,7 @@ export function ResultsGrid({
 			header: col,
 			cell: (info: any) => (
 				<span className={info.getValue() === null ? "text-muted-foreground italic" : ""}>
-					{info.getValue() === null ? "null" : String(info.getValue())}
+					{info.getValue() === null ? "[NULL]" : String(info.getValue())}
 				</span>
 			),
 		})),

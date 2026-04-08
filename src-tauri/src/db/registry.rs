@@ -1,9 +1,9 @@
-use dashmap::DashMap;
 use crate::db::DatabaseDriver;
 use crate::ssh::SshTunnel;
 use crate::types::ConnectionConfig;
-use std::sync::Arc;
+use dashmap::DashMap;
 use once_cell::sync::Lazy;
+use std::sync::Arc;
 
 pub struct ConnectionRegistry {
     pub connections: DashMap<String, Arc<dyn DatabaseDriver>>,

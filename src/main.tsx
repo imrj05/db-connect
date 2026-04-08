@@ -1,6 +1,6 @@
 import React from "react";
-import "@fontsource-variable/plus-jakarta-sans";
 import "@fontsource-variable/inter";
+import "@fontsource-variable/space-grotesk";
 import ReactDOM from "react-dom/client";
 import App from "./App";
 import "./App.css";

@@ -22,6 +22,7 @@ import { Separator } from "@/components/ui/separator";
 import { cn } from "@/lib/utils";
 import { useAppStore, AppSettings } from "@/store/useAppStore";
 import { tauriApi } from "@/lib/tauri-api";
+import packageJson from "../../../package.json";
 
 // ── Section nav ───────────────────────────────────────────────────────────────
 
@@ -294,7 +295,7 @@ function AboutSection() {
                 </div>
                 <div>
                     <p className="text-[15px] font-black text-foreground">DB Connect</p>
-                    <p className="text-[11px] text-muted-foreground/60">Version 0.1.0</p>
+                    <p className="text-[11px] text-muted-foreground/60">Version {packageJson.version}</p>
                 </div>
             </div>
 

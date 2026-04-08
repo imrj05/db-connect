@@ -55,7 +55,13 @@ pub fn connection_to_uri(conn: &ConnectionConfig, include_password: bool) -> Str
                         db
                     )
                 } else {
-                    format!("mongodb://{}@{}:{}/{}", encode_uri_component(user), host, port, db)
+                    format!(
+                        "mongodb://{}@{}:{}/{}",
+                        encode_uri_component(user),
+                        host,
+                        port,
+                        db
+                    )
                 }
             } else {
                 format!("mongodb://{}:{}/{}", host, port, db)
@@ -64,10 +70,20 @@ pub fn connection_to_uri(conn: &ConnectionConfig, include_password: bool) -> Str
         DatabaseType::Redis => {
             let host = conn.host.as_deref().unwrap_or("localhost");
             let port = conn.port.unwrap_or(6379);
-            let scheme = if conn.ssl.unwrap_or(false) { "rediss" } else { "redis" };
+            let scheme = if conn.ssl.unwrap_or(false) {
+                "rediss"
+            } else {
+                "redis"
+            };
             match (&conn.password, include_password) {
                 (Some(pw), true) if !pw.is_empty() => {
-                    format!("{}://:{}@{}:{}", scheme, encode_uri_component(pw), host, port)
+                    format!(
+                        "{}://:{}@{}:{}",
+                        scheme,
+                        encode_uri_component(pw),
+                        host,
+                        port
+                    )
                 }
                 _ => format!("{}://{}:{}", scheme, host, port),
             }
@@ -91,7 +107,11 @@ pub fn connection_to_uri(conn: &ConnectionConfig, include_password: bool) -> Str
                 }
                 auth.push('@');
             }
-            let ssl_param = if conn.ssl.unwrap_or(false) { "?sslmode=require" } else { "" };
+            let ssl_param = if conn.ssl.unwrap_or(false) {
+                "?sslmode=require"
+            } else {
+                ""
+            };
             format!("postgresql://{}{}:{}/{}{}", auth, host, port, db, ssl_param)
         }
         DatabaseType::Mysql => {
@@ -109,7 +129,11 @@ pub fn connection_to_uri(conn: &ConnectionConfig, include_password: bool) -> Str
                 }
                 auth.push('@');
             }
-            let ssl_param = if conn.ssl.unwrap_or(false) { "?ssl-mode=REQUIRED" } else { "" };
+            let ssl_param = if conn.ssl.unwrap_or(false) {
+                "?ssl-mode=REQUIRED"
+            } else {
+                ""
+            };
             format!("mysql://{}{}:{}/{}{}", auth, host, port, db, ssl_param)
         }
     }
@@ -156,18 +180,20 @@ pub fn parse_uri(uri: &str) -> Result<ConnectionConfig> {
     // Database comes from the first path segment (strip leading '/')
     let database = {
         let path = parsed.path().trim_start_matches('/');
-        if path.is_empty() { None } else { Some(path.to_string()) }
+        if path.is_empty() {
+            None
+        } else {
+            Some(path.to_string())
+        }
     };
 
     // SSL detection from query params
-    let ssl = parsed.query_pairs().any(|(k, v)| {
-        (k == "sslmode" && v != "disable") || (k == "ssl-mode" && v != "DISABLED")
-    });
+    let ssl = parsed
+        .query_pairs()
+        .any(|(k, v)| (k == "sslmode" && v != "disable") || (k == "ssl-mode" && v != "DISABLED"));
 
     let name = match db_type {
-        DatabaseType::Sqlite => {
-            database.as_deref().unwrap_or("sqlite").to_string()
-        }
+        DatabaseType::Sqlite => database.as_deref().unwrap_or("sqlite").to_string(),
         _ => format!(
             "{} ({})",
             database.as_deref().unwrap_or("import"),
@@ -203,7 +229,11 @@ pub fn parse_uri(uri: &str) -> Result<ConnectionConfig> {
         password,
         database,
         schema: None,
-        ssl: if ssl || scheme_ssl { Some(true) } else { ssl_val },
+        ssl: if ssl || scheme_ssl {
+            Some(true)
+        } else {
+            ssl_val
+        },
         uri: uri_field,
         group: None,
         ssh_enabled: None,
@@ -247,7 +277,9 @@ pub fn encrypt_with_passphrase(plaintext: &str, passphrase: &str) -> Result<Stri
 
 /// Decrypt a value produced by `encrypt_with_passphrase`.
 pub fn decrypt_with_passphrase(encoded: &str, passphrase: &str) -> Result<String> {
-    let data = B64.decode(encoded).map_err(|e| anyhow!("Base64 error: {e}"))?;
+    let data = B64
+        .decode(encoded)
+        .map_err(|e| anyhow!("Base64 error: {e}"))?;
     if data.len() < 28 {
         return Err(anyhow!("Invalid encrypted data"));
     }
@@ -328,9 +360,10 @@ pub fn import_native_json(
     };
 
     if export.app != "db-connect" {
-        result
-            .errors
-            .push(format!("Warning: file was created by '{}', not db-connect", export.app));
+        result.errors.push(format!(
+            "Warning: file was created by '{}', not db-connect",
+            export.app
+        ));
     }
 
     for mut conn in export.connections {
@@ -398,10 +431,7 @@ pub fn import_dbeaver(
             .unwrap_or("Unnamed")
             .to_string();
 
-        let provider = entry
-            .get("provider")
-            .and_then(|v| v.as_str())
-            .unwrap_or("");
+        let provider = entry.get("provider").and_then(|v| v.as_str()).unwrap_or("");
 
         let db_type = match provider {
             "postgresql" | "postgres-jdbc" => DatabaseType::Postgresql,
@@ -410,10 +440,9 @@ pub fn import_dbeaver(
             "mongodb" => DatabaseType::Mongodb,
             "redis" => DatabaseType::Redis,
             other => {
-                result.errors.push(format!(
-                    "Skipped '{}': unknown provider '{}'",
-                    name, other
-                ));
+                result
+                    .errors
+                    .push(format!("Skipped '{}': unknown provider '{}'", name, other));
                 result.skipped += 1;
                 continue;
             }
@@ -424,9 +453,11 @@ pub fn import_dbeaver(
             .and_then(|c| c.get("host"))
             .and_then(|v| v.as_str())
             .map(String::from);
-        let port: Option<u16> = cfg
-            .and_then(|c| c.get("port"))
-            .and_then(|v| v.as_str().and_then(|s| s.parse().ok()).or(v.as_u64().map(|n| n as u16)));
+        let port: Option<u16> = cfg.and_then(|c| c.get("port")).and_then(|v| {
+            v.as_str()
+                .and_then(|s| s.parse().ok())
+                .or(v.as_u64().map(|n| n as u16))
+        });
         let user = cfg
             .and_then(|c| c.get("user"))
             .and_then(|v| v.as_str())
@@ -471,9 +502,10 @@ pub fn import_dbeaver(
             ssh_key_passphrase: None,
         };
 
-        result
-            .errors
-            .push(format!("Password for '{}' was not imported (DBeaver uses proprietary encryption)", name));
+        result.errors.push(format!(
+            "Password for '{}' was not imported (DBeaver uses proprietary encryption)",
+            name
+        ));
 
         // DBeaver assigns new IDs on export so check by name collision instead
         if existing_ids.contains(&conn.id) {
@@ -555,7 +587,10 @@ mod tests {
             uri: None,
             group: None,
         };
-        assert_eq!(connection_to_uri(&conn, false), "sqlite:////home/user/db.sqlite");
+        assert_eq!(
+            connection_to_uri(&conn, false),
+            "sqlite:////home/user/db.sqlite"
+        );
     }
 
     #[test]
@@ -605,8 +640,7 @@ mod tests {
 
     #[test]
     fn test_parse_mongodb_srv_uri() {
-        let parsed =
-            parse_uri("mongodb+srv://user:pw@cluster.mongodb.net/mydb").unwrap();
+        let parsed = parse_uri("mongodb+srv://user:pw@cluster.mongodb.net/mydb").unwrap();
         assert!(matches!(parsed.db_type, DatabaseType::Mongodb));
         assert!(parsed.uri.is_some());
     }

@@ -1,8 +1,11 @@
-use async_trait::async_trait;
-use sqlx::{mysql::{MySqlConnectOptions, MySqlPoolOptions, MySqlSslMode}, Pool, MySql, Row, Executor};
-use crate::types::*;
 use crate::db::DatabaseDriver;
-use anyhow::{Result, anyhow};
+use crate::types::*;
+use anyhow::{anyhow, Result};
+use async_trait::async_trait;
+use sqlx::{
+    mysql::{MySqlConnectOptions, MySqlPoolOptions, MySqlSslMode},
+    Executor, MySql, Pool, Row,
+};
 use std::time::Instant;
 
 pub struct MySqlDriver {
@@ -81,50 +84,68 @@ impl DatabaseDriver for MySqlDriver {
         // Switch to the target database
         pool.execute(format!("USE `{}`", database).as_str()).await?;
 
-        let rows = pool.fetch_all(format!("SHOW TABLES FROM `{}`", database).as_str()).await?;
+        let rows = pool
+            .fetch_all(format!("SHOW TABLES FROM `{}`", database).as_str())
+            .await?;
 
-        Ok(rows.iter().map(|r| TableInfo {
-            name: r.get::<String, _>(0),
-            schema: None,
-            columns: None,
-        }).collect())
+        Ok(rows
+            .iter()
+            .map(|r| TableInfo {
+                name: r.get::<String, _>(0),
+                schema: None,
+                columns: None,
+            })
+            .collect())
     }
 
-    async fn get_columns(&self, database: &str, table: &str, _schema: Option<&str>) -> Result<Vec<ColumnInfo>> {
+    async fn get_columns(
+        &self,
+        database: &str,
+        table: &str,
+        _schema: Option<&str>,
+    ) -> Result<Vec<ColumnInfo>> {
         let pool_lock = self.pool.read().await;
         let pool = pool_lock.as_ref().ok_or_else(|| anyhow!("Not connected"))?;
 
         pool.execute(format!("USE `{}`", database).as_str()).await?;
 
-        let rows = pool.fetch_all(
-            format!("SHOW FULL COLUMNS FROM `{}`.`{}`", database, table).as_str()
-        ).await?;
+        let rows = pool
+            .fetch_all(format!("SHOW FULL COLUMNS FROM `{}`.`{}`", database, table).as_str())
+            .await?;
 
         // SHOW FULL COLUMNS: Field, Type, Collation, Null, Key, Default, Extra, ...
-        Ok(rows.iter().map(|r| {
-            let key: String = r.try_get::<String, _>(4).unwrap_or_default();
-            let extra: String = r.try_get::<String, _>(6).unwrap_or_default();
-            ColumnInfo {
-                name: r.get(0),
-                data_type: r.get(1),
-                nullable: r.try_get::<String, _>(3).unwrap_or_default() == "YES",
-                is_primary: key == "PRI",
-                is_unique: key == "UNI",
-                default_value: r.try_get::<Option<String>, _>(5).unwrap_or(None),
-                extra: if extra.is_empty() { None } else { Some(extra) },
-            }
-        }).collect())
+        Ok(rows
+            .iter()
+            .map(|r| {
+                let key: String = r.try_get::<String, _>(4).unwrap_or_default();
+                let extra: String = r.try_get::<String, _>(6).unwrap_or_default();
+                ColumnInfo {
+                    name: r.get(0),
+                    data_type: r.get(1),
+                    nullable: r.try_get::<String, _>(3).unwrap_or_default() == "YES",
+                    is_primary: key == "PRI",
+                    is_unique: key == "UNI",
+                    default_value: r.try_get::<Option<String>, _>(5).unwrap_or(None),
+                    extra: if extra.is_empty() { None } else { Some(extra) },
+                }
+            })
+            .collect())
     }
 
-    async fn get_indexes(&self, database: &str, table: &str, _schema: Option<&str>) -> Result<Vec<IndexInfo>> {
+    async fn get_indexes(
+        &self,
+        database: &str,
+        table: &str,
+        _schema: Option<&str>,
+    ) -> Result<Vec<IndexInfo>> {
         let pool_lock = self.pool.read().await;
         let pool = pool_lock.as_ref().ok_or_else(|| anyhow!("Not connected"))?;
 
         pool.execute(format!("USE `{}`", database).as_str()).await?;
 
-        let rows = pool.fetch_all(
-            format!("SHOW INDEX FROM `{}`.`{}`", database, table).as_str()
-        ).await?;
+        let rows = pool
+            .fetch_all(format!("SHOW INDEX FROM `{}`.`{}`", database, table).as_str())
+            .await?;
 
         // SHOW INDEX: Table(0), Non_unique(1), Key_name(2), Seq_in_index(3), Column_name(4), ..., Index_type(10)
         use std::collections::BTreeMap;
@@ -137,30 +158,40 @@ impl DatabaseDriver for MySqlDriver {
             let col_name: String = row.try_get(4).unwrap_or_default();
             let index_type: String = row.try_get(10).unwrap_or_else(|_| "BTREE".to_string());
 
-            let entry = index_map.entry(key_name).or_insert((non_unique == 0, vec![], index_type));
+            let entry = index_map
+                .entry(key_name)
+                .or_insert((non_unique == 0, vec![], index_type));
             entry.1.push((seq, col_name));
         }
 
-        Ok(index_map.into_iter().map(|(name, (unique, mut cols, index_type))| {
-            cols.sort_by_key(|(seq, _)| *seq);
-            IndexInfo {
-                name,
-                columns: cols.into_iter().map(|(_, c)| c).collect(),
-                unique,
-                index_type: Some(index_type),
-            }
-        }).collect())
+        Ok(index_map
+            .into_iter()
+            .map(|(name, (unique, mut cols, index_type))| {
+                cols.sort_by_key(|(seq, _)| *seq);
+                IndexInfo {
+                    name,
+                    columns: cols.into_iter().map(|(_, c)| c).collect(),
+                    unique,
+                    index_type: Some(index_type),
+                }
+            })
+            .collect())
     }
 
-    async fn get_foreign_keys(&self, database: &str, _schema: Option<&str>) -> Result<Vec<ForeignKeyRelation>> {
+    async fn get_foreign_keys(
+        &self,
+        database: &str,
+        _schema: Option<&str>,
+    ) -> Result<Vec<ForeignKeyRelation>> {
         let pool_lock = self.pool.read().await;
         let pool = pool_lock.as_ref().ok_or_else(|| anyhow!("Not connected"))?;
 
         pool.execute(format!("USE `{}`", database).as_str()).await?;
 
-        let rows = pool.fetch_all(
-            format!(
-                "SELECT
+        let rows = pool
+            .fetch_all(
+                format!(
+                    "SELECT
                     CONSTRAINT_NAME,
                     TABLE_SCHEMA,
                     TABLE_NAME,
@@ -173,15 +204,18 @@ impl DatabaseDriver for MySqlDriver {
                  WHERE TABLE_SCHEMA = '{}'
                    AND REFERENCED_TABLE_NAME IS NOT NULL
                  ORDER BY TABLE_NAME, CONSTRAINT_NAME, ORDINAL_POSITION",
-                database.replace('\'', "''"),
+                    database.replace('\'', "''"),
+                )
+                .as_str(),
             )
-            .as_str()
-        ).await?;
+            .await?;
 
         use std::collections::BTreeMap;
 
-        let mut relation_map: BTreeMap<(String, String, String, String, String), ForeignKeyRelation> =
-            BTreeMap::new();
+        let mut relation_map: BTreeMap<
+            (String, String, String, String, String),
+            ForeignKeyRelation,
+        > = BTreeMap::new();
 
         for row in rows {
             let name: String = row.try_get(0).unwrap_or_default();
@@ -200,15 +234,17 @@ impl DatabaseDriver for MySqlDriver {
                 target_table.clone(),
             );
 
-            let relation = relation_map.entry(key).or_insert_with(|| ForeignKeyRelation {
-                name: name.clone(),
-                source_table: source_table.clone(),
-                source_schema: Some(source_schema.clone()),
-                source_columns: Vec::new(),
-                target_table: target_table.clone(),
-                target_schema: Some(target_schema.clone()),
-                target_columns: Vec::new(),
-            });
+            let relation = relation_map
+                .entry(key)
+                .or_insert_with(|| ForeignKeyRelation {
+                    name: name.clone(),
+                    source_table: source_table.clone(),
+                    source_schema: Some(source_schema.clone()),
+                    source_columns: Vec::new(),
+                    target_table: target_table.clone(),
+                    target_schema: Some(target_schema.clone()),
+                    target_columns: Vec::new(),
+                });
 
             relation.source_columns.push(source_column);
             relation.target_columns.push(target_column);
@@ -237,7 +273,11 @@ impl DatabaseDriver for MySqlDriver {
             });
         }
 
-        let columns = rows[0].columns().iter().map(|c| c.name().to_string()).collect::<Vec<_>>();
+        let columns = rows[0]
+            .columns()
+            .iter()
+            .map(|c| c.name().to_string())
+            .collect::<Vec<_>>();
         let mut result_rows = Vec::new();
 
         for row in &rows {
@@ -265,12 +305,16 @@ impl DatabaseDriver for MySqlDriver {
                 } else if let Ok(f) = row.try_get::<f64, _>(i) {
                     serde_json::Value::Number(serde_json::Number::from_f64(f).unwrap_or(0.into()))
                 } else if let Ok(f) = row.try_get::<f32, _>(i) {
-                    serde_json::Value::Number(serde_json::Number::from_f64(f as f64).unwrap_or(0.into()))
+                    serde_json::Value::Number(
+                        serde_json::Number::from_f64(f as f64).unwrap_or(0.into()),
+                    )
                 } else if let Ok(b) = row.try_get::<bool, _>(i) {
                     serde_json::Value::Bool(b)
                 } else if let Ok(dt) = row.try_get::<sqlx::types::chrono::NaiveDateTime, _>(i) {
                     serde_json::Value::String(dt.to_string())
-                } else if let Ok(dt) = row.try_get::<sqlx::types::chrono::DateTime<sqlx::types::chrono::Utc>, _>(i) {
+                } else if let Ok(dt) =
+                    row.try_get::<sqlx::types::chrono::DateTime<sqlx::types::chrono::Utc>, _>(i)
+                {
                     serde_json::Value::String(dt.to_string())
                 } else {
                     // Try as bytes if all else fails
@@ -294,7 +338,13 @@ impl DatabaseDriver for MySqlDriver {
         })
     }
 
-    async fn get_table_data(&self, database: &str, table: &str, page: u32, page_size: u32) -> Result<QueryResult> {
+    async fn get_table_data(
+        &self,
+        database: &str,
+        table: &str,
+        page: u32,
+        page_size: u32,
+    ) -> Result<QueryResult> {
         let pool_lock = self.pool.read().await;
         if let Some(pool) = pool_lock.as_ref() {
             // Re-verify the database connection session
@@ -302,7 +352,13 @@ impl DatabaseDriver for MySqlDriver {
                 println!("Warning: Failed to switch to database {}: {}", database, e);
             }
         }
-        let query = format!("SELECT * FROM `{}`.`{}` LIMIT {} OFFSET {}", database, table, page_size, page * page_size);
+        let query = format!(
+            "SELECT * FROM `{}`.`{}` LIMIT {} OFFSET {}",
+            database,
+            table,
+            page_size,
+            page * page_size
+        );
         self.run_query(&query).await
     }
 }

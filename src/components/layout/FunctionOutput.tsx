@@ -57,6 +57,7 @@ const FunctionOutput = () => {
 		openNewTab,
 		closeTab,
 		switchToTab,
+		clearPendingCellEdits,
 		connectedIds,
 		appSettings,
 		showConnectionsManager,
@@ -64,6 +65,7 @@ const FunctionOutput = () => {
 	} = useAppStore();
 	const [page, setPage] = useState(0);
 	const [pendingDangerSql, setPendingDangerSql] = useState<string | null>(null);
+	const [pendingTabCloseId, setPendingTabCloseId] = useState<string | null>(null);
 	useEffect(() => {
 		setPage(0);
 	}, [activeFunction?.id]);
@@ -127,6 +129,27 @@ const FunctionOutput = () => {
 			if (tableFn) await invokeFunction(tableFn);
 		},
 		[invocationResult, connectionFunctions, invokeFunction],
+	);
+	const handleCloseTab = useCallback(
+		(tabId: string) => {
+			const tab = tabs.find((candidate) => candidate.id === tabId);
+			if ((tab?.pendingEdits.length ?? 0) > 0) {
+				setPendingTabCloseId(tabId);
+				return;
+			}
+			closeTab(tabId);
+		},
+		[tabs, closeTab],
+	);
+	const confirmDiscardTab = useCallback(() => {
+		if (!pendingTabCloseId) return;
+		clearPendingCellEdits(pendingTabCloseId);
+		closeTab(pendingTabCloseId);
+		setPendingTabCloseId(null);
+	}, [clearPendingCellEdits, closeTab, pendingTabCloseId]);
+	const pendingCloseTab = useMemo(
+		() => tabs.find((tab) => tab.id === pendingTabCloseId) ?? null,
+		[pendingTabCloseId, tabs],
 	);
 	const activeTableDatabase = useMemo(() => {
 		if (!activeFunction?.tableName) return "default";
@@ -257,7 +280,7 @@ const FunctionOutput = () => {
 				activeTabId={activeTabId}
 				connectedIds={connectedIds}
 				onSwitchTab={switchToTab}
-				onCloseTab={closeTab}
+				onCloseTab={handleCloseTab}
 				onNewTab={openNewTab}
 			/>
 			<div className="flex-1 min-h-0 overflow-hidden">{renderContent()}</div>
@@ -284,6 +307,30 @@ const FunctionOutput = () => {
 							className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
 						>
 							Run anyway
+						</AlertDialogAction>
+					</AlertDialogFooter>
+				</AlertDialogContent>
+			</AlertDialog>
+			<AlertDialog
+				open={!!pendingTabCloseId}
+				onOpenChange={(open) => !open && setPendingTabCloseId(null)}
+			>
+				<AlertDialogContent className="max-w-md">
+					<AlertDialogHeader>
+						<AlertDialogTitle>Discard pending edits?</AlertDialogTitle>
+						<AlertDialogDescription>
+							{pendingCloseTab
+								? `Closing "${pendingCloseTab.label}" will discard ${pendingCloseTab.pendingEdits.length} queued change${pendingCloseTab.pendingEdits.length === 1 ? "" : "s"} that have not been applied.`
+								: "Closing this tab will discard queued changes that have not been applied."}
+						</AlertDialogDescription>
+					</AlertDialogHeader>
+					<AlertDialogFooter>
+						<AlertDialogCancel>Cancel</AlertDialogCancel>
+						<AlertDialogAction
+							onClick={confirmDiscardTab}
+							className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+						>
+							Discard and close
 						</AlertDialogAction>
 					</AlertDialogFooter>
 				</AlertDialogContent>

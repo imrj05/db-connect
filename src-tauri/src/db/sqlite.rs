@@ -1,8 +1,8 @@
-use async_trait::async_trait;
-use sqlx::{sqlite::SqlitePoolOptions, Pool, Sqlite, Row, Column};
-use crate::types::*;
 use crate::db::DatabaseDriver;
-use anyhow::{Result, anyhow};
+use crate::types::*;
+use anyhow::{anyhow, Result};
+use async_trait::async_trait;
+use sqlx::{sqlite::SqlitePoolOptions, Column, Pool, Row, Sqlite};
 use std::time::Instant;
 
 pub struct SqliteDriver {
@@ -20,7 +20,10 @@ impl SqliteDriver {
 #[async_trait]
 impl DatabaseDriver for SqliteDriver {
     async fn connect(&self, config: &ConnectionConfig) -> Result<()> {
-        let path = config.database.as_deref().ok_or_else(|| anyhow!("Database path required for SQLite"))?;
+        let path = config
+            .database
+            .as_deref()
+            .ok_or_else(|| anyhow!("Database path required for SQLite"))?;
         let url = format!("sqlite:{}", path);
 
         let pool = SqlitePoolOptions::new()
@@ -57,14 +60,22 @@ impl DatabaseDriver for SqliteDriver {
             .fetch_all(pool)
             .await?;
 
-        Ok(rows.iter().map(|r| TableInfo {
-            name: r.get::<String, _>(0),
-            schema: Some("main".to_string()),
-            columns: None,
-        }).collect())
+        Ok(rows
+            .iter()
+            .map(|r| TableInfo {
+                name: r.get::<String, _>(0),
+                schema: Some("main".to_string()),
+                columns: None,
+            })
+            .collect())
     }
 
-    async fn get_columns(&self, _database: &str, table: &str, _schema: Option<&str>) -> Result<Vec<ColumnInfo>> {
+    async fn get_columns(
+        &self,
+        _database: &str,
+        table: &str,
+        _schema: Option<&str>,
+    ) -> Result<Vec<ColumnInfo>> {
         let pool_lock = self.pool.read().await;
         let pool = pool_lock.as_ref().ok_or_else(|| anyhow!("Not connected"))?;
 
@@ -73,18 +84,26 @@ impl DatabaseDriver for SqliteDriver {
             .fetch_all(pool)
             .await?;
 
-        Ok(rows.iter().map(|r| ColumnInfo {
-            name: r.get(1),
-            data_type: r.get(2),
-            nullable: r.get::<i32, _>(3) == 0,
-            default_value: r.try_get::<Option<String>, _>(4).unwrap_or(None),
-            is_primary: r.get::<i32, _>(5) == 1,
-            is_unique: false, // determined via indexes
-            extra: None,
-        }).collect())
+        Ok(rows
+            .iter()
+            .map(|r| ColumnInfo {
+                name: r.get(1),
+                data_type: r.get(2),
+                nullable: r.get::<i32, _>(3) == 0,
+                default_value: r.try_get::<Option<String>, _>(4).unwrap_or(None),
+                is_primary: r.get::<i32, _>(5) == 1,
+                is_unique: false, // determined via indexes
+                extra: None,
+            })
+            .collect())
     }
 
-    async fn get_indexes(&self, _database: &str, table: &str, _schema: Option<&str>) -> Result<Vec<IndexInfo>> {
+    async fn get_indexes(
+        &self,
+        _database: &str,
+        table: &str,
+        _schema: Option<&str>,
+    ) -> Result<Vec<IndexInfo>> {
         let pool_lock = self.pool.read().await;
         let pool = pool_lock.as_ref().ok_or_else(|| anyhow!("Not connected"))?;
 
@@ -104,9 +123,10 @@ impl DatabaseDriver for SqliteDriver {
                 .await
                 .unwrap_or_default();
 
-            let mut cols: Vec<(i32, String)> = col_rows.iter().map(|r| {
-                (r.get::<i32, _>(0), r.get::<String, _>(2))
-            }).collect();
+            let mut cols: Vec<(i32, String)> = col_rows
+                .iter()
+                .map(|r| (r.get::<i32, _>(0), r.get::<String, _>(2)))
+                .collect();
             cols.sort_by_key(|(seq, _)| *seq);
 
             indexes.push(IndexInfo {
@@ -120,7 +140,11 @@ impl DatabaseDriver for SqliteDriver {
         Ok(indexes)
     }
 
-    async fn get_foreign_keys(&self, _database: &str, _schema: Option<&str>) -> Result<Vec<ForeignKeyRelation>> {
+    async fn get_foreign_keys(
+        &self,
+        _database: &str,
+        _schema: Option<&str>,
+    ) -> Result<Vec<ForeignKeyRelation>> {
         let pool_lock = self.pool.read().await;
         let pool = pool_lock.as_ref().ok_or_else(|| anyhow!("Not connected"))?;
 
@@ -134,8 +158,14 @@ impl DatabaseDriver for SqliteDriver {
 
         for table_row in table_rows {
             let source_table: String = table_row.get(0);
-            let pragma = format!("PRAGMA foreign_key_list(\"{}\")", source_table.replace('"', "\"\""));
-            let fk_rows = sqlx::query(&pragma).fetch_all(pool).await.unwrap_or_default();
+            let pragma = format!(
+                "PRAGMA foreign_key_list(\"{}\")",
+                source_table.replace('"', "\"\"")
+            );
+            let fk_rows = sqlx::query(&pragma)
+                .fetch_all(pool)
+                .await
+                .unwrap_or_default();
             let mut relation_map: BTreeMap<i64, ForeignKeyRelation> = BTreeMap::new();
 
             for row in fk_rows {
@@ -144,15 +174,17 @@ impl DatabaseDriver for SqliteDriver {
                 let target_table: String = row.try_get(2).unwrap_or_default();
                 let target_column: String = row.try_get(4).unwrap_or_default();
 
-                let relation = relation_map.entry(fk_id).or_insert_with(|| ForeignKeyRelation {
-                    name: format!("{}_fk_{}", source_table, fk_id),
-                    source_table: source_table.clone(),
-                    source_schema: Some("main".to_string()),
-                    source_columns: Vec::new(),
-                    target_table: target_table.clone(),
-                    target_schema: Some("main".to_string()),
-                    target_columns: Vec::new(),
-                });
+                let relation = relation_map
+                    .entry(fk_id)
+                    .or_insert_with(|| ForeignKeyRelation {
+                        name: format!("{}_fk_{}", source_table, fk_id),
+                        source_table: source_table.clone(),
+                        source_schema: Some("main".to_string()),
+                        source_columns: Vec::new(),
+                        target_table: target_table.clone(),
+                        target_schema: Some("main".to_string()),
+                        target_columns: Vec::new(),
+                    });
 
                 relation.source_columns.push(source_column);
                 relation.target_columns.push(target_column);
@@ -169,20 +201,22 @@ impl DatabaseDriver for SqliteDriver {
         let pool = pool_lock.as_ref().ok_or_else(|| anyhow!("Not connected"))?;
 
         let start = Instant::now();
-        let rows = sqlx::query(query)
-            .fetch_all(pool)
-            .await?;
+        let rows = sqlx::query(query).fetch_all(pool).await?;
         let duration = start.elapsed().as_millis() as u64;
 
         if rows.is_empty() {
-             return Ok(QueryResult {
+            return Ok(QueryResult {
                 columns: vec![],
                 rows: vec![],
                 execution_time_ms: duration,
             });
         }
 
-        let columns = rows[0].columns().iter().map(|c| c.name().to_string()).collect::<Vec<_>>();
+        let columns = rows[0]
+            .columns()
+            .iter()
+            .map(|c| c.name().to_string())
+            .collect::<Vec<_>>();
         let mut result_rows = Vec::new();
 
         for row in rows {
@@ -193,7 +227,9 @@ impl DatabaseDriver for SqliteDriver {
                 } else if let Ok(n) = row.try_get::<i64, _>(i) {
                     serde_json::Value::Number(n.into())
                 } else if let Ok(f) = row.try_get::<f64, _>(i) {
-                    serde_json::Value::Number(serde_json::Number::from_f64(f).unwrap_or(serde_json::Number::from(0)))
+                    serde_json::Value::Number(
+                        serde_json::Number::from_f64(f).unwrap_or(serde_json::Number::from(0)),
+                    )
                 } else if let Ok(b) = row.try_get::<bool, _>(i) {
                     serde_json::Value::Bool(b)
                 } else {
@@ -211,8 +247,19 @@ impl DatabaseDriver for SqliteDriver {
         })
     }
 
-    async fn get_table_data(&self, _database: &str, table: &str, page: u32, page_size: u32) -> Result<QueryResult> {
-        let query = format!("SELECT * FROM `{}` LIMIT {} OFFSET {}", table, page_size, page * page_size);
+    async fn get_table_data(
+        &self,
+        _database: &str,
+        table: &str,
+        page: u32,
+        page_size: u32,
+    ) -> Result<QueryResult> {
+        let query = format!(
+            "SELECT * FROM `{}` LIMIT {} OFFSET {}",
+            table,
+            page_size,
+            page * page_size
+        );
         self.run_query(&query).await
     }
 }

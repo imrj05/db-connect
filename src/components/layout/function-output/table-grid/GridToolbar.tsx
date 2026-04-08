@@ -6,6 +6,8 @@ import {
 	Upload,
 	Pencil,
 	TableProperties,
+	Check,
+	RotateCcw,
 	X,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -28,10 +30,14 @@ export function GridToolbar({
 	cellSearch,
 	searchedRowCount,
 	totalRowCount,
+	pendingEditCount,
+	applyPendingLoading,
 	viewMode,
 	onToggleFilter,
 	onClearFilters,
 	onAddFilter,
+	onApplyPendingEdits,
+	onResetPendingEdits,
 	onRefresh,
 	onToggleSearch,
 	onSearchChange,
@@ -49,10 +55,14 @@ export function GridToolbar({
 	cellSearch: string;
 	searchedRowCount: number;
 	totalRowCount: number;
+	pendingEditCount: number;
+	applyPendingLoading: boolean;
 	viewMode: "data" | "form" | "structure" | "er";
 	onToggleFilter: () => void;
 	onClearFilters: () => void;
 	onAddFilter: () => void;
+	onApplyPendingEdits: () => void;
+	onResetPendingEdits: () => void;
 	onRefresh: () => Promise<void>;
 	onToggleSearch: () => void;
 	onSearchChange: (value: string) => void;
@@ -76,6 +86,35 @@ export function GridToolbar({
 					<span className="text-[10px] font-mono text-muted-foreground/40 mr-2">
 						{executionTimeMs}ms
 					</span>
+					{fn.tableName && (
+						<>
+							{pendingEditCount > 0 && (
+								<span className="rounded border border-amber-500/25 bg-amber-500/10 px-1.5 py-0.5 text-[9px] font-mono text-amber-600 dark:text-amber-300">
+									{pendingEditCount} pending
+								</span>
+							)}
+							<Button
+								variant="outline"
+								size="sm"
+								onClick={onApplyPendingEdits}
+								disabled={pendingEditCount === 0 || applyPendingLoading}
+								className="h-6 px-2 text-[10px] font-mono"
+							>
+								<Check size={11} className="mr-1" />
+								Apply
+							</Button>
+							<Button
+								variant="ghost"
+								size="sm"
+								onClick={onResetPendingEdits}
+								disabled={pendingEditCount === 0 || applyPendingLoading}
+								className="h-6 px-2 text-[10px] font-mono text-muted-foreground"
+							>
+								<RotateCcw size={11} className="mr-1" />
+								Reset
+							</Button>
+						</>
+					)}
 					{viewMode === "data" && (
 						<Tooltip>
 							<TooltipTrigger asChild>

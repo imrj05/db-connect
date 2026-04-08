@@ -133,11 +133,26 @@ export interface FunctionInvocationResult {
 
 // ---------- Result tabs ----------
 
+export interface PendingCellEdit {
+  id: string;
+  tabId: string;
+  connectionId: string;
+  tableName: string;
+  rowKey: string;
+  primaryKeyValues: Record<string, unknown>;
+  columnId: string;
+  originalValue: unknown;
+  pendingValue: string | null;
+  createdAt: number;
+  updatedAt: number;
+}
+
 export interface ResultTab {
   id: string;
   fn: ConnectionFunction;
   result: FunctionInvocationResult | null;
   pendingSql: string;
+  pendingEdits: PendingCellEdit[];
   label: string;      // display name, e.g. "users", "query", "list"
 }
 

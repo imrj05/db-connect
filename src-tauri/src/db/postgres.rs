@@ -1,8 +1,11 @@
-use async_trait::async_trait;
-use sqlx::{postgres::{PgConnectOptions, PgPoolOptions, PgSslMode}, Pool, Postgres, Row, Column};
-use crate::types::*;
 use crate::db::DatabaseDriver;
-use anyhow::{Result, anyhow};
+use crate::types::*;
+use anyhow::{anyhow, Result};
+use async_trait::async_trait;
+use sqlx::{
+    postgres::{PgConnectOptions, PgPoolOptions, PgSslMode},
+    Column, Pool, Postgres, Row,
+};
 use std::time::Instant;
 
 pub struct PostgresDriver {
@@ -82,19 +85,28 @@ impl DatabaseDriver for PostgresDriver {
         let pool = pool_lock.as_ref().ok_or_else(|| anyhow!("Not connected"))?;
 
         let schema_name = schema.unwrap_or("public");
-        let rows = sqlx::query("SELECT table_name FROM information_schema.tables WHERE table_schema = $1")
-            .bind(schema_name)
-            .fetch_all(pool)
-            .await?;
+        let rows =
+            sqlx::query("SELECT table_name FROM information_schema.tables WHERE table_schema = $1")
+                .bind(schema_name)
+                .fetch_all(pool)
+                .await?;
 
-        Ok(rows.iter().map(|r| TableInfo {
-            name: r.get::<String, _>(0),
-            schema: Some(schema_name.to_string()),
-            columns: None,
-        }).collect())
+        Ok(rows
+            .iter()
+            .map(|r| TableInfo {
+                name: r.get::<String, _>(0),
+                schema: Some(schema_name.to_string()),
+                columns: None,
+            })
+            .collect())
     }
 
-    async fn get_columns(&self, _database: &str, table: &str, schema: Option<&str>) -> Result<Vec<ColumnInfo>> {
+    async fn get_columns(
+        &self,
+        _database: &str,
+        table: &str,
+        schema: Option<&str>,
+    ) -> Result<Vec<ColumnInfo>> {
         let pool_lock = self.pool.read().await;
         let pool = pool_lock.as_ref().ok_or_else(|| anyhow!("Not connected"))?;
 
@@ -102,12 +114,45 @@ impl DatabaseDriver for PostgresDriver {
         let rows = sqlx::query(
             "SELECT
                 col.column_name,
-                col.data_type,
+                pg_catalog.format_type(attr.atttypid, attr.atttypmod) AS data_type,
                 col.is_nullable = 'YES' AS nullable,
                 col.column_default,
                 COALESCE(bool_or(tc.constraint_type = 'PRIMARY KEY'), false) AS is_primary,
-                COALESCE(bool_or(tc.constraint_type = 'UNIQUE'), false) AS is_unique
+                COALESCE(bool_or(tc.constraint_type = 'UNIQUE'), false) AS is_unique,
+                NULLIF(
+                    array_to_string(
+                        array_remove(
+                            ARRAY[
+                                CASE
+                                    WHEN col.is_identity = 'YES'
+                                        THEN CONCAT('identity', COALESCE(' ' || lower(col.identity_generation), ''))
+                                END,
+                                CASE
+                                    WHEN col.is_generated <> 'NEVER'
+                                        THEN CONCAT('generated ', lower(col.is_generated))
+                                END,
+                                CASE
+                                    WHEN col.is_updatable = 'NO'
+                                        THEN 'read-only'
+                                END
+                            ],
+                            NULL
+                        ),
+                        ', '
+                    ),
+                    ''
+                ) AS extra
              FROM information_schema.columns col
+             JOIN pg_catalog.pg_namespace ns
+                 ON ns.nspname = col.table_schema
+             JOIN pg_catalog.pg_class cls
+                 ON cls.relname = col.table_name
+                 AND cls.relnamespace = ns.oid
+             JOIN pg_catalog.pg_attribute attr
+                 ON attr.attrelid = cls.oid
+                 AND attr.attname = col.column_name
+                 AND attr.attnum > 0
+                 AND NOT attr.attisdropped
              LEFT JOIN information_schema.key_column_usage kcu
                  ON kcu.column_name = col.column_name
                  AND kcu.table_name = col.table_name
@@ -116,7 +161,16 @@ impl DatabaseDriver for PostgresDriver {
                  ON tc.constraint_name = kcu.constraint_name
                  AND tc.table_schema = kcu.table_schema
              WHERE col.table_name = $1 AND col.table_schema = $2
-             GROUP BY col.column_name, col.data_type, col.is_nullable, col.column_default, col.ordinal_position
+             GROUP BY
+                col.column_name,
+                pg_catalog.format_type(attr.atttypid, attr.atttypmod),
+                col.is_nullable,
+                col.column_default,
+                col.ordinal_position,
+                col.is_identity,
+                col.identity_generation,
+                col.is_generated,
+                col.is_updatable
              ORDER BY col.ordinal_position"
         )
         .bind(table)
@@ -124,18 +178,26 @@ impl DatabaseDriver for PostgresDriver {
         .fetch_all(pool)
         .await?;
 
-        Ok(rows.iter().map(|r| ColumnInfo {
-            name: r.get(0),
-            data_type: r.get(1),
-            nullable: r.get(2),
-            default_value: r.try_get::<Option<String>, _>(3).unwrap_or(None),
-            is_primary: r.get(4),
-            is_unique: r.get(5),
-            extra: None,
-        }).collect())
+        Ok(rows
+            .iter()
+            .map(|r| ColumnInfo {
+                name: r.get(0),
+                data_type: r.get(1),
+                nullable: r.get(2),
+                default_value: r.try_get::<Option<String>, _>(3).unwrap_or(None),
+                is_primary: r.get(4),
+                is_unique: r.get(5),
+                extra: r.try_get::<Option<String>, _>(6).unwrap_or(None),
+            })
+            .collect())
     }
 
-    async fn get_indexes(&self, _database: &str, table: &str, schema: Option<&str>) -> Result<Vec<IndexInfo>> {
+    async fn get_indexes(
+        &self,
+        _database: &str,
+        table: &str,
+        schema: Option<&str>,
+    ) -> Result<Vec<IndexInfo>> {
         let pool_lock = self.pool.read().await;
         let pool = pool_lock.as_ref().ok_or_else(|| anyhow!("Not connected"))?;
 
@@ -155,25 +217,32 @@ impl DatabaseDriver for PostgresDriver {
              JOIN pg_attribute a ON a.attrelid = t.oid AND a.attnum = k.attnum AND a.attnum > 0
              WHERE t.relname = $1 AND n.nspname = $2
              GROUP BY i.relname, ix.indisunique, am.amname
-             ORDER BY i.relname"
+             ORDER BY i.relname",
         )
         .bind(table)
         .bind(schema_name)
         .fetch_all(pool)
         .await?;
 
-        Ok(rows.iter().map(|r| {
-            let cols: Vec<String> = r.try_get::<Vec<String>, _>(3).unwrap_or_default();
-            IndexInfo {
-                name: r.get(0),
-                unique: r.get(1),
-                index_type: r.try_get::<String, _>(2).ok(),
-                columns: cols,
-            }
-        }).collect())
+        Ok(rows
+            .iter()
+            .map(|r| {
+                let cols: Vec<String> = r.try_get::<Vec<String>, _>(3).unwrap_or_default();
+                IndexInfo {
+                    name: r.get(0),
+                    unique: r.get(1),
+                    index_type: r.try_get::<String, _>(2).ok(),
+                    columns: cols,
+                }
+            })
+            .collect())
     }
 
-    async fn get_foreign_keys(&self, _database: &str, schema: Option<&str>) -> Result<Vec<ForeignKeyRelation>> {
+    async fn get_foreign_keys(
+        &self,
+        _database: &str,
+        schema: Option<&str>,
+    ) -> Result<Vec<ForeignKeyRelation>> {
         let pool_lock = self.pool.read().await;
         let pool = pool_lock.as_ref().ok_or_else(|| anyhow!("Not connected"))?;
 
@@ -201,7 +270,7 @@ impl DatabaseDriver for PostgresDriver {
               AND ccu.ordinal_position = kcu.position_in_unique_constraint
              WHERE tc.constraint_type = 'FOREIGN KEY'
                AND tc.table_schema = $1
-             ORDER BY kcu.table_name, tc.constraint_name, kcu.ordinal_position"
+             ORDER BY kcu.table_name, tc.constraint_name, kcu.ordinal_position",
         )
         .bind(schema_name)
         .fetch_all(pool)
@@ -209,8 +278,10 @@ impl DatabaseDriver for PostgresDriver {
 
         use std::collections::BTreeMap;
 
-        let mut relation_map: BTreeMap<(String, String, String, String, String), ForeignKeyRelation> =
-            BTreeMap::new();
+        let mut relation_map: BTreeMap<
+            (String, String, String, String, String),
+            ForeignKeyRelation,
+        > = BTreeMap::new();
 
         for row in rows {
             let name: String = row.get(0);
@@ -228,15 +299,17 @@ impl DatabaseDriver for PostgresDriver {
                 target_table.clone(),
             );
 
-            let relation = relation_map.entry(key).or_insert_with(|| ForeignKeyRelation {
-                name: name.clone(),
-                source_table: source_table.clone(),
-                source_schema: Some(source_schema.clone()),
-                source_columns: Vec::new(),
-                target_table: target_table.clone(),
-                target_schema: Some(target_schema.clone()),
-                target_columns: Vec::new(),
-            });
+            let relation = relation_map
+                .entry(key)
+                .or_insert_with(|| ForeignKeyRelation {
+                    name: name.clone(),
+                    source_table: source_table.clone(),
+                    source_schema: Some(source_schema.clone()),
+                    source_columns: Vec::new(),
+                    target_table: target_table.clone(),
+                    target_schema: Some(target_schema.clone()),
+                    target_columns: Vec::new(),
+                });
 
             relation.source_columns.push(source_column);
             relation.target_columns.push(target_column);
@@ -250,31 +323,61 @@ impl DatabaseDriver for PostgresDriver {
         let pool = pool_lock.as_ref().ok_or_else(|| anyhow!("Not connected"))?;
 
         let start = Instant::now();
-        let rows = sqlx::query(query)
-            .fetch_all(pool)
-            .await?;
+        let rows = sqlx::query(query).fetch_all(pool).await?;
         let duration = start.elapsed().as_millis() as u64;
 
         if rows.is_empty() {
-             return Ok(QueryResult {
+            return Ok(QueryResult {
                 columns: vec![],
                 rows: vec![],
                 execution_time_ms: duration,
             });
         }
 
-        let columns = rows[0].columns().iter().map(|c| c.name().to_string()).collect::<Vec<_>>();
+        let columns = rows[0]
+            .columns()
+            .iter()
+            .map(|c| c.name().to_string())
+            .collect::<Vec<_>>();
         let mut result_rows = Vec::new();
 
         for row in rows {
             let mut obj = serde_json::Map::<String, serde_json::Value>::new();
             for (i, col_name) in columns.iter().enumerate() {
-                 let val: serde_json::Value = if let Ok(s) = row.try_get::<String, _>(i) {
+                let val: serde_json::Value = if let Ok(s) = row.try_get::<String, _>(i) {
                     serde_json::Value::String(s)
+                } else if let Ok(id) = row.try_get::<uuid::Uuid, _>(i) {
+                    serde_json::Value::String(id.to_string())
                 } else if let Ok(n) = row.try_get::<i64, _>(i) {
                     serde_json::Value::Number(n.into())
+                } else if let Ok(n) = row.try_get::<i32, _>(i) {
+                    serde_json::Value::Number(n.into())
+                } else if let Ok(n) = row.try_get::<i16, _>(i) {
+                    serde_json::Value::Number(n.into())
+                } else if let Ok(n) = row.try_get::<i8, _>(i) {
+                    serde_json::Value::Number(n.into())
+                } else if let Ok(f) = row.try_get::<f64, _>(i) {
+                    serde_json::Value::Number(
+                        serde_json::Number::from_f64(f).unwrap_or_else(|| 0.into()),
+                    )
+                } else if let Ok(f) = row.try_get::<f32, _>(i) {
+                    serde_json::Value::Number(
+                        serde_json::Number::from_f64(f as f64).unwrap_or_else(|| 0.into()),
+                    )
                 } else if let Ok(b) = row.try_get::<bool, _>(i) {
                     serde_json::Value::Bool(b)
+                } else if let Ok(d) = row.try_get::<chrono::NaiveDate, _>(i) {
+                    serde_json::Value::String(d.to_string())
+                } else if let Ok(t) = row.try_get::<chrono::NaiveTime, _>(i) {
+                    serde_json::Value::String(t.to_string())
+                } else if let Ok(dt) = row.try_get::<chrono::NaiveDateTime, _>(i) {
+                    serde_json::Value::String(dt.to_string())
+                } else if let Ok(dt) = row.try_get::<chrono::DateTime<chrono::Utc>, _>(i) {
+                    serde_json::Value::String(dt.to_rfc3339())
+                } else if let Ok(dt) = row.try_get::<chrono::DateTime<chrono::FixedOffset>, _>(i) {
+                    serde_json::Value::String(dt.to_rfc3339())
+                } else if let Ok(json) = row.try_get::<serde_json::Value, _>(i) {
+                    json
                 } else {
                     serde_json::Value::Null
                 };
@@ -290,8 +393,20 @@ impl DatabaseDriver for PostgresDriver {
         })
     }
 
-    async fn get_table_data(&self, database: &str, table: &str, page: u32, page_size: u32) -> Result<QueryResult> {
-        let query = format!("SELECT * FROM \"{}\".\"{}\" LIMIT {} OFFSET {}", database, table, page_size, page * page_size);
+    async fn get_table_data(
+        &self,
+        database: &str,
+        table: &str,
+        page: u32,
+        page_size: u32,
+    ) -> Result<QueryResult> {
+        let query = format!(
+            "SELECT * FROM \"{}\".\"{}\" LIMIT {} OFFSET {}",
+            database,
+            table,
+            page_size,
+            page * page_size
+        );
         self.run_query(&query).await
     }
 }
