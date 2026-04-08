@@ -1,6 +1,5 @@
 import { useState, useEffect } from "react";
 import { invoke } from "@tauri-apps/api/core";
-import { listen } from "@tauri-apps/api/event";
 import {
 	AlertDialog,
 	AlertDialogContent,
@@ -10,7 +9,6 @@ import {
 	AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
-import { Progress } from "@/components/ui/progress";
 import { Loader2, Download, ExternalLink } from "lucide-react";
 
 export interface UpdateInfo {
@@ -18,11 +16,6 @@ export interface UpdateInfo {
 	version: string | null;
 	current_version: string;
 	body: string | null;
-}
-
-interface UpdateProgressPayload {
-	chunkLength: number;
-	contentLength: number | null;
 }
 
 interface UpdateDialogProps {
@@ -33,58 +26,21 @@ interface UpdateDialogProps {
 
 export function UpdateDialog({ open, updateInfo, onSkip }: UpdateDialogProps) {
 	const [phase, setPhase] = useState<"prompt" | "downloading" | "done">("prompt");
-	const [progress, setProgress] = useState(0);
-	const [downloaded, setDownloaded] = useState(0);
-	const [totalBytes, setTotalBytes] = useState<number | null>(null);
 
 	useEffect(() => {
-		if (!open) {
-			setPhase("prompt");
-			setProgress(0);
-			setDownloaded(0);
-			setTotalBytes(null);
-		}
+		if (!open) setPhase("prompt");
 	}, [open]);
 
-	useEffect(() => {
-		if (phase !== "downloading") return;
-
-		const unlistenProgress = listen<UpdateProgressPayload>("update-progress", (event) => {
-			const { chunkLength, contentLength } = event.payload;
-			setDownloaded((prev) => {
-				const next = prev + chunkLength;
-				if (contentLength && contentLength > 0) {
-					setTotalBytes(contentLength);
-					setProgress(Math.round((next / contentLength) * 100));
-				}
-				return next;
-			});
-		});
-
-		const unlistenFinished = listen("update-finished", () => {
-			setProgress(100);
-			setPhase("done");
-		});
-
-		return () => {
-			unlistenProgress.then((fn) => fn());
-			unlistenFinished.then((fn) => fn());
-		};
-	}, [phase]);
-
+	// install_update downloads and installs synchronously — the app restarts on completion
 	const handleInstall = async () => {
 		setPhase("downloading");
 		try {
 			await invoke("install_update");
+			setPhase("done");
 		} catch (err) {
 			console.error("Update install failed:", err);
 			onSkip();
 		}
-	};
-
-	const formatBytes = (bytes: number) => {
-		if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(0)} KB`;
-		return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 	};
 
 	const changelogUrl = `https://github.com/imrj05/db-connect/releases/tag/v${updateInfo.version}`;
@@ -94,7 +50,7 @@ export function UpdateDialog({ open, updateInfo, onSkip }: UpdateDialogProps) {
 			<AlertDialogContent className="max-w-sm">
 				<AlertDialogHeader>
 					<AlertDialogTitle>
-						{phase === "done" ? "Update Ready to Install" : "Update Available"}
+						{phase === "done" ? "Restarting…" : "Update Available"}
 					</AlertDialogTitle>
 					<AlertDialogDescription asChild>
 						<div className="flex flex-col gap-2 text-left">
@@ -127,21 +83,13 @@ export function UpdateDialog({ open, updateInfo, onSkip }: UpdateDialogProps) {
 								</>
 							)}
 							{phase === "downloading" && (
-								<div className="flex flex-col gap-2.5">
-									<div className="flex items-center justify-between text-xs text-muted-foreground">
-										<span>Downloading update…</span>
-										<span>
-											{totalBytes
-												? `${formatBytes(downloaded)} / ${formatBytes(totalBytes)}`
-												: `${formatBytes(downloaded)}`}
-										</span>
-									</div>
-									<Progress value={progress} className="h-1.5" />
-								</div>
+								<p className="text-xs text-muted-foreground">
+									Downloading and installing update… DB Connect will restart automatically.
+								</p>
 							)}
 							{phase === "done" && (
 								<p className="text-xs text-muted-foreground">
-									The update has been downloaded. DB Connect will restart to apply it.
+									Update installed. Restarting now…
 								</p>
 							)}
 						</div>
@@ -159,15 +107,10 @@ export function UpdateDialog({ open, updateInfo, onSkip }: UpdateDialogProps) {
 							</Button>
 						</>
 					)}
-					{phase === "downloading" && (
+					{(phase === "downloading" || phase === "done") && (
 						<Button variant="outline" size="sm" disabled className="gap-2">
 							<Loader2 size={12} className="animate-spin" />
-							Installing…
-						</Button>
-					)}
-					{phase === "done" && (
-						<Button size="sm" onClick={handleInstall}>
-							Restart Now
+							{phase === "done" ? "Restarting…" : "Installing…"}
 						</Button>
 					)}
 				</AlertDialogFooter>

@@ -8,6 +8,7 @@ use crate::db::DatabaseDriver;
 use crate::ssh::{SshAuth, SshTunnel};
 use std::sync::Arc;
 use anyhow::Result;
+use tauri_plugin_updater::UpdaterExt;
 
 use crate::db::mongodb::MongoDriver;
 use crate::db::redis_driver::RedisDriver;
@@ -436,9 +437,6 @@ pub async fn check_export_protected(content: String) -> Result<bool, String> {
 
 // ── Updater commands ───────────────────────────────────────────────────────────
 
-use tauri::Emitter;
-use tauri_plugin_updater::UpdaterExt;
-
 #[derive(serde::Serialize)]
 pub struct UpdateInfo {
     pub available: bool,
@@ -481,22 +479,8 @@ pub async fn install_update(app: tauri::AppHandle) -> Result<(), String> {
         .await
         .map_err(|e| e.to_string())?
         .ok_or_else(|| "No update available".to_string())?;
-    let app_clone = app.clone();
     update
-        .download_and_install(
-            |chunk_length, content_length| {
-                let _ = app_clone.emit(
-                    "update-progress",
-                    serde_json::json!({
-                        "chunkLength": chunk_length,
-                        "contentLength": content_length,
-                    }),
-                );
-            },
-            || {
-                let _ = app_clone.emit("update-finished", ());
-            },
-        )
+        .download_and_install(|_, _| {}, || {})
         .await
         .map_err(|e| e.to_string())
 }
