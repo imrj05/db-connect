@@ -436,6 +436,7 @@ pub async fn check_export_protected(content: String) -> Result<bool, String> {
 
 // ── Updater commands ───────────────────────────────────────────────────────────
 
+use tauri::Emitter;
 use tauri_plugin_updater::UpdaterExt;
 
 #[derive(serde::Serialize)]
