@@ -54,15 +54,17 @@ jobs:
       - name: Create GitHub release
         id: create
         uses: actions/github-script@v7
+        env:
+          RELEASE_BODY: ${{ steps.changelog.outputs.body }}
+          RELEASE_TAG: ${{ github.ref_name }}
         with:
           script: |
-            const body = `${{ steps.changelog.outputs.body }}`;
             const { data } = await github.rest.repos.createRelease({
               owner: context.repo.owner,
               repo: context.repo.repo,
-              tag_name: '${{ github.ref_name }}',
-              name: 'DB Connect ${{ github.ref_name }}',
-              body,
+              tag_name: process.env.RELEASE_TAG,
+              name: `DB Connect ${process.env.RELEASE_TAG}`,
+              body: process.env.RELEASE_BODY,
               draft: false,
               prerelease: false,
             });
