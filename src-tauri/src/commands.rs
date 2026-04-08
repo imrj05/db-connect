@@ -433,3 +433,69 @@ pub async fn check_export_protected(content: String) -> Result<bool, String> {
         serde_json::from_str(&content).map_err(|e| e.to_string())?;
     Ok(export.password_protected)
 }
+
+// ── Updater commands ───────────────────────────────────────────────────────────
+
+use tauri_plugin_updater::UpdaterExt;
+
+#[derive(serde::Serialize)]
+pub struct UpdateInfo {
+    pub available: bool,
+    pub version: Option<String>,
+    pub current_version: String,
+    pub body: Option<String>,
+}
+
+#[tauri::command]
+pub async fn check_for_updates(app: tauri::AppHandle) -> Result<UpdateInfo, String> {
+    let current = app.package_info().version.to_string();
+    let updater = app
+        .updater_builder()
+        .build()
+        .map_err(|e| e.to_string())?;
+    match updater.check().await.map_err(|e| e.to_string())? {
+        Some(update) => Ok(UpdateInfo {
+            available: true,
+            version: Some(update.version.clone()),
+            current_version: current,
+            body: update.body.clone(),
+        }),
+        None => Ok(UpdateInfo {
+            available: false,
+            version: None,
+            current_version: current,
+            body: None,
+        }),
+    }
+}
+
+#[tauri::command]
+pub async fn install_update(app: tauri::AppHandle) -> Result<(), String> {
+    let updater = app
+        .updater_builder()
+        .build()
+        .map_err(|e| e.to_string())?;
+    let update = updater
+        .check()
+        .await
+        .map_err(|e| e.to_string())?
+        .ok_or_else(|| "No update available".to_string())?;
+    let app_clone = app.clone();
+    update
+        .download_and_install(
+            |chunk_length, content_length| {
+                let _ = app_clone.emit(
+                    "update-progress",
+                    serde_json::json!({
+                        "chunkLength": chunk_length,
+                        "contentLength": content_length,
+                    }),
+                );
+            },
+            || {
+                let _ = app_clone.emit("update-finished", ());
+            },
+        )
+        .await
+        .map_err(|e| e.to_string())
+}

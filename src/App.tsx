@@ -13,6 +13,8 @@ import { SettingsDialog } from "./components/layout/SettingsDialog";
 import { TooltipProvider } from "./components/ui/tooltip";
 import { Toaster } from "@/components/ui/sonner";
 import { getCurrentWindow } from "@tauri-apps/api/window";
+import { invoke } from "@tauri-apps/api/core";
+import { UpdateDialog, type UpdateInfo } from "./components/layout/UpdateDialog";
 import {
 	AlertDialog,
 	AlertDialogCancel,
@@ -47,6 +49,8 @@ function App() {
 	} = useAppStore();
 
 	const [onboardingDone, setOnboardingDone] = useState(false);
+	const [updateInfo, setUpdateInfo] = useState<UpdateInfo | null>(null);
+	const [showUpdateDialog, setShowUpdateDialog] = useState(false);
 	const [sidebarWidth, setSidebarWidth] = useState(SIDEBAR_DEFAULT);
 	const [showCloseApp, setShowCloseApp] = useState(false);
 	const [isClosing, setIsClosing] = useState(false);
@@ -57,6 +61,21 @@ function App() {
 	useEffect(() => {
 		loadConnections();
 	}, [loadConnections]);
+
+	useEffect(() => {
+		const timer = setTimeout(async () => {
+			try {
+				const info = await invoke<UpdateInfo>("check_for_updates");
+				if (info.available) {
+					setUpdateInfo(info);
+					setShowUpdateDialog(true);
+				}
+			} catch {
+				// Silently fail — update checks should never block the app
+			}
+		}, 2000);
+		return () => clearTimeout(timer);
+	}, []);
 
 	useEffect(() => {
 		if (theme === "dark") {
@@ -244,6 +263,13 @@ function App() {
 					</AlertDialogContent>
 				</AlertDialog>
 				<Toaster position="bottom-right" richColors theme={theme} />
+				{updateInfo && (
+					<UpdateDialog
+						open={showUpdateDialog}
+						updateInfo={updateInfo}
+						onSkip={() => setShowUpdateDialog(false)}
+					/>
+				)}
 			</div>
 		</TooltipProvider>
 	);
