@@ -1,6 +1,80 @@
-# db-connect
+# DB Connect
 
-A fast, native desktop database client built with **Tauri 2 + React + TypeScript + Rust**, inspired by the [dbcooper](https://github.com/pipeline-tools/dbcooper) R package. Every connection auto-generates a typed function registry (`prefix_list()`, `prefix_query()`, `prefix_tableName()`, …) so you navigate databases the same way you'd use code.
+A fast, native desktop database client built with **Tauri 2 · React 19 · TypeScript · Rust** — no Electron, no browser overhead.
+
+Supports PostgreSQL, MySQL, SQLite, MongoDB, and Redis from a single window. Every connection auto-generates a typed function registry (`prefix_list()`, `prefix_query()`, `prefix_tableName()`, …) inspired by the [dbcooper](https://github.com/pipeline-tools/dbcooper) R package, so you navigate databases the same way you'd use code.
+
+---
+
+## Features
+
+### Connections
+- Connect to **PostgreSQL, MySQL, SQLite, MongoDB, and Redis** simultaneously
+- SSH tunneling through a bastion host (password or private-key auth)
+- SSL/TLS on PostgreSQL and MySQL connections
+- **Test Connection** before saving
+- **Quick-connect presets** (Local PG, Local MySQL, SQLite, MongoDB, Redis)
+- **Group connections** by environment (dev, staging, prod) with collapsible sidebar headers
+- Credentials encrypted at rest with AES-256-GCM; key stored in the OS keychain (macOS Keychain / Windows Credential Manager / Linux Secret Service)
+- Import / export connections in JSON, URI / `.env`, or DBeaver format (with optional passphrase protection)
+
+### SQL Editor
+- CodeMirror 6 with SQL syntax highlighting and One Dark theme
+- **Schema-aware autocomplete** — table and column names from the active connection
+- `⌘↵` to run · `⌘T` new tab · `⌘W` close tab · `⌘1–9` switch tabs
+- **Query plan viewer** — Explain button prepends `EXPLAIN` and renders in the results grid
+- **Safe mode** — intercepts `DELETE` / `DROP` / `TRUNCATE` with a preview dialog before execution
+- **SQL preview dialog** — review the full query with Explain and Run actions before committing
+- Multiple result tabs open simultaneously per session
+
+### Data Viewer
+- TanStack React Table v8 — sortable columns, row numbers, null highlighting
+- **Pagination** — 25 / 50 / 100 / 200 rows per page
+- **Inline cell editing** — double-click or press Enter; generates `UPDATE` with primary-key `WHERE` clause
+- **Edit in modal** — Shift+Enter or right-click → Edit in modal; CodeMirror editor with Text / JSON / HTML formatting, Minify, Wrap Text, Copy, and Apply
+- **Form view** — single-row vertical key→value editor with prev/next navigation and per-row delete
+- **Column resizing** — drag column header borders; widths stored in local state
+- **Column visibility** — right-click header → Hide; Reset layout restores all hidden columns
+- **Row / cell / column selection** with amber highlight
+- **Right-click context menu on cells** — Edit in modal, Set as NULL, Quick Filter, Copy, Copy Column Name, Copy as TSV / JSON / Markdown / SQL / IN, Paste, Clone row, Delete row, See details
+- **Right-click context menu on column headers** — Set column to NULL, Copy column values, Sort, Resize to fit, Hide, Reset layout, Open filter
+- **Clone row** — generates INSERT with same values and refreshes
+- **Delete row** — confirmation dialog with generated DELETE SQL
+
+### Table & Schema Management
+- **Create table** — column builder dialog with live SQL preview
+- **Alter table** — add / drop columns with type select + NULL toggle + live SQL preview
+- **Drop / Rename table** — confirmation dialogs with generated SQL
+- **Manage indexes** — create (with UNIQUE toggle + column checkboxes) and drop, with live SQL preview
+- **ER diagram** — read-only entity-relationship diagram for PostgreSQL, MySQL, and SQLite with pan / zoom, auto-layout, and click-through navigation
+- **Schema graph** — connection-wide schema visualisation of tables and foreign-key relationships
+
+### Filtering & Search
+- **Visual WHERE builder** — column / operator / value rows with per-row AND / OR toggle
+- **Multi-condition filters** — click the join badge to switch AND ↔ OR
+- **Full-text cell search** — `⌘F` or the search icon; filters all visible rows client-side with an N-of-M match count; Escape closes
+
+### Query History & Saved Queries
+- Per-connection query history (up to 100 entries) with timestamps, row counts, and duration
+- Persisted to SQLite on the Tauri side; survives app restarts
+- **Saved queries** — name and persist frequently used SQL snippets per connection
+
+### Import & Export
+- Import CSV or JSON into a table (batched INSERT, 200 rows/batch)
+- Export grid data as CSV, JSON, or SQL (`INSERT INTO … VALUES (…);` for all rows in the current view)
+
+### Command Palette (`⌘K`)
+- Prefix-anchored fuzzy search across all connected databases
+- Grouped by connection name with DB-type badge
+- Opens SQL editor, table browser, or connection info directly
+
+### UI & Settings
+- macOS-native title bar with traffic-light controls and draggable region
+- Dark and light mode with a full CSS token system; toggle via Command Palette
+- **Split view** — resizable sidebar / main and editor / results panels
+- **Settings dialog** — Appearance (theme, zoom 100–150%), Editor, Table, Storage, and About sections
+- **Onboarding flow** — first-run welcome with DB-type picker, feature cards, and setup guidance
+- **Auto-updater** — background update checks with an install dialog
 
 ---
 
@@ -9,109 +83,58 @@ A fast, native desktop database client built with **Tauri 2 + React + TypeScript
 | Layer | Technology |
 |---|---|
 | Desktop shell | Tauri 2 (Rust) |
-| Frontend | React 18 + TypeScript + Vite |
-| Styling | Tailwind CSS 4 + Shadcn/UI + Radix UI |
-| State | Zustand (encrypted localStorage persistence) |
+| Frontend | React 19 + TypeScript + Vite 7 |
+| Styling | Tailwind CSS 4 + shadcn/ui + Radix UI |
+| State | Zustand 5 |
 | SQL editor | CodeMirror 6 |
 | Data grid | TanStack React Table v8 |
-| DB drivers (Rust) | SQLx (PostgreSQL, MySQL, SQLite) · mongodb · redis |
+| DB drivers | SQLx (PostgreSQL · MySQL · SQLite) · mongodb · redis |
+| Storage | SQLite via SQLx (Tauri side) with AES-256-GCM encryption |
+| SSH tunneling | russh |
+| Charts / ER | recharts + custom SVG layout |
 
 ---
 
-## Current Features
+## Keyboard Shortcuts
 
-### Connections
-- **Multi-connection sidebar** — all connections visible simultaneously as an expandable tree; no "active connection" switcher
-- **Supported databases** — PostgreSQL, MySQL, SQLite, MongoDB, Redis
-- **Encrypted persistence** — connection configs (incl. credentials) encrypted in `localStorage`; auto-migrates between storage versions
-- **Connection dialog** — two-panel redesign: left engine picker, right form with live prefix preview and URL preview
-- **Test connection** button with success/error inline feedback
-
-### dbcooper-style Function Registry
-Every connected database generates a set of typed functions identified by a user-defined **prefix**:
-
-| Function | What it does |
+| Shortcut | Action |
 |---|---|
-| `prefix_list()` | Shows all discovered tables for the connection |
-| `prefix_src()` | Shows connection info card (host, port, DB, SSL, table count) |
-| `prefix_query(sql)` | Opens a SQL editor bound to this connection |
-| `prefix_execute(sql)` | Opens a DDL/DML editor bound to this connection |
-| `prefix_tbl(table)` | Prompts to pick a table then browses it |
-| `prefix_tableName()` | Directly browses a specific table (one function per table) |
-
-### Sidebar
-- Tree per connection: utility functions → Tables section with per-table shortcuts
-- **Database selector** — Shadcn combobox dropdown to switch between databases on a live connection; re-fetches tables and rebuilds function list on change
-- Bare names shown (e.g. `users`, `query`, `list`) without prefix noise
-- Connect / Disconnect / Edit buttons per connection; animated connected indicator
-
-### Command Palette (`⌘K`)
-- Prefix-anchored fuzzy search across all connected connections
-- Grouped by connection name with DB type badge
-- Bare function names without prefix; type icons colour-coded by function type
-- Selecting `query` / `execute` opens SQL editor; others invoke immediately
-
-### Result Panel
-- **Data tab** — paginated table grid (50 rows/page) with sortable columns, row numbers, null highlighting
-- **Structure tab** — lazy-loaded per table:
-  - **Columns**: name, type, nullable (YES/NO), default value, key badges (PK / UNI), extra (e.g. `auto_increment`)
-  - **Indexes**: name, column chips, type (BTREE / HASH), unique badge
-- **SQL editor** — CodeMirror 6 with syntax highlighting, `⌘↵` to run, results rendered below
-- **Table list view** — clickable table list for `_list`; click to browse
-- **Connection source view** — info card for `_src`
-- Empty tables show column headers with "0 rows" body instead of a blank card
-- Smooth spinner when switching tables / databases (no idle-screen flicker)
-- Theme-aware: all backgrounds, borders, and CodeMirror editor adapt to dark / light mode
-
-### Theme
-- Dark and light mode with full token system (`--color-app-bg`, `--color-table-bg`, `--color-toolbar-bg`, etc.)
-- Toggle via Command Palette → "Switch to Light / Dark Mode"
-
-### Title Bar
-- Active function name shown as `> tableName()` when a function is invoked
-- Connected connection count badge
+| `⌘K` | Open Command Palette |
+| `⌘↵` | Execute SQL |
+| `⌘T` | New result tab |
+| `⌘W` | Close current tab |
+| `⌘1` – `⌘9` | Switch to tab 1–9 |
+| `⌘F` | Open full-text cell search |
+| `Enter` | Inline edit selected cell |
+| `Shift+Enter` | Edit selected cell in modal |
+| `Escape` | Cancel edit / close search |
 
 ---
 
-## Ongoing
-
-- [x] Export table data to CSV / JSON
-- [x] SQL editor autocomplete (table/column names from the active connection)
-- [x] Resizable result panel split between editor and results
-
----
-
-## Upcoming
-
-- [x] **Saved queries** — name and persist frequently used SQL snippets per connection
-- [x] **Query history** — per-connection log of recently executed queries with timestamps and row counts
-- [x] **Cell editing** — inline edit table cells and write back with generated UPDATE statements
-- [x] **Filters & sorting UI** — visual WHERE builder on top of the data grid without writing SQL
-- [ ] **ER diagram view** — auto-generated entity-relationship diagram from foreign key metadata
-- [ ] **Schema diff** — compare table structure between two connections or two points in time
-- [x] **Multiple result tabs** — keep multiple query results open side-by-side
-- [ ] **SSH tunnel support** — connect through a bastion host
-- [x] **Import** — load CSV / JSON into a table
-- [ ] **MongoDB schema inference** — sample documents and infer field types for the Structure tab
-- [ ] **Redis key browser** — tree view of key namespaces with value inspector
-
----
-
-## Development
+## Getting Started
 
 ### Prerequisites
-- [Node.js](https://nodejs.org/) 18+
-- [Rust](https://rustup.rs/) (stable)
-- [Tauri CLI prerequisites](https://tauri.app/v2/guides/getting-started/prerequisites) for your platform
 
-### Running locally
+- [Node.js](https://nodejs.org/) 22+
+- [Rust](https://rustup.rs/) (stable)
+- Platform prerequisites from [tauri.app/start/prerequisites](https://tauri.app/start/prerequisites/)
+
+**Linux only** — the following system packages are required:
+
+```bash
+sudo apt-get install -y \
+  libwebkit2gtk-4.1-dev libappindicator3-dev \
+  librsvg2-dev patchelf libssl-dev pkg-config
+```
+
+### Run in development
 
 ```bash
 npm install
 npm run tauri dev
 ```
 
-### Building
+### Build for production
 
 ```bash
 npm run tauri build
@@ -122,36 +145,77 @@ npm run tauri build
 ## Project Structure
 
 ```
-src/                          # React frontend
-  components/layout/
-    Sidebar.tsx               # Connection tree + function list
-    FunctionOutput.tsx        # Result panel (data grid, SQL editor, structure)
-    CommandPalette.tsx        # ⌘K search
-    TitleBar.tsx              # Active function display
-    ConnectionDialog.tsx      # Add / edit connection dialog
+src/                              # React frontend
+  components/
+    layout/
+      Sidebar.tsx                 # Connection tree + function list
+      FunctionOutput.tsx          # Result panel (data grid, SQL editor, structure)
+      CommandPalette.tsx          # ⌘K search
+      TitleBar.tsx                # Active function display + back navigation
+      ConnectionDialog.tsx        # Add / edit connection dialog
+      ImportExportDialog.tsx      # CSV / JSON / SQL import and export
+      UpdateDialog.tsx            # Auto-updater UI
+      SettingsDialog.tsx          # App-wide settings
+      Onboarding.tsx              # First-run welcome flow
+  hooks/                          # Custom React hooks
   lib/
-    db-functions.ts           # dbcooper function registry builder
-    tauri-api.ts              # Typed Tauri command wrappers
-    encryption.ts             # localStorage encryption utils
+    db-functions.ts               # dbcooper function registry builder
+    tauri-api.ts                  # Typed Tauri command wrappers
+    encryption.ts                 # localStorage encryption utils
   store/
-    useAppStore.ts            # Zustand store (connections, functions, UI state)
-  types.ts                    # Shared TypeScript types
+    useAppStore.ts                # Zustand store (connections, functions, UI state)
+  types/                          # Shared TypeScript types
 
-src-tauri/src/                # Rust backend
-  commands.rs                 # Tauri command handlers
-  types.rs                    # Shared Rust types (serde serialisable)
+src-tauri/src/                    # Rust backend
+  commands.rs                     # Tauri command handlers
+  types.rs                        # Shared Rust types (serde-serialisable)
+  storage.rs                      # SQLite storage + AES-256-GCM encryption
+  ssh.rs                          # SSH tunnel setup and teardown
+  import_export.rs                # CSV / JSON import helpers
   db/
-    mod.rs                    # DatabaseDriver trait
-    registry.rs               # Global DashMap connection registry
-    postgres.rs               # PostgreSQL driver (SQLx)
-    mysql.rs                  # MySQL / MariaDB driver (SQLx)
-    sqlite.rs                 # SQLite driver (SQLx)
-    mongodb.rs                # MongoDB driver
-    redis_driver.rs           # Redis driver
+    mod.rs                        # DatabaseDriver trait
+    registry.rs                   # Global DashMap connection registry
+    postgres.rs                   # PostgreSQL driver (SQLx)
+    mysql.rs                      # MySQL / MariaDB driver (SQLx)
+    sqlite.rs                     # SQLite driver (SQLx)
+    mongodb.rs                    # MongoDB driver
+    redis_driver.rs               # Redis driver
 ```
+
+---
+
+## Roadmap
+
+| Feature | Status |
+|---|---|
+| ER diagram | Done |
+| SSH tunneling | Done |
+| OS keychain credential storage | Done |
+| Full DDL surface (create/alter/drop/rename) | Done |
+| Safe mode for destructive queries | Done |
+| Query plan viewer | Done |
+| Full-text cell search | Done |
+| Rich right-click context menus | Done |
+| Edit in modal with format switching | Done |
+| Auto-updater | Done |
+| Streaming results for large datasets | Planned |
+| Visual schema editing (drag relations) | Planned |
+| Change tracking / undo for cell edits | Planned |
+| Schema diff between two connections | Planned |
+| MongoDB schema inference | Planned |
+| Redis key-namespace browser | Planned |
+| SQL Server support | Planned |
+
+---
+
+## Security Notes
+
+- Connection passwords are **never stored in plaintext**. Credentials are encrypted with AES-256-GCM using a per-machine key stored in the OS keychain.
+- The encryption key never leaves the Rust process; it is decrypted only when a connection is used.
+- SSH private keys and passphrases follow the same encryption path.
 
 ---
 
 ## IDE Setup
 
-- [VS Code](https://code.visualstudio.com/) + [Tauri](https://marketplace.visualstudio.com/items?itemName=tauri-apps.tauri-vscode) + [rust-analyzer](https://marketplace.visualstudio.com/items?itemName=rust-lang.rust-analyzer)
+[VS Code](https://code.visualstudio.com/) with the [Tauri extension](https://marketplace.visualstudio.com/items?itemName=tauri-apps.tauri-vscode) and [rust-analyzer](https://marketplace.visualstudio.com/items?itemName=rust-lang.rust-analyzer).
