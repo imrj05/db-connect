@@ -89,7 +89,7 @@ export function GridToolbar({
 					{fn.tableName && (
 						<>
 							{pendingEditCount > 0 && (
-								<span className="rounded border border-amber-500/25 bg-amber-500/10 px-1.5 py-0.5 text-[9px] font-mono text-amber-600 dark:text-amber-300">
+								<span className="rounded border border-warning/25 bg-warning/10 px-1.5 py-0.5 text-[9px] font-mono text-warning">
 									{pendingEditCount} pending
 								</span>
 							)}
@@ -145,7 +145,7 @@ export function GridToolbar({
 											<Filter size={11} />
 										)}
 										{filtersActive && (
-											<span className="absolute -top-1.5 -right-1.5 min-w-[14px] h-[14px] rounded-full bg-accent-blue text-[8px] font-black text-white flex items-center justify-center px-0.5 leading-none">
+											<span className="absolute -top-1.5 -right-1.5 min-w-[14px] h-[14px] rounded-full bg-accent-blue text-[8px] font-black text-accent-foreground flex items-center justify-center px-0.5 leading-none">
 												{filterCount}
 											</span>
 										)}
@@ -189,7 +189,7 @@ export function GridToolbar({
 									<span className="relative">
 										<Search size={11} />
 										{cellSearch && (
-											<span className="absolute -top-1.5 -right-1.5 min-w-[14px] h-[14px] rounded-full bg-accent-blue text-[8px] font-black text-white flex items-center justify-center px-0.5 leading-none">
+											<span className="absolute -top-1.5 -right-1.5 min-w-[14px] h-[14px] rounded-full bg-accent-blue text-[8px] font-black text-accent-foreground flex items-center justify-center px-0.5 leading-none">
 												{searchedRowCount}
 											</span>
 										)}

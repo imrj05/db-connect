@@ -20,7 +20,14 @@ import {
 	DialogTitle,
 	DialogDescription,
 } from "@/components/ui/dialog";
-import { cn } from "@/lib/utils";
+import {
+	DropdownMenu,
+	DropdownMenuContent,
+	DropdownMenuItem,
+	DropdownMenuCheckboxItem,
+	DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { useAppStore } from "@/store/useAppStore";
 
 export function CellEditModal({
 	cellModal,
@@ -41,8 +48,7 @@ export function CellEditModal({
 }) {
 	const [format, setFormat] = useState<"Text" | "JSON" | "HTML">(initialFormat);
 	const [wrap, setWrap] = useState(true);
-	const [gearOpen, setGearOpen] = useState(false);
-	const [formatOpen, setFormatOpen] = useState(false);
+	const theme = useAppStore((s) => s.theme);
 
 	const handleMinify = () => {
 		if (format === "JSON" && cellModal) {
@@ -53,7 +59,6 @@ export function CellEditModal({
 				/* not valid JSON, ignore */
 			}
 		}
-		setGearOpen(false);
 	};
 
 	return (
@@ -64,7 +69,7 @@ export function CellEditModal({
 			}}
 		>
 			<DialogContent
-				className="sm:max-w-5xl w-full p-0 gap-0 overflow-hidden rounded-xl border border-border bg-[#1a1a1a]"
+				className="sm:max-w-5xl w-full p-0 gap-0 overflow-hidden rounded-xl border border-border"
 				onPointerDownOutside={(e) => e.preventDefault()}
 				showCloseButton={false}
 			>
@@ -79,117 +84,77 @@ export function CellEditModal({
 						Editing as
 					</span>
 					{/* Format dropdown */}
-					<div className="relative">
-						<button
-							className="flex items-center gap-2 rounded-lg border border-border bg-muted/40 px-3 py-1.5 text-sm text-foreground hover:bg-muted/70 transition-colors min-w-[100px] justify-between"
-							onClick={() => {
-								setFormatOpen((v) => !v);
-								setGearOpen(false);
-							}}
-						>
-							<span>{format}</span>
-							<ChevronDown
-								size={13}
-								className="text-muted-foreground"
-							/>
-						</button>
-						{formatOpen && (
-							<div className="absolute left-0 top-full mt-1 z-50 min-w-[120px] rounded-lg border border-border bg-popover shadow-lg p-1 text-sm">
-								{(["Text", "JSON", "HTML"] as const).map((fmt) => (
-									<button
-										key={fmt}
-										className={cn(
-											"w-full flex items-center gap-2 px-3 py-1.5 rounded-md text-left hover:bg-accent hover:text-accent-foreground transition-colors",
-											format === fmt &&
-												"text-foreground font-medium",
-										)}
-										onClick={() => {
-											setFormat(fmt);
-											setFormatOpen(false);
-										}}
-									>
-										{format === fmt ? (
-											<Check size={12} />
-										) : (
-											<span className="w-3" />
-										)}
-										{fmt}
-									</button>
-								))}
-							</div>
-						)}
-					</div>
-					<div className="flex-1" />
-					{/* Gear / settings dropdown */}
-					<div className="relative">
-						<button
-							className="flex items-center gap-1.5 rounded-lg border border-border bg-muted/40 px-3 py-1.5 text-sm text-foreground hover:bg-muted/70 transition-colors"
-							onClick={() => {
-								setGearOpen((v) => !v);
-								setFormatOpen(false);
-							}}
-						>
-							<Settings size={14} />
-							<ChevronDown
-								size={12}
-								className="text-muted-foreground"
-							/>
-						</button>
-						{gearOpen && (
-							<div className="absolute right-0 top-full mt-1 z-50 min-w-[160px] rounded-lg border border-border bg-popover shadow-lg p-1 text-sm">
-								<button
-									className="w-full flex items-center gap-2 px-3 py-1.5 rounded-md text-left hover:bg-accent hover:text-accent-foreground transition-colors"
-									onClick={handleMinify}
+					<DropdownMenu>
+						<DropdownMenuTrigger asChild>
+							<Button
+								variant="outline"
+								size="sm"
+								className="gap-2 min-w-[100px] justify-between font-normal"
+							>
+								{format}
+								<ChevronDown size={13} className="text-muted-foreground" />
+							</Button>
+						</DropdownMenuTrigger>
+						<DropdownMenuContent align="start">
+							{(["Text", "JSON", "HTML"] as const).map((fmt) => (
+								<DropdownMenuItem
+									key={fmt}
+									onClick={() => setFormat(fmt)}
+									className="gap-2"
 								>
-									<Minimize2
-										size={13}
-										className="text-muted-foreground"
-									/>
-									Minify text
-								</button>
-								<button
-									className="w-full flex items-center gap-2 px-3 py-1.5 rounded-md text-left hover:bg-accent hover:text-accent-foreground transition-colors"
-									onClick={() => {
-										setWrap((v) => !v);
-										setGearOpen(false);
-									}}
-								>
-									{wrap ? (
-										<Check size={13} className="text-foreground" />
+									{format === fmt ? (
+										<Check size={12} />
 									) : (
-										<span className="w-[13px]" />
+										<span className="w-3" />
 									)}
-									<WrapText
-										size={13}
-										className="text-muted-foreground"
-									/>
-									Wrap Text
-								</button>
-							</div>
-						)}
-					</div>
+									{fmt}
+								</DropdownMenuItem>
+							))}
+						</DropdownMenuContent>
+					</DropdownMenu>
+					<div className="flex-1" />
+					{/* Settings dropdown */}
+					<DropdownMenu>
+						<DropdownMenuTrigger asChild>
+							<Button variant="outline" size="sm" className="gap-1.5">
+								<Settings size={14} />
+								<ChevronDown size={12} className="text-muted-foreground" />
+							</Button>
+						</DropdownMenuTrigger>
+						<DropdownMenuContent align="end">
+							<DropdownMenuItem onClick={handleMinify} className="gap-2">
+								<Minimize2 size={13} className="text-muted-foreground" />
+								Minify text
+							</DropdownMenuItem>
+							<DropdownMenuCheckboxItem
+								checked={wrap}
+								onCheckedChange={(checked) => setWrap(checked)}
+							>
+								<WrapText size={13} className="text-muted-foreground" />
+								Wrap Text
+							</DropdownMenuCheckboxItem>
+						</DropdownMenuContent>
+					</DropdownMenu>
 					{/* Close button */}
-					<button
-						className="ml-1 flex items-center justify-center rounded-md w-7 h-7 text-muted-foreground hover:bg-muted/60 hover:text-foreground transition-colors"
+					<Button
+						variant="ghost"
+						size="icon-sm"
 						onClick={onClose}
+						className="ml-1 text-muted-foreground hover:text-foreground"
 					>
 						<X size={15} />
-					</button>
+					</Button>
 				</div>
 				{/* CodeMirror editor */}
 				<div
 					className="overflow-hidden"
 					style={{ minHeight: 320, maxHeight: 480 }}
-					onClick={() => {
-						setFormatOpen(false);
-						setGearOpen(false);
-					}}
 				>
 					{cellModal && (
 						<CodeMirror
 							value={cellModal.value}
 							onChange={onValueChange}
-							theme={oneDark}
+							theme={theme === "dark" ? oneDark : undefined}
 							extensions={[
 								format === "JSON"
 									? jsonLang()
@@ -217,7 +182,7 @@ export function CellEditModal({
 					)}
 				</div>
 				{/* Footer */}
-				<div className="flex items-center justify-end gap-2 px-5 py-3 border-t border-border/50 bg-[#1a1a1a]">
+				<div className="flex items-center justify-end gap-2 px-5 py-3 border-t border-border/50 bg-popover">
 					<Button
 						variant="ghost"
 						size="sm"

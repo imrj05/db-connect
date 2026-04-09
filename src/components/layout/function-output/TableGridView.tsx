@@ -1560,7 +1560,7 @@ export function TableGridView({
                                 className={cn(
                                     "font-medium truncate",
                                     pendingEdit
-                                        ? "text-amber-600 dark:text-amber-300"
+                                        ? "text-warning"
                                         : info.getValue() === null
                                             ? "text-muted-foreground italic"
                                             : "",
@@ -1718,7 +1718,7 @@ export function TableGridView({
                                                     className={cn(
                                                         "h-8 px-4 text-left font-bold border-r border-border last:border-r-0 cursor-pointer transition-colors select-none overflow-hidden group/th",
                                                         isColSelected
-                                                            ? "bg-amber-500 text-white"
+                                                            ? "bg-warning text-warning-foreground"
                                                             : header.column.getIsSorted()
                                                                 ? "text-foreground border-b-2 border-b-primary/50 hover:bg-muted/40"
                                                                 : "text-muted-foreground hover:bg-muted/40",
@@ -1820,7 +1820,7 @@ export function TableGridView({
                                                 className={cn(
                                                     "hover:bg-row-hover transition-colors group cursor-default",
                                                     isSelected
-                                                        ? "bg-amber-500/10 border-l-2 border-amber-500"
+                                                        ? "bg-warning/10 border-l-2 border-warning"
                                                         : idx % 2 === 0
                                                             ? "bg-table-bg"
                                                             : "bg-row-alt",
@@ -1830,8 +1830,8 @@ export function TableGridView({
                                                     className={cn(
                                                         "w-10 h-8 px-2 text-center border-r border-border cursor-pointer select-none transition-colors",
                                                         isSelected
-                                                            ? "bg-amber-500 text-white font-bold"
-                                                            : "text-muted-foreground/30 bg-card/30 hover:bg-amber-500/20 hover:text-amber-500",
+                                                            ? "bg-warning text-warning-foreground font-bold"
+                                                            : "text-muted-foreground/30 bg-card/30 hover:bg-warning/20 hover:text-warning",
                                                     )}
                                                     onClick={() =>
                                                         setSelectedRowIdx(
@@ -1870,13 +1870,13 @@ export function TableGridView({
                                                                 className={cn(
                                                                     "h-8 px-4 border-r border-border last:border-r-0 text-foreground/90 whitespace-nowrap overflow-hidden text-ellipsis relative",
                                                                     pendingEdit &&
-                                                                    "bg-amber-500/10",
+                                                                    "bg-warning/10",
                                                                     cell.column
                                                                         .id ===
                                                                     selectedColId &&
-                                                                    "bg-amber-500/10",
+                                                                    "bg-warning/10",
                                                                     isCellSelected &&
-                                                                    "ring-1 ring-inset ring-amber-500",
+                                                                    "ring-1 ring-inset ring-warning",
                                                                 )}
                                                                 onClick={() => {
                                                                     const key = `${idx}:${cell.column.id}`;
@@ -2223,7 +2223,7 @@ export function TableGridView({
                                                     className={cn(
                                                         "group/field flex items-start gap-4 px-4 py-2.5 hover:bg-row-hover transition-colors",
                                                         pendingEdit &&
-                                                        "bg-amber-500/10",
+                                                        "bg-warning/10",
                                                         colIdx % 2 === 0
                                                             ? "bg-table-bg"
                                                             : "bg-row-alt",
@@ -2276,7 +2276,7 @@ export function TableGridView({
                                                             className={cn(
                                                                 "flex-1 text-[12px] font-mono break-all",
                                                                 pendingEdit
-                                                                    ? "text-amber-600 dark:text-amber-300"
+                                                                    ? "text-warning"
                                                                     : val === null
                                                                         ? "text-muted-foreground/25 italic"
                                                                         : "text-foreground/90",
