@@ -4,6 +4,7 @@ import { cn } from "@/lib/utils";
 export function ColumnContextMenu({
 	colCtxMenu,
 	hasTableName,
+	canSetNull,
 	onClose,
 	onSetNull,
 	onCopyValues,
@@ -25,6 +26,7 @@ export function ColumnContextMenu({
 }: {
 	colCtxMenu: { x: number; y: number; colId: string } | null;
 	hasTableName: boolean;
+	canSetNull: (colId: string) => boolean;
 	onClose: () => void;
 	onSetNull: (colId: string) => void;
 	onCopyValues: (colId: string) => void;
@@ -71,11 +73,13 @@ export function ColumnContextMenu({
 						action: () => void,
 						shortcut?: string,
 						destructive?: boolean,
+						disabled?: boolean,
 					) => (
 						<button
 							key={label}
+							disabled={disabled}
 							className={cn(
-								"w-full flex items-center justify-between rounded-md px-2 py-1.5 text-left cursor-default select-none transition-colors focus:outline-none",
+								"w-full flex items-center justify-between rounded-md px-2 py-1.5 text-left cursor-default select-none transition-colors focus:outline-none disabled:opacity-40 disabled:pointer-events-none",
 								destructive
 									? "text-destructive hover:bg-destructive/10"
 									: "hover:bg-accent hover:text-accent-foreground",
@@ -103,6 +107,7 @@ export function ColumnContextMenu({
 								() => onSetNull(colId),
 								undefined,
 								true,
+								!canSetNull(colId),
 							),
 						hasTableName && sep("s0"),
 						item("Copy", () => onCopyValues(colId), "⌘C"),

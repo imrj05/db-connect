@@ -102,6 +102,31 @@ function buildPendingRowKey(
     );
 }
 
+type ColumnEditMeta = {
+    isPrimary: boolean;
+    isNullable: boolean;
+    isGeneratedLike: boolean;
+};
+
+const GENERATED_COLUMN_PATTERN =
+    /\b(auto_increment|autoincrement|identity|generated|virtual|stored|sequence|read-only)\b/i;
+const SERIAL_COLUMN_PATTERN = /\b(smallserial|serial|bigserial)\b/i;
+
+function buildColumnEditMeta(
+    column: TableStructure["columns"][number],
+): ColumnEditMeta {
+    const extra = column.extra ?? "";
+    const dataType = column.dataType ?? "";
+
+    return {
+        isPrimary: column.isPrimary,
+        isNullable: column.nullable,
+        isGeneratedLike:
+            GENERATED_COLUMN_PATTERN.test(extra) ||
+            SERIAL_COLUMN_PATTERN.test(dataType),
+    };
+}
+
 export function TableGridView({
     fn,
     queryResult,
@@ -201,6 +226,7 @@ export function TableGridView({
     const [renameTableLoading, setRenameTableLoading] = useState(false);
     // Query log state
     const [showQueryLogSyntax, setShowQueryLogSyntax] = useState(true);
+    const structurePrefetchRef = useRef<string | null>(null);
     const {
         queryHistory,
         clearHistory,
@@ -667,6 +693,143 @@ export function TableGridView({
         }
         return pkCols;
     }, [loadStructure, structure]);
+    const columnMetaMap = useMemo<Record<string, ColumnEditMeta>>(
+        () =>
+            Object.fromEntries(
+                (structure?.columns ?? []).map((column) => [
+                    column.name,
+                    buildColumnEditMeta(column),
+                ]),
+            ),
+        [structure],
+    );
+    const isColumnEditable = useCallback(
+        (columnId: string) => !(columnMetaMap[columnId]?.isPrimary ?? false),
+        [columnMetaMap],
+    );
+    const canSetColumnToNull = useCallback(
+        (columnId: string) => !(columnMetaMap[columnId]?.isPrimary ?? false),
+        [columnMetaMap],
+    );
+    const getEditBlockReason = useCallback(
+        (columnId: string) =>
+            columnMetaMap[columnId]?.isPrimary
+                ? "Primary key columns are read-only in the result editor"
+                : null,
+        [columnMetaMap],
+    );
+    const showBlockedEditToast = useCallback((message: string) => {
+        setCellEditError(message);
+        toast.warning(message);
+    }, []);
+    const resolveColumnMeta = useCallback(
+        async (columnId: string): Promise<ColumnEditMeta | null> => {
+            const cached = columnMetaMap[columnId];
+            if (cached) return cached;
+            if (!fn.tableName) return null;
+            const loadedStructure = await loadStructure();
+            const column = loadedStructure?.columns.find(
+                (candidate) => candidate.name === columnId,
+            );
+            return column ? buildColumnEditMeta(column) : null;
+        },
+        [columnMetaMap, fn.tableName, loadStructure],
+    );
+    const ensureColumnEditable = useCallback(
+        async (columnId: string) => {
+            const cachedReason = getEditBlockReason(columnId);
+            if (cachedReason) {
+                showBlockedEditToast(cachedReason);
+                return false;
+            }
+
+            const columnMeta = await resolveColumnMeta(columnId);
+            if (!columnMeta?.isPrimary) return true;
+
+            const message =
+                "Primary key columns are read-only in the result editor";
+            showBlockedEditToast(message);
+            return false;
+        },
+        [getEditBlockReason, resolveColumnMeta, showBlockedEditToast],
+    );
+    const ensureColumnCanSetNull = useCallback(
+        async (columnId: string) => {
+            if (canSetColumnToNull(columnId)) {
+                const columnMeta = await resolveColumnMeta(columnId);
+                if (!columnMeta?.isPrimary) return true;
+            }
+
+            const message =
+                "Primary key columns cannot be set to NULL in the result editor";
+            showBlockedEditToast(message);
+            return false;
+        },
+        [canSetColumnToNull, resolveColumnMeta, showBlockedEditToast],
+    );
+    const startInlineEdit = useCallback(
+        async (
+            rowIdx: number,
+            col: string,
+            value: unknown,
+            rowData: Record<string, unknown>,
+        ) => {
+            if (!fn.tableName) return;
+            const canEdit = await ensureColumnEditable(col);
+            if (!canEdit) return;
+            setEditingCell({
+                rowIdx,
+                col,
+                value: value === null ? "" : String(value ?? ""),
+                rowData,
+            });
+        },
+        [ensureColumnEditable, fn.tableName],
+    );
+    const editCellInModal = useCallback(async (
+        rowIdx: number,
+        col: string,
+        value: unknown,
+        rowData: Record<string, unknown>,
+    ) => {
+        if (!fn.tableName) return;
+        const canEdit = await ensureColumnEditable(col);
+        if (!canEdit) return;
+        const strVal =
+            value === null || value === undefined ? "" : String(value);
+        let fmt: "Text" | "JSON" | "HTML" = "Text";
+        const trimmed = strVal.trimStart();
+        if (
+            (trimmed.startsWith("{") || trimmed.startsWith("[")) &&
+            (() => {
+                try {
+                    JSON.parse(strVal);
+                    return true;
+                } catch {
+                    return false;
+                }
+            })()
+        ) {
+            fmt = "JSON";
+        } else if (trimmed.startsWith("<") && trimmed.includes(">")) {
+            fmt = "HTML";
+        }
+        setCellModal({ rowIdx, col, value: strVal, format: fmt, rowData });
+    }, [ensureColumnEditable, fn.tableName]);
+    useEffect(() => {
+        if (!fn.tableName || structure || structureLoading) return;
+        const prefetchKey = `${fn.connectionId}:${database}:${fn.tableName}`;
+        if (structurePrefetchRef.current === prefetchKey) return;
+        structurePrefetchRef.current = prefetchKey;
+        void loadStructure();
+    }, [
+        database,
+        fn.connectionId,
+        fn.tableName,
+        loadStructure,
+        structure,
+        structureLoading,
+    ]);
     const queueCellChange = useCallback(
         async (
             rowData: Record<string, unknown>,
@@ -674,6 +837,8 @@ export function TableGridView({
             nextValue: string | null,
         ) => {
             if (!fn.tableName || !activeTabId) return false;
+            const canEdit = await ensureColumnEditable(columnId);
+            if (!canEdit) return false;
             const pkCols = await ensureEditablePrimaryKeys();
             if (!pkCols) return false;
             const metaPrimaryKeyValues =
@@ -716,6 +881,7 @@ export function TableGridView({
         },
         [
             activeTabId,
+            ensureColumnEditable,
             ensureEditablePrimaryKeys,
             fn.connectionId,
             fn.tableName,
@@ -864,31 +1030,29 @@ export function TableGridView({
             const tag = (document.activeElement as HTMLElement)?.tagName;
             if (tag === "INPUT" || tag === "TEXTAREA") return;
             e.preventDefault();
-            const rowData = searchedRows[selectedCell.rowIdx];
-            if (!rowData) return;
-            const value =
-                rowData[selectedCell.colId] === null
-                    ? ""
-                    : String(rowData[selectedCell.colId] ?? "");
-            if (e.shiftKey) {
-                editCellInModal(
-                    selectedCell.rowIdx,
-                    selectedCell.colId,
-                    rowData[selectedCell.colId],
-                    rowData,
-                );
-            } else {
-                setEditingCell({
-                    rowIdx: selectedCell.rowIdx,
-                    col: selectedCell.colId,
-                    value,
-                    rowData,
-                });
-            }
+            void (async () => {
+                const rowData = searchedRows[selectedCell.rowIdx];
+                if (!rowData) return;
+                if (e.shiftKey) {
+                    await editCellInModal(
+                        selectedCell.rowIdx,
+                        selectedCell.colId,
+                        rowData[selectedCell.colId],
+                        rowData,
+                    );
+                } else {
+                    await startInlineEdit(
+                        selectedCell.rowIdx,
+                        selectedCell.colId,
+                        rowData[selectedCell.colId],
+                        rowData,
+                    );
+                }
+            })();
         };
         window.addEventListener("keydown", handler);
         return () => window.removeEventListener("keydown", handler);
-    }, [selectedCell, fn.tableName, searchedRows]);
+    }, [editCellInModal, fn.tableName, searchedRows, selectedCell, startInlineEdit]);
     const commitEdit = useCallback(async () => {
         if (!editingCell || !fn.tableName) {
             setEditingCell(null);
@@ -969,13 +1133,31 @@ export function TableGridView({
     const cloneRow = useCallback(
         async (rowData: Record<string, unknown>) => {
             if (!fn.tableName) return;
-            const cols = Object.keys(rowData);
-            const vals = cols.map((c) => {
-                const v = rowData[c];
-                if (v === null || v === undefined) return "NULL";
-                return `'${String(v).replace(/'/g, "''")}'`;
-            });
-            const cloneSql = `INSERT INTO ${qi(fn.tableName)} (${cols.map((c) => qi(c)).join(", ")}) VALUES (${vals.join(", ")})`;
+            let cols = Object.keys(rowData);
+            const loadedStructure = structure ?? (await loadStructure());
+            if (loadedStructure) {
+                const generatedPrimaryKeys = new Set(
+                    loadedStructure.columns
+                        .filter((column) => {
+                            const meta = buildColumnEditMeta(column);
+                            return meta.isPrimary && meta.isGeneratedLike;
+                        })
+                        .map((column) => column.name),
+                );
+                cols = cols.filter((col) => !generatedPrimaryKeys.has(col));
+            }
+            const cloneSql =
+                cols.length === 0
+                    ? dbType === "mysql"
+                        ? `INSERT INTO ${qi(fn.tableName)} () VALUES ()`
+                        : `INSERT INTO ${qi(fn.tableName)} DEFAULT VALUES`
+                    : `INSERT INTO ${qi(fn.tableName)} (${cols.map((c) => qi(c)).join(", ")}) VALUES (${cols
+                          .map((c) => {
+                              const v = rowData[c];
+                              if (v === null || v === undefined) return "NULL";
+                              return `'${String(v).replace(/'/g, "''")}'`;
+                          })
+                          .join(", ")})`;
             try {
                 await tauriApi.executeQuery(fn.connectionId, cloneSql);
                 await onPageChange(page);
@@ -983,11 +1165,13 @@ export function TableGridView({
                 setCellEditError(String(e));
             }
         },
-        [fn, page, onPageChange, qi],
+        [dbType, fn, loadStructure, onPageChange, page, qi, structure],
     );
     const setNullCell = useCallback(
         async (rowData: Record<string, unknown>, col: string) => {
             try {
+                const canSetNull = await ensureColumnCanSetNull(col);
+                if (!canSetNull) return;
                 const queued = await queueCellChange(rowData, col, null);
                 if (!queued) return;
                 toast.success(`Queued "${col}"`, {
@@ -997,7 +1181,7 @@ export function TableGridView({
                 setCellEditError(String(e));
             }
         },
-        [fn.tableName, queueCellChange],
+        [ensureColumnCanSetNull, fn.tableName, queueCellChange],
     );
     // ── Cell context menu helpers ────────────────────────────────────────────────
     const copyCellAsTSV = (col: string, value: unknown) =>
@@ -1023,6 +1207,8 @@ export function TableGridView({
         );
     const pasteToCell = async (rowIdx: number, col: string) => {
         try {
+            const canEdit = await ensureColumnEditable(col);
+            if (!canEdit) return;
             const text = await navigator.clipboard.readText();
             const rowData = searchedRows[rowIdx];
             if (!fn.tableName || !rowData) return;
@@ -1034,35 +1220,6 @@ export function TableGridView({
         } catch {
             /* clipboard read denied — silently ignore */
         }
-    };
-    const editCellInModal = (
-        rowIdx: number,
-        col: string,
-        value: unknown,
-        rowData: Record<string, unknown>,
-    ) => {
-        if (!fn.tableName) return;
-        const strVal =
-            value === null || value === undefined ? "" : String(value);
-        // Auto-detect JSON for smart default
-        let fmt: "Text" | "JSON" | "HTML" = "Text";
-        const trimmed = strVal.trimStart();
-        if (
-            (trimmed.startsWith("{") || trimmed.startsWith("[")) &&
-            (() => {
-                try {
-                    JSON.parse(strVal);
-                    return true;
-                } catch {
-                    return false;
-                }
-            })()
-        ) {
-            fmt = "JSON";
-        } else if (trimmed.startsWith("<") && trimmed.includes(">")) {
-            fmt = "HTML";
-        }
-        setCellModal({ rowIdx, col, value: strVal, format: fmt, rowData });
     };
     const applyCellModal = useCallback(async () => {
         if (!cellModal || !fn.tableName) return;
@@ -1143,6 +1300,8 @@ export function TableGridView({
     const executeColumnNull = useCallback(async () => {
         if (!columnNullConfirmCol || !fn.tableName) return;
         try {
+            const canSetNull = await ensureColumnCanSetNull(columnNullConfirmCol);
+            if (!canSetNull) return;
             await tauriApi.executeQuery(
                 fn.connectionId,
                 `UPDATE ${qi(fn.tableName!)} SET ${qi(columnNullConfirmCol)} = NULL`,
@@ -1153,7 +1312,15 @@ export function TableGridView({
         } finally {
             setColumnNullConfirmCol(null);
         }
-    }, [columnNullConfirmCol, fn, page, onPageChange]);
+    }, [columnNullConfirmCol, ensureColumnCanSetNull, fn, page, onPageChange]);
+    const openColumnNullDialog = useCallback(
+        async (columnId: string) => {
+            const canSetNull = await ensureColumnCanSetNull(columnId);
+            if (!canSetNull) return;
+            setColumnNullConfirmCol(columnId);
+        },
+        [ensureColumnCanSetNull],
+    );
     const openFilterForCol = (col: string) => {
         setFilters([
             {
@@ -1734,33 +1901,16 @@ export function TableGridView({
                                                                         );
                                                                         dblClickRef.current =
                                                                             null;
-                                                                        if (
-                                                                            fn.tableName
-                                                                        ) {
-                                                                            setEditingCell(
-                                                                                {
-                                                                                    rowIdx: idx,
-                                                                                    col: cell
-                                                                                        .column
-                                                                                        .id,
-                                                                                    value:
-                                                                                        rowData[
-                                                                                            cell
-                                                                                                .column
-                                                                                                .id
-                                                                                        ] ===
-                                                                                            null
-                                                                                            ? ""
-                                                                                            : String(
-                                                                                                rowData[
-                                                                                                cell
-                                                                                                    .column
-                                                                                                    .id
-                                                                                                ] ??
-                                                                                                "",
-                                                                                            ),
-                                                                                    rowData,
-                                                                                },
+                                                                    if (
+                                                                        fn.tableName
+                                                                    ) {
+                                                                            void startInlineEdit(
+                                                                                idx,
+                                                                                cell.column.id,
+                                                                                rowData[
+                                                                                    cell.column.id
+                                                                                ],
+                                                                                rowData,
                                                                             );
                                                                         }
                                                                     } else {
@@ -1834,10 +1984,17 @@ export function TableGridView({
             <RowContextMenu
                 contextMenu={contextMenuCell}
                 hasTableName={!!fn.tableName}
+                isColumnEditable={isColumnEditable}
+                canSetColumnToNull={canSetColumnToNull}
                 onClose={() => setContextMenuCell(null)}
                 onEditInModal={(rowIdx, col, value) =>
                     contextMenuCell &&
-                    editCellInModal(rowIdx, col, value, contextMenuCell.rowData)
+                    void editCellInModal(
+                        rowIdx,
+                        col,
+                        value,
+                        contextMenuCell.rowData,
+                    )
                 }
                 onSetNull={(rowData, col) => setNullCell(rowData, col)}
                 onSetQuickFilter={(filter) => {
@@ -1859,8 +2016,9 @@ export function TableGridView({
             <ColumnContextMenu
                 colCtxMenu={colCtxMenu}
                 hasTableName={!!fn.tableName}
+                canSetNull={canSetColumnToNull}
                 onClose={() => setColCtxMenu(null)}
-                onSetNull={(colId) => setColumnNullConfirmCol(colId)}
+                onSetNull={(colId) => void openColumnNullDialog(colId)}
                 onCopyValues={copyColValues}
                 onCopyName={(colId) => copyToClipboard(colId)}
                 onCopyAsTSV={copyColAsTSV}
@@ -2123,21 +2281,16 @@ export function TableGridView({
                                                                         ? "text-muted-foreground/25 italic"
                                                                         : "text-foreground/90",
                                                             )}
-                                                            onDoubleClick={() =>
-                                                                fn.tableName &&
-                                                                setEditingCell({
-                                                                    rowIdx: formRowIdx,
+                                                            onDoubleClick={() => {
+                                                                if (!fn.tableName)
+                                                                    return;
+                                                                void startInlineEdit(
+                                                                    formRowIdx,
                                                                     col,
-                                                                    value:
-                                                                        val ===
-                                                                            null
-                                                                            ? ""
-                                                                            : String(
-                                                                                val,
-                                                                            ),
-                                                                    rowData: row,
-                                                                })
-                                                            }
+                                                                    val,
+                                                                    row,
+                                                                );
+                                                            }}
                                                         >
                                                             {val === null
                                                                 ? "[NULL]"

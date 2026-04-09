@@ -6,6 +6,8 @@ import { FilterCondition, FilterOp } from "@/types";
 export function RowContextMenu({
 	contextMenu,
 	hasTableName,
+	isColumnEditable,
+	canSetColumnToNull,
 	onClose,
 	onEditInModal,
 	onSetNull,
@@ -30,6 +32,8 @@ export function RowContextMenu({
 		rowData: Record<string, unknown>;
 	} | null;
 	hasTableName: boolean;
+	isColumnEditable: (col: string) => boolean;
+	canSetColumnToNull: (col: string) => boolean;
 	onClose: () => void;
 	onEditInModal: (rowIdx: number, col: string, value: unknown) => void;
 	onSetNull: (rowData: Record<string, unknown>, col: string) => void;
@@ -66,6 +70,8 @@ export function RowContextMenu({
 			{(() => {
 				const { x, y, rowIdx, col, rowData } = contextMenu;
 				const cellValue = col !== null ? rowData[col] : null;
+				const canEditCurrentColumn = col ? isColumnEditable(col) : false;
+				const canNullCurrentColumn = col ? canSetColumnToNull(col) : false;
 				const menuW = 224;
 				const menuH = hasTableName ? 480 : 340;
 				const left = Math.min(x, window.innerWidth - menuW - 8);
@@ -147,12 +153,16 @@ export function RowContextMenu({
 								onEditInModal(rowIdx, col, rowData[col]),
 							"⇧Enter",
 							false,
-							!col || !hasTableName,
+							!col || !hasTableName || !canEditCurrentColumn,
 						)}
 						{hasTableName &&
 							col &&
-							item("Set as NULL", () =>
-								onSetNull(rowData, col),
+							item(
+								"Set as NULL",
+								() => onSetNull(rowData, col),
+								undefined,
+								false,
+								!canNullCurrentColumn,
 							)}
 						{col && (
 							<div className="relative">
@@ -261,7 +271,7 @@ export function RowContextMenu({
 							() => col && onPaste(rowIdx, col),
 							"⌘V",
 							false,
-							!col || !hasTableName,
+							!col || !hasTableName || !canEditCurrentColumn,
 						)}
 						{hasTableName &&
 							item("Clone row", () => onCloneRow(rowData), "⌘D")}

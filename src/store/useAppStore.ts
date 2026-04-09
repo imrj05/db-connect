@@ -85,7 +85,7 @@ interface AppState {
   deleteConnection: (id: string) => void;
 
   // ---- Actions: connection lifecycle ----
-  connectAndInit: (connectionId: string) => Promise<void>;
+  connectAndInit: (connectionId: string) => Promise<boolean>;
   disconnectConnection: (connectionId: string) => Promise<void>;
   selectDatabase: (connectionId: string, database: string) => Promise<void>;
   closeOpenDatabase: (connectionId: string, database: string) => Promise<void>;
@@ -281,7 +281,7 @@ export const useAppStore = create<AppState>((set, get) => ({
   connectAndInit: async (connectionId) => {
     const { connections } = get();
     const config = connections.find((c) => c.id === connectionId);
-    if (!config) return;
+    if (!config) return false;
 
     set({ isLoading: true });
     try {
@@ -327,8 +327,10 @@ export const useAppStore = create<AppState>((set, get) => ({
       }));
 
       toast.success(`Connected: ${config.prefix}_list() and ${tables.length} table functions ready`);
+      return true;
     } catch (error) {
       toast.error(`Connection failed: ${String(error)}`);
+      return false;
     } finally {
       set({ isLoading: false });
     }
