@@ -28,11 +28,11 @@ jobs:
             if [ -n "$PREV_TAG" ]; then
               echo "## What's changed since \`${PREV_TAG}\`"
               echo ""
-              git log --pretty=format:"- %s" "${PREV_TAG}..HEAD" | grep -v "^- $"
+              git log --pretty=format:"- %s" "${PREV_TAG}..HEAD" | grep -v "^- $" || true
             else
               echo "## Initial release"
               echo ""
-              git log --pretty=format:"- %s" | grep -v "^- $"
+              git log --pretty=format:"- %s" | grep -v "^- $" || true
             fi
             echo ""
             echo "---"
