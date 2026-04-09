@@ -134,6 +134,7 @@ jobs:
   # ── Job 3: Assemble latest.json from all platform .sig files ────────────────
   publish-updater:
     needs: [create-release, build]
+    if: always() && needs.create-release.result == 'success'
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -151,7 +152,7 @@ jobs:
           gh release download "$TAG" \
             --dir /tmp/sigs \
             --repo "$GITHUB_REPOSITORY" \
-            --pattern "*.sig"
+            --pattern "*.sig" || true
           # Fetch asset metadata and release info
           ASSETS=$(gh api "repos/$GITHUB_REPOSITORY/releases/$RELEASE_ID/assets" --paginate)
           RELEASE=$(gh api "repos/$GITHUB_REPOSITORY/releases/$RELEASE_ID")

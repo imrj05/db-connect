@@ -28,6 +28,14 @@
             "csp": null
         }
     },
+    "plugins": {
+        "updater": {
+            "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IEJCNkY5MzMzNDdEQ0EyQ0IKUldUTG90eEhNNU52dTdFQjN0dDVRL0VlRXZXK0dncEZjVWJEQnZWMEFlcFF5bVlLNVhHUEEvcW8K",
+            "endpoints": [
+                "https://github.com/imrj05/db-connect/releases/latest/download/latest.json"
+            ]
+        }
+    },
     "bundle": {
         "active": true,
         "targets": "all",

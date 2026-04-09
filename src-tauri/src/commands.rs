@@ -8,7 +8,6 @@ use crate::storage::AppStorage;
 use crate::types::*;
 use anyhow::Result;
 use std::sync::Arc;
-use tauri::Emitter;
 use tauri_plugin_updater::UpdaterExt;
 
 use crate::db::mongodb::MongoDriver;

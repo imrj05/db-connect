@@ -13,11 +13,7 @@ pub fn run() {
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_fs::init())
-        .plugin(
-            tauri_plugin_updater::Builder::new()
-                .endpoints(["https://github.com/imrj05/db-connect/releases/latest/download/latest.json"])
-                .build(),
-        )
+        .plugin(tauri_plugin_updater::Builder::new().build())
         .setup(|app| {
             let data_dir = app
                 .path()
