@@ -1568,7 +1568,9 @@ export function TableGridView({
                             >
                                 {info.getValue() === null
                                     ? "[NULL]"
-                                    : String(info.getValue())}
+                                    : typeof info.getValue() === "object"
+                                        ? JSON.stringify(info.getValue())
+                                        : String(info.getValue())}
                             </span>
                         </div>
                     );
@@ -2294,7 +2296,9 @@ export function TableGridView({
                                                         >
                                                             {val === null
                                                                 ? "[NULL]"
-                                                                : String(val)}
+                                                                : typeof val === "object"
+                                                                    ? JSON.stringify(val)
+                                                                    : String(val)}
                                                         </span>
                                                     )}
                                                 </div>
