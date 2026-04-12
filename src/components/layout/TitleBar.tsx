@@ -11,6 +11,7 @@ import {
     PanelLeft,
     ScrollText,
     Database,
+    KeyRound,
 } from "lucide-react";
 import { useAppStore } from "@/store/useAppStore";
 import { DB_LOGO, DB_COLOR } from "@/lib/db-ui";
@@ -64,8 +65,13 @@ function buildDisplayUrl(conn: ConnectionConfig): string {
     const db = conn.database ? `/${conn.database}` : "";
     return `${proto}://${user}${host}${port}${db}`;
 }
-// ── TitleBar ──────────────────────────────────────────────────────────────────
-const TitleBar = () => {
+// ── TitleBar ────────────────────────────────────────────────────────────���─────
+interface TitleBarProps {
+    isLicensed?: boolean | null;
+    onActivate?: () => void;
+}
+
+const TitleBar = ({ isLicensed, onActivate }: TitleBarProps) => {
     const {
         setCommandPaletteOpen,
         setSettingsOpen,
@@ -510,6 +516,26 @@ const TitleBar = () => {
                             </div>
                         )}
                     </div>
+                )}
+                {/* License badge — only shown when check is done and not licensed */}
+                {isLicensed === false && (
+                    <Tooltip>
+                        <TooltipTrigger asChild>
+                            <Button
+                                style={noDragStyle}
+                                variant="outline"
+                                size="sm"
+                                onClick={onActivate}
+                                className="h-6 px-2 gap-1.5 border-amber-500/40 text-amber-600 dark:text-amber-400 hover:bg-amber-500/10 hover:border-amber-500/60"
+                            >
+                                <KeyRound size={10} className="shrink-0" />
+                                <span className="text-[10px] font-semibold">Activate</span>
+                            </Button>
+                        </TooltipTrigger>
+                        <TooltipContent side="bottom" sideOffset={4}>
+                            License not activated — click to activate
+                        </TooltipContent>
+                    </Tooltip>
                 )}
                 <Tooltip>
                     <TooltipTrigger asChild>

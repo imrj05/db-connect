@@ -15,6 +15,7 @@ import { Toaster } from "@/components/ui/sonner";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { invoke } from "@tauri-apps/api/core";
 import { UpdateDialog, type UpdateInfo } from "./components/layout/UpdateDialog";
+import { LicenseActivationDialog } from "./components/layout/LicenseActivationDialog";
 import {
 	AlertDialog,
 	AlertDialogCancel,
@@ -26,6 +27,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
 import { Loader2 } from "lucide-react";
+import { licenseCheckOffline, syncLicenseInBackground, type OfflineCheckResult } from "@/lib/license";
 
 const SIDEBAR_MIN = 180;
 const SIDEBAR_MAX = 480;
@@ -57,6 +59,22 @@ function App() {
 	const isDragging = useRef(false);
 	const startX = useRef(0);
 	const startWidth = useRef(0);
+
+	// ── License state (non-blocking) ─────────────────────────────────────────
+	const [licenseCheck, setLicenseCheck] = useState<OfflineCheckResult | null>(null);
+	const [licenseDialogOpen, setLicenseDialogOpen] = useState(false);
+
+	useEffect(() => {
+		licenseCheckOffline().then((result) => {
+			setLicenseCheck(result);
+			if (result.ok) {
+				void syncLicenseInBackground("https://db-connect.rajeshwarkashyap.in");
+			}
+		}).catch(() => {
+			setLicenseCheck({ ok: false, reason: "missing_license" });
+		});
+	}, []);
+	// ─────────────────────────────────────────────────────────────────────────
 
 	useEffect(() => {
 		loadConnections();
@@ -154,7 +172,10 @@ function App() {
 	return (
 		<TooltipProvider>
 			<div className="h-full flex flex-col bg-background text-foreground overflow-hidden font-sans selection:bg-accent/30">
-				<TitleBar />
+				<TitleBar
+					isLicensed={licenseCheck?.ok ?? null}
+					onActivate={() => setLicenseDialogOpen(true)}
+				/>
 				<main className="flex-1 overflow-hidden relative flex">
 					{/* Sidebar — collapses smoothly */}
 					<div
@@ -197,7 +218,7 @@ function App() {
 						}}
 					/>
 				)}
-				<SettingsDialog />
+				<SettingsDialog onActivate={() => setLicenseDialogOpen(true)} />
 				{/* Close app confirmation */}
 				<AlertDialog
 					open={showCloseApp}
@@ -270,6 +291,15 @@ function App() {
 						onSkip={() => setShowUpdateDialog(false)}
 					/>
 				)}
+				<LicenseActivationDialog
+					open={licenseDialogOpen}
+					reason={licenseCheck?.reason}
+					onActivated={(result) => {
+						setLicenseCheck(result);
+						setLicenseDialogOpen(false);
+					}}
+					onClose={() => setLicenseDialogOpen(false)}
+				/>
 			</div>
 		</TooltipProvider>
 	);

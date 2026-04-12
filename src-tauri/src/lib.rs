@@ -1,6 +1,7 @@
 pub mod commands;
 pub mod db;
 pub mod import_export;
+pub mod license;
 pub mod ssh;
 pub mod storage;
 pub mod types;
@@ -20,8 +21,10 @@ pub fn run() {
                 .app_data_dir()
                 .expect("could not resolve app data dir");
 
-            tauri::async_runtime::block_on(storage::AppStorage::init(data_dir))
+            tauri::async_runtime::block_on(storage::AppStorage::init(data_dir.clone()))
                 .expect("failed to initialise storage");
+
+            license::init(data_dir);
 
             Ok(())
         })
@@ -59,6 +62,14 @@ pub fn run() {
             // ── Updater commands ───────────────────────────────────────────────
             commands::check_for_updates,
             commands::install_update,
+            // ── License commands ───────────────────────────────────────────────
+            commands::license_get_device_id,
+            commands::license_check_offline,
+            commands::license_verify_and_store,
+            commands::license_deactivate,
+            commands::license_get_stored,
+            commands::license_update_validated,
+            commands::license_get_device_name,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

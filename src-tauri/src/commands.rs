@@ -3,6 +3,7 @@ use crate::db::postgres::PostgresDriver;
 use crate::db::registry::REGISTRY;
 use crate::db::sqlite::SqliteDriver;
 use crate::db::DatabaseDriver;
+use crate::license;
 use crate::ssh::{SshAuth, SshTunnel};
 use crate::storage::AppStorage;
 use crate::types::*;
@@ -557,4 +558,93 @@ pub async fn install_update(app: tauri::AppHandle) -> Result<(), String> {
     app.request_restart();
 
     Ok(())
+}
+
+// ── License commands ───────────────────────────────────────────────────────────
+
+/// Returns the stable device UUID for this installation (generated on first run).
+#[tauri::command]
+pub async fn license_get_device_id() -> Result<String, String> {
+    license::get_or_create_device_id()
+        .await
+        .map_err(|e| e.to_string())
+}
+
+/// Runs the full offline license check and returns the result.
+/// Called on every app startup before showing the main UI.
+#[tauri::command]
+pub async fn license_check_offline() -> license::OfflineCheckResult {
+    license::verify_offline().await
+}
+
+/// Verifies a signed license payload (received from the activation server)
+/// and persists it as the local license state for this device.
+#[tauri::command]
+pub async fn license_verify_and_store(
+    license_payload: license::SignedLicense,
+) -> Result<license::OfflineCheckResult, String> {
+    license::verify_and_store(license_payload)
+        .await
+        .map_err(|e| e.to_string())
+}
+
+/// Clears the stored license state (deactivates this device).
+#[tauri::command]
+pub async fn license_deactivate() -> Result<(), String> {
+    license::clear_state().await.map_err(|e| e.to_string())
+}
+
+/// Returns the currently stored license state, or null if none.
+#[tauri::command]
+pub async fn license_get_stored() -> Result<Option<license::StoredLicenseState>, String> {
+    license::load_state().await.map_err(|e| e.to_string())
+}
+
+/// Updates `last_validated_at` after a successful background online sync.
+#[tauri::command]
+pub async fn license_update_validated() -> Result<(), String> {
+    license::update_last_validated()
+        .await
+        .map_err(|e| e.to_string())
+}
+
+/// Returns the human-readable device name for the current machine.
+/// On macOS uses the friendly computer name (System Preferences → Sharing).
+/// Falls back to OS hostname on other platforms.
+#[tauri::command]
+pub async fn license_get_device_name() -> String {
+    #[cfg(target_os = "macos")]
+    {
+        use std::process::Command;
+        // scutil --get ComputerName returns the friendly name set in System Preferences
+        if let Ok(out) = Command::new("scutil").args(["--get", "ComputerName"]).output() {
+            let name = String::from_utf8_lossy(&out.stdout).trim().to_string();
+            if !name.is_empty() {
+                return name;
+            }
+        }
+        // Fall back to hostname
+        if let Ok(out) = Command::new("hostname").output() {
+            let name = String::from_utf8_lossy(&out.stdout).trim().to_string();
+            if !name.is_empty() {
+                return name;
+            }
+        }
+        "My Mac".to_string()
+    }
+    #[cfg(target_os = "windows")]
+    {
+        std::env::var("COMPUTERNAME").unwrap_or_else(|_| "My Windows PC".to_string())
+    }
+    #[cfg(not(any(target_os = "macos", target_os = "windows")))]
+    {
+        use std::process::Command;
+        if let Ok(out) = Command::new("hostname").output() {
+            let name = String::from_utf8_lossy(&out.stdout).trim().to_string();
+            if !name.is_empty() {
+                return name;
+            }
+        }
+        std::env::var("HOSTNAME").unwrap_or_else(|_| "My Device".to_string())
+    }
 }
