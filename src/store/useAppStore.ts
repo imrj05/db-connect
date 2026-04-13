@@ -9,11 +9,24 @@ import {
   QueryHistoryEntry,
   SavedQuery,
   ResultTab,
+  FilterCondition,
+  QueryResult,
 } from "@/types";
 import { EncryptionUtils } from "@/lib/encryption";
 import { buildConnectionFunctions, suggestPrefix } from "@/lib/db-functions";
 import { tauriApi } from "@/lib/tauri-api";
 import { toast } from "@/components/ui/sonner";
+
+// Helper to create a default empty filter
+function createDefaultFilter(): FilterCondition {
+  return {
+    id: `f-${Date.now()}`,
+    col: "",
+    op: "=",
+    value: "",
+    join: "AND",
+  };
+}
 
 // Legacy localStorage keys — kept only for one-time migration
 const LEGACY_CONNECTIONS_KEY = "db_connections_v3";
@@ -104,6 +117,12 @@ interface AppState {
   clearPendingCellEdits: (tabId: string) => void;
   removePendingCellEdits: (tabId: string, editIds: string[]) => void;
   tabHasPendingCellEdits: (tabId: string) => boolean;
+
+  // ---- Tab filter state ----
+  updateTabFilters: (tabId: string, filters: FilterCondition[]) => void;
+  updateTabFilteredResult: (tabId: string, result: QueryResult | null) => void;
+  updateTabFiltersActive: (tabId: string, active: boolean) => void;
+  clearTabFilters: (tabId: string) => void;
 
   // ---- Actions: function invocation ----
   invokeFunction: (
@@ -485,13 +504,13 @@ export const useAppStore = create<AppState>((set, get) => ({
     } else if (!activeTabId || tabs.length === 0) {
       const newId = `tab-${Date.now()}`;
       activeTabId = newId;
-      set({ activeTabId: newId, tabs: [{ id: newId, fn, result: null, pendingSql: get().pendingSqlValue, pendingEdits: [], label: getTabLabel(fn) }] });
+      set({ activeTabId: newId, tabs: [{ id: newId, fn, result: null, pendingSql: get().pendingSqlValue, pendingEdits: [], label: getTabLabel(fn), filters: [createDefaultFilter()], filteredResult: null, filtersActive: false }] });
     } else {
       // No existing tab for this fn — open a new tab instead of overwriting
       const newId = `tab-${Date.now()}`;
       activeTabId = newId;
       set((s) => ({
-        tabs: [...s.tabs, { id: newId, fn, result: null, pendingSql: "", pendingEdits: [], label: getTabLabel(fn) }],
+        tabs: [...s.tabs, { id: newId, fn, result: null, pendingSql: "", pendingEdits: [], label: getTabLabel(fn), filters: [createDefaultFilter()], filteredResult: null, filtersActive: false }],
         activeTabId: newId,
       }));
     }
@@ -662,7 +681,7 @@ export const useAppStore = create<AppState>((set, get) => ({
     const id = `tab-${Date.now()}`;
     const result: FunctionInvocationResult = { fn: queryFn, outputType: "sql-editor", isLoading: false, invokedAt: Date.now() };
     set((s) => ({
-      tabs: [...s.tabs, { id, fn: queryFn, result, pendingSql: "", pendingEdits: [], label: "query" }],
+      tabs: [...s.tabs, { id, fn: queryFn, result, pendingSql: "", pendingEdits: [], label: "query", filters: [createDefaultFilter()], filteredResult: null, filtersActive: false }],
       activeTabId: id,
       activeFunction: queryFn,
       invocationResult: result,
@@ -674,7 +693,7 @@ export const useAppStore = create<AppState>((set, get) => ({
     const id = `tab-${Date.now()}`;
     const loadingResult: FunctionInvocationResult = { fn, outputType: "idle", isLoading: true, invokedAt: Date.now() };
     set((s) => ({
-      tabs: [...s.tabs, { id, fn, result: loadingResult, pendingSql: "", pendingEdits: [], label: getTabLabel(fn) }],
+      tabs: [...s.tabs, { id, fn, result: loadingResult, pendingSql: "", pendingEdits: [], label: getTabLabel(fn), filters: [createDefaultFilter()], filteredResult: null, filtersActive: false }],
       activeTabId: id,
       activeFunction: fn,
       invocationResult: loadingResult,
@@ -756,6 +775,38 @@ export const useAppStore = create<AppState>((set, get) => ({
 
   tabHasPendingCellEdits: (tabId) =>
     (get().tabs.find((tab) => tab.id === tabId)?.pendingEdits.length ?? 0) > 0,
+
+  // ---- Tab filter state ----
+
+  updateTabFilters: (tabId, filters) =>
+    set((state) => ({
+      tabs: state.tabs.map((tab) =>
+        tab.id === tabId ? { ...tab, filters } : tab,
+      ),
+    })),
+
+  updateTabFilteredResult: (tabId, result) =>
+    set((state) => ({
+      tabs: state.tabs.map((tab) =>
+        tab.id === tabId ? { ...tab, filteredResult: result } : tab,
+      ),
+    })),
+
+  updateTabFiltersActive: (tabId, active) =>
+    set((state) => ({
+      tabs: state.tabs.map((tab) =>
+        tab.id === tabId ? { ...tab, filtersActive: active } : tab,
+      ),
+    })),
+
+  clearTabFilters: (tabId) =>
+    set((state) => ({
+      tabs: state.tabs.map((tab) =>
+        tab.id === tabId
+          ? { ...tab, filters: [createDefaultFilter()], filteredResult: null, filtersActive: false }
+          : tab,
+      ),
+    })),
 
   // ---- Query history ----
 

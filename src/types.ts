@@ -154,6 +154,10 @@ export interface ResultTab {
   pendingSql: string;
   pendingEdits: PendingCellEdit[];
   label: string;      // display name, e.g. "users", "query", "list"
+  // Per-tab filter state
+  filters: FilterCondition[];
+  filteredResult: QueryResult | null;
+  filtersActive: boolean;
 }
 
 // ---------- Filter conditions (for the visual WHERE builder) ----------

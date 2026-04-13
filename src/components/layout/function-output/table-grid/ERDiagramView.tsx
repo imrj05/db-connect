@@ -422,9 +422,9 @@ export function ERDiagramView({
 						transform: `translate(${viewport.x}px, ${viewport.y}px) scale(${viewport.scale})`,
 					}}
 				>
-					{/* Relationship connectors */}
+					{/* Relationship connectors - rendered on top */}
 					<svg
-						className="absolute inset-0 overflow-visible pointer-events-none"
+						className="absolute inset-0 overflow-visible pointer-events-none z-20"
 						width={svgW}
 						height={svgH}
 						viewBox={`0 0 ${svgW} ${svgH}`}
@@ -466,22 +466,39 @@ export function ERDiagramView({
 							const isActive =
 								source.name === currentTableName || target.name === currentTableName;
 
-							const strokeColor = isActive ? "hsl(var(--primary))" : "hsl(var(--border))";
-							const strokeOpacity = isActive ? 0.85 : 0.65;
+							const strokeColor = isActive ? "hsl(var(--primary))" : "hsl(var(--accent-blue))";
+							const strokeOpacity = 1;
+							const strokeWidth = isActive ? 2.5 : 1.8;
 
 							return (
 								<g key={`${relation.name}-${source.key}-${target.key}`}>
+									{/* Shadow/glow for better visibility */}
+									<path
+										d={`M ${startX} ${startY} C ${startX + delta * direction} ${startY}, ${endX - delta * direction} ${endY}, ${endX} ${endY}`}
+										fill="none"
+										stroke="hsl(var(--background))"
+										strokeWidth={strokeWidth + 4}
+										strokeOpacity={0.3}
+										strokeLinecap="round"
+									/>
+									{/* Main line */}
 									<path
 										d={`M ${startX} ${startY} C ${startX + delta * direction} ${startY}, ${endX - delta * direction} ${endY}, ${endX} ${endY}`}
 										fill="none"
 										stroke={strokeColor}
 										strokeOpacity={strokeOpacity}
-										strokeWidth={isActive ? 2.4 : 1.4}
-										strokeDasharray={isActive ? undefined : "5 5"}
+										strokeWidth={strokeWidth}
+										strokeLinecap="round"
+									/>
+									{/* Arrow head at target */}
+									<polygon
+										points={`${endX - 8},${endY - 5} ${endX},${endY} ${endX - 8},${endY + 5}`}
+										fill={strokeColor}
+										opacity={strokeOpacity}
 									/>
 									{/* Endpoint dots — visually anchor the line to the row */}
-									<circle cx={startX} cy={startY} r={3.5} fill={strokeColor} opacity={strokeOpacity} />
-									<circle cx={endX} cy={endY} r={3.5} fill={strokeColor} opacity={strokeOpacity} />
+									<circle cx={startX} cy={startY} r={4} fill={strokeColor} opacity={strokeOpacity} />
+									<circle cx={endX} cy={endY} r={4} fill={strokeColor} opacity={strokeOpacity} />
 								</g>
 							);
 						})}

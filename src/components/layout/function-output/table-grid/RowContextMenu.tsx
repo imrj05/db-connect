@@ -3,6 +3,13 @@ import { createPortal } from "react-dom";
 import { cn } from "@/lib/utils";
 import { FilterCondition, FilterOp } from "@/types";
 
+function toDisplayString(value: unknown): string {
+    if (value === null) return "[NULL]";
+    if (value === undefined) return "";
+    if (typeof value === "object") return JSON.stringify(value);
+    return String(value);
+}
+
 export function RowContextMenu({
 	contextMenu,
 	hasTableName,
@@ -122,19 +129,19 @@ export function RowContextMenu({
 				}> = col
 					? [
 							{
-								label: `= "${String(cellValue ?? "")}"`,
+								label: `= "${toDisplayString(cellValue)}"`,
 								op: "=",
-								value: String(cellValue ?? ""),
+								value: toDisplayString(cellValue),
 							},
 							{
-								label: `≠ "${String(cellValue ?? "")}"`,
+								label: `≠ "${toDisplayString(cellValue)}"`,
 								op: "!=",
-								value: String(cellValue ?? ""),
+								value: toDisplayString(cellValue),
 							},
 							{
-								label: `Contains "${String(cellValue ?? "")}"`,
+								label: `Contains "${toDisplayString(cellValue)}"`,
 								op: "LIKE",
-								value: String(cellValue ?? ""),
+								value: toDisplayString(cellValue),
 							},
 							{ label: "IS NULL", op: "IS NULL", value: "" },
 							{ label: "IS NOT NULL", op: "IS NOT NULL", value: "" },

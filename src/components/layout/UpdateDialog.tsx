@@ -47,13 +47,13 @@ export function UpdateDialog({ open, updateInfo, onSkip }: UpdateDialogProps) {
 
 	return (
 		<AlertDialog open={open} onOpenChange={(o) => { if (!o && phase === "prompt") onSkip(); }}>
-			<AlertDialogContent className="max-w-sm">
+			<AlertDialogContent className="max-w-md">
 				<AlertDialogHeader>
 					<AlertDialogTitle>
 						{phase === "done" ? "Restarting…" : "Update Available"}
 					</AlertDialogTitle>
 					<AlertDialogDescription asChild>
-						<div className="flex flex-col gap-2 text-left">
+						<div className="flex flex-col gap-3 text-left">
 							{phase === "prompt" && (
 								<>
 									<div className="flex items-center gap-2 text-xs">
@@ -66,9 +66,11 @@ export function UpdateDialog({ open, updateInfo, onSkip }: UpdateDialogProps) {
 										</span>
 									</div>
 									{updateInfo.body && (
-										<p className="text-xs text-muted-foreground line-clamp-3">
-											{updateInfo.body}
-										</p>
+										<div className="max-h-64 overflow-y-auto scrollbar-thin rounded-md bg-muted/50 p-3 border">
+											<div className="text-xs text-muted-foreground whitespace-pre-wrap leading-relaxed font-mono">
+												{updateInfo.body}
+											</div>
+										</div>
 									)}
 									<a
 										href={changelogUrl}
@@ -78,7 +80,7 @@ export function UpdateDialog({ open, updateInfo, onSkip }: UpdateDialogProps) {
 										onClick={(e) => e.stopPropagation()}
 									>
 										<ExternalLink size={11} />
-										View full changelog
+										View full changelog on GitHub
 									</a>
 								</>
 							)}

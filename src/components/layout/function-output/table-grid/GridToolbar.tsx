@@ -23,7 +23,6 @@ import { ConnectionFunction } from "@/types";
 export function GridToolbar({
 	fn,
 	executionTimeMs,
-	showFilterBar,
 	filtersActive,
 	filterCount,
 	showSearchBar,
@@ -33,7 +32,6 @@ export function GridToolbar({
 	pendingEditCount,
 	applyPendingLoading,
 	viewMode,
-	onToggleFilter,
 	onClearFilters,
 	onAddFilter,
 	onApplyPendingEdits,
@@ -48,7 +46,6 @@ export function GridToolbar({
 }: {
 	fn: ConnectionFunction;
 	executionTimeMs: number;
-	showFilterBar: boolean;
 	filtersActive: boolean;
 	filterCount: number;
 	showSearchBar: boolean;
@@ -58,7 +55,6 @@ export function GridToolbar({
 	pendingEditCount: number;
 	applyPendingLoading: boolean;
 	viewMode: "data" | "form" | "structure" | "er";
-	onToggleFilter: () => void;
 	onClearFilters: () => void;
 	onAddFilter: () => void;
 	onApplyPendingEdits: () => void;
@@ -125,17 +121,13 @@ export function GridToolbar({
 										if (filtersActive) {
 											onClearFilters();
 										} else {
-											onToggleFilter();
-											if (!showFilterBar && filterCount === 0)
-												onAddFilter();
+											onAddFilter();
 										}
 									}}
 									className={
 										filtersActive
 											? "text-accent-blue"
-											: showFilterBar
-												? "text-foreground"
-												: "text-muted-foreground"
+											: "text-muted-foreground"
 									}
 								>
 									<span className="relative">
@@ -148,9 +140,6 @@ export function GridToolbar({
 											<span className="absolute -top-1.5 -right-1.5 min-w-[14px] h-[14px] rounded-full bg-accent-blue text-[8px] font-black text-accent-foreground flex items-center justify-center px-0.5 leading-none">
 												{filterCount}
 											</span>
-										)}
-										{showFilterBar && !filtersActive && (
-											<span className="absolute -top-0.5 -right-0.5 w-1.5 h-1.5 rounded-full bg-accent-blue" />
 										)}
 									</span>
 								</Button>
@@ -250,36 +239,45 @@ export function GridToolbar({
 			</div>
 			{/* Search bar */}
 			{showSearchBar && viewMode === "data" && (
-				<div className="shrink-0 border-b border-border bg-card px-3 py-1.5 flex items-center gap-2">
-					<Search
-						size={11}
-						className="text-muted-foreground/40 shrink-0"
-					/>
-					<Input
-						autoFocus
-						value={cellSearch}
-						onChange={(e) => onSearchChange(e.target.value)}
-						onKeyDown={(e) => {
-							if (e.key === "Escape") {
-								onClearSearch();
-							}
-						}}
-						placeholder="Search cells…"
-						className="h-6 flex-1 text-[11px] font-mono border-0 bg-transparent shadow-none focus-visible:ring-0 px-0"
-					/>
-					{cellSearch && (
-						<span className="text-[9px] font-mono text-muted-foreground/50 shrink-0">
-							{searchedRowCount} of {totalRowCount}
-						</span>
-					)}
-					<Button
-						variant="ghost"
-						size="icon-xs"
-						onClick={onClearSearch}
-						className="h-5 w-5 text-muted-foreground/40 hover:text-foreground"
-					>
-						<X size={10} />
-					</Button>
+				<div className="shrink-0 border-b border-border bg-card">
+					<div className="flex items-center gap-2 px-3 py-1.5">
+						{/* Search icon */}
+						<div className="w-8 h-7 flex items-center justify-center shrink-0">
+							<Search size={14} className="text-muted-foreground/50" />
+						</div>
+						
+						{/* Search input */}
+						<div className="flex-1 relative">
+							<Input
+								autoFocus
+								value={cellSearch}
+								onChange={(e) => onSearchChange(e.target.value)}
+								onKeyDown={(e) => {
+									if (e.key === "Escape") {
+										onClearSearch();
+									}
+								}}
+								placeholder="Search in all columns…"
+								className="h-7 text-[12px] bg-background border border-input pr-20 focus-visible:ring-0"
+							/>
+							{/* Result count badge */}
+							{cellSearch && (
+								<span className="absolute right-2 top-1/2 -translate-y-1/2 text-[10px] font-mono text-muted-foreground bg-muted px-1.5 py-0.5 rounded">
+									{searchedRowCount}/{totalRowCount}
+								</span>
+							)}
+						</div>
+						
+						{/* Close button */}
+						<Button
+							variant="ghost"
+							size="icon-xs"
+							onClick={onClearSearch}
+							className="h-7 w-7 text-muted-foreground/60 hover:text-foreground hover:bg-muted"
+						>
+							<X size={14} />
+						</Button>
+					</div>
 				</div>
 			)}
 		</>

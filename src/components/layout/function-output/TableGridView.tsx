@@ -56,6 +56,7 @@ import {
     DatabaseType,
     PendingCellEdit,
     SchemaGraph,
+    QueryResult,
 } from "@/types";
 import { tauriApi } from "@/lib/tauri-api";
 import { toast } from "@/components/ui/sonner";
@@ -83,14 +84,27 @@ const MAX_CONTENT_FIT_COLUMN_WIDTH = 420;
 const CONTENT_FIT_CHAR_WIDTH_PX = 8;
 const CONTENT_FIT_CELL_PADDING_PX = 36;
 
+function toDisplayString(value: unknown): string {
+    if (value === null) return "[NULL]";
+    if (value === undefined) return "";
+    if (typeof value === "object") return JSON.stringify(value);
+    return String(value);
+}
+
+function toEditString(value: unknown): string {
+    if (value === null || value === undefined) return "";
+    if (typeof value === "object") return JSON.stringify(value);
+    return String(value);
+}
+
 function getContentFitLength(value: unknown) {
-    if (value === null) return "[NULL]".length;
-    if (value === undefined) return 0;
-    return String(value).replace(/\s+/g, " ").length;
+    return toDisplayString(value).replace(/\s+/g, " ").length;
 }
 
 function normalizeQueuedValue(value: unknown): string | null {
-    return value === null || value === undefined ? null : String(value);
+    if (value === null || value === undefined) return null;
+    if (typeof value === "object") return JSON.stringify(value);
+    return String(value);
 }
 
 function buildPendingRowKey(
@@ -241,6 +255,10 @@ export function TableGridView({
         refreshTables,
         invokeFunction,
         queryLogOpen,
+        updateTabFilters,
+        updateTabFilteredResult,
+        updateTabFiltersActive,
+        clearTabFilters,
     } = useAppStore();
     const dbType =
         connections.find((c) => c.id === fn.connectionId)?.type ?? "postgresql";
@@ -308,55 +326,70 @@ export function TableGridView({
         },
         [queryResult, fn.tableName],
     );
-    // ─── Filter state ──────────────────────────────────────────────────────────
-    const [showFilterBar, setShowFilterBar] = useState(false);
-    const [filters, setFilters] = useState<FilterCondition[]>([]);
-    const [filteredResult, setFilteredResult] = useState<
-        typeof queryResult | null
-    >(null);
+    // ─── Get active tab for filter state ───────────────────────────────────────
+    const activeTab = tabs.find((tab) => tab.id === activeTabId) ?? null;
+    // ─── Filter state from active tab ──────────────────────────────────────────
+    const filters = activeTab?.filters ?? [];
+    const filteredResult = activeTab?.filteredResult ?? null;
+    const filtersActive = activeTab?.filtersActive ?? false;
     const [filterLoading, setFilterLoading] = useState(false);
     const [showSearchBar, setShowSearchBar] = useState(false);
     const [cellSearch, setCellSearch] = useState("");
+    const setFilters = useCallback((newFilters: FilterCondition[]) => {
+        if (activeTabId) {
+            updateTabFilters(activeTabId, newFilters);
+        }
+    }, [activeTabId, updateTabFilters]);
+    const setFilteredResult = useCallback((result: typeof queryResult | null) => {
+        if (activeTabId) {
+            updateTabFilteredResult(activeTabId, result as QueryResult | null);
+            updateTabFiltersActive(activeTabId, result !== null && filters.length > 0);
+        }
+    }, [activeTabId, updateTabFilteredResult, updateTabFiltersActive, filters.length]);
     const addFilter = () => {
         if (availableCols.length === 0) return;
-        setFilters((prev) => [
-            ...prev,
+        const newFilters: FilterCondition[] = [
+            ...filters,
             {
                 id: `f-${Date.now()}`,
                 col: availableCols[0],
                 op: "=" as FilterOp,
                 value: "",
-                join: "AND",
+                join: "AND" as const,
             },
-        ]);
-        setShowFilterBar(true);
+        ];
+        setFilters(newFilters);
     };
     const removeFilter = (id: string) => {
         const next = filters.filter((f) => f.id !== id);
         if (next.length === 0) {
-            // Last row removed — dismiss the bar entirely
-            setShowFilterBar(false);
-            setFilters([]);
-            setFilteredResult(null);
+            // Last row removed — clear all filters
+            if (activeTabId) {
+                clearTabFilters(activeTabId);
+            }
         } else {
             setFilters(next);
         }
     };
     const clearFilters = () => {
-        // Reset: clear applied results + give one fresh empty row, keep bar open
-        setFilters([
+        // Reset: clear applied results + give one fresh empty row
+        const newFilters: FilterCondition[] = [
             {
                 id: `f-${Date.now()}`,
                 col: availableCols[0] ?? "",
                 op: "=" as FilterOp,
                 value: "",
-                join: "AND",
+                join: "AND" as const,
             },
-        ]);
-        setFilteredResult(null);
+        ];
+        setFilters(newFilters);
+        if (activeTabId) {
+            updateTabFilteredResult(activeTabId, null);
+            updateTabFiltersActive(activeTabId, false);
+        }
     };
     const applyFilters = useCallback(async () => {
-        if (!fn.tableName || filters.length === 0) return;
+        if (!fn.tableName || filters.length === 0 || !activeTabId) return;
         setFilterLoading(true);
         const isMysql =
             connections.find((c) => c.id === fn.connectionId)?.type === "mysql";
@@ -384,7 +417,7 @@ export function TableGridView({
         } finally {
             setFilterLoading(false);
         }
-    }, [filters, fn, page, connections]);
+    }, [filters, fn, page, connections, activeTabId, setFilteredResult]);
     // Re-apply filters when page changes (if active)
     useEffect(() => {
         if (filteredResult && filters.length > 0) {
@@ -392,11 +425,8 @@ export function TableGridView({
         }
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [page]);
-    // Reset filters when the active function changes
+    // Reset column sizing and structure when the active function changes
     useEffect(() => {
-        setFilters([]);
-        setFilteredResult(null);
-        setShowFilterBar(false);
         setColumnSizing({});
         setStructure(null);
         if (viewMode === "structure") {
@@ -412,10 +442,8 @@ export function TableGridView({
         }
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [fn.connectionId, database, dbType]);
-    const activeTab = tabs.find((tab) => tab.id === activeTabId) ?? null;
     const pendingEdits = activeTab?.pendingEdits ?? [];
     const effectiveResult = filteredResult ?? queryResult;
-    const filtersActive = filteredResult !== null && filters.length > 0;
     const resultColumns = useMemo(() => {
         if (effectiveResult?.columns.length) return effectiveResult.columns;
         if (effectiveResult?.rows.length) return Object.keys(effectiveResult.rows[0]);
@@ -780,7 +808,7 @@ export function TableGridView({
             setEditingCell({
                 rowIdx,
                 col,
-                value: value === null ? "" : String(value ?? ""),
+                value: toEditString(value),
                 rowData,
             });
         },
@@ -795,8 +823,7 @@ export function TableGridView({
         if (!fn.tableName) return;
         const canEdit = await ensureColumnEditable(col);
         if (!canEdit) return;
-        const strVal =
-            value === null || value === undefined ? "" : String(value);
+        const strVal = toEditString(value);
         let fmt: "Text" | "JSON" | "HTML" = "Text";
         const trimmed = strVal.trimStart();
         if (
@@ -1000,9 +1027,7 @@ export function TableGridView({
         setCellSearch("");
         setShowSearchBar(false);
     }, [queryResult]);
-    useEffect(() => {
-        if (filtersActive) setShowFilterBar(true);
-    }, [filtersActive]);
+
     useEffect(() => {
         if (viewMode === "er" && !schemaGraph && isRelationalDb) {
             loadSchemaGraph();
@@ -1331,7 +1356,6 @@ export function TableGridView({
                 join: "AND",
             },
         ]);
-        setShowFilterBar(true);
     };
     // ── DDL helpers ────────────────────────────────────────────────────────────
     const COL_TYPES: Record<DatabaseType, string[]> = {
@@ -1614,7 +1638,6 @@ export function TableGridView({
             <GridToolbar
                 fn={fn}
                 executionTimeMs={effectiveResult.executionTimeMs}
-                showFilterBar={showFilterBar}
                 filtersActive={filtersActive}
                 filterCount={filters.length}
                 showSearchBar={showSearchBar}
@@ -1624,7 +1647,6 @@ export function TableGridView({
                 pendingEditCount={pendingEdits.length}
                 applyPendingLoading={pendingApplyLoading}
                 viewMode={viewMode}
-                onToggleFilter={() => setShowFilterBar((v) => !v)}
                 onClearFilters={clearFilters}
                 onAddFilter={addFilter}
                 onApplyPendingEdits={applyPendingEdits}
@@ -1650,20 +1672,16 @@ export function TableGridView({
                 onDropTable={() => setShowDropTable(true)}
             />
             <FilterBar
-                show={showFilterBar}
                 viewMode={viewMode}
                 filters={filters}
                 availableCols={availableCols}
                 filterLoading={filterLoading}
-                filtersActive={filtersActive}
-                filteredRowCount={effectiveResult?.rows.length ?? 0}
                 onFilterChange={(id, partial) =>
-                    setFilters((prev) => prev.map((x) => (x.id === id ? { ...x, ...partial } : x)))
+                    setFilters(filters.map((x) => (x.id === id ? { ...x, ...partial } : x)))
                 }
                 onRemoveFilter={removeFilter}
                 onAddFilter={addFilter}
                 onApply={applyFilters}
-                onClear={clearFilters}
             />
             <ImportPanel
                 show={showImport}
@@ -2001,9 +2019,8 @@ export function TableGridView({
                 onSetNull={(rowData, col) => setNullCell(rowData, col)}
                 onSetQuickFilter={(filter) => {
                     setFilters([{ id: `f-${Date.now()}`, ...filter }]);
-                    setShowFilterBar(true);
                 }}
-                onCopy={(value) => copyToClipboard(String(value ?? ""))}
+                onCopy={(value) => copyToClipboard(toEditString(value))}
                 onCopyColumnName={(col) => copyToClipboard(col)}
                 onCopyAsTSV={copyCellAsTSV}
                 onCopyAsJSON={copyCellAsJSON}
