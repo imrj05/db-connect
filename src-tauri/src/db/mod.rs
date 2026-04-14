@@ -44,4 +44,13 @@ pub trait DatabaseDriver: Send + Sync {
         page: u32,
         page_size: u32,
     ) -> Result<QueryResult>;
+
+    async fn dump_database(
+        &self,
+        database: &str,
+        schema: Option<&str>,
+        include_data: bool,
+    ) -> Result<String> {
+        Err(anyhow::anyhow!("Dump not supported for this database type"))
+    }
 }

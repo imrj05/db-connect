@@ -28,11 +28,14 @@ import {
     AlignLeft,
     ChevronLeft,
     ChevronRight,
+    ExternalLink,
+    Database as DatabaseIcon,
 } from "lucide-react";
 import {
     DropdownMenu,
     DropdownMenuContent,
     DropdownMenuItem,
+    DropdownMenuSeparator,
     DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Button } from "@/components/ui/button";
@@ -56,6 +59,7 @@ import {
     DatabaseType,
     PendingCellEdit,
     SchemaGraph,
+    ForeignKeyRelation,
     QueryResult,
 } from "@/types";
 import { tauriApi } from "@/lib/tauri-api";
@@ -246,6 +250,7 @@ export function TableGridView({
         clearHistory,
         connections,
         connectionFunctions,
+        selectedDatabases,
         closeTab,
         tabs,
         activeTabId,
@@ -265,6 +270,60 @@ export function TableGridView({
     const isRelationalDb =
         dbType === "postgresql" || dbType === "mysql" || dbType === "sqlite";
     const qi = (n: string) => (dbType === "mysql" ? `\`${n}\`` : `"${n}"`);
+    const fkLookup = useMemo(() => {
+        if (!schemaGraph || !fn.tableName) return new Map<string, ForeignKeyRelation>();
+        const map = new Map<string, ForeignKeyRelation>();
+        for (const rel of schemaGraph.relationships) {
+            if (rel.sourceTable === fn.tableName) {
+                for (const col of rel.sourceColumns) {
+                    map.set(col, rel);
+                }
+            }
+        }
+        return map;
+    }, [schemaGraph, fn.tableName]);
+    const navigateToFkTarget = useCallback(
+        async (relation: ForeignKeyRelation, cellValue: unknown) => {
+            const allFns = Object.values(connectionFunctions).flat();
+            const targetFn = allFns.find(
+                (candidate) =>
+                    candidate.type === "table" &&
+                    candidate.connectionId === fn.connectionId &&
+                    candidate.tableName === relation.targetTable,
+            );
+            if (!targetFn) {
+                toast.error(`Table "${relation.targetTable}" not found`);
+                return;
+            }
+            const targetCol = relation.targetColumns[0] ?? relation.sourceColumns[0];
+            const displayValue = cellValue === null || cellValue === undefined ? "" : String(cellValue);
+            const filter: FilterCondition = {
+                id: `f-${Date.now()}`,
+                col: targetCol,
+                op: "=" as FilterOp,
+                value: displayValue,
+                join: "AND" as const,
+            };
+            await invokeFunction(targetFn);
+            const newActiveTabId = useAppStore.getState().activeTabId;
+            if (newActiveTabId) {
+                useAppStore.getState().updateTabFilters(newActiveTabId, [filter]);
+                useAppStore.getState().updateTabFiltersActive(newActiveTabId, true);
+                try {
+                    const isMysql = connections.find((c) => c.id === fn.connectionId)?.type === "mysql";
+                    const qi = (name: string) => (isMysql ? `\`${name}\`` : `"${name}"`);
+                    const isNum = displayValue !== "" && !isNaN(Number(displayValue));
+                    const sqlVal = isNum ? displayValue : `'${displayValue.replace(/'/g, "''")}'`;
+                    const sql = `SELECT * FROM ${qi(relation.targetTable)} WHERE ${qi(targetCol)} = ${sqlVal} LIMIT ${pageSize}`;
+                    const result = await tauriApi.executeQuery(fn.connectionId, sql);
+                    useAppStore.getState().updateTabFilteredResult(newActiveTabId, result);
+                } catch {
+                    // Filter set but query failed — user can still apply manually
+                }
+            }
+        },
+        [connectionFunctions, fn.connectionId, invokeFunction, pageSize, connections],
+    );
     const exportData = useCallback(
         (format: "csv" | "json" | "sql") => {
             if (!queryResult) return;
@@ -326,6 +385,106 @@ export function TableGridView({
         },
         [queryResult, fn.tableName],
     );
+    const dumpDatabase = useCallback(async () => {
+        if (!fn.tableName || !isRelationalDb) return;
+        setDumpDbLoading(true);
+        try {
+            const activeDb = selectedDatabases[fn.connectionId] ?? connections.find((c) => c.id === fn.connectionId)?.database ?? database;
+            const schema = dbType === "postgresql" ? "public" : undefined;
+            const sql = await tauriApi.dumpDatabase(
+                fn.connectionId,
+                activeDb,
+                schema,
+                true,
+            );
+            const date = new Date().toISOString().split("T")[0];
+            const defaultName = `${activeDb}-${date}.sql`;
+            const savePath = await tauriApi.saveFileDialog(defaultName, [
+                { name: "SQL Dump", extensions: ["sql"] },
+            ]);
+            if (savePath) {
+                await tauriApi.writeTextFile(savePath, sql);
+                toast.success("Database dump saved");
+            }
+        } catch (e) {
+            toast.error(`Dump failed: ${e}`);
+        } finally {
+            setDumpDbLoading(false);
+        }
+    }, [fn.connectionId, database, selectedDatabases, connections, dbType, isRelationalDb]);
+
+    const importSqlFile = useCallback(async () => {
+        if (!isRelationalDb) return;
+        setImportSqlLoading(true);
+        try {
+            const filePath = await tauriApi.openFileDialog([
+                { name: "SQL Files", extensions: ["sql"] },
+            ]);
+            if (!filePath) {
+                setImportSqlLoading(false);
+                return;
+            }
+            const sqlContent = await tauriApi.readTextFile(filePath);
+            
+            // Parse database name from SQL content
+            let targetDb: string | null = null;
+            
+            // Try MySQL: USE `dbname`;
+            const mysqlMatch = sqlContent.match(/USE\s+`([^`]+)`/i);
+            // Try PostgreSQL: "schema"."table" pattern
+            const pgMatch = sqlContent.match(/"([^"]+)"\."/i);
+            
+            if (mysqlMatch) {
+                targetDb = mysqlMatch[1];
+            } else if (pgMatch) {
+                targetDb = pgMatch[1];
+            }
+            
+            // Create and switch to target database
+            if (targetDb) {
+                try {
+                    await tauriApi.executeQuery(fn.connectionId, dbType === "mysql" 
+                        ? `CREATE DATABASE \`${targetDb}\`` 
+                        : `CREATE DATABASE "${targetDb}"`);
+                } catch {
+                    // Database might already exist, that's ok
+                }
+                try {
+                    await tauriApi.switchDatabase(fn.connectionId, targetDb);
+                } catch {
+                    // Switch failed, continue anyway
+                }
+            }
+            
+            const statements = sqlContent
+                .replace(/USE\s+`[^`]+`;/gi, "") // Remove USE statements
+                .replace(/CREATE\s+DATABASE\s+[`"]{0,2}[^`"]{+}[`"]{0,2};/gi, "") // Remove CREATE DATABASE
+                .replace(/SET\s+search_path\s*=\s*[^;]+;/gi, "") // Remove SET search_path
+                .replace(/DROP\s+TABLE\s+IF\s+EXISTS[^;]+;/gi, "") // Remove DROP TABLE for clean import
+                .split(";")
+                .map((s) => s.trim())
+                .filter((s) => s.length > 0);
+            
+            let executed = 0;
+            let skipped = 0;
+            for (const stmt of statements) {
+                try {
+                    await tauriApi.executeQuery(fn.connectionId, stmt);
+                    executed++;
+                } catch {
+                    skipped++;
+                }
+            }
+            toast.success(`Executed ${executed} statements, skipped ${skipped}`);
+            if (fn.tableName) {
+                await refreshTables(fn.connectionId);
+            }
+        } catch (e) {
+            toast.error(`Import failed: ${e}`);
+        } finally {
+            setImportSqlLoading(false);
+        }
+    }, [fn.connectionId, fn.tableName, isRelationalDb, refreshTables, selectedDatabases]);
     // ─── Get active tab for filter state ───────────────────────────────────────
     const activeTab = tabs.find((tab) => tab.id === activeTabId) ?? null;
     // ─── Filter state from active tab ──────────────────────────────────────────
@@ -546,6 +705,8 @@ export function TableGridView({
     );
     // ─── Import state ───────────────────────────────────────────────────────────
     const [showImport, setShowImport] = useState(false);
+    const [dumpDbLoading, setDumpDbLoading] = useState(false);
+    const [importSqlLoading, setImportSqlLoading] = useState(false);
     const [importText, setImportText] = useState("");
     const [importFormat, setImportFormat] = useState<"csv" | "json">("csv");
     const [importPreview, setImportPreview] = useState<{
@@ -1030,6 +1191,11 @@ export function TableGridView({
 
     useEffect(() => {
         if (viewMode === "er" && !schemaGraph && isRelationalDb) {
+            loadSchemaGraph();
+        }
+    }, [isRelationalDb, loadSchemaGraph, schemaGraph, viewMode]);
+    useEffect(() => {
+        if (viewMode === "data" && !schemaGraph && isRelationalDb) {
             loadSchemaGraph();
         }
     }, [isRelationalDb, loadSchemaGraph, schemaGraph, viewMode]);
@@ -1578,8 +1744,11 @@ export function TableGridView({
                             </div>
                         );
                     }
+                    const fkRel = fkLookup.get(col);
+                    const fkValue = info.getValue();
+                    const showFkIcon = fkRel && fkValue !== null && fkValue !== undefined;
                     return (
-                        <div className="absolute  inset-0 flex items-center px-4 overflow-hidden">
+                        <div className="absolute inset-0 flex items-center px-4 overflow-hidden group/fk">
                             <span
                                 className={cn(
                                     "font-medium truncate",
@@ -1587,7 +1756,10 @@ export function TableGridView({
                                         ? "text-warning"
                                         : info.getValue() === null
                                             ? "text-muted-foreground italic"
-                                            : "",
+                                            : showFkIcon
+                                                ? "text-accent-blue"
+                                                : "",
+                                    showFkIcon && "pr-3",
                                 )}
                             >
                                 {info.getValue() === null
@@ -1596,6 +1768,18 @@ export function TableGridView({
                                         ? JSON.stringify(info.getValue())
                                         : String(info.getValue())}
                             </span>
+                            {showFkIcon && (
+                                <button
+                                    className="absolute right-1 top-1/2 -translate-y-1/2 opacity-0 group-hover/fk:opacity-100 transition-opacity p-0.5 rounded hover:bg-accent-blue/15 text-accent-blue/60 hover:text-accent-blue shrink-0"
+                                    title={`Go to ${fkRel.targetTable}.${fkRel.targetColumns[0]}`}
+                                    onClick={(e) => {
+                                        e.stopPropagation();
+                                        navigateToFkTarget(fkRel, fkValue);
+                                    }}
+                                >
+                                    <ExternalLink size={11} />
+                                </button>
+                            )}
                         </div>
                     );
                 },
@@ -2708,6 +2892,35 @@ export function TableGridView({
                                     <FileText size={11} />
                                     Export as SQL
                                 </DropdownMenuItem>
+                                {isRelationalDb && (
+                                    <>
+                                        <DropdownMenuSeparator />
+                                        <DropdownMenuItem
+                                            onClick={dumpDatabase}
+                                            disabled={dumpDbLoading}
+                                            className="gap-2 cursor-pointer"
+                                        >
+                                            {dumpDbLoading ? (
+                                                <Loader2 size={11} className="animate-spin" />
+                                            ) : (
+                                                <DatabaseIcon size={11} />
+                                            )}
+                                            {dumpDbLoading ? "Generating..." : "Dump Database"}
+                                        </DropdownMenuItem>
+                                        <DropdownMenuItem
+                                            onClick={importSqlFile}
+                                            disabled={importSqlLoading}
+                                            className="gap-2 cursor-pointer"
+                                        >
+                                            {importSqlLoading ? (
+                                                <Loader2 size={11} className="animate-spin" />
+                                            ) : (
+                                                <DatabaseIcon size={11} />
+                                            )}
+                                            {importSqlLoading ? "Importing..." : "Import SQL File"}
+                                        </DropdownMenuItem>
+                                    </>
+                                )}
                             </DropdownMenuContent>
                         </DropdownMenu>
                     </>

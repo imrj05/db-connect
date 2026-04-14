@@ -31,6 +31,7 @@ import { useAppStore } from "@/store/useAppStore";
 import { DB_LOGO, DB_COLOR } from "@/lib/db-ui";
 import { GROUP_PRESETS } from "@/components/layout/ConnectionDialog";
 import { ImportExportDialog } from "@/components/layout/ImportExportDialog";
+import { toast } from "@/components/ui/sonner";
 import { tauriApi } from "@/lib/tauri-api";
 import { ConnectionConfig, ConnectionFunction, ColumnInfo, DatabaseType } from "@/types";
 import { cn } from "@/lib/utils";
@@ -38,17 +39,17 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
-import {
-    Dialog,
-    DialogContent,
-    DialogHeader,
-    DialogTitle,
-    DialogDescription,
-    DialogFooter,
-} from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import {
+    Dialog,
+    DialogContent,
+    DialogDescription,
+    DialogFooter,
+    DialogHeader,
+    DialogTitle,
+} from "@/components/ui/dialog";
 
 // ── Column type → icon ─────────────────────────────────────────────────────────
 function ColumnIcon({ col }: { col: ColumnInfo }) {
@@ -716,6 +717,7 @@ const Sidebar = () => {
         selectDatabase,
         closeOpenDatabase,
         refreshTables,
+        refreshDatabases,
         loadTableColumns,
         invokeFunction,
         setActiveFunctionOnly,
@@ -728,6 +730,8 @@ const Sidebar = () => {
     const [loadingIds, setLoadingIds] = useState<Set<string>>(new Set());
     const [importExportOpen, setImportExportOpen] = useState(false);
     const [dbCtxMenu, setDbCtxMenu] = useState<{ db: string; x: number; y: number } | null>(null);
+    const [dropDbConfirm, setDropDbConfirm] = useState<string | null>(null);
+    const [droppingDb, setDroppingDb] = useState(false);
 
     const handleConnect = async (connId: string) => {
         setLoadingIds((prev) => new Set(prev).add(connId));
@@ -872,6 +876,17 @@ const Sidebar = () => {
                             <div className="my-1 h-px bg-border" />
                             <button
                                 className="w-full flex items-center gap-2 px-2 py-1.5 rounded-sm text-[11px] text-destructive/80 hover:bg-destructive/10 transition-colors"
+                                onClick={() => {
+                                    setDropDbConfirm(dbCtxMenu.db);
+                                    setDbCtxMenu(null);
+                                }}
+                            >
+                                <X size={10} className="shrink-0" />
+                                Drop DB
+                            </button>
+                            <div className="my-1 h-px bg-border" />
+                            <button
+                                className="w-full flex items-center gap-2 px-2 py-1.5 rounded-sm text-[11px] text-muted-foreground/80 hover:bg-muted/40 transition-colors"
                                 onClick={() => {
                                     closeOpenDatabase(activeConn.id, dbCtxMenu.db);
                                     setDbCtxMenu(null);
@@ -1034,6 +1049,83 @@ const Sidebar = () => {
                         newConns.forEach((c) => addConnection(c));
                     }}
                 />
+            )}
+
+            {dropDbConfirm && activeConn && (
+                <Dialog open={!!dropDbConfirm} onOpenChange={(open) => { if (!open) setDropDbConfirm(null); }}>
+                    <DialogContent className="max-w-sm">
+                        <DialogHeader>
+                            <DialogTitle>Drop database?</DialogTitle>
+                            <DialogDescription>
+                                This will permanently delete the database "{dropDbConfirm}" and all its data.
+                                This action cannot be undone.
+                            </DialogDescription>
+                        </DialogHeader>
+                        <div className="space-y-2">
+                            <Label className="text-[11px]">
+                                Type <span className="font-mono text-destructive">{dropDbConfirm}</span> to confirm
+                            </Label>
+                            <Input
+                                placeholder={dropDbConfirm}
+                                className="h-8 text-[11px] font-mono"
+                                onChange={(e) => {
+                                    if (e.target.value === dropDbConfirm && !droppingDb) {
+                                        (async () => {
+                                            setDroppingDb(true);
+                                            try {
+                                                const dbType = connections.find((c) => c.id === activeConn.id)?.type;
+                                                const dropSql = dbType === "mysql" 
+                                                    ? `DROP DATABASE \`${dropDbConfirm}\`` 
+                                                    : `DROP DATABASE "${dropDbConfirm}"`;
+                                                await tauriApi.executeQuery(activeConn.id, dropSql);
+                                                closeOpenDatabase(activeConn.id, dropDbConfirm);
+                                                await refreshDatabases(activeConn.id);
+                                                await refreshTables(activeConn.id);
+                                                toast.success(`Database "${dropDbConfirm}" dropped`);
+                                            } catch (e) {
+                                                toast.error(`Drop failed: ${e}`);
+                                            } finally {
+                                                setDroppingDb(false);
+                                                setDropDbConfirm(null);
+                                            }
+                                        })();
+                                    }
+                                }}
+                            />
+                        </div>
+                        <DialogFooter>
+                            <Button variant="outline" size="sm" onClick={() => setDropDbConfirm(null)}>
+                                Cancel
+                            </Button>
+                            <Button 
+                                variant="destructive" 
+                                size="sm" 
+                                disabled={droppingDb}
+                                onClick={async () => {
+                                    setDroppingDb(true);
+                                    try {
+                                        const dbType = connections.find((c) => c.id === activeConn.id)?.type;
+                                        const dropSql = dbType === "mysql" 
+                                            ? `DROP DATABASE \`${dropDbConfirm}\`` 
+                                            : `DROP DATABASE "${dropDbConfirm}"`;
+                                        await tauriApi.executeQuery(activeConn.id, dropSql);
+                                        closeOpenDatabase(activeConn.id, dropDbConfirm);
+                                        await refreshDatabases(activeConn.id);
+                                        await refreshTables(activeConn.id);
+                                        toast.success(`Database "${dropDbConfirm}" dropped`);
+                                    } catch (e) {
+                                        toast.error(`Drop failed: ${e}`);
+                                    } finally {
+                                        setDroppingDb(false);
+                                        setDropDbConfirm(null);
+                                    }
+                                }}
+                            >
+                                {droppingDb ? "Dropping..." : "Drop"}
+                            </Button>
+                        </DialogFooter>
+                    </DialogContent>
+                </Dialog>
             )}
         </div>
     );

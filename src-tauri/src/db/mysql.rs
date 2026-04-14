@@ -347,18 +347,136 @@ impl DatabaseDriver for MySqlDriver {
     ) -> Result<QueryResult> {
         let pool_lock = self.pool.read().await;
         if let Some(pool) = pool_lock.as_ref() {
-            // Re-verify the database connection session
             if let Err(e) = pool.execute(format!("USE `{}`", database).as_str()).await {
                 println!("Warning: Failed to switch to database {}: {}", database, e);
             }
         }
         let query = format!(
             "SELECT * FROM `{}`.`{}` LIMIT {} OFFSET {}",
-            database,
-            table,
-            page_size,
-            page * page_size
+            database, table, page_size, page * page_size
         );
         self.run_query(&query).await
+    }
+
+    async fn dump_database(
+        &self,
+        database: &str,
+        schema: Option<&str>,
+        include_data: bool,
+    ) -> Result<String> {
+        let tables = self.get_tables(database, schema).await?;
+        let foreign_keys = self.get_foreign_keys(database, schema).await.unwrap_or_default();
+
+        let mut sql = String::new();
+        sql.push_str(&format!("USE `{}`;\n\n", database));
+
+        for table_info in &tables {
+            let tname = &table_info.name;
+            let qi_table = format!("`{}`.`{}`", database, tname);
+
+            sql.push_str(&format!("DROP TABLE IF EXISTS {};\n", qi_table));
+
+            let columns = self.get_columns(database, tname, schema).await?;
+            let indexes = self.get_indexes(database, tname, schema).await.unwrap_or_default();
+
+            sql.push_str(&format!("CREATE TABLE {} (\n", qi_table));
+            let mut col_defs = Vec::new();
+            let mut pk_cols = Vec::new();
+
+            for col in &columns {
+                let mut def = format!("    `{}` {}", col.name, col.data_type);
+                if !col.nullable && !col.is_primary {
+                    def.push_str(" NOT NULL");
+                }
+                if let Some(ref dv) = col.default_value {
+                    def.push_str(&format!(" DEFAULT {}", dv));
+                }
+                if let Some(ref extra) = col.extra {
+                    if extra.contains("auto_increment") {
+                        def.push_str(" AUTO_INCREMENT");
+                    }
+                }
+                col_defs.push(def);
+                if col.is_primary {
+                    pk_cols.push(col.name.clone());
+                }
+            }
+
+            if !pk_cols.is_empty() {
+                let pk_list: Vec<String> = pk_cols.iter().map(|c| format!("`{}`", c)).collect();
+                col_defs.push(format!("    PRIMARY KEY ({})", pk_list.join(", ")));
+            }
+
+            sql.push_str(&col_defs.join(",\n"));
+            sql.push_str("\n) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;\n\n");
+
+            for idx in &indexes {
+                let cols: Vec<String> = idx.columns.iter().map(|c| format!("`{}`", c)).collect();
+                if idx.unique {
+                    sql.push_str(&format!(
+                        "CREATE UNIQUE INDEX `{}` ON {} ({});\n",
+                        idx.name, qi_table, cols.join(", ")
+                    ));
+                } else {
+                    sql.push_str(&format!(
+                        "CREATE INDEX `{}` ON {} ({});\n",
+                        idx.name, qi_table, cols.join(", ")
+                    ));
+                }
+            }
+            sql.push('\n');
+
+            if include_data {
+                let page_size: u32 = 500;
+                let mut page: u32 = 0;
+                loop {
+                    let result = self.get_table_data(database, tname, page, page_size).await?;
+                    if result.rows.is_empty() && page == 0 {
+                        break;
+                    }
+                    for row in &result.rows {
+                        let vals: Vec<String> = result
+                            .columns
+                            .iter()
+                            .map(|col| match row.get(col) {
+                                Some(serde_json::Value::Null) | None => "NULL".to_string(),
+                                Some(serde_json::Value::Bool(b)) => {
+                                    if *b { "1".to_string() } else { "0".to_string() }
+                                }
+                                Some(serde_json::Value::Number(n)) => n.to_string(),
+                                Some(serde_json::Value::String(s)) => {
+                                    format!("'{}'", s.replace('\'', "''").replace('\\', "\\\\"))
+                                }
+                                Some(v) => format!("'{}'", v.to_string().replace('\'', "''").replace('\\', "\\\\")),
+                            })
+                            .collect();
+                        let col_list: Vec<String> = result.columns.iter().map(|c| format!("`{}`", c)).collect();
+                        sql.push_str(&format!(
+                            "INSERT INTO {} ({}) VALUES ({});\n",
+                            qi_table, col_list.join(", "), vals.join(", ")
+                        ));
+                    }
+                    if result.rows.len() < page_size as usize {
+                        break;
+                    }
+                    page += 1;
+                }
+                sql.push('\n');
+            }
+        }
+
+        for fk in &foreign_keys {
+            let src_cols: Vec<String> = fk.source_columns.iter().map(|c| format!("`{}`", c)).collect();
+            let tgt_cols: Vec<String> = fk.target_columns.iter().map(|c| format!("`{}`", c)).collect();
+            let src_table = format!("`{}`.`{}`", database, fk.source_table);
+            let tgt_table = format!("`{}`.`{}`", database, fk.target_table);
+            sql.push_str(&format!(
+                "ALTER TABLE {} ADD CONSTRAINT `{}` FOREIGN KEY ({}) REFERENCES {} ({});\n",
+                src_table, fk.name, src_cols.join(", "), tgt_table, tgt_cols.join(", ")
+            ));
+        }
+        sql.push('\n');
+
+        Ok(sql)
     }
 }

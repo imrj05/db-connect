@@ -345,6 +345,34 @@ pub async fn switch_database(id: String, database: String) -> Result<(), String>
     Ok(())
 }
 
+#[tauri::command]
+pub async fn dump_database(
+    id: String,
+    database: String,
+    schema: Option<String>,
+    include_data: bool,
+) -> Result<String, String> {
+    let driver = REGISTRY
+        .connections
+        .get(&id)
+        .ok_or_else(|| "Not connected".to_string())?;
+
+    let config = REGISTRY
+        .configs
+        .get(&id)
+        .ok_or_else(|| "Connection config not found".to_string())?;
+
+    match config.db_type {
+        DatabaseType::Postgresql | DatabaseType::Mysql | DatabaseType::Sqlite => {
+            driver
+                .dump_database(&database, schema.as_deref(), include_data)
+                .await
+                .map_err(|e| e.to_string())
+        }
+        _ => Err("Dump not supported for this database type".to_string()),
+    }
+}
+
 // ── App info commands ──────────────────────────────────────────────────────────
 
 #[tauri::command]

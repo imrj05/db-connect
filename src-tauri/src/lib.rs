@@ -41,6 +41,7 @@ pub fn run() {
             commands::get_table_structure,
             commands::get_schema_graph,
             commands::switch_database,
+            commands::dump_database,
             // ── App info ──────────────────────────────────────────────────────
             commands::get_app_data_dir,
             // ── Storage commands ───────────────────────────────────────────────
