@@ -422,88 +422,6 @@ export function ERDiagramView({
 						transform: `translate(${viewport.x}px, ${viewport.y}px) scale(${viewport.scale})`,
 					}}
 				>
-					{/* Relationship connectors - rendered on top */}
-					<svg
-						className="absolute inset-0 overflow-visible pointer-events-none z-20"
-						width={svgW}
-						height={svgH}
-						viewBox={`0 0 ${svgW} ${svgH}`}
-					>
-						{graph.relationships.map((relation) => {
-							const source = layout.nodes.get(tableKey(relation.sourceTable, relation.sourceSchema));
-							const target = layout.nodes.get(tableKey(relation.targetTable, relation.targetSchema));
-							if (!source || !target) return null;
-
-							// Use user-dragged position if available, fall back to layout position
-							const srcOv = nodePositions.get(source.key);
-							const tgtOv = nodePositions.get(target.key);
-							const srcX = srcOv?.x ?? source.x;
-							const srcY = srcOv?.y ?? source.y;
-							const tgtX = tgtOv?.x ?? target.x;
-							const tgtY = tgtOv?.y ?? target.y;
-
-							// Find the specific FK/PK column row within each table
-							const sourceIndex = source.columns.findIndex(
-								(col) => col.name === relation.sourceColumns[0],
-							);
-							const targetIndex = target.columns.findIndex(
-								(col) => col.name === relation.targetColumns[0],
-							);
-
-							// Which side of each table the connector exits from
-							const fromLeft = tgtX < srcX;
-							const startX = srcX + (fromLeft ? 0 : source.width);
-							const endX = tgtX + (fromLeft ? target.width : 0);
-
-							// Y is anchored to the midpoint of the specific column row
-							const startY =
-								srcY + HEADER_HEIGHT + (sourceIndex >= 0 ? sourceIndex : 0) * ROW_HEIGHT + ROW_HEIGHT / 2;
-							const endY =
-								tgtY + HEADER_HEIGHT + (targetIndex >= 0 ? targetIndex : 0) * ROW_HEIGHT + ROW_HEIGHT / 2;
-
-							const direction = fromLeft ? -1 : 1;
-							const delta = Math.max(56, Math.abs(endX - startX) * 0.45);
-							const isActive =
-								source.name === currentTableName || target.name === currentTableName;
-
-							const strokeColor = isActive ? "hsl(var(--primary))" : "hsl(var(--accent-blue))";
-							const strokeOpacity = 1;
-							const strokeWidth = isActive ? 2.5 : 1.8;
-
-							return (
-								<g key={`${relation.name}-${source.key}-${target.key}`}>
-									{/* Shadow/glow for better visibility */}
-									<path
-										d={`M ${startX} ${startY} C ${startX + delta * direction} ${startY}, ${endX - delta * direction} ${endY}, ${endX} ${endY}`}
-										fill="none"
-										stroke="hsl(var(--background))"
-										strokeWidth={strokeWidth + 4}
-										strokeOpacity={0.3}
-										strokeLinecap="round"
-									/>
-									{/* Main line */}
-									<path
-										d={`M ${startX} ${startY} C ${startX + delta * direction} ${startY}, ${endX - delta * direction} ${endY}, ${endX} ${endY}`}
-										fill="none"
-										stroke={strokeColor}
-										strokeOpacity={strokeOpacity}
-										strokeWidth={strokeWidth}
-										strokeLinecap="round"
-									/>
-									{/* Arrow head at target */}
-									<polygon
-										points={`${endX - 8},${endY - 5} ${endX},${endY} ${endX - 8},${endY + 5}`}
-										fill={strokeColor}
-										opacity={strokeOpacity}
-									/>
-									{/* Endpoint dots — visually anchor the line to the row */}
-									<circle cx={startX} cy={startY} r={4} fill={strokeColor} opacity={strokeOpacity} />
-									<circle cx={endX} cy={endY} r={4} fill={strokeColor} opacity={strokeOpacity} />
-								</g>
-							);
-						})}
-					</svg>
-
 					{/* Table cards */}
 					{[...layout.nodes.values()].map((node) => {
 						const pos = nodePositions.get(node.key) ?? { x: node.x, y: node.y };
@@ -515,15 +433,12 @@ export function ERDiagramView({
 								type="button"
 								onMouseDown={(event) => handleNodeMouseDown(event, node)}
 								onClick={() => {
-									// nodeWasDraggedRef persists beyond mouseup, so it's still set here
 									if (!nodeWasDraggedRef.current) {
 										onTableSelect(node.name);
 									}
 								}}
 								className={cn(
 									"absolute rounded-xl border text-left overflow-hidden shadow-sm select-none",
-									// Only apply layout transitions when not dragging — prevents the
-									// card lagging behind the cursor due to CSS position transitions
 									isDragging
 										? "cursor-grabbing shadow-2xl z-10 transition-none"
 										: "cursor-grab transition-shadow",
@@ -573,7 +488,6 @@ export function ERDiagramView({
 												(relation.sourceSchema ?? "default") === (node.schema ?? "default") &&
 												relation.sourceColumns.includes(column.name),
 										);
-										// Highlight columns that are connected to the active table
 										const isConnectedToActive =
 											currentTableName != null &&
 											graph.relationships.some(
@@ -635,6 +549,77 @@ export function ERDiagramView({
 							</button>
 						);
 					})}
+
+					{/* Relationship connectors - rendered after cards so lines appear on top */}
+					<svg
+						className="absolute inset-0 overflow-visible pointer-events-none"
+						width={svgW}
+						height={svgH}
+						viewBox={`0 0 ${svgW} ${svgH}`}
+						style={{ zIndex: 20 }}
+					>
+						{graph.relationships.map((relation) => {
+							const source = layout.nodes.get(tableKey(relation.sourceTable, relation.sourceSchema));
+							const target = layout.nodes.get(tableKey(relation.targetTable, relation.targetSchema));
+							if (!source || !target) return null;
+
+							const srcOv = nodePositions.get(source.key);
+							const tgtOv = nodePositions.get(target.key);
+							const srcX = srcOv?.x ?? source.x;
+							const srcY = srcOv?.y ?? source.y;
+							const tgtX = tgtOv?.x ?? target.x;
+							const tgtY = tgtOv?.y ?? target.y;
+
+							const sourceIndex = source.columns.findIndex(
+								(col) => col.name === relation.sourceColumns[0],
+							);
+							const targetIndex = target.columns.findIndex(
+								(col) => col.name === relation.targetColumns[0],
+							);
+
+							const fromLeft = tgtX < srcX;
+							const startX = srcX + (fromLeft ? 0 : source.width);
+							const endX = tgtX + (fromLeft ? target.width : 0);
+
+							const startY =
+								srcY + HEADER_HEIGHT + (sourceIndex >= 0 ? sourceIndex : 0) * ROW_HEIGHT + ROW_HEIGHT / 2 + 6;
+							const endY =
+								tgtY + HEADER_HEIGHT + (targetIndex >= 0 ? targetIndex : 0) * ROW_HEIGHT + ROW_HEIGHT / 2 + 6;
+
+							const direction = fromLeft ? -1 : 1;
+							const delta = Math.max(56, Math.abs(endX - startX) * 0.45);
+							const isActive =
+								source.name === currentTableName || target.name === currentTableName;
+
+							const strokeColor = isActive ? "var(--color-accent-green)" : "var(--color-accent-blue)";
+							const strokeWidth = isActive ? 2.5 : 1.8;
+
+							const pathD = `M ${startX} ${startY} C ${startX + delta * direction} ${startY}, ${endX - delta * direction} ${endY}, ${endX} ${endY}`;
+
+							return (
+								<g key={`${relation.name}-${source.key}-${target.key}`}>
+									<path
+										d={pathD}
+										fill="none"
+										strokeLinecap="round"
+										style={{ stroke: "var(--background)", strokeWidth: strokeWidth + 4, opacity: 0.35 }}
+									/>
+									<path
+										d={pathD}
+										fill="none"
+										strokeLinecap="round"
+										style={{ stroke: strokeColor, strokeWidth }}
+									/>
+									<polygon
+										points={`${endX - 8},${endY - 5} ${endX},${endY} ${endX - 8},${endY + 5}`}
+										style={{ fill: strokeColor }}
+									/>
+									<circle cx={startX} cy={startY} r={4} style={{ fill: strokeColor }} />
+									<circle cx={endX} cy={endY} r={4} style={{ fill: strokeColor }} />
+								</g>
+							);
+						})}
+					</svg>
 				</div>
 			</div>
 		</div>

@@ -1702,7 +1702,7 @@ export function TableGridView({
             {/* Content: Data view */}
             {viewMode === "data" && (
                 <div className="flex-1 overflow-auto scrollbar-thin">
-                    <div className="min-w-full inline-block align-middle">
+                    <div className="min-w-full block align-middle">
                         <Table
                             className="border-collapse text-[11px] font-mono border-separate border-spacing-0"
                             style={{ width: table.getTotalSize() }}
@@ -1714,7 +1714,7 @@ export function TableGridView({
                                         className="hover:bg-transparent border-none"
                                     >
                                         <TableHead
-                                            className="w-10 h-8 px-2 text-center font-bold text-muted-foreground/30 border-r border-border bg-card cursor-pointer hover:text-muted-foreground/60 transition-colors"
+                                            className="w-10 h-8 px-2 text-center font-bold text-muted-foreground/30 border-r border-border bg-card cursor-pointer hover:text-muted-foreground/60 transition-colors sticky left-0 z-20"
                                             onClick={() => {
                                                 setSelectedColId(null);
                                                 setSelectedRowIdx(-1);
@@ -1848,7 +1848,7 @@ export function TableGridView({
                                             >
                                                 <TableCell
                                                     className={cn(
-                                                        "w-10 h-8 px-2 text-center border-r border-border cursor-pointer select-none transition-colors",
+                                                        "w-10 h-8 px-2 text-center border-r border-border cursor-pointer select-none transition-colors sticky left-0 z-20 bg-card",
                                                         isSelected
                                                             ? "bg-warning text-warning-foreground font-bold"
                                                             : "text-muted-foreground/30 bg-card/30 hover:bg-warning/20 hover:text-warning",

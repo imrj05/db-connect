@@ -63,7 +63,79 @@ jobs:
             });
             return data.id;
           result-encoding: string
-  # ── Job 2: Build for each platform and upload to the release ────────────────
+  # ── Job 2: Update CHANGELOG.md and commit it back to main ──────────────────
+  update-changelog:
+    needs: create-release
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          # Use a PAT or the default GITHUB_TOKEN; push is allowed because
+          # we set `contents: write` above.
+          token: ${{ secrets.GITHUB_TOKEN }}
+      - name: Build CHANGELOG entry
+        id: entry
+        run: |
+          TAG="${{ github.ref_name }}"
+          VERSION="${TAG#v}"
+          DATE=$(date -u +%Y-%m-%d)
+          PREV_TAG=$(git tag --sort=-version:refname | grep -v "^${TAG}$" | head -1 || echo "")
+          {
+            echo "entry<<EOF"
+            echo "## [${VERSION}] — ${DATE}"
+            echo ""
+            if [ -n "$PREV_TAG" ]; then
+              git log --pretty=format:"- %s" "${PREV_TAG}..HEAD" | grep -v "^- $" || true
+            else
+              git log --pretty=format:"- %s" | grep -v "^- $" || true
+            fi
+            echo ""
+            echo "EOF"
+          } >> "$GITHUB_OUTPUT"
+      - name: Prepend entry to CHANGELOG.md
+        run: |
+          TAG="${{ github.ref_name }}"
+          VERSION="${TAG#v}"
+          DATE=$(date -u +%Y-%m-%d)
+          PREV_TAG=$(git tag --sort=-version:refname | grep -v "^${TAG}$" | head -1 || echo "")
+          HEADER="# Changelog\n\nAll notable changes to DB Connect are documented here.\n\n"
+          # Build the new entry block
+          {
+            echo "## [${VERSION}] — ${DATE}"
+            echo ""
+            if [ -n "$PREV_TAG" ]; then
+              git log --pretty=format:"- %s" "${PREV_TAG}..HEAD" | grep -v "^- $" || true
+            else
+              git log --pretty=format:"- %s" | grep -v "^- $" || true
+            fi
+            echo ""
+          } > /tmp/new_entry.md
+          if [ -f CHANGELOG.md ]; then
+            # Strip existing header lines so we don't duplicate them
+            BODY=$(sed '/^# Changelog/,/^$/d' CHANGELOG.md | sed '1{/^$/d}')
+            printf "%b" "$HEADER" > CHANGELOG.md
+            cat /tmp/new_entry.md >> CHANGELOG.md
+            echo "$BODY" >> CHANGELOG.md
+          else
+            printf "%b" "$HEADER" > CHANGELOG.md
+            cat /tmp/new_entry.md >> CHANGELOG.md
+          fi
+      - name: Commit and push CHANGELOG.md
+        run: |
+          git config user.name  "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add CHANGELOG.md
+          if git diff --cached --quiet; then
+            echo "No changes to CHANGELOG.md — skipping commit."
+          else
+            git commit -m "chore: update CHANGELOG.md for ${{ github.ref_name }}"
+            git push origin HEAD:${{ github.event.repository.default_branch }}
+          fi
+  # ── Job 3: Build for each platform and upload to the release ────────────────
   build:
     needs: create-release
     permissions:
