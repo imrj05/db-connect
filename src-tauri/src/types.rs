@@ -191,6 +191,16 @@ pub struct ImportResult {
     pub connections: Vec<ConnectionConfig>,
 }
 
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ImportSqlResult {
+    pub executed: u32,
+    pub skipped: u32,
+    pub errors: Vec<String>,
+    pub detected_db_name: Option<String>,
+    pub detected_format: String,
+}
+
 #[derive(Debug, Serialize, Deserialize, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct ConnectionExport {

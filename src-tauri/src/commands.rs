@@ -4,6 +4,7 @@ use crate::db::registry::REGISTRY;
 use crate::db::sqlite::SqliteDriver;
 use crate::db::DatabaseDriver;
 use crate::license;
+use crate::sql_import;
 use crate::ssh::{SshAuth, SshTunnel};
 use crate::storage::AppStorage;
 use crate::types::*;
@@ -381,6 +382,106 @@ pub async fn dump_database(
         }
         _ => Err("Dump not supported for this database type".to_string()),
     }
+}
+
+#[tauri::command]
+pub async fn import_sql_file(
+    id: String,
+    sql_content: String,
+    target_database: Option<String>,
+    drop_existing: bool,
+    ignore_errors: bool,
+) -> Result<ImportSqlResult, String> {
+    let driver = REGISTRY
+        .connections
+        .get(&id)
+        .ok_or_else(|| "Not connected".to_string())?;
+
+    let parsed = sql_import::parse_sql_dump(&sql_content);
+
+    // "Create new database" mode: CREATE DATABASE then reconnect the driver
+    if let Some(ref db_name) = target_database {
+        let config = REGISTRY
+            .configs
+            .get(&id)
+            .ok_or_else(|| "Connection config not found".to_string())?
+            .clone();
+        let create_sql = match config.db_type {
+            DatabaseType::Mysql => format!("CREATE DATABASE IF NOT EXISTS `{}`", db_name),
+            _ => format!("CREATE DATABASE \"{}\"", db_name),
+        };
+        // Best-effort — ignore error if DB already exists
+        let _ = driver.run_query(&create_sql).await;
+        let mut new_cfg = config.clone();
+        new_cfg.database = Some(db_name.clone());
+        driver
+            .connect(&new_cfg)
+            .await
+            .map_err(|e| e.to_string())?;
+        REGISTRY
+            .configs
+            .entry(id.clone())
+            .and_modify(|c| c.database = Some(db_name.clone()));
+    }
+
+    // Optionally prepend DROP TABLE IF EXISTS before each CREATE TABLE
+    let statements: Vec<String> = if drop_existing {
+        let mut out = Vec::with_capacity(parsed.statements.len() * 2);
+        for stmt in &parsed.statements {
+            let upper = stmt.trim().to_uppercase();
+            if upper.starts_with("CREATE TABLE") {
+                let tokens: Vec<&str> = stmt.split_whitespace().collect();
+                // Handle CREATE TABLE [IF NOT EXISTS] name (
+                let ni = if tokens.get(2).map(|s| s.eq_ignore_ascii_case("IF")) == Some(true) {
+                    4 // IF NOT EXISTS <name>
+                } else {
+                    2
+                };
+                if let Some(raw_name) = tokens.get(ni) {
+                    // Trim trailing '(' that may be attached to the name
+                    let name = raw_name.trim_end_matches('(');
+                    out.push(format!("DROP TABLE IF EXISTS {}", name));
+                }
+            }
+            out.push(stmt.clone());
+        }
+        out
+    } else {
+        parsed.statements.clone()
+    };
+
+    let mut executed = 0u32;
+    let mut skipped = 0u32;
+    let mut errors: Vec<String> = Vec::new();
+
+    for stmt in &statements {
+        let t = stmt.trim();
+        if t.is_empty() {
+            skipped += 1;
+            continue;
+        }
+        match driver.run_query(t).await {
+            Ok(_) => executed += 1,
+            Err(e) => {
+                let preview = &t[..t.len().min(120)];
+                let msg = format!("Statement failed: {}\nError: {}", preview, e);
+                if ignore_errors {
+                    errors.push(msg);
+                    skipped += 1;
+                } else {
+                    return Err(msg);
+                }
+            }
+        }
+    }
+
+    Ok(ImportSqlResult {
+        executed,
+        skipped,
+        errors,
+        detected_db_name: parsed.detected_db_name,
+        detected_format: parsed.detected_format,
+    })
 }
 
 // ── App info commands ──────────────────────────────────────────────────────────

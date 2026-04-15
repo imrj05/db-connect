@@ -1,6 +1,42 @@
 import { invoke } from "@tauri-apps/api/core";
 import { ConnectionConfig, ExportOptions, ImportOptions, ImportResult, QueryHistoryEntry, QueryResult, SavedQuery, SchemaGraph, TableInfo, TableStructure } from "@/types";
 
+// ── SQL dump import types & helpers ───────────────────────────────────────────
+
+export interface ImportSqlResult {
+    executed: number;
+    skipped: number;
+    errors: string[];
+    detectedDbName: string | null;
+    detectedFormat: string;
+}
+
+/** Detect dump format and database name from the first 2000 chars of a SQL file. */
+export function detectSqlDumpFormat(content: string): {
+    detectedFormat: string;
+    detectedDbName: string | null;
+} {
+    const header = content.slice(0, 2000);
+    let detectedFormat = "generic";
+    if (header.includes("-- phpMyAdmin SQL Dump")) detectedFormat = "phpmyadmin";
+    else if (header.includes("-- PostgreSQL database dump") || header.includes("SET client_encoding")) detectedFormat = "pg_dump";
+    else if (header.includes("-- MySQL Workbench")) detectedFormat = "mysql_workbench";
+    else if (header.includes("PRAGMA foreign_keys")) detectedFormat = "sqlite_cli";
+
+    let detectedDbName: string | null = null;
+    const useMatch = content.match(/^USE\s+[`"]?([^`";\s]+)[`"]?\s*;/im);
+    if (useMatch) detectedDbName = useMatch[1];
+    if (!detectedDbName) {
+        const connectMatch = content.match(/^\\connect\s+(\S+)/im);
+        if (connectMatch && connectMatch[1] !== "-") detectedDbName = connectMatch[1];
+    }
+    if (!detectedDbName) {
+        const createMatch = content.match(/CREATE\s+DATABASE\s+(?:IF\s+NOT\s+EXISTS\s+)?[`"]?([^`";\s(]+)/i);
+        if (createMatch) detectedDbName = createMatch[1];
+    }
+    return { detectedFormat, detectedDbName };
+}
+
 export const tauriApi = {
   // ── DB driver ──────────────────────────────────────────────────────────────
 
@@ -65,6 +101,22 @@ export const tauriApi = {
       includeIndexes,
       includeForeignKeys,
       createDatabase,
+    });
+  },
+
+  async importSqlFile(
+    id: string,
+    sqlContent: string,
+    targetDatabase: string | null,
+    dropExisting: boolean,
+    ignoreErrors: boolean,
+  ): Promise<ImportSqlResult> {
+    return await invoke("import_sql_file", {
+      id,
+      sqlContent,
+      targetDatabase,
+      dropExisting,
+      ignoreErrors,
     });
   },
 

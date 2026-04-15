@@ -79,6 +79,7 @@ import { DropColumnDialog } from "@/components/layout/function-output/table-grid
 import { CreateIndexDialog } from "@/components/layout/function-output/table-grid/CreateIndexDialog";
 import { DropIndexDialog } from "@/components/layout/function-output/table-grid/DropIndexDialog";
 import { DumpDatabaseDialog, type DumpOptions } from "@/components/layout/function-output/table-grid/DumpDatabaseDialog";
+import { ImportSqlDialog } from "@/components/layout/function-output/table-grid/ImportSqlDialog";
 import { ERDiagramView } from "@/components/layout/function-output/table-grid/ERDiagramView";
 
 type ViewMode = "data" | "form" | "structure" | "er";
@@ -422,78 +423,6 @@ export function TableGridView({
         }
     }, [fn.connectionId, database, selectedDatabases, connections, dbType]);
 
-    const importSqlFile = useCallback(async () => {
-        if (!isRelationalDb) return;
-        setImportSqlLoading(true);
-        try {
-            const filePath = await tauriApi.openFileDialog([
-                { name: "SQL Files", extensions: ["sql"] },
-            ]);
-            if (!filePath) {
-                setImportSqlLoading(false);
-                return;
-            }
-            const sqlContent = await tauriApi.readTextFile(filePath);
-            
-            // Parse database name from SQL content
-            let targetDb: string | null = null;
-            
-            // Try MySQL: USE `dbname`;
-            const mysqlMatch = sqlContent.match(/USE\s+`([^`]+)`/i);
-            // Try PostgreSQL: "schema"."table" pattern
-            const pgMatch = sqlContent.match(/"([^"]+)"\."/i);
-            
-            if (mysqlMatch) {
-                targetDb = mysqlMatch[1];
-            } else if (pgMatch) {
-                targetDb = pgMatch[1];
-            }
-            
-            // Create and switch to target database
-            if (targetDb) {
-                try {
-                    await tauriApi.executeQuery(fn.connectionId, dbType === "mysql" 
-                        ? `CREATE DATABASE \`${targetDb}\`` 
-                        : `CREATE DATABASE "${targetDb}"`);
-                } catch {
-                    // Database might already exist, that's ok
-                }
-                try {
-                    await tauriApi.switchDatabase(fn.connectionId, targetDb);
-                } catch {
-                    // Switch failed, continue anyway
-                }
-            }
-            
-            const statements = sqlContent
-                .replace(/USE\s+`[^`]+`;/gi, "") // Remove USE statements
-                .replace(/CREATE\s+DATABASE\s+[`"]{0,2}[^`"]{+}[`"]{0,2};/gi, "") // Remove CREATE DATABASE
-                .replace(/SET\s+search_path\s*=\s*[^;]+;/gi, "") // Remove SET search_path
-                .replace(/DROP\s+TABLE\s+IF\s+EXISTS[^;]+;/gi, "") // Remove DROP TABLE for clean import
-                .split(";")
-                .map((s) => s.trim())
-                .filter((s) => s.length > 0);
-            
-            let executed = 0;
-            let skipped = 0;
-            for (const stmt of statements) {
-                try {
-                    await tauriApi.executeQuery(fn.connectionId, stmt);
-                    executed++;
-                } catch {
-                    skipped++;
-                }
-            }
-            toast.success(`Executed ${executed} statements, skipped ${skipped}`);
-            if (fn.tableName) {
-                await refreshTables(fn.connectionId);
-            }
-        } catch (e) {
-            toast.error(`Import failed: ${e}`);
-        } finally {
-            setImportSqlLoading(false);
-        }
-    }, [fn.connectionId, fn.tableName, isRelationalDb, refreshTables, selectedDatabases]);
     // ─── Get active tab for filter state ───────────────────────────────────────
     const activeTab = tabs.find((tab) => tab.id === activeTabId) ?? null;
     // ─── Filter state from active tab ──────────────────────────────────────────
@@ -716,7 +645,7 @@ export function TableGridView({
     const [showImport, setShowImport] = useState(false);
     const [showDumpDialog, setShowDumpDialog] = useState(false);
     const [dumpDbLoading, setDumpDbLoading] = useState(false);
-    const [importSqlLoading, setImportSqlLoading] = useState(false);
+    const [showImportSqlDialog, setShowImportSqlDialog] = useState(false);
     const [importText, setImportText] = useState("");
     const [importFormat, setImportFormat] = useState<"csv" | "json">("csv");
     const [importPreview, setImportPreview] = useState<{
@@ -2338,6 +2267,17 @@ export function TableGridView({
                 onCancel={() => setShowDumpDialog(false)}
                 onConfirm={executeDump}
             />
+            <ImportSqlDialog
+                open={showImportSqlDialog}
+                connectionId={fn.connectionId}
+                currentDatabase={selectedDatabases[fn.connectionId] ?? connections.find((c) => c.id === fn.connectionId)?.database ?? database ?? ""}
+                dbType={dbType ?? ""}
+                onCancel={() => setShowImportSqlDialog(false)}
+                onSuccess={async () => {
+                    setShowImportSqlDialog(false);
+                    await refreshTables(fn.connectionId);
+                }}
+            />
             {/* Content: Form view */}
             {viewMode === "form" && effectiveResult && (
                 <div className="flex-1 overflow-auto scrollbar-thin bg-background">
@@ -2926,16 +2866,11 @@ export function TableGridView({
                                             {dumpDbLoading ? "Generating..." : "Dump Database"}
                                         </DropdownMenuItem>
                                         <DropdownMenuItem
-                                            onClick={importSqlFile}
-                                            disabled={importSqlLoading}
+                                            onClick={() => setShowImportSqlDialog(true)}
                                             className="gap-2 cursor-pointer"
                                         >
-                                            {importSqlLoading ? (
-                                                <Loader2 size={11} className="animate-spin" />
-                                            ) : (
-                                                <DatabaseIcon size={11} />
-                                            )}
-                                            {importSqlLoading ? "Importing..." : "Import SQL File"}
+                                            <DatabaseIcon size={11} />
+                                            Import SQL File
                                         </DropdownMenuItem>
                                     </>
                                 )}

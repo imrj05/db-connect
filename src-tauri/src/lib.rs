@@ -2,6 +2,7 @@ pub mod commands;
 pub mod db;
 pub mod import_export;
 pub mod license;
+pub mod sql_import;
 pub mod ssh;
 pub mod storage;
 pub mod types;
@@ -42,6 +43,7 @@ pub fn run() {
             commands::get_schema_graph,
             commands::switch_database,
             commands::dump_database,
+            commands::import_sql_file,
             // ── App info ──────────────────────────────────────────────────────
             commands::get_app_data_dir,
             // ── Storage commands ───────────────────────────────────────────────
