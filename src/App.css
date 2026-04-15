@@ -6,9 +6,9 @@
     /* ========================================
    * CORE COLORS — LIGHT
    * ====================================== */
-    --background: oklch(0.985 0.002 260);
+    --background: oklch(0.99 0.001 260);
     --foreground: oklch(0.18 0.01 260);
-    --card: oklch(0.995 0.002 260);
+    --card: oklch(0.975 0.002 260);
     --card-foreground: var(--foreground);
     --popover: oklch(1 0 0);
     --popover-foreground: var(--foreground);
@@ -123,15 +123,19 @@
     --color-accent-red: var(--destructive);
     --color-tag-applied-bg: var(--primary);
     --color-tag-applied-text: var(--primary-foreground);
+    /* Code Preview */
+    --color-code-preview-bg: var(--card);
+    --color-code-preview-header-bg: var(--muted);
+    --color-code-preview-text: var(--foreground);
 }
 
 /* ========================================
  * DARK MODE
  * ====================================== */
 .dark {
-    --background: oklch(0.17 0.008 260);
+    --background: oklch(0.19 0.006 260);
     --foreground: oklch(0.94 0.004 260);
-    --card: oklch(0.205 0.008 260);
+    --card: oklch(0.165 0.006 260);
     --card-foreground: var(--foreground);
     --popover: oklch(0.21 0.008 260);
     --popover-foreground: var(--foreground);
@@ -188,6 +192,10 @@
     --color-accent-orange: var(--chart-5);
     --color-accent-purple: var(--chart-4);
     --color-accent-red: var(--destructive);
+    /* Code Preview */
+    --color-code-preview-bg: oklch(0.14 0.005 260);
+    --color-code-preview-header-bg: oklch(0.12 0.005 260);
+    --color-code-preview-text: oklch(0.88 0.003 260);
 }
 
 /* ========================================
@@ -299,6 +307,9 @@
     --color-accent-red: var(--color-accent-red);
     --color-tag-applied-bg: var(--color-tag-applied-bg);
     --color-tag-applied-text: var(--color-tag-applied-text);
+    --color-code-preview-bg: var(--color-code-preview-bg);
+    --color-code-preview-header-bg: var(--color-code-preview-header-bg);
+    --color-code-preview-text: var(--color-code-preview-text);
 }
 
 @layer base {

@@ -20,17 +20,15 @@ import { useAppStore } from "@/store/useAppStore";
 import { ConnectionFunction } from "@/types";
 import { filterFunctions } from "@/lib/db-functions";
 import { DB_LOGO as DB_ICON, DB_COLOR } from "@/lib/db-ui";
-
 // Unique icon + color per function type
 const TYPE_ICON: Record<string, { icon: React.FC<{ size?: number; className?: string }>; color: string }> = {
-    list:    { icon: List,       color: "text-accent-purple/70" },
-    src:     { icon: Info,       color: "text-muted-foreground/40" },
-    query:   { icon: Code2,      color: "text-primary/70" },
-    execute: { icon: Zap,        color: "text-accent-orange/70" },
-    tbl:     { icon: Table2,     color: "text-accent-blue/70" },
-    table:   { icon: LayoutGrid, color: "text-accent-blue/60" },
+    list: { icon: List, color: "text-accent-purple/70" },
+    src: { icon: Info, color: "text-muted-foreground/40" },
+    query: { icon: Code2, color: "text-primary/70" },
+    execute: { icon: Zap, color: "text-accent-orange/70" },
+    tbl: { icon: Table2, color: "text-accent-blue/70" },
+    table: { icon: LayoutGrid, color: "text-accent-blue/60" },
 };
-
 export function CommandPalette() {
     const {
         theme,
@@ -45,9 +43,7 @@ export function CommandPalette() {
         setConnectionDialogOpen,
         setEditingConnection,
     } = useAppStore();
-
     const [query, setQuery] = React.useState("");
-
     React.useEffect(() => {
         const down = (e: KeyboardEvent) => {
             if (e.key === "k" && (e.metaKey || e.ctrlKey)) {
@@ -58,21 +54,17 @@ export function CommandPalette() {
         document.addEventListener("keydown", down);
         return () => document.removeEventListener("keydown", down);
     }, [setCommandPaletteOpen]);
-
     React.useEffect(() => {
         if (!commandPaletteOpen) setQuery("");
     }, [commandPaletteOpen]);
-
     const allFunctions = React.useMemo(
         () => Object.values(connectionFunctions).flat(),
         [connectionFunctions],
     );
-
     const filteredFunctions = React.useMemo(
         () => filterFunctions(allFunctions, query),
         [allFunctions, query],
     );
-
     const grouped = React.useMemo(() => {
         const map = new Map<string, ConnectionFunction[]>();
         for (const fn of filteredFunctions) {
@@ -81,7 +73,6 @@ export function CommandPalette() {
         }
         return map;
     }, [filteredFunctions]);
-
     const handleSelect = (fn: ConnectionFunction) => {
         setCommandPaletteOpen(false);
         if (fn.type === "query" || fn.type === "execute") {
@@ -90,14 +81,12 @@ export function CommandPalette() {
             invokeFunction(fn);
         }
     };
-
     const toggleTheme = () => {
         setTheme(theme === "dark" ? "light" : "dark");
         setCommandPaletteOpen(false);
     };
-
     return (
-        <CommandDialog open={commandPaletteOpen} onOpenChange={setCommandPaletteOpen}>
+        <CommandDialog className="w-[30vw]!" open={commandPaletteOpen} onOpenChange={setCommandPaletteOpen}>
             <Command shouldFilter={false}>
                 <CommandInput
                     placeholder="Search functions, tables, commands…"
@@ -108,7 +97,6 @@ export function CommandPalette() {
                     <CommandEmpty>
                         {query ? `No results for "${query}"` : "No results found."}
                     </CommandEmpty>
-
                     {Array.from(grouped.entries()).map(([prefix, fns], groupIdx) => {
                         const conn = connections.find((c) => c.prefix === prefix);
                         const Icon = conn ? DB_ICON[conn.type] : undefined;
@@ -127,8 +115,8 @@ export function CommandPalette() {
                                             fn.type === "table"
                                                 ? fn.tableName!
                                                 : fn.callSignature
-                                                      .slice(fn.prefix.length + 1)
-                                                      .replace(/\(.*$/, "");
+                                                    .slice(fn.prefix.length + 1)
+                                                    .replace(/\(.*$/, "");
                                         const typeEntry = TYPE_ICON[fn.type];
                                         const TypeIcon = typeEntry?.icon;
                                         return (
@@ -160,7 +148,6 @@ export function CommandPalette() {
                             </React.Fragment>
                         );
                     })}
-
                     {allFunctions.length === 0 && connectedIds.length === 0 && (
                         <>
                             <CommandSeparator />
@@ -186,9 +173,7 @@ export function CommandPalette() {
                             </CommandGroup>
                         </>
                     )}
-
                     <CommandSeparator />
-
                     <CommandGroup heading={
                         <span className="flex items-center gap-1.5">
                             <Settings size={11} className="text-muted-foreground/50" />
@@ -226,7 +211,6 @@ export function CommandPalette() {
                         </CommandItem>
                     </CommandGroup>
                 </CommandList>
-
                 <CommandFooter>
                     <span className="flex items-center gap-1.5">
                         <KbdGroup>

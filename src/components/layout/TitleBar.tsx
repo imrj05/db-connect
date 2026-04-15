@@ -157,12 +157,13 @@ const TitleBar = ({ isLicensed, onActivate }: TitleBarProps) => {
     const orderedConns = activeConn
         ? [activeConn, ...connectedConns.filter((c) => c.id !== activeConn.id)]
         : connectedConns;
+    const titleBarZoom = appSettings.uiZoom > 0 ? (125 / appSettings.uiZoom) : 1;
     return (
         <header
             onMouseDown={handleTitleBarMouseDown}
             onDoubleClick={handleTitleBarDoubleClick}
             className="h-10 bg-sidebar border-b border-border flex items-center justify-between select-none shrink-0 cursor-default"
-            style={{ zoom: 125 / appSettings.uiZoom }}
+            style={{ zoom: titleBarZoom }}
         >
             {/* ── Left: back arrow + DB logo + name + connection string ── */}
             <div className="flex items-center gap-2 pl-[7%] flex-1 min-w-0">

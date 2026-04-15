@@ -1,5 +1,4 @@
 import { useState, useMemo, useEffect } from "react";
-import { Reorder } from "framer-motion";
 import {
     ChevronDown,
     ChevronRight,
@@ -23,11 +22,9 @@ import {
     ChevronsUp,
     RefreshCw,
     TableProperties,
-    X,
     XCircle,
     Trash2,
     TriangleAlert,
-    GripVertical,
     ArrowUpDown,
     Download,
 } from "lucide-react";
@@ -36,17 +33,16 @@ import { DB_LOGO, DB_COLOR } from "@/lib/db-ui";
 import { GROUP_PRESETS } from "@/components/layout/ConnectionDialog";
 import { ImportExportDialog } from "@/components/layout/ImportExportDialog";
 import { DumpDatabaseDialog, type DumpOptions } from "@/components/layout/function-output/table-grid/DumpDatabaseDialog";
+import { AddTableDialog } from "@/components/layout/sidebar/AddTableDialog";
 import { toast } from "@/components/ui/sonner";
 import { tauriApi } from "@/lib/tauri-api";
-import { ConnectionConfig, ConnectionFunction, ColumnInfo, DatabaseType } from "@/types";
+import { ConnectionConfig, ConnectionFunction, ColumnInfo } from "@/types";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import {
     Dialog,
     DialogContent,
@@ -55,7 +51,6 @@ import {
     DialogHeader,
     DialogTitle,
 } from "@/components/ui/dialog";
-
 // ── Column type → icon ─────────────────────────────────────────────────────────
 function ColumnIcon({ col }: { col: ColumnInfo }) {
     const t = col.dataType?.toLowerCase() ?? "";
@@ -71,7 +66,6 @@ function ColumnIcon({ col }: { col: ColumnInfo }) {
         return <Braces size={9} className="shrink-0 text-muted-foreground/40" />;
     return <AlignJustify size={9} className="shrink-0 text-muted-foreground/35" />;
 }
-
 // ── Column row ─────────────────────────────────────────────────────────────────
 function ColumnRow({ col }: { col: ColumnInfo }) {
     return (
@@ -84,7 +78,6 @@ function ColumnRow({ col }: { col: ColumnInfo }) {
         </div>
     );
 }
-
 // ── Middle-truncate long table names ──────────────────────────────────────────
 function midTruncate(name: string, max = 26): string {
     if (name.length <= max) return name;
@@ -92,7 +85,6 @@ function midTruncate(name: string, max = 26): string {
     const back = Math.floor((max - 1) * 0.45);
     return `${name.slice(0, front)}…${name.slice(-back)}`;
 }
-
 // ── Table row ──────────────────────────────────────────────────────────────────
 function TableRow({
     fn,
@@ -111,7 +103,6 @@ function TableRow({
 }) {
     const [open, setOpen] = useState(false);
     const [loadingCols, setLoadingCols] = useState(false);
-
     const expandTo = async (next: boolean) => {
         setOpen(next);
         if (next && columns.length === 0) {
@@ -119,11 +110,9 @@ function TableRow({
             try { await onLoadColumns(); } finally { setLoadingCols(false); }
         }
     };
-
     useEffect(() => {
         if (forceOpen != null) expandTo(forceOpen);
     }, [forceOpen]);
-
     return (
         <div className="w-full min-w-0 overflow-hidden">
             <Tooltip>
@@ -148,7 +137,6 @@ function TableRow({
                                     ? <ChevronDown size={10} />
                                     : <ChevronRight size={10} />}
                         </span>
-
                         <Table2
                             size={11}
                             className={cn(
@@ -170,7 +158,6 @@ function TableRow({
                     {fn.tableName}
                 </TooltipContent>
             </Tooltip>
-
             {/* columns */}
             {open && columns.length > 0 && (
                 <div className="pl-7">
@@ -182,7 +169,6 @@ function TableRow({
         </div>
     );
 }
-
 // ── Schema group ───────────────────────────────────────────────────────────────
 function SchemaGroup({
     schema,
@@ -204,7 +190,6 @@ function SchemaGroup({
     onLoadColumns: (tableName: string) => Promise<void>;
 }) {
     const [open, setOpen] = useState(true);
-
     return (
         <div>
             {showLabel && (
@@ -222,7 +207,6 @@ function SchemaGroup({
                     <span className="text-[9px] font-mono text-muted-foreground/70">{fns.length}</span>
                 </button>
             )}
-
             {open && (
                 <div className={cn("w-full min-w-0 overflow-hidden", showLabel ? "pl-4" : "")}>
                     {fns.map((fn) => (
@@ -241,45 +225,6 @@ function SchemaGroup({
         </div>
     );
 }
-
-// ── Create-table column builder helpers ────────────────────────────────────────
-type ColDef = { id: string; name: string; type: string; nullable: boolean; isPrimary: boolean; defaultValue: string; comment: string };
-
-const COL_TYPES: Record<DatabaseType, string[]> = {
-    postgresql: ["TEXT", "INTEGER", "BIGINT", "BOOLEAN", "TIMESTAMP", "FLOAT", "DECIMAL", "JSON", "UUID", "SERIAL", "VARCHAR(255)"],
-    mysql: ["VARCHAR(255)", "INT", "BIGINT", "TEXT", "BOOLEAN", "DATETIME", "FLOAT", "DOUBLE", "DECIMAL", "JSON"],
-    sqlite: ["TEXT", "INTEGER", "REAL", "BLOB", "NUMERIC"],
-    mongodb: [],
-    redis: [],
-};
-
-function qi(n: string, dbType: string): string {
-    return dbType === "mysql" ? `\`${n}\`` : `"${n}"`;
-}
-
-function buildCreateTableSql(tableName: string, cols: ColDef[], dbType: string): string {
-    const pkCols = cols.filter((c) => c.isPrimary);
-    const colLines = cols.map((c) => {
-        const parts = [qi(c.name, dbType), c.type];
-        if (!c.nullable && !c.isPrimary) parts.push("NOT NULL");
-        if (c.isPrimary && pkCols.length === 1) parts.push("PRIMARY KEY");
-        if (c.defaultValue.trim()) parts.push(`DEFAULT ${c.defaultValue.trim()}`);
-        if (c.comment.trim() && dbType === "mysql") parts.push(`COMMENT '${c.comment.trim().replace(/'/g, "''")}'`);
-        return "  " + parts.join(" ");
-    });
-    if (pkCols.length > 1)
-        colLines.push(`  PRIMARY KEY (${pkCols.map((c) => qi(c.name, dbType)).join(", ")})`);
-    const create = `CREATE TABLE ${qi(tableName, dbType)} (\n${colLines.join(",\n")}\n)`;
-    // PostgreSQL/SQLite: emit COMMENT ON COLUMN after CREATE TABLE
-    if (dbType !== "mysql") {
-        const comments = cols
-            .filter((c) => c.comment.trim())
-            .map((c) => `COMMENT ON COLUMN ${qi(tableName, dbType)}.${qi(c.name, dbType)} IS '${c.comment.trim().replace(/'/g, "''")}';`);
-        if (comments.length) return create + ";\n\n" + comments.join("\n");
-    }
-    return create;
-}
-
 // ── Database node ──────────────────────────────────────────────────────────────
 function DatabaseNode({
     connection,
@@ -311,21 +256,17 @@ function DatabaseNode({
     onLoadColumns: (tableName: string) => Promise<void>;
 }) {
     const [open, setOpen] = useState(true);
-
     // Tables section state
     const [expandAll, setExpandAll] = useState<boolean | null>(null);
     const [isRefreshingTables, setIsRefreshingTables] = useState(false);
     const [addTableOpen, setAddTableOpen] = useState(false);
-
     // Dump state
     const [showDumpDialog, setShowDumpDialog] = useState(false);
     const [dumpDbLoading, setDumpDbLoading] = useState(false);
-
     const isRelationalDb =
         connection.type === "mysql" ||
         connection.type === "postgresql" ||
         connection.type === "sqlite";
-
     const executeDump = async (opts: DumpOptions) => {
         setDumpDbLoading(true);
         const activeDb = selectedDb ?? connection.database ?? "";
@@ -356,18 +297,6 @@ function DatabaseNode({
             setDumpDbLoading(false);
         }
     };
-    const dtType = connection.type === "postgresql" ? "TIMESTAMPTZ" : connection.type === "sqlite" ? "TEXT" : "DATETIME";
-    const idType = connection.type === "mysql" ? "INT" : "INTEGER";
-    const defaultCols = (): ColDef[] => [
-        { id: "c0", name: "id", type: idType, nullable: false, isPrimary: true, defaultValue: "", comment: "Primary key" },
-        { id: "c1", name: "created_at", type: dtType, nullable: false, isPrimary: false, defaultValue: "CURRENT_TIMESTAMP", comment: "Record creation timestamp" },
-        { id: "c2", name: "updated_at", type: dtType, nullable: false, isPrimary: false, defaultValue: "CURRENT_TIMESTAMP", comment: "Record last update timestamp" },
-    ];
-    const [newTableName, setNewTableName] = useState("");
-    const [colDefs, setColDefs] = useState<ColDef[]>(defaultCols);
-    const [createTableLoading, setCreateTableLoading] = useState(false);
-    const [createTableError, setCreateTableError] = useState<string | null>(null);
-
     const handleRefreshTables = async () => {
         setIsRefreshingTables(true);
         try {
@@ -376,32 +305,8 @@ function DatabaseNode({
             setIsRefreshingTables(false);
         }
     };
-
-    const resetCreateTable = () => {
-        setNewTableName("");
-        setColDefs(defaultCols());
-        setCreateTableError(null);
-    };
-
-    const executeCreateTable = async () => {
-        if (!newTableName.trim() || colDefs.length === 0) return;
-        setCreateTableLoading(true);
-        setCreateTableError(null);
-        try {
-            const sql = buildCreateTableSql(newTableName.trim(), colDefs, connection.type);
-            await onAddTable(sql);
-            setAddTableOpen(false);
-            resetCreateTable();
-        } catch (e) {
-            setCreateTableError(String(e));
-        } finally {
-            setCreateTableLoading(false);
-        }
-    };
-
     const Logo = DB_LOGO[connection.type] ?? DB_LOGO.postgresql;
     const logoColor = DB_COLOR[connection.type] ?? "text-muted-foreground";
-
     // filter tables
     const filtered = useMemo(() => {
         const q = filter.trim().toLowerCase();
@@ -410,7 +315,6 @@ function DatabaseNode({
             (f.tableName ?? "").toLowerCase().includes(q),
         );
     }, [tableFns, filter]);
-
     // group by schema
     const bySchema = useMemo(() => {
         const groups: Record<string, ConnectionFunction[]> = {};
@@ -424,10 +328,8 @@ function DatabaseNode({
         }
         return groups;
     }, [filtered, tableInfoMap]);
-
     const schemaKeys = Object.keys(bySchema);
     const showSchemaLabels = schemaKeys.length > 1 || (schemaKeys.length === 1 && schemaKeys[0] !== "public");
-
     return (
         <div className="border-b border-border/50">
             {/* DB name row */}
@@ -463,7 +365,6 @@ function DatabaseNode({
                     <Plug size={10} className="text-muted-foreground/70 shrink-0 group-hover:text-primary/60 transition-colors" />
                 )}
             </button>
-
             {/* Tables header */}
             {isConnected && open && (
                 <div className="flex items-center gap-1 h-7 px-2 border-b border-border/30 shrink-0">
@@ -479,7 +380,7 @@ function DatabaseNode({
                     <Tooltip>
                         <TooltipTrigger asChild>
                             <button
-                                onClick={() => { resetCreateTable(); setAddTableOpen(true); }}
+                                onClick={() => setAddTableOpen(true)}
                                 className="flex items-center justify-center w-5 h-5 text-muted-foreground/35 hover:text-foreground transition-colors"
                             >
                                 <Plus size={11} />
@@ -532,199 +433,15 @@ function DatabaseNode({
                     )}
                 </div>
             )}
-
             {/* Add Table dialog */}
-            <Dialog open={addTableOpen} onOpenChange={(v) => { setAddTableOpen(v); if (!v) setCreateTableError(null); }}>
-                <DialogContent className="!max-w-4xl !flex !flex-col !h-[90vh]">
-                    <DialogHeader className="shrink-0">
-                        <DialogTitle>Add Table</DialogTitle>
-                        <DialogDescription className="font-mono">
-                            on <span className="text-foreground/70">{selectedDb ?? connection.name}</span>
-                        </DialogDescription>
-                    </DialogHeader>
-
-                    <div className="flex flex-col gap-3 flex-1 min-h-0">
-                        {/* Table name */}
-                        <div className="flex items-center gap-3 shrink-0">
-                            <Label className="text-[11px] font-bold uppercase tracking-widest text-muted-foreground shrink-0">
-                                Table Name
-                            </Label>
-                            <Input
-                                value={newTableName}
-                                onChange={(e) => setNewTableName(e.target.value)}
-                                placeholder="e.g. users"
-                                className="h-8 text-[12px] font-mono flex-1"
-                                autoComplete="off"
-                            />
-                        </div>
-
-                        {/* Columns */}
-                        <div className="flex flex-col gap-1.5 flex-1 min-h-0">
-                            <div className="flex items-center justify-between shrink-0">
-                                <Label className="text-[11px] font-bold uppercase tracking-widest text-muted-foreground">
-                                    Columns
-                                </Label>
-                                <Button
-                                    variant="ghost"
-                                    size="xs"
-                                    className="h-6 text-[10px] gap-1 text-muted-foreground"
-                                    onClick={() =>
-                                        setColDefs((prev) => [
-                                            ...prev,
-                                            {
-                                                id: `c${Date.now()}`,
-                                                name: "",
-                                                type: COL_TYPES[connection.type as DatabaseType]?.[0] ?? "TEXT",
-                                                nullable: true,
-                                                isPrimary: false,
-                                                defaultValue: "",
-                                                comment: "",
-                                            },
-                                        ])
-                                    }
-                                >
-                                    <Plus size={10} /> Add column
-                                </Button>
-                            </div>
-
-                            <Reorder.Group
-                                axis="y"
-                                values={colDefs}
-                                onReorder={setColDefs}
-                                className="flex flex-col gap-1 flex-1 overflow-y-auto"
-                            >
-                                {colDefs.map((col) => (
-                                    <Reorder.Item key={col.id} value={col} className="flex items-center gap-2 bg-background">
-                                        <span className="cursor-grab active:cursor-grabbing text-muted-foreground/30 hover:text-muted-foreground/60 shrink-0 touch-none">
-                                            <GripVertical size={12} />
-                                        </span>
-                                        <Input
-                                            value={col.name}
-                                            onChange={(e) =>
-                                                setColDefs((prev) =>
-                                                    prev.map((c) => c.id === col.id ? { ...c, name: e.target.value } : c),
-                                                )
-                                            }
-                                            placeholder="name"
-                                            className="h-7 text-[11px] font-mono w-28 shrink-0"
-                                            autoComplete="off"
-                                        />
-                                        <Select
-                                            value={col.type}
-                                            onValueChange={(v) =>
-                                                setColDefs((prev) =>
-                                                    prev.map((c) => c.id === col.id ? { ...c, type: v } : c),
-                                                )
-                                            }
-                                        >
-                                            <SelectTrigger className="h-7 text-[11px] font-mono w-32 shrink-0">
-                                                <SelectValue />
-                                            </SelectTrigger>
-                                            <SelectContent>
-                                                {(COL_TYPES[connection.type as DatabaseType] ?? ["TEXT"]).map((t) => (
-                                                    <SelectItem key={t} value={t} className="text-[11px] font-mono">
-                                                        {t}
-                                                    </SelectItem>
-                                                ))}
-                                            </SelectContent>
-                                        </Select>
-                                        <Tooltip>
-                                            <TooltipTrigger asChild>
-                                                <button
-                                                    onClick={() =>
-                                                        setColDefs((prev) =>
-                                                            prev.map((c) => c.id === col.id ? { ...c, nullable: !c.nullable } : c),
-                                                        )
-                                                    }
-                                                    className={cn(
-                                                        "text-[9px] font-bold uppercase px-1.5 py-0.5 rounded border transition-colors shrink-0",
-                                                        col.nullable
-                                                            ? "border-border text-muted-foreground"
-                                                            : "border-primary/40 text-primary",
-                                                    )}
-                                                >
-                                                    NULL
-                                                </button>
-                                            </TooltipTrigger>
-                                            <TooltipContent>Toggle nullable</TooltipContent>
-                                        </Tooltip>
-                                        <Tooltip>
-                                            <TooltipTrigger asChild>
-                                                <button
-                                                    onClick={() =>
-                                                        setColDefs((prev) =>
-                                                            prev.map((c) => c.id === col.id ? { ...c, isPrimary: !c.isPrimary } : c),
-                                                        )
-                                                    }
-                                                    className={cn(
-                                                        "text-[9px] font-bold uppercase px-1.5 py-0.5 rounded border transition-colors shrink-0",
-                                                        col.isPrimary
-                                                            ? "border-primary/40 text-primary"
-                                                            : "border-border text-muted-foreground",
-                                                    )}
-                                                >
-                                                    PK
-                                                </button>
-                                            </TooltipTrigger>
-                                            <TooltipContent>Toggle primary key</TooltipContent>
-                                        </Tooltip>
-                                        <Input
-                                            value={col.defaultValue}
-                                            onChange={(e) =>
-                                                setColDefs((prev) =>
-                                                    prev.map((c) => c.id === col.id ? { ...c, defaultValue: e.target.value } : c),
-                                                )
-                                            }
-                                            placeholder="default"
-                                            className="h-7 text-[11px] font-mono w-28 shrink-0"
-                                            autoComplete="off"
-                                        />
-                                        <Textarea
-                                            value={col.comment}
-                                            onChange={(e) =>
-                                                setColDefs((prev) =>
-                                                    prev.map((c) => c.id === col.id ? { ...c, comment: e.target.value } : c),
-                                                )
-                                            }
-                                            placeholder="comment"
-                                            className="text-[11px] font-mono flex-1 min-h-0 h-7 resize-none py-1"
-                                            autoComplete="off"
-                                        />
-                                        {colDefs.length > 1 && (
-                                            <Button
-                                                variant="ghost"
-                                                size="icon-xs"
-                                                className="text-muted-foreground/40 hover:text-destructive shrink-0"
-                                                onClick={() => setColDefs((prev) => prev.filter((c) => c.id !== col.id))}
-                                            >
-                                                <X size={10} />
-                                            </Button>
-                                        )}
-                                    </Reorder.Item>
-                                ))}
-                            </Reorder.Group>
-                        </div>
-
-                        {createTableError && (
-                            <p className="text-[11px] text-destructive font-mono shrink-0">{createTableError}</p>
-                        )}
-                    </div>
-
-                    <DialogFooter className="shrink-0">
-                        <Button variant="outline" size="sm" onClick={() => setAddTableOpen(false)}>
-                            Cancel
-                        </Button>
-                        <Button
-                            size="sm"
-                            disabled={!newTableName.trim() || colDefs.length === 0 || createTableLoading}
-                            onClick={executeCreateTable}
-                        >
-                            {createTableLoading ? "Creating…" : "Create Table"}
-                        </Button>
-                    </DialogFooter>
-                </DialogContent>
-            </Dialog>
-
+            <AddTableDialog
+                open={addTableOpen}
+                onOpenChange={setAddTableOpen}
+                connectionType={connection.type}
+                connectionName={connection.name}
+                selectedDb={selectedDb}
+                onAddTable={onAddTable}
+            />
             {/* Dump Database dialog */}
             <DumpDatabaseDialog
                 open={showDumpDialog}
@@ -734,7 +451,6 @@ function DatabaseNode({
                 onCancel={() => setShowDumpDialog(false)}
                 onConfirm={executeDump}
             />
-
             {/* Tree */}
             {isConnected && open && (
                 <div className="pb-1">
@@ -773,7 +489,6 @@ function DatabaseNode({
         </div>
     );
 }
-
 // ── Main Sidebar ───────────────────────────────────────────────────────────────
 const Sidebar = () => {
     const {
@@ -796,7 +511,6 @@ const Sidebar = () => {
         setEditingConnection,
         addConnection,
     } = useAppStore();
-
     const [filter, setFilter] = useState("");
     const [loadingIds, setLoadingIds] = useState<Set<string>>(new Set());
     const [importExportOpen, setImportExportOpen] = useState(false);
@@ -804,7 +518,6 @@ const Sidebar = () => {
     const [dropDbConfirm, setDropDbConfirm] = useState<string | null>(null);
     const [dropConfirmInput, setDropConfirmInput] = useState("");
     const [droppingDb, setDroppingDb] = useState(false);
-
     // Close context menu on Escape
     useEffect(() => {
         if (!dbCtxMenu) return;
@@ -812,7 +525,6 @@ const Sidebar = () => {
         window.addEventListener("keydown", onKey);
         return () => window.removeEventListener("keydown", onKey);
     }, [dbCtxMenu]);
-
     const handleConnect = async (connId: string) => {
         setLoadingIds((prev) => new Set(prev).add(connId));
         try {
@@ -825,19 +537,16 @@ const Sidebar = () => {
             });
         }
     };
-
     // active connection: prefer activeFunction's connection, then first connected
     const activeConn = useMemo(() => {
         return (activeFunction
             ? connections.find((c) => c.id === activeFunction.connectionId)
             : null) ?? connections.find((c) => connectedIds.includes(c.id)) ?? null;
     }, [activeFunction, connections, connectedIds]);
-
     const currentDb = useMemo(() => {
         if (!activeConn) return null;
         return selectedDatabases[activeConn.id] ?? activeConn.database ?? null;
     }, [activeConn, selectedDatabases]);
-
     const handleInvoke = (fn: ConnectionFunction) => {
         if (fn.type === "query" || fn.type === "execute") {
             setActiveFunctionOnly(fn);
@@ -845,7 +554,6 @@ const Sidebar = () => {
             invokeFunction(fn);
         }
     };
-
     const handleDrop = async () => {
         if (droppingDb || dropConfirmInput !== dropDbConfirm || !dropDbConfirm || !activeConn) return;
         setDroppingDb(true);
@@ -866,13 +574,10 @@ const Sidebar = () => {
             setDropConfirmInput("");
         }
     };
-
     const activeDatabases = activeConn ? (openDatabases[activeConn.id] ?? []) : [];
     const selectedDb = activeConn ? (selectedDatabases[activeConn.id] ?? null) : null;
-
     return (
         <div className="h-full flex bg-sidebar border-r border-sidebar-border overflow-hidden min-h-0">
-
             {/* ── Left: open database tabs ── */}
             {activeDatabases.length > 0 && activeConn && (
                 <div className="flex flex-col shrink-0 border-r border-border/60 bg-sidebar overflow-y-auto" style={{ width: 72 }}>
@@ -891,8 +596,7 @@ const Sidebar = () => {
                                             onClick={() => selectDatabase(activeConn.id, db)}
                                             onContextMenu={(e) => {
                                                 e.preventDefault();
-                                                const zoom = parseFloat(document.documentElement.style.zoom || "100") / 100;
-                                                setDbCtxMenu({ db, x: e.clientX / zoom, y: e.clientY / zoom });
+                                                setDbCtxMenu({ db, x: e.clientX, y: e.clientY });
                                             }}
                                             className={cn(
                                                 "group relative flex flex-col items-center gap-1.5 py-3 px-1.5 w-full transition-colors shrink-0",
@@ -906,7 +610,6 @@ const Sidebar = () => {
                                                 "absolute left-0 top-3 bottom-3 w-[2px] rounded-r-full transition-opacity",
                                                 isActive ? "bg-primary opacity-100" : "opacity-0"
                                             )} />
-
                                             {/* Icon container */}
                                             <div className={cn(
                                                 "flex items-center justify-center w-9 h-9 rounded-lg transition-colors",
@@ -919,7 +622,6 @@ const Sidebar = () => {
                                                     isActive ? logoColor : "text-muted-foreground/35 group-hover:text-muted-foreground/60"
                                                 )} />
                                             </div>
-
                                             {/* DB label */}
                                             <span className={cn(
                                                 "text-[8px] font-mono leading-tight text-center w-full px-1 truncate transition-colors",
@@ -940,7 +642,6 @@ const Sidebar = () => {
                     })}
                 </div>
             )}
-
             {/* ── DB tab context menu ── */}
             {dbCtxMenu && activeConn && (() => {
                 const menuW = 172;
@@ -1000,10 +701,8 @@ const Sidebar = () => {
                     </>
                 );
             })()}
-
             {/* ── Right: main content ── */}
             <div className="flex-1 flex flex-col overflow-hidden min-w-0">
-
                 {/* ── Header ── */}
                 <div className="h-10 flex items-center justify-between px-3 border-b border-border shrink-0">
                     <span className="text-[10px] font-mono font-bold uppercase tracking-[0.18em] text-muted-foreground/40">
@@ -1044,7 +743,6 @@ const Sidebar = () => {
                         </Tooltip>
                     </div>
                 </div>
-
                 {/* ── Filter ── */}
                 {connections.length > 0 && (
                     <div className="px-2 py-1.5 border-b border-border shrink-0">
@@ -1059,7 +757,6 @@ const Sidebar = () => {
                         </div>
                     </div>
                 )}
-
                 {/* ── Tree ── */}
                 {connections.length === 0 ? (
                     <div className="flex-1 min-h-0 flex flex-col items-center justify-center gap-4 px-4 pb-10">
@@ -1123,7 +820,6 @@ const Sidebar = () => {
                         </div>
                     </ScrollArea>
                 )}
-
                 {/* ── Status Footer ── always pinned to bottom */}
                 <div className="shrink-0 border-t border-border px-3 h-7 flex items-center gap-2 bg-sidebar overflow-hidden">
                     <CircleDot
@@ -1140,9 +836,7 @@ const Sidebar = () => {
                         {currentDb ?? <span className="text-muted-foreground/40">no db</span>}
                     </span>
                 </div>
-
             </div>{/* end right content */}
-
             {importExportOpen && (
                 <ImportExportDialog
                     onClose={() => setImportExportOpen(false)}
@@ -1151,7 +845,6 @@ const Sidebar = () => {
                     }}
                 />
             )}
-
             {dropDbConfirm && activeConn && (
                 <Dialog open={!!dropDbConfirm} onOpenChange={(open) => { if (!open) { setDropDbConfirm(null); setDropConfirmInput(""); } }}>
                     <DialogContent className="max-w-sm">
@@ -1203,5 +896,4 @@ const Sidebar = () => {
         </div>
     );
 };
-
 export default Sidebar;

@@ -46,6 +46,7 @@ function App() {
         setEditingConnection,
         activeTabId,
         closeTab,
+        openNewTab,
         sidebarCollapsed,
     } = useAppStore();
     const [onboardingDone, setOnboardingDone] = useState(false);
@@ -116,6 +117,17 @@ function App() {
         window.addEventListener("keydown", handler);
         return () => window.removeEventListener("keydown", handler);
     }, [activeTabId, closeTab]);
+    // ⌘T / Ctrl+T — open new tab
+    useEffect(() => {
+        const handler = (e: KeyboardEvent) => {
+            if ((e.metaKey || e.ctrlKey) && e.key === "t") {
+                e.preventDefault();
+                openNewTab();
+            }
+        };
+        window.addEventListener("keydown", handler);
+        return () => window.removeEventListener("keydown", handler);
+    }, [openNewTab]);
     const handleCloseApp = useCallback(async () => {
         setIsClosing(true);
         // Gracefully disconnect all active connections before exit

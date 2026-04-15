@@ -527,8 +527,8 @@ export function SettingsDialog({ onActivate }: { onActivate?: () => void }) {
                 <DialogTitle>Settings</DialogTitle>
                 <DialogDescription>Configure DB Connect preferences</DialogDescription>
             </DialogHeader>
-            <DialogContent className="w-[680px] max-w-[90vw] sm:max-w-[680px] p-0 gap-0 overflow-hidden rounded-2xl">
-                <div className="flex h-[540px]">
+            <DialogContent className="w-[50vw]! max-w-[50vw]! h-[60vh]! max-h-[60vh]! p-0 gap-0 overflow-hidden rounded-2xl">
+                <div className="flex h-full w-full">
                     {/* ── Left nav ── */}
                     <div className="w-48 shrink-0 bg-sidebar border-r border-border flex flex-col py-3 gap-0.5 px-2">
                         <p className="text-[9px] font-black uppercase tracking-[0.2em] text-muted-foreground/35 px-2 pb-2 pt-1">

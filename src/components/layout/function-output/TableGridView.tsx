@@ -1878,8 +1878,7 @@ export function TableGridView({
                                                     }}
                                                     onContextMenu={(e) => {
                                                         e.preventDefault();
-                                                        const zoom = parseFloat(document.documentElement.style.zoom || "100") / 100;
-                                                        setColCtxMenu({ x: e.clientX / zoom, y: e.clientY / zoom, colId });
+                                                        setColCtxMenu({ x: e.clientX, y: e.clientY, colId });
                                                     }}
                                                 >
                                                     <div className="flex items-center gap-1">
@@ -1985,8 +1984,7 @@ export function TableGridView({
                                                     }
                                                     onContextMenu={(e) => {
                                                         e.preventDefault();
-                                                        const zoom = parseFloat(document.documentElement.style.zoom || "100") / 100;
-                                                        setContextMenuCell({ x: e.clientX / zoom, y: e.clientY / zoom, rowIdx: idx, col: null, rowData });
+                                                        setContextMenuCell({ x: e.clientX, y: e.clientY, rowIdx: idx, col: null, rowData });
                                                     }}
                                                 >
                                                     {page * pageSize + idx + 1}
@@ -2084,7 +2082,6 @@ export function TableGridView({
                                                                     e,
                                                                 ) => {
                                                                     e.preventDefault();
-                                                                    const zoom = parseFloat(document.documentElement.style.zoom || "100") / 100;
                                                                     setSelectedCell(
                                                                         {
                                                                             rowIdx: idx,
@@ -2095,8 +2092,8 @@ export function TableGridView({
                                                                     );
                                                                     setContextMenuCell(
                                                                         {
-                                                                            x: e.clientX / zoom,
-                                                                            y: e.clientY / zoom,
+                                                                            x: e.clientX,
+                                                                            y: e.clientY,
                                                                             rowIdx: idx,
                                                                             col: cell
                                                                                 .column
