@@ -78,6 +78,7 @@ import { AddColumnDialog } from "@/components/layout/function-output/table-grid/
 import { DropColumnDialog } from "@/components/layout/function-output/table-grid/DropColumnDialog";
 import { CreateIndexDialog } from "@/components/layout/function-output/table-grid/CreateIndexDialog";
 import { DropIndexDialog } from "@/components/layout/function-output/table-grid/DropIndexDialog";
+import { DumpDatabaseDialog, type DumpOptions } from "@/components/layout/function-output/table-grid/DumpDatabaseDialog";
 import { ERDiagramView } from "@/components/layout/function-output/table-grid/ERDiagramView";
 
 type ViewMode = "data" | "form" | "structure" | "er";
@@ -385,17 +386,24 @@ export function TableGridView({
         },
         [queryResult, fn.tableName],
     );
-    const dumpDatabase = useCallback(async () => {
+    const openDumpDialog = useCallback(() => {
         if (!fn.tableName || !isRelationalDb) return;
+        setShowDumpDialog(true);
+    }, [fn.tableName, isRelationalDb]);
+
+    const executeDump = useCallback(async (opts: DumpOptions) => {
         setDumpDbLoading(true);
+        const activeDb = selectedDatabases[fn.connectionId] ?? connections.find((c) => c.id === fn.connectionId)?.database ?? database;
+        const schemaArg = dbType === "postgresql" ? opts.schema || "public" : null;
         try {
-            const activeDb = selectedDatabases[fn.connectionId] ?? connections.find((c) => c.id === fn.connectionId)?.database ?? database;
-            const schema = dbType === "postgresql" ? "public" : undefined;
             const sql = await tauriApi.dumpDatabase(
                 fn.connectionId,
                 activeDb,
-                schema,
-                true,
+                schemaArg,
+                opts.includeData,
+                opts.includeIndexes,
+                opts.includeForeignKeys,
+                opts.createDatabase,
             );
             const date = new Date().toISOString().split("T")[0];
             const defaultName = `${activeDb}-${date}.sql`;
@@ -405,13 +413,14 @@ export function TableGridView({
             if (savePath) {
                 await tauriApi.writeTextFile(savePath, sql);
                 toast.success("Database dump saved");
+                setShowDumpDialog(false);
             }
         } catch (e) {
             toast.error(`Dump failed: ${e}`);
         } finally {
             setDumpDbLoading(false);
         }
-    }, [fn.connectionId, database, selectedDatabases, connections, dbType, isRelationalDb]);
+    }, [fn.connectionId, database, selectedDatabases, connections, dbType]);
 
     const importSqlFile = useCallback(async () => {
         if (!isRelationalDb) return;
@@ -705,6 +714,7 @@ export function TableGridView({
     );
     // ─── Import state ───────────────────────────────────────────────────────────
     const [showImport, setShowImport] = useState(false);
+    const [showDumpDialog, setShowDumpDialog] = useState(false);
     const [dumpDbLoading, setDumpDbLoading] = useState(false);
     const [importSqlLoading, setImportSqlLoading] = useState(false);
     const [importText, setImportText] = useState("");
@@ -2320,6 +2330,14 @@ export function TableGridView({
                 onCancel={() => setDropIdxTarget(null)}
                 onConfirm={executeDropIndex}
             />
+            <DumpDatabaseDialog
+                open={showDumpDialog}
+                databaseName={selectedDatabases[fn.connectionId] ?? connections.find((c) => c.id === fn.connectionId)?.database ?? database ?? ""}
+                dbType={dbType ?? ""}
+                loading={dumpDbLoading}
+                onCancel={() => setShowDumpDialog(false)}
+                onConfirm={executeDump}
+            />
             {/* Content: Form view */}
             {viewMode === "form" && effectiveResult && (
                 <div className="flex-1 overflow-auto scrollbar-thin bg-background">
@@ -2896,7 +2914,7 @@ export function TableGridView({
                                     <>
                                         <DropdownMenuSeparator />
                                         <DropdownMenuItem
-                                            onClick={dumpDatabase}
+                                            onClick={openDumpDialog}
                                             disabled={dumpDbLoading}
                                             className="gap-2 cursor-pointer"
                                         >

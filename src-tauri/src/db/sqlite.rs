@@ -266,11 +266,27 @@ impl DatabaseDriver for SqliteDriver {
         database: &str,
         schema: Option<&str>,
         include_data: bool,
+        include_indexes: bool,
+        include_foreign_keys: bool,
+        _create_database: bool,
     ) -> Result<String> {
         let tables = self.get_tables(database, schema).await?;
-        let foreign_keys = self.get_foreign_keys(database, schema).await.unwrap_or_default();
+        let foreign_keys = if include_foreign_keys {
+            self.get_foreign_keys(database, schema).await.unwrap_or_default()
+        } else {
+            vec![]
+        };
 
         let mut sql = String::new();
+
+        // Header
+        sql.push_str("-- ─────────────────────────────────────────────────────────────\n");
+        sql.push_str(&format!("-- Database dump: {}\n", database));
+        sql.push_str("-- Generator: db-connect\n");
+        sql.push_str("-- ─────────────────────────────────────────────────────────────\n\n");
+
+        // Disable FK enforcement to allow DROP/CREATE in any order
+        sql.push_str("PRAGMA foreign_keys = OFF;\n\n");
 
         for table_info in &tables {
             let tname = &table_info.name;
@@ -307,16 +323,25 @@ impl DatabaseDriver for SqliteDriver {
             sql.push_str(&col_defs.join(",\n"));
             sql.push_str("\n);\n\n");
 
-            for idx in &indexes {
-                let cols: Vec<String> = idx.columns.iter().map(|c| format!("\"{}\"", c)).collect();
-                if idx.unique {
-                    sql.push_str(&format!(
-                        "CREATE UNIQUE INDEX IF NOT EXISTS \"{}\" ON {} ({});\n",
-                        idx.name, qi_table, cols.join(", ")
-                    ));
+            if include_indexes {
+                for idx in &indexes {
+                    let cols: Vec<String> = idx.columns.iter().map(|c| format!("\"{}\"", c)).collect();
+                    if idx.unique {
+                        sql.push_str(&format!(
+                            "CREATE UNIQUE INDEX IF NOT EXISTS \"{}\" ON {} ({});\n",
+                            idx.name, qi_table, cols.join(", ")
+                        ));
+                    } else {
+                        sql.push_str(&format!(
+                            "CREATE INDEX IF NOT EXISTS \"{}\" ON {} ({});\n",
+                            idx.name, qi_table, cols.join(", ")
+                        ));
+                    }
+                }
+                if !indexes.is_empty() {
+                    sql.push('\n');
                 }
             }
-            sql.push('\n');
 
             if include_data {
                 let page_size: u32 = 500;
@@ -357,15 +382,24 @@ impl DatabaseDriver for SqliteDriver {
             }
         }
 
-        for fk in &foreign_keys {
-            let src_cols: Vec<String> = fk.source_columns.iter().map(|c| format!("\"{}\"", c)).collect();
-            let tgt_cols: Vec<String> = fk.target_columns.iter().map(|c| format!("\"{}\"", c)).collect();
-            sql.push_str(&format!(
-                "ALTER TABLE \"{}\" ADD CONSTRAINT \"{}\" FOREIGN KEY ({}) REFERENCES \"{}\" ({});\n",
-                fk.source_table, fk.name, src_cols.join(", "), fk.target_table, tgt_cols.join(", ")
-            ));
+        // Re-enable FK enforcement
+        sql.push_str("PRAGMA foreign_keys = ON;\n\n");
+
+        // SQLite does not support ALTER TABLE ADD CONSTRAINT FOREIGN KEY.
+        // FK constraints must be declared inside CREATE TABLE.
+        if include_foreign_keys && !foreign_keys.is_empty() {
+            sql.push_str("-- NOTE: SQLite FK constraints must be declared inside CREATE TABLE.\n");
+            sql.push_str("-- The following FK relationships were defined in the original schema:\n");
+            for fk in &foreign_keys {
+                let src_cols = fk.source_columns.join(", ");
+                let tgt_cols = fk.target_columns.join(", ");
+                sql.push_str(&format!(
+                    "--   {}({}) -> {}({})\n",
+                    fk.source_table, src_cols, fk.target_table, tgt_cols
+                ));
+            }
+            sql.push('\n');
         }
-        sql.push('\n');
 
         Ok(sql)
     }

@@ -351,6 +351,9 @@ pub async fn dump_database(
     database: String,
     schema: Option<String>,
     include_data: bool,
+    include_indexes: bool,
+    include_foreign_keys: bool,
+    create_database: bool,
 ) -> Result<String, String> {
     let driver = REGISTRY
         .connections
@@ -365,7 +368,14 @@ pub async fn dump_database(
     match config.db_type {
         DatabaseType::Postgresql | DatabaseType::Mysql | DatabaseType::Sqlite => {
             driver
-                .dump_database(&database, schema.as_deref(), include_data)
+                .dump_database(
+                    &database,
+                    schema.as_deref(),
+                    include_data,
+                    include_indexes,
+                    include_foreign_keys,
+                    create_database,
+                )
                 .await
                 .map_err(|e| e.to_string())
         }

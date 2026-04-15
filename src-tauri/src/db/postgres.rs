@@ -415,15 +415,42 @@ impl DatabaseDriver for PostgresDriver {
         database: &str,
         schema: Option<&str>,
         include_data: bool,
+        include_indexes: bool,
+        include_foreign_keys: bool,
+        create_database: bool,
     ) -> Result<String> {
         let schema_name = schema.unwrap_or("public");
 
         let mut sql = String::new();
-        sql.push_str(&format!("-- Database: {}\n", database));
-        sql.push_str(&format!("-- Schema: {}\n\n", schema_name));
+
+        // Header
+        sql.push_str("-- ─────────────────────────────────────────────────────────────\n");
+        sql.push_str(&format!("-- Database dump: \"{}\"\n", database));
+        sql.push_str(&format!("-- Schema: {}\n", schema_name));
+        sql.push_str("-- Generator: db-connect\n");
+        sql.push_str("-- ─────────────────────────────────────────────────────────────\n\n");
+
+        // Create database guidance (PostgreSQL doesn't support CREATE DATABASE IF NOT EXISTS)
+        if create_database {
+            sql.push_str("-- NOTE: CREATE DATABASE must be run as a superuser outside a transaction.\n");
+            sql.push_str("-- Run the following before executing this script:\n");
+            sql.push_str(&format!(
+                "--   psql -U postgres -c \"SELECT 'CREATE DATABASE \\\"{}\\\"' WHERE NOT EXISTS (SELECT FROM pg_database WHERE datname='{}')\\gexec\"\n",
+                database, database
+            ));
+            sql.push('\n');
+        }
+        sql.push_str(&format!("\\connect \"{}\"\n\n", database));
 
         let tables = self.get_tables(database, Some(schema_name)).await?;
-        let foreign_keys = self.get_foreign_keys(database, Some(schema_name)).await.unwrap_or_default();
+        let foreign_keys = if include_foreign_keys {
+            self.get_foreign_keys(database, Some(schema_name)).await.unwrap_or_default()
+        } else {
+            vec![]
+        };
+
+        // Disable FK triggers to allow DROP/CREATE in any order
+        sql.push_str("SET session_replication_role = replica;\n\n");
 
         for table_info in &tables {
             let tname = &table_info.name;
@@ -460,22 +487,25 @@ impl DatabaseDriver for PostgresDriver {
             sql.push_str(&col_defs.join(",\n"));
             sql.push_str("\n);\n\n");
 
-            for idx in &indexes {
-                if idx.unique {
+            if include_indexes {
+                for idx in &indexes {
                     let cols: Vec<String> = idx.columns.iter().map(|c| format!("\"{}\"", c)).collect();
-                    sql.push_str(&format!(
-                        "CREATE UNIQUE INDEX \"{}\" ON {} ({});\n",
-                        idx.name, qi_table, cols.join(", ")
-                    ));
-                } else {
-                    let cols: Vec<String> = idx.columns.iter().map(|c| format!("\"{}\"", c)).collect();
-                    sql.push_str(&format!(
-                        "CREATE INDEX \"{}\" ON {} ({});\n",
-                        idx.name, qi_table, cols.join(", ")
-                    ));
+                    if idx.unique {
+                        sql.push_str(&format!(
+                            "CREATE UNIQUE INDEX \"{}\" ON {} ({});\n",
+                            idx.name, qi_table, cols.join(", ")
+                        ));
+                    } else {
+                        sql.push_str(&format!(
+                            "CREATE INDEX \"{}\" ON {} ({});\n",
+                            idx.name, qi_table, cols.join(", ")
+                        ));
+                    }
+                }
+                if !indexes.is_empty() {
+                    sql.push('\n');
                 }
             }
-            sql.push('\n');
 
             if include_data {
                 let page_size: u32 = 500;
@@ -518,18 +548,23 @@ impl DatabaseDriver for PostgresDriver {
             }
         }
 
-        for fk in &foreign_keys {
-            let src_cols: Vec<String> = fk.source_columns.iter().map(|c| format!("\"{}\"", c)).collect();
-            let tgt_cols: Vec<String> = fk.target_columns.iter().map(|c| format!("\"{}\"", c)).collect();
-            let src_table = format!("\"{}\".\"{}\"", schema_name, fk.source_table);
-            let tgt_schema = fk.target_schema.as_deref().unwrap_or(schema_name);
-            let tgt_table = format!("\"{}\".\"{}\"", tgt_schema, fk.target_table);
-            sql.push_str(&format!(
-                "ALTER TABLE {} ADD CONSTRAINT \"{}\" FOREIGN KEY ({}) REFERENCES {} ({});\n",
-                src_table, fk.name, src_cols.join(", "), tgt_table, tgt_cols.join(", ")
-            ));
+        // Re-enable FK triggers
+        sql.push_str("SET session_replication_role = DEFAULT;\n\n");
+
+        if include_foreign_keys {
+            for fk in &foreign_keys {
+                let src_cols: Vec<String> = fk.source_columns.iter().map(|c| format!("\"{}\"", c)).collect();
+                let tgt_cols: Vec<String> = fk.target_columns.iter().map(|c| format!("\"{}\"", c)).collect();
+                let src_table = format!("\"{}\".\"{}\"", schema_name, fk.source_table);
+                let tgt_schema = fk.target_schema.as_deref().unwrap_or(schema_name);
+                let tgt_table = format!("\"{}\".\"{}\"", tgt_schema, fk.target_table);
+                sql.push_str(&format!(
+                    "ALTER TABLE {} ADD CONSTRAINT \"{}\" FOREIGN KEY ({}) REFERENCES {} ({});\n",
+                    src_table, fk.name, src_cols.join(", "), tgt_table, tgt_cols.join(", ")
+                ));
+            }
+            sql.push('\n');
         }
-        sql.push('\n');
 
         Ok(sql)
     }

@@ -48,8 +48,24 @@ export const tauriApi = {
     await invoke("switch_database", { id, database });
   },
 
-  async dumpDatabase(id: string, database: string, schema?: string, includeData: boolean = true): Promise<string> {
-    return await invoke("dump_database", { id, database, schema: schema ?? null, includeData });
+  async dumpDatabase(
+    id: string,
+    database: string,
+    schema: string | null,
+    includeData: boolean,
+    includeIndexes: boolean,
+    includeForeignKeys: boolean,
+    createDatabase: boolean,
+  ): Promise<string> {
+    return await invoke("dump_database", {
+      id,
+      database,
+      schema,
+      includeData,
+      includeIndexes,
+      includeForeignKeys,
+      createDatabase,
+    });
   },
 
   // ── App info ───────────────────────────────────────────────────────────────

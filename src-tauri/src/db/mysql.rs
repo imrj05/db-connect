@@ -363,12 +363,33 @@ impl DatabaseDriver for MySqlDriver {
         database: &str,
         schema: Option<&str>,
         include_data: bool,
+        include_indexes: bool,
+        include_foreign_keys: bool,
+        create_database: bool,
     ) -> Result<String> {
         let tables = self.get_tables(database, schema).await?;
-        let foreign_keys = self.get_foreign_keys(database, schema).await.unwrap_or_default();
+        let foreign_keys = if include_foreign_keys {
+            self.get_foreign_keys(database, schema).await.unwrap_or_default()
+        } else {
+            vec![]
+        };
 
         let mut sql = String::new();
+
+        // Header
+        sql.push_str("-- ─────────────────────────────────────────────────────────────\n");
+        sql.push_str(&format!("-- Database dump: `{}`\n", database));
+        sql.push_str("-- Generator: db-connect\n");
+        sql.push_str("-- ─────────────────────────────────────────────────────────────\n\n");
+
+        // Create database
+        if create_database {
+            sql.push_str(&format!("CREATE DATABASE IF NOT EXISTS `{}`;\n", database));
+        }
         sql.push_str(&format!("USE `{}`;\n\n", database));
+
+        // Disable FK checks to allow DROP/CREATE in any order
+        sql.push_str("SET FOREIGN_KEY_CHECKS=0;\n\n");
 
         for table_info in &tables {
             let tname = &table_info.name;
@@ -410,21 +431,25 @@ impl DatabaseDriver for MySqlDriver {
             sql.push_str(&col_defs.join(",\n"));
             sql.push_str("\n) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;\n\n");
 
-            for idx in &indexes {
-                let cols: Vec<String> = idx.columns.iter().map(|c| format!("`{}`", c)).collect();
-                if idx.unique {
-                    sql.push_str(&format!(
-                        "CREATE UNIQUE INDEX `{}` ON {} ({});\n",
-                        idx.name, qi_table, cols.join(", ")
-                    ));
-                } else {
-                    sql.push_str(&format!(
-                        "CREATE INDEX `{}` ON {} ({});\n",
-                        idx.name, qi_table, cols.join(", ")
-                    ));
+            if include_indexes {
+                for idx in &indexes {
+                    let cols: Vec<String> = idx.columns.iter().map(|c| format!("`{}`", c)).collect();
+                    if idx.unique {
+                        sql.push_str(&format!(
+                            "CREATE UNIQUE INDEX `{}` ON {} ({});\n",
+                            idx.name, qi_table, cols.join(", ")
+                        ));
+                    } else {
+                        sql.push_str(&format!(
+                            "CREATE INDEX `{}` ON {} ({});\n",
+                            idx.name, qi_table, cols.join(", ")
+                        ));
+                    }
+                }
+                if !indexes.is_empty() {
+                    sql.push('\n');
                 }
             }
-            sql.push('\n');
 
             if include_data {
                 let page_size: u32 = 500;
@@ -465,17 +490,22 @@ impl DatabaseDriver for MySqlDriver {
             }
         }
 
-        for fk in &foreign_keys {
-            let src_cols: Vec<String> = fk.source_columns.iter().map(|c| format!("`{}`", c)).collect();
-            let tgt_cols: Vec<String> = fk.target_columns.iter().map(|c| format!("`{}`", c)).collect();
-            let src_table = format!("`{}`.`{}`", database, fk.source_table);
-            let tgt_table = format!("`{}`.`{}`", database, fk.target_table);
-            sql.push_str(&format!(
-                "ALTER TABLE {} ADD CONSTRAINT `{}` FOREIGN KEY ({}) REFERENCES {} ({});\n",
-                src_table, fk.name, src_cols.join(", "), tgt_table, tgt_cols.join(", ")
-            ));
+        // Re-enable FK checks
+        sql.push_str("SET FOREIGN_KEY_CHECKS=1;\n\n");
+
+        if include_foreign_keys {
+            for fk in &foreign_keys {
+                let src_cols: Vec<String> = fk.source_columns.iter().map(|c| format!("`{}`", c)).collect();
+                let tgt_cols: Vec<String> = fk.target_columns.iter().map(|c| format!("`{}`", c)).collect();
+                let src_table = format!("`{}`.`{}`", database, fk.source_table);
+                let tgt_table = format!("`{}`.`{}`", database, fk.target_table);
+                sql.push_str(&format!(
+                    "ALTER TABLE {} ADD CONSTRAINT `{}` FOREIGN KEY ({}) REFERENCES {} ({});\n",
+                    src_table, fk.name, src_cols.join(", "), tgt_table, tgt_cols.join(", ")
+                ));
+            }
+            sql.push('\n');
         }
-        sql.push('\n');
 
         Ok(sql)
     }
