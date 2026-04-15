@@ -1,6 +1,5 @@
 import { useState } from "react";
-import { Reorder } from "framer-motion";
-import { Plus, GripVertical, X, ChevronsUpDown, Check } from "lucide-react";
+import { Plus, GripVertical, X, ChevronsUpDown, Check, Eye, EyeOff, Table2, ToggleLeft, ToggleRight } from "lucide-react";
 import * as PopoverPrimitive from "@radix-ui/react-popover";
 import {
 	Dialog,
@@ -12,7 +11,6 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
 import {
 	Command,
 	CommandEmpty,
@@ -24,9 +22,6 @@ import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip
 import { cn } from "@/lib/utils";
 import { DatabaseType } from "@/types";
 
-// Inline (no-portal) combobox — avoids all fixed/transform coordinate drift at
-// any browser zoom level. The popup is position:absolute relative to the
-// nearest positioned ancestor, so it tracks the trigger exactly.
 function TypeCombobox({
 	value,
 	types,
@@ -43,15 +38,20 @@ function TypeCombobox({
 				<button
 					role="combobox"
 					aria-expanded={open}
-					className="h-7 w-36 shrink-0 flex items-center justify-between gap-1 rounded-md border border-input bg-background px-2 text-[11px] font-mono text-left hover:bg-accent hover:text-accent-foreground focus:outline-none focus:ring-1 focus:ring-ring transition-colors"
+					className={cn(
+						"h-8 px-2.5 shrink-0 flex items-center justify-between gap-1.5 rounded-md border transition-all text-[11px] font-mono",
+						"hover:bg-accent hover:text-accent-foreground",
+						"focus:outline-none focus:ring-2 focus:ring-ring/50",
+						open
+							? "border-primary/50 bg-primary/5 text-foreground"
+							: "border-border/60 bg-background text-foreground/80"
+					)}
 				>
-					<span className="truncate">{value}</span>
-					<ChevronsUpDown className="size-3 shrink-0 opacity-40" />
+					<span className="truncate max-w-[100px]">{value}</span>
+					<ChevronsUpDown className="size-3 shrink-0 opacity-50" />
 				</button>
 			</PopoverPrimitive.Trigger>
 
-			{/* No Portal — renders as a sibling of the trigger in the DOM tree.
-			    position:absolute inside the nearest `position:relative` ancestor. */}
 			<PopoverPrimitive.Content
 				side="bottom"
 				align="start"
@@ -60,24 +60,24 @@ function TypeCombobox({
 				collisionPadding={8}
 				style={{ zIndex: 200 }}
 				className={cn(
-					"w-52 p-0 rounded-lg bg-popover text-popover-foreground shadow-md ring-1 ring-foreground/10 outline-none",
+					"w-56 p-0 rounded-lg bg-popover text-popover-foreground shadow-lg border border-border/50",
 					"origin-[--radix-popover-content-transform-origin]",
 					"data-[state=open]:animate-in data-[state=open]:fade-in-0 data-[state=open]:zoom-in-95",
 					"data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=closed]:zoom-out-95",
 				)}
 			>
 				<Command>
-					<CommandInput placeholder="Search type…" className="text-[11px] font-mono" />
-					<CommandList className="max-h-52">
-						<CommandEmpty className="text-[11px] py-4">No type found.</CommandEmpty>
+					<CommandInput placeholder="Search type..." className="text-[11px] font-mono h-8" />
+					<CommandList className="max-h-56">
+						<CommandEmpty className="text-[11px] py-6 text-center text-muted-foreground">No type found.</CommandEmpty>
 						{types.map((t) => (
 							<CommandItem
 								key={t}
 								value={t}
 								onSelect={() => { onChange(t); setOpen(false); }}
-								className="text-[11px] font-mono"
+								className="text-[11px] font-mono py-2"
 							>
-								<Check className={cn("mr-1 size-3 shrink-0", value === t ? "opacity-100" : "opacity-0")} />
+								<Check className={cn("mr-2 size-3 shrink-0", value === t ? "opacity-100 text-primary" : "opacity-0")} />
 								{t}
 							</CommandItem>
 						))}
@@ -180,15 +180,16 @@ export function AddTableDialog({
 	const idType = connectionType === "mysql" ? "INT" : "INTEGER";
 
 	const defaultCols = (): ColDef[] => [
-		{ id: "c0", name: "id",         type: idType, nullable: false, isPrimary: true,  defaultValue: "", comment: "Primary key" },
+		{ id: "c0", name: "id",         type: idType, nullable: false, isPrimary: true,  defaultValue: "AUTO_INCREMENT" in {} ? "" : "", comment: "Primary key" },
 		{ id: "c1", name: "created_at", type: dtType, nullable: false, isPrimary: false, defaultValue: "CURRENT_TIMESTAMP", comment: "Record creation timestamp" },
 		{ id: "c2", name: "updated_at", type: dtType, nullable: false, isPrimary: false, defaultValue: "CURRENT_TIMESTAMP", comment: "Record last update timestamp" },
 	];
 
 	const [newTableName, setNewTableName] = useState("");
-	const [colDefs, setColDefs] = useState<ColDef[]>(defaultCols);
+	const [colDefs, setColDefs] = useState<ColDef[]>(defaultCols());
 	const [loading, setLoading] = useState(false);
 	const [error, setError] = useState<string | null>(null);
+	const [showPreview, setShowPreview] = useState(true);
 
 	const types = COL_TYPES[connectionType] ?? ["TEXT"];
 
@@ -219,238 +220,355 @@ export function AddTableDialog({
 		}
 	};
 
+	const addColumn = () => {
+		setColDefs((prev) => [
+			...prev,
+			{
+				id: `c${Date.now()}`,
+				name: "",
+				type: types[0] ?? "TEXT",
+				nullable: true,
+				isPrimary: false,
+				defaultValue: "",
+				comment: "",
+			},
+		]);
+	};
+
+	const removeColumn = (id: string) => {
+		if (colDefs.length > 1) {
+			setColDefs((prev) => prev.filter((c) => c.id !== id));
+		}
+	};
+
 	return (
 		<Dialog open={open} onOpenChange={handleOpenChange}>
-			{/*
-			  No overflow-hidden on the content itself — that was causing stacking
-			  context issues with the inline (no-portal) TypeCombobox popups.
-			  Visual corner clipping is handled by the rounded-xl + the fact that
-			  child content stays within the defined flex dimensions.
-			*/}
-			<DialogContent className="sm:max-w-4xl flex flex-col max-h-[88vh] p-0 gap-0">
+			<DialogContent className="sm:max-w-5xl flex flex-col max-h-[85vh] p-0 gap-0 overflow-hidden">
 				{/* Header */}
-				<DialogHeader className="shrink-0 px-5 pt-5 pb-3 border-b border-border/50">
-					<DialogTitle className="text-base font-semibold">Create Table</DialogTitle>
-					<DialogDescription className="text-[11px] font-mono">
-						on <span className="text-foreground/70">{selectedDb ?? connectionName}</span>
-					</DialogDescription>
+				<DialogHeader className="shrink-0 px-6 pt-5 pb-4 border-b border-border/50 bg-muted/20">
+					<div className="flex items-center gap-3">
+						<div className="size-10 rounded-xl bg-primary/10 border border-primary/20 flex items-center justify-center">
+							<Table2 size={20} className="text-primary" />
+						</div>
+						<div>
+							<DialogTitle className="text-base font-semibold">Create New Table</DialogTitle>
+							<DialogDescription className="text-[11px] font-mono mt-0.5">
+								in <span className="text-foreground/70">{selectedDb ?? connectionName}</span>
+							</DialogDescription>
+						</div>
+					</div>
 				</DialogHeader>
 
-				{/* Body — no overflow-hidden so inline popovers can escape upward/downward */}
-				<div className="flex flex-col gap-4 flex-1 min-h-0 px-5 py-4">
-					{/* Table name */}
-					<div className="flex items-center gap-3 shrink-0">
-						<Label className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground w-24 shrink-0">
-							Table Name
-						</Label>
-						<Input
-							value={newTableName}
-							onChange={(e) => setNewTableName(e.target.value)}
-							placeholder="e.g. users"
-							className="h-8 text-[12px] font-mono flex-1"
-							autoComplete="off"
-						/>
+				{/* Body */}
+				<div className="flex flex-col lg:flex-row gap-4 flex-1 min-h-0 overflow-hidden p-6">
+					{/* Left Panel - Column Config */}
+					<div className="flex flex-col gap-4 flex-1 min-h-0 lg:w-1/2">
+						{/* Table Name */}
+						<div className="shrink-0">
+							<Label className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground mb-2 block">
+								Table Name
+							</Label>
+							<div className="relative">
+								<span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground/40 text-[12px] font-mono">tb_</span>
+								<Input
+									value={newTableName}
+									onChange={(e) => setNewTableName(e.target.value)}
+									placeholder="users"
+									className="h-10 pl-7 text-[13px] font-mono pl-8"
+									autoComplete="off"
+								/>
+							</div>
+						</div>
+
+						{/* Column List */}
+						<div className="flex flex-col gap-2 flex-1 min-h-0">
+							<div className="flex items-center justify-between shrink-0">
+								<Label className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">
+									Columns ({colDefs.length})
+								</Label>
+								<Button
+									variant="ghost"
+									size="sm"
+									className="h-7 text-[11px] gap-1.5 text-muted-foreground hover:text-foreground hover:bg-accent"
+									onClick={addColumn}
+								>
+									<Plus size={12} /> Add Column
+								</Button>
+							</div>
+
+							{/* Column Cards */}
+							<div className="flex-1 min-h-0 overflow-y-auto space-y-2 pr-1 scrollbar-thin">
+								{colDefs.map((col, index) => (
+									<div
+										key={col.id}
+										className={cn(
+											"rounded-lg border bg-card transition-all",
+											col.isPrimary
+												? "border-primary/30 bg-primary/5"
+												: "border-border/60 bg-background hover:border-border"
+										)}
+									>
+										{/* Column Header */}
+										<div className="flex items-center gap-2 px-3 py-2 border-b border-border/40">
+											<span className="cursor-grab active:cursor-grabbing text-muted-foreground/30 hover:text-muted-foreground/50 shrink-0">
+												<GripVertical size={14} />
+											</span>
+											<span className={cn(
+												"text-[10px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded shrink-0",
+												index === 0 ? "bg-accent-blue/10 text-accent-blue" : "bg-muted text-muted-foreground"
+											)}>
+												#{index + 1}
+											</span>
+											<Input
+												value={col.name}
+												onChange={(e) =>
+													setColDefs((prev) =>
+														prev.map((c) => c.id === col.id ? { ...c, name: e.target.value } : c),
+													)
+												}
+												placeholder="column_name"
+												className="h-6 text-[11px] font-mono flex-1 bg-transparent border-0 p-0 shadow-none focus-visible:ring-0"
+												autoComplete="off"
+											/>
+											{colDefs.length > 1 && (
+												<Button
+													variant="ghost"
+													size="icon-xs"
+													className="size-5 text-muted-foreground/30 hover:text-destructive hover:bg-destructive/10 shrink-0"
+													onClick={() => removeColumn(col.id)}
+												>
+													<X size={12} />
+												</Button>
+											)}
+										</div>
+
+										{/* Column Body */}
+										<div className="px-3 py-2.5 space-y-2.5">
+											{/* Type */}
+											<div className="flex items-center gap-2">
+												<span className="text-[10px] text-muted-foreground/60 w-12 shrink-0">Type</span>
+												<TypeCombobox
+													value={col.type}
+													types={types}
+													onChange={(v) =>
+														setColDefs((prev) =>
+															prev.map((c) => c.id === col.id ? { ...c, type: v } : c)
+														)
+													}
+												/>
+											</div>
+
+											{/* Properties */}
+											<div className="flex items-center gap-3">
+												<span className="text-[10px] text-muted-foreground/60 w-12 shrink-0">Props</span>
+												<div className="flex items-center gap-2">
+													{/* Nullable Toggle */}
+													<Tooltip>
+														<TooltipTrigger asChild>
+															<button
+																onClick={() =>
+																	setColDefs((prev) =>
+																		prev.map((c) => c.id === col.id ? { ...c, nullable: !c.nullable } : c),
+																	)
+																}
+																className={cn(
+																	"flex items-center gap-1 px-2 py-1 rounded-md text-[10px] font-medium transition-all",
+																	col.nullable
+																		? "bg-accent-green/10 text-accent-green border border-accent-green/20"
+																		: "bg-muted text-muted-foreground/60 border border-transparent hover:border-border"
+																)}
+															>
+																{col.nullable ? <ToggleRight size={12} /> : <ToggleLeft size={12} />}
+																NULL
+															</button>
+														</TooltipTrigger>
+														<TooltipContent>Allow NULL values</TooltipContent>
+													</Tooltip>
+
+													{/* PK Toggle */}
+													<Tooltip>
+														<TooltipTrigger asChild>
+															<button
+																onClick={() =>
+																	setColDefs((prev) =>
+																		prev.map((c) => c.id === col.id ? { ...c, isPrimary: !c.isPrimary } : c),
+																	)
+																}
+																className={cn(
+																	"flex items-center gap-1 px-2 py-1 rounded-md text-[10px] font-medium transition-all",
+																	col.isPrimary
+																		? "bg-primary/10 text-primary border border-primary/20"
+																		: "bg-muted text-muted-foreground/60 border border-transparent hover:border-border"
+																)}
+															>
+																<KeyIcon className={col.isPrimary ? "text-primary" : "text-muted-foreground/40"} />
+																PK
+															</button>
+														</TooltipTrigger>
+														<TooltipContent>Primary Key</TooltipContent>
+													</Tooltip>
+												</div>
+											</div>
+
+											{/* Default Value */}
+											<div className="flex items-center gap-2">
+												<span className="text-[10px] text-muted-foreground/60 w-12 shrink-0">Default</span>
+												<Input
+													value={col.defaultValue}
+													onChange={(e) =>
+														setColDefs((prev) =>
+															prev.map((c) => c.id === col.id ? { ...c, defaultValue: e.target.value } : c),
+														)
+													}
+													placeholder="CURRENT_TIMESTAMP"
+													className="h-6 text-[11px] font-mono flex-1 bg-muted/30"
+													autoComplete="off"
+												/>
+											</div>
+
+											{/* Comment */}
+											<div className="flex items-center gap-2">
+												<span className="text-[10px] text-muted-foreground/60 w-12 shrink-0">Comment</span>
+												<Input
+													value={col.comment}
+													onChange={(e) =>
+														setColDefs((prev) =>
+															prev.map((c) => c.id === col.id ? { ...c, comment: e.target.value } : c),
+														)
+													}
+													placeholder="Column description..."
+													className="h-6 text-[11px] font-mono flex-1 bg-muted/30"
+													autoComplete="off"
+												/>
+											</div>
+										</div>
+									</div>
+								))}
+							</div>
+
+							{error && (
+								<div className="shrink-0 bg-destructive/10 border border-destructive/20 rounded-lg px-3 py-2.5">
+									<p className="text-[11px] text-destructive font-mono">{error}</p>
+								</div>
+							)}
+						</div>
 					</div>
 
-					{/* Columns section */}
-					<div className="flex flex-col gap-2 flex-1 min-h-0">
-						{/* Column section header */}
+					{/* Right Panel - SQL Preview */}
+					<div className="flex flex-col gap-3 flex-1 min-h-0 lg:w-1/2">
 						<div className="flex items-center justify-between shrink-0">
 							<Label className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">
-								Columns
+								SQL Preview
 							</Label>
 							<Button
 								variant="ghost"
-								size="xs"
-								className="h-6 text-[10px] gap-1 text-muted-foreground hover:text-foreground"
-								onClick={() =>
-									setColDefs((prev) => [
-										...prev,
-										{
-											id: `c${Date.now()}`,
-											name: "",
-											type: types[0] ?? "TEXT",
-											nullable: true,
-											isPrimary: false,
-											defaultValue: "",
-											comment: "",
-										},
-									])
-								}
+								size="sm"
+								className="h-6 text-[10px] gap-1.5 text-muted-foreground hover:text-foreground"
+								onClick={() => setShowPreview(!showPreview)}
 							>
-								<Plus size={10} /> Add column
+								{showPreview ? <EyeOff size={12} /> : <Eye size={12} />}
+								{showPreview ? "Hide" : "Show"}
 							</Button>
 						</div>
 
-						{/* Column header labels */}
-						<div className="flex items-center gap-2 px-4 shrink-0">
-							<span className="w-3 shrink-0" />
-							<span className="text-[9px] font-bold uppercase tracking-widest text-muted-foreground/50 w-28 shrink-0">Name</span>
-							<span className="text-[9px] font-bold uppercase tracking-widest text-muted-foreground/50 w-36 shrink-0">Type</span>
-							<span className="text-[9px] font-bold uppercase tracking-widest text-muted-foreground/50 w-9 shrink-0 text-center">NULL</span>
-							<span className="text-[9px] font-bold uppercase tracking-widest text-muted-foreground/50 w-8 shrink-0 text-center">PK</span>
-							<span className="text-[9px] font-bold uppercase tracking-widest text-muted-foreground/50 w-28 shrink-0">Default</span>
-							<span className="text-[9px] font-bold uppercase tracking-widest text-muted-foreground/50 flex-1">Comment</span>
-						</div>
-
-						{/*
-						  Scrollable column list.
-						  overflow-hidden only on the WRAPPER (visual border clipping), but
-						  the Reorder.Group itself drives the scroll with an explicit max-h.
-						  The inline combobox popup (position:absolute) will escape the
-						  Reorder.Group's overflow-y-auto via the z-index stacking context
-						  created by PopoverPrimitive.Content.
-						*/}
-						<div className="flex-1 min-h-0 rounded-lg border border-border/50 bg-muted/20 overflow-hidden">
-							<Reorder.Group
-								axis="y"
-								values={colDefs}
-								onReorder={setColDefs}
-								className="flex flex-col divide-y divide-border/40 h-full overflow-y-auto"
-							>
-								{colDefs.map((col) => (
-									<Reorder.Item
-										key={col.id}
-										value={col}
-										className="flex items-center gap-2 px-3 py-2 bg-background hover:bg-muted/30 transition-colors shrink-0"
-									>
-										{/* Drag handle */}
-										<span className="cursor-grab active:cursor-grabbing text-muted-foreground/25 hover:text-muted-foreground/50 shrink-0 touch-none">
-											<GripVertical size={12} />
-										</span>
-
-										{/* Name */}
-										<Input
-											value={col.name}
-											onChange={(e) =>
-												setColDefs((prev) =>
-													prev.map((c) => c.id === col.id ? { ...c, name: e.target.value } : c),
-												)
-											}
-											placeholder="column_name"
-											className="h-7 text-[11px] font-mono w-28 shrink-0"
-											autoComplete="off"
-										/>
-
-										{/* Type — inline popover, no portal */}
-										<TypeCombobox
-											value={col.type}
-											types={types}
-											onChange={(v) =>
-												setColDefs((prev) =>
-													prev.map((c) => c.id === col.id ? { ...c, type: v } : c)
-												)
-											}
-										/>
-
-										{/* NULL toggle */}
-										<Tooltip>
-											<TooltipTrigger asChild>
-												<button
-													onClick={() =>
-														setColDefs((prev) =>
-															prev.map((c) => c.id === col.id ? { ...c, nullable: !c.nullable } : c),
-														)
-													}
-													className={cn(
-														"text-[9px] font-bold uppercase px-1.5 py-0.5 rounded border transition-colors shrink-0 w-9",
-														col.nullable
-															? "border-border text-muted-foreground"
-															: "border-primary/40 text-primary bg-primary/5",
-													)}
-												>
-													NULL
-												</button>
-											</TooltipTrigger>
-											<TooltipContent>Toggle nullable</TooltipContent>
-										</Tooltip>
-
-										{/* PK toggle */}
-										<Tooltip>
-											<TooltipTrigger asChild>
-												<button
-													onClick={() =>
-														setColDefs((prev) =>
-															prev.map((c) => c.id === col.id ? { ...c, isPrimary: !c.isPrimary } : c),
-														)
-													}
-													className={cn(
-														"text-[9px] font-bold uppercase px-1.5 py-0.5 rounded border transition-colors shrink-0 w-8",
-														col.isPrimary
-															? "border-primary/40 text-primary bg-primary/5"
-															: "border-border text-muted-foreground",
-													)}
-												>
-													PK
-												</button>
-											</TooltipTrigger>
-											<TooltipContent>Toggle primary key</TooltipContent>
-										</Tooltip>
-
-										{/* Default value */}
-										<Input
-											value={col.defaultValue}
-											onChange={(e) =>
-												setColDefs((prev) =>
-													prev.map((c) => c.id === col.id ? { ...c, defaultValue: e.target.value } : c),
-												)
-											}
-											placeholder="default"
-											className="h-7 text-[11px] font-mono w-28 shrink-0"
-											autoComplete="off"
-										/>
-
-										{/* Comment */}
-										<Textarea
-											value={col.comment}
-											onChange={(e) =>
-												setColDefs((prev) =>
-													prev.map((c) => c.id === col.id ? { ...c, comment: e.target.value } : c),
-												)
-											}
-											placeholder="comment…"
-											className="text-[11px] font-mono flex-1 min-h-0 h-7 resize-none py-1"
-											autoComplete="off"
-										/>
-
-										{/* Remove */}
-										{colDefs.length > 1 && (
-											<Button
-												variant="ghost"
-												size="icon-xs"
-												className="text-muted-foreground/30 hover:text-destructive shrink-0"
-												onClick={() => setColDefs((prev) => prev.filter((c) => c.id !== col.id))}
-											>
-												<X size={10} />
-											</Button>
+						{showPreview && (
+							<div className="flex-1 min-h-0 rounded-lg border border-border/60 bg-[#1e1e1e] overflow-hidden">
+								<div className="h-full overflow-auto p-4">
+									<pre className="text-[11px] font-mono leading-relaxed whitespace-pre-wrap">
+										<code className="text-[#9cdcfe]">CREATE TABLE</code>
+										<code className="text-[#ce9178]"> {qi(newTableName || "table_name", connectionType)} </code>
+										<code className="text-[#d4d4d4]">{"("}</code>
+										{"\n"}
+										{colDefs.map((col, i) => (
+											<span key={col.id} className="block ml-4">
+												<code className="text-[#9cdcfe]">{qi(col.name || "column_name", connectionType)}</code>
+												<code className="text-[#4ec9b0]"> {col.type}</code>
+												{!col.nullable && !col.isPrimary && <code className="text-[#569cd6]"> NOT NULL</code>}
+												{col.isPrimary && colDefs.filter(c => c.isPrimary).length === 1 && <code className="text-[#569cd6]"> PRIMARY KEY</code>}
+												{col.defaultValue.trim() && (
+													<>
+														<code className="text-[#d4d4d4]"> DEFAULT </code>
+														<code className="text-[#b5cea8]">{col.defaultValue.trim()}</code>
+													</>
+												)}
+												{col.comment.trim() && connectionType !== "mysql" && (
+													<>
+														{","}
+														{"\n"}
+														<span className="inline-block ml-4">
+															<code className="text-[#6a9955]">-- {col.comment.trim()}</code>
+														</span>
+													</>
+												)}
+												{i < colDefs.length - 1 && <code className="text-[#d4d4d4]">,</code>}
+											</span>
+										))}
+										{colDefs.filter(c => c.isPrimary).length > 1 && (
+											<span className="block ml-4">
+												<code className="text-[#d4d4d4]">PRIMARY KEY (</code>
+												<code className="text-[#9cdcfe]">
+													{colDefs.filter(c => c.isPrimary).map(c => qi(c.name, connectionType)).join(", ")}
+												</code>
+												<code className="text-[#d4d4d4]">)</code>
+											</span>
 										)}
-									</Reorder.Item>
-								))}
-							</Reorder.Group>
-						</div>
-
-						{error && (
-							<p className="text-[11px] text-destructive font-mono shrink-0 bg-destructive/10 border border-destructive/20 rounded-md px-3 py-2">
-								{error}
-							</p>
+										{"\n"}
+										<code className="text-[#d4d4d4]">)</code>
+									</pre>
+								</div>
+							</div>
 						)}
 					</div>
 				</div>
 
 				{/* Footer */}
-				<div className="shrink-0 flex items-center justify-end gap-2 border-t border-border bg-muted/50 px-5 py-3 rounded-b-xl">
-					<Button variant="outline" size="sm" onClick={() => onOpenChange(false)}>
-						Cancel
-					</Button>
-					<Button
-						size="sm"
-						disabled={!newTableName.trim() || colDefs.length === 0 || loading}
-						onClick={handleCreate}
-					>
-						{loading ? "Creating…" : "Create Table"}
-					</Button>
+				<div className="shrink-0 flex items-center justify-between gap-4 border-t border-border bg-muted/30 px-6 py-4 rounded-b-xl">
+					<div className="text-[10px] text-muted-foreground/50">
+						Press <kbd className="px-1.5 py-0.5 bg-muted rounded text-[9px] font-mono">Enter</kbd> to create
+					</div>
+					<div className="flex items-center gap-2">
+						<Button variant="outline" size="sm" onClick={() => onOpenChange(false)}>
+							Cancel
+						</Button>
+						<Button
+							size="sm"
+							disabled={!newTableName.trim() || colDefs.length === 0 || loading}
+							onClick={handleCreate}
+							className="gap-1.5"
+						>
+							{loading ? (
+								<>
+									<div className="size-3 rounded-full border-2 border-current border-t-transparent animate-spin" />
+									Creating...
+								</>
+							) : (
+								<>
+									<Plus size={14} />
+									Create Table
+								</>
+							)}
+						</Button>
+					</div>
 				</div>
 			</DialogContent>
 		</Dialog>
+	);
+}
+
+function KeyIcon({ className }: { className?: string }) {
+	return (
+		<svg
+			width="12"
+			height="12"
+			viewBox="0 0 24 24"
+			fill="none"
+			stroke="currentColor"
+			strokeWidth="2"
+			strokeLinecap="round"
+			strokeLinejoin="round"
+			className={className}
+		>
+			<path d="M21 2l-2 2m-7.61 7.61a5.5 5.5 0 1 1-7.778 7.778 5.5 5.5 0 0 1 7.777-7.777zm0 0L15.5 7.5m0 0l3 3L22 7l-3-3m-3.5 3.5L19 4" />
+		</svg>
 	);
 }
