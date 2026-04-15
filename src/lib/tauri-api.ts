@@ -28,7 +28,10 @@ export function detectSqlDumpFormat(content: string): {
     if (useMatch) detectedDbName = useMatch[1];
     if (!detectedDbName) {
         const connectMatch = content.match(/^\\connect\s+(\S+)/im);
-        if (connectMatch && connectMatch[1] !== "-") detectedDbName = connectMatch[1];
+        if (connectMatch && connectMatch[1] !== "-") {
+            // Strip surrounding quotes that pg_dump adds for mixed-case identifiers
+            detectedDbName = connectMatch[1].replace(/^["'`]|["'`]$/g, "");
+        }
     }
     if (!detectedDbName) {
         const createMatch = content.match(/CREATE\s+DATABASE\s+(?:IF\s+NOT\s+EXISTS\s+)?[`"]?([^`";\s(]+)/i);

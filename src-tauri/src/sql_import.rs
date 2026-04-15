@@ -71,11 +71,23 @@ fn extract_db_name(statements: &[String]) -> Option<String> {
             }
         }
 
-        // pg_dump: \connect dbname
+        // pg_dump: \connect dbname  or  \connect "dbname"
+        // The statement may be merged with subsequent text (no semicolon after
+        // \connect), so only take the first whitespace-separated token.
         if upper.starts_with("\\CONNECT ") {
-            let rest = trimmed[9..].trim().trim_end_matches(';').trim();
-            if !rest.is_empty() && rest != "-" {
-                return Some(rest.to_string());
+            let first_token = trimmed[9..]
+                .trim()
+                .split_whitespace()
+                .next()
+                .unwrap_or("");
+            let name = first_token
+                .trim_end_matches(';')
+                .trim_matches('"')
+                .trim_matches('`')
+                .trim_matches('\'')
+                .trim();
+            if !name.is_empty() && name != "-" {
+                return Some(name.to_string());
             }
         }
 

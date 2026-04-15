@@ -400,7 +400,19 @@ pub async fn import_sql_file(
     let parsed = sql_import::parse_sql_dump(&sql_content);
 
     // "Create new database" mode: CREATE DATABASE then reconnect the driver
-    if let Some(ref db_name) = target_database {
+    if let Some(ref raw_db_name) = target_database {
+        // Strip any surrounding SQL quote characters that may have been passed
+        // in from a pg_dump \connect "name" or USE `name` line.
+        let db_name = raw_db_name
+            .trim()
+            .trim_matches('"')
+            .trim_matches('`')
+            .trim_matches('\'');
+
+        if db_name.is_empty() {
+            return Err("Target database name is empty".to_string());
+        }
+
         let config = REGISTRY
             .configs
             .get(&id)
@@ -410,18 +422,25 @@ pub async fn import_sql_file(
             DatabaseType::Mysql => format!("CREATE DATABASE IF NOT EXISTS `{}`", db_name),
             _ => format!("CREATE DATABASE \"{}\"", db_name),
         };
-        // Best-effort — ignore error if DB already exists
+        // Best-effort — ignore error (DB may already exist, or user lacks
+        // CREATE DATABASE privilege; the subsequent connect will surface the
+        // real error if the database truly doesn't exist).
         let _ = driver.run_query(&create_sql).await;
         let mut new_cfg = config.clone();
-        new_cfg.database = Some(db_name.clone());
+        new_cfg.database = Some(db_name.to_string());
         driver
             .connect(&new_cfg)
             .await
-            .map_err(|e| e.to_string())?;
+            .map_err(|e| format!(
+                "Could not connect to database \"{}\": {}. \
+                 If you lack CREATE DATABASE privileges, create the database \
+                 manually first and use \"Import into current database\" mode.",
+                db_name, e
+            ))?;
         REGISTRY
             .configs
             .entry(id.clone())
-            .and_modify(|c| c.database = Some(db_name.clone()));
+            .and_modify(|c| c.database = Some(db_name.to_string()));
     }
 
     // Optionally prepend DROP TABLE IF EXISTS before each CREATE TABLE

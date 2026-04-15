@@ -24,13 +24,18 @@ import {
     RefreshCw,
     TableProperties,
     X,
+    XCircle,
+    Trash2,
+    TriangleAlert,
     GripVertical,
     ArrowUpDown,
+    Download,
 } from "lucide-react";
 import { useAppStore } from "@/store/useAppStore";
 import { DB_LOGO, DB_COLOR } from "@/lib/db-ui";
 import { GROUP_PRESETS } from "@/components/layout/ConnectionDialog";
 import { ImportExportDialog } from "@/components/layout/ImportExportDialog";
+import { DumpDatabaseDialog, type DumpOptions } from "@/components/layout/function-output/table-grid/DumpDatabaseDialog";
 import { toast } from "@/components/ui/sonner";
 import { tauriApi } from "@/lib/tauri-api";
 import { ConnectionConfig, ConnectionFunction, ColumnInfo, DatabaseType } from "@/types";
@@ -311,6 +316,46 @@ function DatabaseNode({
     const [expandAll, setExpandAll] = useState<boolean | null>(null);
     const [isRefreshingTables, setIsRefreshingTables] = useState(false);
     const [addTableOpen, setAddTableOpen] = useState(false);
+
+    // Dump state
+    const [showDumpDialog, setShowDumpDialog] = useState(false);
+    const [dumpDbLoading, setDumpDbLoading] = useState(false);
+
+    const isRelationalDb =
+        connection.type === "mysql" ||
+        connection.type === "postgresql" ||
+        connection.type === "sqlite";
+
+    const executeDump = async (opts: DumpOptions) => {
+        setDumpDbLoading(true);
+        const activeDb = selectedDb ?? connection.database ?? "";
+        const schemaArg = connection.type === "postgresql" ? opts.schema || "public" : null;
+        try {
+            const sql = await tauriApi.dumpDatabase(
+                connection.id,
+                activeDb,
+                schemaArg,
+                opts.includeData,
+                opts.includeIndexes,
+                opts.includeForeignKeys,
+                opts.createDatabase,
+            );
+            const date = new Date().toISOString().split("T")[0];
+            const defaultName = `${activeDb}-${date}.sql`;
+            const savePath = await tauriApi.saveFileDialog(defaultName, [
+                { name: "SQL Dump", extensions: ["sql"] },
+            ]);
+            if (savePath) {
+                await tauriApi.writeTextFile(savePath, sql);
+                toast.success("Database dump saved");
+                setShowDumpDialog(false);
+            }
+        } catch (e) {
+            toast.error(`Dump failed: ${e}`);
+        } finally {
+            setDumpDbLoading(false);
+        }
+    };
     const dtType = connection.type === "postgresql" ? "TIMESTAMPTZ" : connection.type === "sqlite" ? "TEXT" : "DATETIME";
     const idType = connection.type === "mysql" ? "INT" : "INTEGER";
     const defaultCols = (): ColDef[] => [
@@ -467,6 +512,22 @@ function DatabaseNode({
                             <TooltipContent side="right" sideOffset={4}>
                                 {expandAll === true ? "Collapse all" : "Expand all"}
                             </TooltipContent>
+                        </Tooltip>
+                    )}
+                    {isRelationalDb && (
+                        <Tooltip>
+                            <TooltipTrigger asChild>
+                                <button
+                                    onClick={() => setShowDumpDialog(true)}
+                                    disabled={dumpDbLoading}
+                                    className="flex items-center justify-center w-5 h-5 text-muted-foreground/35 hover:text-foreground transition-colors disabled:opacity-40"
+                                >
+                                    {dumpDbLoading
+                                        ? <Loader2 size={11} className="animate-spin" />
+                                        : <Download size={11} />}
+                                </button>
+                            </TooltipTrigger>
+                            <TooltipContent side="right" sideOffset={4}>Dump database</TooltipContent>
                         </Tooltip>
                     )}
                 </div>
@@ -664,6 +725,16 @@ function DatabaseNode({
                 </DialogContent>
             </Dialog>
 
+            {/* Dump Database dialog */}
+            <DumpDatabaseDialog
+                open={showDumpDialog}
+                databaseName={selectedDb ?? connection.database ?? ""}
+                dbType={connection.type}
+                loading={dumpDbLoading}
+                onCancel={() => setShowDumpDialog(false)}
+                onConfirm={executeDump}
+            />
+
             {/* Tree */}
             {isConnected && open && (
                 <div className="pb-1">
@@ -731,7 +802,16 @@ const Sidebar = () => {
     const [importExportOpen, setImportExportOpen] = useState(false);
     const [dbCtxMenu, setDbCtxMenu] = useState<{ db: string; x: number; y: number } | null>(null);
     const [dropDbConfirm, setDropDbConfirm] = useState<string | null>(null);
+    const [dropConfirmInput, setDropConfirmInput] = useState("");
     const [droppingDb, setDroppingDb] = useState(false);
+
+    // Close context menu on Escape
+    useEffect(() => {
+        if (!dbCtxMenu) return;
+        const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") setDbCtxMenu(null); };
+        window.addEventListener("keydown", onKey);
+        return () => window.removeEventListener("keydown", onKey);
+    }, [dbCtxMenu]);
 
     const handleConnect = async (connId: string) => {
         setLoadingIds((prev) => new Set(prev).add(connId));
@@ -763,6 +843,27 @@ const Sidebar = () => {
             setActiveFunctionOnly(fn);
         } else {
             invokeFunction(fn);
+        }
+    };
+
+    const handleDrop = async () => {
+        if (droppingDb || dropConfirmInput !== dropDbConfirm || !dropDbConfirm || !activeConn) return;
+        setDroppingDb(true);
+        try {
+            const dropSql = activeConn.type === "mysql"
+                ? `DROP DATABASE \`${dropDbConfirm}\``
+                : `DROP DATABASE "${dropDbConfirm}"`;
+            await tauriApi.executeQuery(activeConn.id, dropSql);
+            closeOpenDatabase(activeConn.id, dropDbConfirm);
+            await refreshDatabases(activeConn.id);
+            await refreshTables(activeConn.id);
+            toast.success(`Database "${dropDbConfirm}" dropped`);
+        } catch (e) {
+            toast.error(`Drop failed: ${e}`);
+        } finally {
+            setDroppingDb(false);
+            setDropDbConfirm(null);
+            setDropConfirmInput("");
         }
     };
 
@@ -843,7 +944,7 @@ const Sidebar = () => {
             {/* ── DB tab context menu ── */}
             {dbCtxMenu && activeConn && (() => {
                 const menuW = 172;
-                const menuH = 96;
+                const menuH = 160;
                 const left = Math.min(dbCtxMenu.x, window.innerWidth - menuW - 8);
                 const top = Math.min(dbCtxMenu.y, window.innerHeight - menuH - 8);
                 return (
@@ -857,8 +958,8 @@ const Sidebar = () => {
                             className="fixed z-50 bg-popover border border-border rounded-lg shadow-xl p-1 text-popover-foreground"
                             style={{ top, left, width: menuW }}
                         >
-                            <div className="px-2 py-1 mb-1">
-                                <p className="text-[9px] font-mono font-bold uppercase tracking-widest text-muted-foreground/40 truncate max-w-[140px]">
+                            <div className="px-2 py-1.5 mb-0.5">
+                                <p className="text-[9px] font-mono font-bold uppercase tracking-widest text-muted-foreground/40 truncate max-w-[148px]">
                                     {dbCtxMenu.db}
                                 </p>
                             </div>
@@ -870,30 +971,30 @@ const Sidebar = () => {
                                     setDbCtxMenu(null);
                                 }}
                             >
-                                <RefreshCw size={10} className="shrink-0 text-muted-foreground/60" />
+                                <RefreshCw size={11} className="shrink-0 text-muted-foreground/60" />
                                 Refresh DB
                             </button>
-                            <div className="my-1 h-px bg-border" />
                             <button
-                                className="w-full flex items-center gap-2 px-2 py-1.5 rounded-sm text-[11px] text-destructive/80 hover:bg-destructive/10 transition-colors"
-                                onClick={() => {
-                                    setDropDbConfirm(dbCtxMenu.db);
-                                    setDbCtxMenu(null);
-                                }}
-                            >
-                                <X size={10} className="shrink-0" />
-                                Drop DB
-                            </button>
-                            <div className="my-1 h-px bg-border" />
-                            <button
-                                className="w-full flex items-center gap-2 px-2 py-1.5 rounded-sm text-[11px] text-muted-foreground/80 hover:bg-muted/40 transition-colors"
+                                className="w-full flex items-center gap-2 px-2 py-1.5 rounded-sm text-[11px] text-foreground/70 hover:bg-muted/40 transition-colors"
                                 onClick={() => {
                                     closeOpenDatabase(activeConn.id, dbCtxMenu.db);
                                     setDbCtxMenu(null);
                                 }}
                             >
-                                <X size={10} className="shrink-0" />
+                                <XCircle size={11} className="shrink-0 text-muted-foreground/60" />
                                 Close DB
+                            </button>
+                            <div className="my-1 h-px bg-border/60" />
+                            <button
+                                className="w-full flex items-center gap-2 px-2 py-1.5 rounded-sm text-[11px] text-destructive/80 hover:bg-destructive/10 transition-colors"
+                                onClick={() => {
+                                    setDropConfirmInput("");
+                                    setDropDbConfirm(dbCtxMenu.db);
+                                    setDbCtxMenu(null);
+                                }}
+                            >
+                                <Trash2 size={11} className="shrink-0" />
+                                Drop Database
                             </button>
                         </div>
                     </>
@@ -1052,76 +1153,48 @@ const Sidebar = () => {
             )}
 
             {dropDbConfirm && activeConn && (
-                <Dialog open={!!dropDbConfirm} onOpenChange={(open) => { if (!open) setDropDbConfirm(null); }}>
+                <Dialog open={!!dropDbConfirm} onOpenChange={(open) => { if (!open) { setDropDbConfirm(null); setDropConfirmInput(""); } }}>
                     <DialogContent className="max-w-sm">
                         <DialogHeader>
-                            <DialogTitle>Drop database?</DialogTitle>
+                            <DialogTitle className="flex items-center gap-2">
+                                <TriangleAlert size={15} className="text-destructive shrink-0" />
+                                Drop database?
+                            </DialogTitle>
                             <DialogDescription>
-                                This will permanently delete the database "{dropDbConfirm}" and all its data.
-                                This action cannot be undone.
+                                This will permanently delete <span className="font-mono font-semibold text-foreground/80">{dropDbConfirm}</span> and all its data. This action cannot be undone.
                             </DialogDescription>
                         </DialogHeader>
-                        <div className="space-y-2">
-                            <Label className="text-[11px]">
-                                Type <span className="font-mono text-destructive">{dropDbConfirm}</span> to confirm
-                            </Label>
-                            <Input
-                                placeholder={dropDbConfirm}
-                                className="h-8 text-[11px] font-mono"
-                                onChange={(e) => {
-                                    if (e.target.value === dropDbConfirm && !droppingDb) {
-                                        (async () => {
-                                            setDroppingDb(true);
-                                            try {
-                                                const dbType = connections.find((c) => c.id === activeConn.id)?.type;
-                                                const dropSql = dbType === "mysql" 
-                                                    ? `DROP DATABASE \`${dropDbConfirm}\`` 
-                                                    : `DROP DATABASE "${dropDbConfirm}"`;
-                                                await tauriApi.executeQuery(activeConn.id, dropSql);
-                                                closeOpenDatabase(activeConn.id, dropDbConfirm);
-                                                await refreshDatabases(activeConn.id);
-                                                await refreshTables(activeConn.id);
-                                                toast.success(`Database "${dropDbConfirm}" dropped`);
-                                            } catch (e) {
-                                                toast.error(`Drop failed: ${e}`);
-                                            } finally {
-                                                setDroppingDb(false);
-                                                setDropDbConfirm(null);
-                                            }
-                                        })();
-                                    }
-                                }}
-                            />
+                        <div className="space-y-3">
+                            <pre className="rounded-md bg-muted px-3 py-2 text-[11px] font-mono text-muted-foreground whitespace-pre-wrap break-all">
+                                {activeConn.type === "mysql"
+                                    ? `DROP DATABASE \`${dropDbConfirm}\``
+                                    : `DROP DATABASE "${dropDbConfirm}"`}
+                            </pre>
+                            <div className="space-y-1.5">
+                                <Label className="text-[11px] text-muted-foreground">
+                                    Type <span className="font-mono text-destructive">{dropDbConfirm}</span> to confirm
+                                </Label>
+                                <Input
+                                    autoFocus
+                                    value={dropConfirmInput}
+                                    placeholder={dropDbConfirm}
+                                    className="h-8 text-[11px] font-mono"
+                                    onChange={(e) => setDropConfirmInput(e.target.value)}
+                                    onKeyDown={(e) => { if (e.key === "Enter") handleDrop(); }}
+                                />
+                            </div>
                         </div>
                         <DialogFooter>
-                            <Button variant="outline" size="sm" onClick={() => setDropDbConfirm(null)}>
+                            <Button variant="outline" size="sm" onClick={() => { setDropDbConfirm(null); setDropConfirmInput(""); }}>
                                 Cancel
                             </Button>
-                            <Button 
-                                variant="destructive" 
-                                size="sm" 
-                                disabled={droppingDb}
-                                onClick={async () => {
-                                    setDroppingDb(true);
-                                    try {
-                                        const dbType = connections.find((c) => c.id === activeConn.id)?.type;
-                                        const dropSql = dbType === "mysql" 
-                                            ? `DROP DATABASE \`${dropDbConfirm}\`` 
-                                            : `DROP DATABASE "${dropDbConfirm}"`;
-                                        await tauriApi.executeQuery(activeConn.id, dropSql);
-                                        closeOpenDatabase(activeConn.id, dropDbConfirm);
-                                        await refreshDatabases(activeConn.id);
-                                        await refreshTables(activeConn.id);
-                                        toast.success(`Database "${dropDbConfirm}" dropped`);
-                                    } catch (e) {
-                                        toast.error(`Drop failed: ${e}`);
-                                    } finally {
-                                        setDroppingDb(false);
-                                        setDropDbConfirm(null);
-                                    }
-                                }}
+                            <Button
+                                variant="destructive"
+                                size="sm"
+                                disabled={droppingDb || dropConfirmInput !== dropDbConfirm}
+                                onClick={handleDrop}
                             >
-                                {droppingDb ? "Dropping..." : "Drop"}
+                                {droppingDb ? "Dropping..." : "Drop Database"}
                             </Button>
                         </DialogFooter>
                     </DialogContent>
