@@ -12,6 +12,7 @@ import {
     ScrollText,
     Database,
     KeyRound,
+    RefreshCw,
 } from "lucide-react";
 import { useAppStore } from "@/store/useAppStore";
 import { DB_LOGO, DB_COLOR } from "@/lib/db-ui";
@@ -90,6 +91,7 @@ const TitleBar = ({ isLicensed, onActivate }: TitleBarProps) => {
         connectionDatabases,
         selectedDatabases,
         selectDatabase,
+        refreshDatabases,
         setActiveConnection,
         appSettings,
     } = useAppStore();
@@ -323,10 +325,28 @@ const TitleBar = ({ isLicensed, onActivate }: TitleBarProps) => {
                         </Button>
                         {dbMenuOpen && (
                             <div className="absolute right-0 top-full mt-1 w-52 z-50 bg-popover border border-border rounded-lg shadow-md p-1 text-popover-foreground">
-                                <div className="px-2 py-1.5 mb-1">
+                                <div className="flex items-center justify-between px-2 py-1.5 mb-1">
                                     <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground/50">
                                         Databases
                                     </p>
+                                    <Tooltip>
+                                        <TooltipTrigger asChild>
+                                            <Button
+                                                variant="ghost"
+                                                size="icon-xs"
+                                                className="size-5 text-muted-foreground/40 hover:text-muted-foreground shrink-0"
+                                                onClick={() => {
+                                                    refreshDatabases(activeConn!.id);
+                                                    setDbMenuOpen(false);
+                                                }}
+                                            >
+                                                <RefreshCw size={9} />
+                                            </Button>
+                                        </TooltipTrigger>
+                                        <TooltipContent side="top" sideOffset={4}>
+                                            Refresh databases
+                                        </TooltipContent>
+                                    </Tooltip>
                                 </div>
                                 {activeDatabases.map((db) => (
                                     <div
