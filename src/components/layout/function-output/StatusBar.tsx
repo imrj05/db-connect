@@ -17,40 +17,40 @@ export function StatusBar({
 	const dbName =
 		selectedDatabases[connectionId] ?? conn?.database ?? conn?.name ?? "—";
 	return (
-		<div className="h-6 bg-card border-t border-border flex items-center justify-between px-3 shrink-0 select-none">
+		<div className="h-7 bg-card border-t border-border/80 flex items-center justify-between px-3.5 shrink-0 select-none">
 			{/* Left: connection indicator */}
-			<div className="flex items-center gap-2.5">
+			<div className="flex items-center gap-3">
 				<div className="flex items-center gap-1.5">
 					<Circle
-						size={6}
+						size={7}
 						className={cn(
 							"fill-current shrink-0",
 							isConnected
 								? "text-primary animate-pulse"
-								: "text-muted-foreground/30",
+								: "text-foreground/36",
 						)}
 					/>
-					<span className="text-[9px] font-mono text-muted-foreground/60 uppercase tracking-wider">
+					<span className="text-[11px] font-semibold text-foreground/64 uppercase tracking-[0.14em]">
 						{isConnected ? "Connected" : "Disconnected"}
 					</span>
 				</div>
-				<span className="text-muted-foreground/70 text-[9px]">·</span>
-				<span className="text-[9px] font-mono text-muted-foreground/50">
+				<span className="text-foreground/32 text-[10px]">·</span>
+				<span className="text-[11px] font-mono text-foreground/52">
 					Current DB:{" "}
-					<span className="text-muted-foreground/80">{dbName}</span>
+					<span className="text-foreground/76">{dbName}</span>
 				</span>
 			</div>
 			{/* Right: timing + row count */}
-			<div className="flex items-center gap-3">
-				<span className="text-[9px] font-mono text-muted-foreground/50">
+			<div className="flex items-center gap-3.5">
+				<span className="text-[11px] font-mono text-foreground/52">
 					Execution Time:{" "}
-					<span className="text-muted-foreground/80">
+					<span className="text-foreground/76">
 						{executionTimeMs}ms
 					</span>
 				</span>
-				<span className="text-[9px] font-mono text-muted-foreground/50">
+				<span className="text-[11px] font-mono text-foreground/52">
 					Rows:{" "}
-					<span className="text-muted-foreground/80">{rowCount}</span>
+					<span className="text-foreground/76">{rowCount}</span>
 				</span>
 			</div>
 		</div>

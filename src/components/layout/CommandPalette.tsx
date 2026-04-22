@@ -86,7 +86,7 @@ export function CommandPalette() {
         setCommandPaletteOpen(false);
     };
     return (
-        <CommandDialog className="w-[30vw]!" open={commandPaletteOpen} onOpenChange={setCommandPaletteOpen}>
+        <CommandDialog className="w-[min(58rem,92vw)]!" open={commandPaletteOpen} onOpenChange={setCommandPaletteOpen}>
             <Command shouldFilter={false}>
                 <CommandInput
                     placeholder="Search functions, tables, commands…"
@@ -105,7 +105,7 @@ export function CommandPalette() {
                             <React.Fragment key={prefix}>
                                 {groupIdx > 0 && <CommandSeparator />}
                                 <CommandGroup heading={
-                                    <span className="flex items-center gap-1.5">
+                                    <span className="flex items-center gap-2 text-foreground/68">
                                         {Icon && <Icon className={`size-3 ${iconColor}`} />}
                                         {conn?.name ?? prefix}
                                     </span>
@@ -132,11 +132,11 @@ export function CommandPalette() {
                                                     />
                                                 )}
                                                 <div className="flex flex-col flex-1 min-w-0">
-                                                    <span className="text-[13px] font-medium leading-tight">
+                                                    <span className="text-[14px] font-semibold leading-tight tracking-tight">
                                                         {name}
                                                     </span>
                                                     {fn.description && (
-                                                        <span className="text-xs text-muted-foreground/40 mt-0.5 leading-tight truncate">
+                                                        <span className="text-[12px] text-foreground/52 mt-0.5 leading-tight truncate">
                                                             {fn.description}
                                                         </span>
                                                     )}
@@ -153,7 +153,7 @@ export function CommandPalette() {
                             <CommandSeparator />
                             <CommandGroup heading={
                                 <span className="flex items-center gap-1.5">
-                                    <Database size={11} className="text-muted-foreground/50" />
+                                    <Database size={11} className="text-foreground/42" />
                                     Connections
                                 </span>
                             }>
@@ -164,10 +164,10 @@ export function CommandPalette() {
                                         setCommandPaletteOpen(false);
                                     }}
                                 >
-                                    <Plus size={13} className="text-muted-foreground/50 shrink-0" />
+                                    <Plus size={13} className="text-foreground/42 shrink-0" />
                                     <div className="flex flex-col flex-1">
-                                        <span className="text-[13px] font-medium">Add New Connection</span>
-                                        <span className="text-xs text-muted-foreground/40">Connect to a database</span>
+                                        <span className="text-[14px] font-semibold">Add New Connection</span>
+                                        <span className="text-[12px] text-foreground/52">Connect to a database</span>
                                     </div>
                                 </CommandItem>
                             </CommandGroup>
@@ -176,7 +176,7 @@ export function CommandPalette() {
                     <CommandSeparator />
                     <CommandGroup heading={
                         <span className="flex items-center gap-1.5">
-                            <Settings size={11} className="text-muted-foreground/50" />
+                            <Settings size={11} className="text-foreground/42" />
                             General
                         </span>
                     }>
@@ -187,10 +187,10 @@ export function CommandPalette() {
                                 setCommandPaletteOpen(false);
                             }}
                         >
-                            <Plus size={13} className="text-muted-foreground/50 shrink-0" />
+                            <Plus size={13} className="text-foreground/42 shrink-0" />
                             <div className="flex flex-col flex-1">
-                                <span className="text-[13px] font-medium">New Connection</span>
-                                <span className="text-xs text-muted-foreground/40">Add a new database connection</span>
+                                <span className="text-[14px] font-semibold">New Connection</span>
+                                <span className="text-[12px] text-foreground/52">Add a new database connection</span>
                             </div>
                             <KbdGroup>
                                 <Kbd>⌘</Kbd>
@@ -199,14 +199,14 @@ export function CommandPalette() {
                         </CommandItem>
                         <CommandItem onSelect={toggleTheme}>
                             {theme === "dark"
-                                ? <Sun size={13} className="text-muted-foreground/50 shrink-0" />
-                                : <Moon size={13} className="text-muted-foreground/50 shrink-0" />
+                                ? <Sun size={13} className="text-foreground/42 shrink-0" />
+                                : <Moon size={13} className="text-foreground/42 shrink-0" />
                             }
                             <div className="flex flex-col flex-1">
-                                <span className="text-[13px] font-medium">
+                                <span className="text-[14px] font-semibold">
                                     Switch to {theme === "dark" ? "Light" : "Dark"} Mode
                                 </span>
-                                <span className="text-xs text-muted-foreground/40">Toggle the app theme</span>
+                                <span className="text-[12px] text-foreground/52">Toggle the app theme</span>
                             </div>
                         </CommandItem>
                     </CommandGroup>

@@ -5,10 +5,10 @@ import {
 	Search,
 	Upload,
 	Pencil,
-	TableProperties,
 	Check,
 	RotateCcw,
 	X,
+	Trash2,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -70,22 +70,22 @@ export function GridToolbar({
 	return (
 		<>
 			{/* Header */}
-			<div className="h-9 px-4 flex items-center justify-between border-b border-border bg-background shrink-0">
-				<span className="font-mono text-[11px] text-accent-blue font-bold">
+			<div className="h-10 px-4 flex items-center justify-between border-b border-border-subtle bg-surface-2/92 shrink-0 gap-3 backdrop-blur-sm">
+				<span className="text-[13px] font-semibold text-foreground truncate">
 					{fn.type === "table"
 						? fn.tableName
 						: fn.callSignature
 								.slice(fn.prefix.length + 1)
 								.replace(/\(.*$/, "")}
 				</span>
-				<div className="flex items-center gap-1">
-					<span className="text-[10px] font-mono text-muted-foreground/40 mr-2">
+				<div className="flex items-center gap-2 shrink-0">
+					<span className="text-[11px] font-mono text-foreground/44 mr-1.5">
 						{executionTimeMs}ms
 					</span>
 					{fn.tableName && (
 						<>
 							{pendingEditCount > 0 && (
-								<span className="rounded border border-warning/25 bg-warning/10 px-1.5 py-0.5 text-[9px] font-mono text-warning">
+								<span className="rounded-md border border-warning/18 bg-warning/8 px-2 py-1 text-[10px] font-semibold text-warning/86 shadow-xs">
 									{pendingEditCount} pending
 								</span>
 							)}
@@ -94,17 +94,27 @@ export function GridToolbar({
 								size="sm"
 								onClick={onApplyPendingEdits}
 								disabled={pendingEditCount === 0 || applyPendingLoading}
-								className="h-6 px-2 text-[10px] font-mono"
+								className={cn(
+									"h-7 px-3 text-[11px] font-medium border-border-subtle shadow-xs",
+									pendingEditCount > 0
+										? "bg-accent-green/14 text-accent-green border-accent-green/22 hover:bg-accent-green/18"
+										: "bg-surface-elevated text-foreground/42 hover:bg-surface-elevated",
+								)}
 							>
 								<Check size={11} className="mr-1" />
 								Apply
 							</Button>
 							<Button
-								variant="ghost"
+								variant="outline"
 								size="sm"
 								onClick={onResetPendingEdits}
 								disabled={pendingEditCount === 0 || applyPendingLoading}
-								className="h-6 px-2 text-[10px] font-mono text-muted-foreground"
+								className={cn(
+									"h-7 px-3 text-[11px] font-medium border-border-subtle shadow-xs",
+									pendingEditCount > 0
+										? "bg-warning/10 text-warning border-warning/22 hover:bg-warning/14"
+										: "bg-surface-elevated text-foreground/42 hover:bg-surface-elevated",
+								)}
 							>
 								<RotateCcw size={11} className="mr-1" />
 								Reset
@@ -115,24 +125,25 @@ export function GridToolbar({
 						<Tooltip>
 							<TooltipTrigger asChild>
 								<Button
-									variant="ghost"
-									size="icon-xs"
-									onClick={() => {
-										if (filtersActive) {
-											onClearFilters();
-										} else {
-											onAddFilter();
-										}
-									}}
-									className={
-										filtersActive
-											? "text-accent-blue"
-											: "text-muted-foreground"
+									variant="outline"
+									size="sm"
+								onClick={() => {
+									if (filtersActive) {
+										onClearFilters();
+									} else {
+										onAddFilter();
 									}
-								>
-									<span className="relative">
-										{filtersActive ? (
-											<FilterX size={11} />
+								}}
+								className={cn(
+									"h-7 gap-1.5 rounded-md border-border-subtle px-3 text-[11px] font-medium shadow-xs",
+									filtersActive
+										? "bg-accent-blue/12 text-accent-blue border-accent-blue/18 hover:bg-accent-blue/16"
+										: "bg-surface-elevated text-foreground/68 hover:bg-surface-2",
+								)}
+							>
+								<span className="relative">
+									{filtersActive ? (
+										<FilterX size={11} />
 										) : (
 											<Filter size={11} />
 										)}
@@ -141,21 +152,23 @@ export function GridToolbar({
 												{filterCount}
 											</span>
 										)}
-									</span>
-								</Button>
-							</TooltipTrigger>
-							<TooltipContent>Toggle filters</TooltipContent>
+								</span>
+								Filters
+							</Button>
+						</TooltipTrigger>
+						<TooltipContent>Toggle filters</TooltipContent>
 						</Tooltip>
 					)}
-					<Tooltip>
-						<TooltipTrigger asChild>
-							<Button
-								variant="ghost"
-								size="icon-xs"
-								onClick={onRefresh}
-								className="text-muted-foreground"
-							>
-								<RefreshCw size={11} />
+						<Tooltip>
+							<TooltipTrigger asChild>
+								<Button
+									variant="outline"
+									size="sm"
+									onClick={onRefresh}
+								className="h-7 rounded-md border-border-subtle bg-surface-elevated px-3 text-[11px] font-medium text-foreground/68 shadow-xs hover:bg-surface-2"
+								>
+									<RefreshCw size={11} />
+									Refresh
 							</Button>
 						</TooltipTrigger>
 						<TooltipContent>Refresh table</TooltipContent>
@@ -164,17 +177,18 @@ export function GridToolbar({
 						<Tooltip>
 							<TooltipTrigger asChild>
 								<Button
-									variant="ghost"
-									size="icon-xs"
-									onClick={onToggleSearch}
-									className={cn(
-										cellSearch
-											? "text-accent-blue"
-											: showSearchBar
-												? "text-foreground"
-												: "text-muted-foreground",
-									)}
-								>
+								variant="outline"
+								size="sm"
+								onClick={onToggleSearch}
+								className={cn(
+									"h-7 gap-1.5 rounded-md border-border-subtle px-3 text-[11px] font-medium shadow-xs",
+									cellSearch
+										? "bg-accent-purple/12 text-accent-purple border-accent-purple/18 hover:bg-accent-purple/16"
+										: showSearchBar
+											? "bg-surface-selected/72 text-foreground"
+											: "bg-surface-elevated text-foreground/68 hover:bg-surface-2",
+								)}
+							>
 									<span className="relative">
 										<Search size={11} />
 										{cellSearch && (
@@ -182,25 +196,27 @@ export function GridToolbar({
 												{searchedRowCount}
 											</span>
 										)}
-									</span>
-								</Button>
-							</TooltipTrigger>
-							<TooltipContent>Search cells (⌘F)</TooltipContent>
+								</span>
+								Search
+							</Button>
+						</TooltipTrigger>
+						<TooltipContent>Search cells (⌘F)</TooltipContent>
 						</Tooltip>
 					)}
 					{viewMode === "data" && (
 						<Tooltip>
 							<TooltipTrigger asChild>
 								<Button
-									variant="ghost"
-									size="icon-xs"
+									variant="outline"
+									size="sm"
 									onClick={onToggleImport}
-									className="text-muted-foreground"
+								className="h-7 rounded-md border-border-subtle bg-surface-elevated px-3 text-[11px] font-medium text-foreground/68 shadow-xs hover:bg-surface-2"
 								>
-									<Upload size={11} />
-								</Button>
-							</TooltipTrigger>
-							<TooltipContent>Import data</TooltipContent>
+								<Upload size={11} />
+								Import
+							</Button>
+						</TooltipTrigger>
+						<TooltipContent>Import data</TooltipContent>
 						</Tooltip>
 					)}
 					{fn.tableName && (
@@ -209,11 +225,11 @@ export function GridToolbar({
 							<Tooltip>
 								<TooltipTrigger asChild>
 									<Button
-										variant="ghost"
-										size="icon-xs"
-										onClick={onRenameTable}
-										className="text-muted-foreground"
-									>
+								variant="ghost"
+								size="icon-xs"
+								onClick={onRenameTable}
+								className="text-foreground/48 hover:bg-surface-3"
+							>
 										<Pencil size={11} />
 									</Button>
 								</TooltipTrigger>
@@ -222,14 +238,14 @@ export function GridToolbar({
 							{/* Drop table */}
 							<Tooltip>
 								<TooltipTrigger asChild>
-									<Button
-										variant="ghost"
-										size="icon-xs"
-										onClick={onDropTable}
-										className="text-destructive/50 hover:text-destructive"
-									>
-										<TableProperties size={11} />
-									</Button>
+								<Button
+								variant="ghost"
+								size="icon-xs"
+								onClick={onDropTable}
+								className="text-destructive/60 hover:text-destructive hover:bg-destructive/10"
+							>
+									<Trash2 size={11} />
+								</Button>
 								</TooltipTrigger>
 								<TooltipContent>Drop table</TooltipContent>
 							</Tooltip>
@@ -239,11 +255,11 @@ export function GridToolbar({
 			</div>
 			{/* Search bar */}
 			{showSearchBar && viewMode === "data" && (
-				<div className="shrink-0 border-b border-border bg-card">
-					<div className="flex items-center gap-2 px-3 py-1.5">
+				<div className="shrink-0 border-b border-border-subtle bg-surface-2/86">
+					<div className="flex items-center gap-2.5 px-3 py-2">
 						{/* Search icon */}
-						<div className="w-8 h-7 flex items-center justify-center shrink-0">
-							<Search size={14} className="text-muted-foreground/50" />
+						<div className="w-8 h-8 flex items-center justify-center shrink-0">
+							<Search size={15} className="text-foreground/45" />
 						</div>
 						
 						{/* Search input */}
@@ -258,11 +274,11 @@ export function GridToolbar({
 									}
 								}}
 								placeholder="Search in all columns…"
-								className="h-7 text-[12px] bg-background border border-input pr-20 focus-visible:ring-0"
+								className="h-9 text-[12px] bg-surface-elevated/96 border-border-subtle pr-20 focus-visible:ring-0"
 							/>
 							{/* Result count badge */}
 							{cellSearch && (
-								<span className="absolute right-2 top-1/2 -translate-y-1/2 text-[10px] font-mono text-muted-foreground bg-muted px-1.5 py-0.5 rounded">
+								<span className="absolute right-2 top-1/2 -translate-y-1/2 text-[10px] font-mono text-foreground/60 bg-muted px-1.5 py-0.5 rounded-md">
 									{searchedRowCount}/{totalRowCount}
 								</span>
 							)}
@@ -273,7 +289,7 @@ export function GridToolbar({
 							variant="ghost"
 							size="icon-xs"
 							onClick={onClearSearch}
-							className="h-7 w-7 text-muted-foreground/60 hover:text-foreground hover:bg-muted"
+							className="h-8 w-8 text-foreground/58 hover:text-foreground hover:bg-surface-3"
 						>
 							<X size={14} />
 						</Button>

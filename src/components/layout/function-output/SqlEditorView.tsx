@@ -9,6 +9,7 @@ import CodeMirror from "@uiw/react-codemirror";
 import { sql } from "@codemirror/lang-sql";
 import { oneDark } from "@codemirror/theme-one-dark";
 import { EditorView } from "@codemirror/view";
+import type { Extension } from "@codemirror/state";
 import { Clock, Bookmark, Pencil } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -20,7 +21,7 @@ import {
 	DialogHeader,
 	DialogTitle,
 } from "@/components/ui/dialog";
-import { useAppStore } from "@/store/useAppStore";
+import { useAppStore, EditorThemeOption } from "@/store/useAppStore";
 import { cn } from "@/lib/utils";
 import { Kbd } from "@/components/ui/kbd";
 import {
@@ -35,8 +36,81 @@ import { SavedQueriesPanel } from "@/components/layout/function-output/sql-edito
 import { SqlEditorToolbar } from "@/components/layout/function-output/sql-editor/SqlEditorToolbar";
 import { ResultsGrid } from "@/components/layout/function-output/sql-editor/ResultsGrid";
 
+// Theme imports
+import { monokai } from "@fsegurai/codemirror-theme-monokai";
+import { palenight } from "@fsegurai/codemirror-theme-palenight";
+import { dracula } from "@uiw/codemirror-theme-dracula";
+import { githubLight } from "@uiw/codemirror-theme-github";
+import { solarizedLight } from "@uiw/codemirror-theme-solarized";
+
 function isDestructive(sql: string): boolean {
 	return /\b(DELETE|DROP|TRUNCATE)\b/i.test(sql.trim());
+}
+
+// Resolve editor theme to actual CodeMirror theme
+function resolveEditorTheme(editorTheme: EditorThemeOption): Extension {
+	if (editorTheme === "system") {
+		const isDark = window.matchMedia("(prefers-color-scheme: dark)").matches;
+		return isDark ? oneDark : githubLight;
+	}
+
+	switch (editorTheme) {
+		case "dark-one-dark":
+			return oneDark;
+		case "dark-monokai":
+			return monokai;
+		case "dark-palenight":
+			return palenight;
+		case "dark-dracula":
+			return dracula;
+		case "light-github":
+			return githubLight;
+		case "light-solarized":
+			return solarizedLight;
+		case "light-white-pine":
+		case "light-soft-white":
+			return createCustomLightTheme(editorTheme);
+		default:
+			return oneDark;
+	}
+}
+
+// Create custom light themes using CSS variables
+function createCustomLightTheme(variant: string): Extension {
+	const isSoftWhite = variant === "light-soft-white";
+
+	const base = {
+		"&": {
+			backgroundColor: "var(--color-card)",
+			color: "var(--color-foreground)",
+		},
+		".cm-gutters": {
+			backgroundColor: "var(--color-card)",
+			color: "var(--color-muted-foreground)",
+			borderRight: "1px solid var(--color-border)",
+		},
+		".cm-activeLineGutter": {
+			backgroundColor: isSoftWhite ? "oklch(0.97 0 0)" : "var(--color-accent)",
+		},
+		".cm-activeLine": {
+			backgroundColor: isSoftWhite ? "oklch(0.97 0 0)" : "var(--color-accent)",
+		},
+		".cm-cursor": {
+			borderLeftColor: "var(--color-foreground)",
+		},
+		".cm-selectionBackground": {
+			backgroundColor: "var(--color-muted) !important",
+		},
+		".cm-content": {
+			caretColor: "var(--color-foreground)",
+		},
+		".cm-matchingBracket, .cm-nonmatchingBracket": {
+			backgroundColor: "var(--color-accent)",
+			outline: "1px solid var(--color-border)",
+		},
+	};
+
+	return EditorView.theme(base);
 }
 
 export function SqlEditorView({
@@ -105,32 +179,11 @@ export function SqlEditorView({
 		"&": { fontSize: `${editorFontSize}px` },
 		".cm-content": { fontSize: `${editorFontSize}px` },
 	});
-	const editorTheme =
-		theme === "dark"
-			? oneDark
-			: EditorView.theme({
-					"&": {
-						backgroundColor: "var(--color-card)",
-						color: "var(--color-foreground)",
-					},
-					".cm-gutters": {
-						backgroundColor: "var(--color-card)",
-						color: "var(--color-muted-foreground)",
-						borderRight: "1px solid var(--color-border)",
-					},
-					".cm-activeLineGutter": {
-						backgroundColor: "var(--color-accent)",
-					},
-					".cm-activeLine": {
-						backgroundColor: "var(--color-accent)",
-					},
-					".cm-cursor": {
-						borderLeftColor: "var(--color-foreground)",
-					},
-					".cm-selectionBackground": {
-						backgroundColor: "var(--color-muted) !important",
-					},
-				});
+	const activeEditorTheme = theme === "dark" ? appSettings.editorDarkTheme : appSettings.editorLightTheme;
+	const editorTheme = useMemo(
+		() => resolveEditorTheme(activeEditorTheme),
+		[activeEditorTheme],
+	);
 	const sqlSchema = useMemo(() => {
 		const s: Record<string, string[]> = {};
 		for (const t of tables)

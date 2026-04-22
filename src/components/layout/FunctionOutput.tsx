@@ -274,7 +274,7 @@ const FunctionOutput = () => {
 		}
 	};
 	return (
-		<div className="h-full w-full flex flex-col overflow-hidden">
+		<div className="h-full w-full flex flex-col overflow-hidden rounded-[inherit] bg-surface-1">
 			<TabBar
 				tabs={tabs}
 				activeTabId={activeTabId}
@@ -283,7 +283,7 @@ const FunctionOutput = () => {
 				onCloseTab={handleCloseTab}
 				onNewTab={openNewTab}
 			/>
-			<div className="flex-1 min-h-0 overflow-hidden">{renderContent()}</div>
+			<div className="flex-1 min-h-0 overflow-hidden rounded-b-[inherit] bg-surface-2">{renderContent()}</div>
 			{/* Destructive query confirmation dialog */}
 			<AlertDialog
 				open={!!pendingDangerSql}

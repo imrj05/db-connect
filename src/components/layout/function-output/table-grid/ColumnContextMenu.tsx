@@ -60,8 +60,8 @@ export function ColumnContextMenu({
 			<div
 				className="absolute z-[9999] min-w-[14rem] rounded-lg bg-popover text-popover-foreground shadow-md ring-1 ring-foreground/10 p-1 text-[13px] animate-in fade-in-0 zoom-in-95 duration-100"
 				style={{
-					left: Math.min(colCtxMenu.x, window.innerWidth - 234),
-					top: Math.min(colCtxMenu.y, window.innerHeight - 400),
+					left: Math.min(colCtxMenu.x, (window.visualViewport?.width ?? window.innerWidth) - 234),
+					top: Math.min(colCtxMenu.y, (window.visualViewport?.height ?? window.innerHeight) - 400),
 				}}
 				onClick={(e) => e.stopPropagation()}
 			>

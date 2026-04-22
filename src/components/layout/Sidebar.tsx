@@ -69,10 +69,10 @@ function ColumnIcon({ col }: { col: ColumnInfo }) {
 // ── Column row ─────────────────────────────────────────────────────────────────
 function ColumnRow({ col }: { col: ColumnInfo }) {
     return (
-        <div className="flex items-center gap-1.5 h-[22px] pl-1 pr-2 text-muted-foreground/55 hover:text-muted-foreground transition-colors">
+        <div className="flex h-[22px] items-center gap-2 rounded-[4px] pl-1.5 pr-2.5 text-foreground/62 transition-colors hover:bg-surface-2/72 hover:text-foreground/82">
             <ColumnIcon col={col} />
-            <span className="text-[10px] font-mono truncate flex-1">{col.name}</span>
-            <span className="text-[9px] font-mono text-muted-foreground/30 shrink-0">
+            <span className="text-[11px] font-mono truncate flex-1">{col.name}</span>
+            <span className="text-[10px] font-mono text-foreground/38 shrink-0">
                 {col.dataType}
             </span>
         </div>
@@ -120,15 +120,15 @@ function TableRow({
                     <button
                         onClick={() => onInvoke(fn)}
                         className={cn(
-                            "group w-full flex items-center gap-1.5 h-[26px] pr-2 pl-0 transition-colors overflow-hidden",
+                            "group flex h-7 w-full items-center gap-2.5 overflow-hidden rounded-[4px] pl-1.5 pr-2.5 transition-colors",
                             isActive
-                                ? "bg-primary/10 text-primary"
-                                : "text-muted-foreground/70 hover:bg-muted/50 hover:text-foreground",
+                                ? "bg-surface-selected/82 text-foreground shadow-xs ring-1 ring-border-subtle"
+                                : "text-foreground/72 hover:bg-surface-2 hover:text-foreground",
                         )}
                     >
                         {/* expand chevron — always visible */}
                         <span
-                            className="flex items-center justify-center w-5 h-full shrink-0 text-muted-foreground/30 hover:text-muted-foreground/60"
+                            className="flex items-center justify-center w-5 h-full shrink-0 text-foreground/28 hover:text-foreground/52"
                             onClick={(e) => { e.stopPropagation(); expandTo(!open); }}
                         >
                             {loadingCols
@@ -138,16 +138,16 @@ function TableRow({
                                     : <ChevronRight size={10} />}
                         </span>
                         <Table2
-                            size={11}
+                            size={12}
                             className={cn(
                                 "shrink-0",
-                                isActive ? "text-primary/80" : "text-blue-400/70",
+                                isActive ? "text-primary/72" : "text-blue-400/72",
                             )}
                         />
                         <span
                             className={cn(
-                                "text-[11px] font-mono flex-1 text-left min-w-0",
-                                isActive && "font-semibold",
+                                "text-[12px] font-mono flex-1 text-left min-w-0",
+                                isActive && "font-semibold text-foreground",
                             )}
                         >
                             {midTruncate(fn.tableName ?? "")}
@@ -195,16 +195,16 @@ function SchemaGroup({
             {showLabel && (
                 <button
                     onClick={() => setOpen((v) => !v)}
-                    className="w-full flex items-center gap-1.5 h-[26px] pl-1 pr-2 text-muted-foreground/50 hover:text-muted-foreground transition-colors"
+                    className="flex h-[26px] w-full items-center gap-2 rounded-[4px] pl-1.5 pr-2.5 text-foreground/60 transition-colors hover:bg-surface-2/72 hover:text-foreground"
                 >
-                    <span className="flex items-center justify-center w-4 shrink-0 text-muted-foreground/30">
+                    <span className="flex items-center justify-center w-4 shrink-0 text-foreground/35">
                         {open ? <ChevronDown size={10} /> : <ChevronRight size={10} />}
                     </span>
                     {open
-                        ? <FolderOpen size={11} className="shrink-0 text-muted-foreground/40" />
-                        : <Folder size={11} className="shrink-0 text-muted-foreground/30" />}
-                    <span className="text-[10px] font-mono flex-1 text-left">{schema}</span>
-                    <span className="text-[9px] font-mono text-muted-foreground/70">{fns.length}</span>
+                        ? <FolderOpen size={11} className="shrink-0 text-foreground/45" />
+                        : <Folder size={11} className="shrink-0 text-foreground/38" />}
+                    <span className="text-[11px] font-mono flex-1 text-left">{schema}</span>
+                    <span className="text-[10px] font-mono text-foreground/45">{fns.length}</span>
                 </button>
             )}
             {open && (
@@ -331,49 +331,51 @@ function DatabaseNode({
     const schemaKeys = Object.keys(bySchema);
     const showSchemaLabels = schemaKeys.length > 1 || (schemaKeys.length === 1 && schemaKeys[0] !== "public");
     return (
-        <div className="border-b border-border/50">
+        <div className="border border-border-subtle bg-surface-2/86 shadow-xs rounded-md overflow-hidden">
             {/* DB name row */}
             <button
                 onClick={() => isConnected ? setOpen((v) => !v) : onConnect()}
                 className={cn(
-                    "group w-full flex items-center gap-2 h-8 px-2 transition-colors select-none",
-                    "hover:bg-muted/40 text-foreground",
+                    "group w-full flex items-center gap-2.5 h-9 px-3 transition-colors select-none",
+                    "hover:bg-surface-3/82 text-foreground",
                 )}
             >
-                <span className="text-muted-foreground/40 shrink-0 w-3">
+                <span className="text-foreground/38 shrink-0 w-3">
                     {isConnected
                         ? open ? <ChevronDown size={11} /> : <ChevronRight size={11} />
                         : <ChevronRight size={11} />}
                 </span>
-                <Logo className={cn("text-[14px] shrink-0", logoColor)} />
-                <span className="text-[12px] font-mono font-semibold flex-1 text-left truncate min-w-0">
+                <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-surface-3 ring-1 ring-border-subtle">
+                    <Logo className={cn("text-[14px] shrink-0", logoColor)} />
+                </div>
+                <span className="text-[13px] font-semibold flex-1 text-left truncate min-w-0">
                     {connection.name}
                 </span>
                 {connection.group && (() => {
                     const preset = GROUP_PRESETS.find(p => p.id === connection.group);
                     return (
                         <span className={cn(
-                            "shrink-0 px-1.5 h-[14px] flex items-center rounded text-[8px] font-bold uppercase tracking-wide border",
+                            "shrink-0 px-1.5 h-[15px] flex items-center rounded-md text-[9px] font-bold uppercase tracking-wide border",
                             preset ? preset.activeClass : "bg-muted/50 border-border/50 text-muted-foreground/60"
                         )}>
                             {connection.group}
                         </span>
                     );
                 })()}
-                {isLoading && <Loader2 size={10} className="animate-spin text-muted-foreground/40 shrink-0" />}
+                {isLoading && <Loader2 size={10} className="animate-spin text-foreground/40 shrink-0" />}
                 {!isConnected && !isLoading && (
-                    <Plug size={10} className="text-muted-foreground/70 shrink-0 group-hover:text-primary/60 transition-colors" />
+                    <Plug size={10} className="text-foreground/56 shrink-0 group-hover:text-primary/70 transition-colors" />
                 )}
             </button>
             {/* Tables header */}
             {isConnected && open && (
-                <div className="flex items-center gap-1 h-7 px-2 border-b border-border/30 shrink-0">
-                    <TableProperties size={11} className="shrink-0 text-muted-foreground/30" />
-                    <span className="text-[9px] font-mono font-bold uppercase tracking-[0.18em] text-muted-foreground/35 flex-1">
+                <div className="flex h-8 shrink-0 items-center gap-1.5 border-y border-border-subtle bg-surface-1/92 px-2.5">
+                    <TableProperties size={12} className="shrink-0 text-foreground/35" />
+                    <span className="text-[10px] font-bold uppercase tracking-[0.16em] text-foreground/48 flex-1">
                         Tables
                     </span>
                     {!isLoading && tableFns.length > 0 && (
-                        <span className="text-[9px] font-mono text-muted-foreground/40 tabular-nums mr-0.5">
+                        <span className="text-[10px] font-mono text-foreground/42 tabular-nums mr-0.5">
                             {filter.trim() ? `${filtered.length}/` : ""}{tableFns.length}
                         </span>
                     )}
@@ -381,7 +383,7 @@ function DatabaseNode({
                         <TooltipTrigger asChild>
                             <button
                                 onClick={() => setAddTableOpen(true)}
-                                className="flex items-center justify-center w-5 h-5 text-muted-foreground/35 hover:text-foreground transition-colors"
+                                className="flex items-center justify-center w-5 h-5 rounded-md text-foreground/40 hover:text-foreground hover:bg-surface-3 transition-colors"
                             >
                                 <Plus size={11} />
                             </button>
@@ -393,7 +395,7 @@ function DatabaseNode({
                             <button
                                 onClick={handleRefreshTables}
                                 disabled={isRefreshingTables}
-                                className="flex items-center justify-center w-5 h-5 text-muted-foreground/35 hover:text-foreground transition-colors disabled:opacity-40"
+                                className="flex items-center justify-center w-5 h-5 rounded-md text-foreground/40 hover:text-foreground hover:bg-surface-3 transition-colors disabled:opacity-40"
                             >
                                 <RefreshCw size={11} className={isRefreshingTables ? "animate-spin" : ""} />
                             </button>
@@ -405,7 +407,7 @@ function DatabaseNode({
                             <TooltipTrigger asChild>
                                 <button
                                     onClick={() => setExpandAll((v) => v === true ? false : true)}
-                                    className="flex items-center justify-center w-5 h-5 text-muted-foreground/35 hover:text-foreground transition-colors"
+                                    className="flex items-center justify-center w-5 h-5 rounded-md text-foreground/40 hover:text-foreground hover:bg-surface-3 transition-colors"
                                 >
                                     {expandAll === true ? <ChevronsUp size={11} /> : <ChevronsDown size={11} />}
                                 </button>
@@ -421,7 +423,7 @@ function DatabaseNode({
                                 <button
                                     onClick={() => setShowDumpDialog(true)}
                                     disabled={dumpDbLoading}
-                                    className="flex items-center justify-center w-5 h-5 text-muted-foreground/35 hover:text-foreground transition-colors disabled:opacity-40"
+                                    className="flex items-center justify-center w-5 h-5 rounded-md text-foreground/40 hover:text-foreground hover:bg-surface-3 transition-colors disabled:opacity-40"
                                 >
                                     {dumpDbLoading
                                         ? <Loader2 size={11} className="animate-spin" />
@@ -453,22 +455,22 @@ function DatabaseNode({
             />
             {/* Tree */}
             {isConnected && open && (
-                <div className="pb-1">
+                <div className="px-1.5 pb-1.5 pt-1">
                     {isLoading ? (
                         <div className="flex items-center gap-2 px-4 py-2">
-                            <Loader2 size={10} className="animate-spin text-muted-foreground/30" />
-                            <span className="text-[10px] font-mono text-muted-foreground/30">Loading…</span>
+                            <Loader2 size={10} className="animate-spin text-foreground/36" />
+                            <span className="text-[11px] font-mono text-foreground/45">Loading…</span>
                         </div>
                     ) : tableFns.length === 0 ? (
-                        <p className="px-4 py-2 text-[10px] font-mono text-muted-foreground/30">
+                        <p className="px-4 py-2 text-[11px] font-mono text-foreground/42">
                             No tables
                         </p>
                     ) : filtered.length === 0 ? (
-                        <p className="px-4 py-2 text-[10px] font-mono text-muted-foreground/30">
+                        <p className="px-4 py-2 text-[11px] font-mono text-foreground/42">
                             No match
                         </p>
                     ) : (
-                        <div className="pl-2 w-full min-w-0 overflow-hidden">
+                        <div className="w-full min-w-0 overflow-hidden px-1 pb-1">
                             {schemaKeys.map((schema) => (
                                 <SchemaGroup
                                     key={schema}
@@ -577,19 +579,16 @@ const Sidebar = () => {
     const activeDatabases = activeConn ? (openDatabases[activeConn.id] ?? []) : [];
     const selectedDb = activeConn ? (selectedDatabases[activeConn.id] ?? null) : null;
     return (
-        <div className="h-full flex bg-sidebar border-r border-sidebar-border overflow-hidden min-h-0">
+        <div className="h-full flex bg-surface-1 border border-border-subtle shadow-sm overflow-hidden min-h-0 rounded-md">
             {/* ── Left: open database tabs ── */}
             {activeDatabases.length > 0 && activeConn && (
-                <div className="flex flex-col shrink-0 border-r border-border/60 bg-sidebar overflow-y-auto" style={{ width: 72 }}>
-                    {activeDatabases.map((db, idx) => {
+                <div className="flex shrink-0 flex-col gap-1 overflow-y-auto border-r border-border-subtle bg-surface-1/94 px-1.5 py-2" style={{ width: 78 }}>
+                    {activeDatabases.map((db) => {
                         const isActive = db === selectedDb;
                         const DbLogo = DB_LOGO[activeConn.type] ?? DB_LOGO.postgresql;
                         const logoColor = DB_COLOR[activeConn.type] ?? "text-muted-foreground";
                         return (
                             <div key={db} className="flex flex-col">
-                                {idx > 0 && (
-                                    <div className="mx-3 h-px bg-border/40 shrink-0" />
-                                )}
                                 <Tooltip delayDuration={600}>
                                     <TooltipTrigger asChild>
                                         <button
@@ -599,35 +598,30 @@ const Sidebar = () => {
                                                 setDbCtxMenu({ db, x: e.clientX, y: e.clientY });
                                             }}
                                             className={cn(
-                                                "group relative flex flex-col items-center gap-1.5 py-3 px-1.5 w-full transition-colors shrink-0",
+                                                "group relative flex w-full shrink-0 flex-col items-center gap-1.5 rounded-md border px-2 py-2.5 transition-[color,background-color,border-color,box-shadow]",
                                                 isActive
-                                                    ? "bg-background text-foreground"
-                                                    : "text-muted-foreground/50 hover:text-muted-foreground hover:bg-muted/20"
+                                                    ? "border-border-subtle bg-surface-elevated text-foreground shadow-xs"
+                                                    : "border-transparent bg-surface-2/64 text-foreground/50 hover:border-border/55 hover:bg-surface-2 hover:text-foreground/72"
                                             )}
                                         >
-                                            {/* Left accent bar */}
-                                            <div className={cn(
-                                                "absolute left-0 top-3 bottom-3 w-[2px] rounded-r-full transition-opacity",
-                                                isActive ? "bg-primary opacity-100" : "opacity-0"
-                                            )} />
                                             {/* Icon container */}
                                             <div className={cn(
-                                                "flex items-center justify-center w-9 h-9 rounded-lg transition-colors",
+                                                "flex h-8 w-8 items-center justify-center rounded-md transition-colors",
                                                 isActive
-                                                    ? "bg-primary/10 ring-1 ring-primary/20"
-                                                    : "group-hover:bg-muted/40"
+                                                    ? "bg-surface-2 ring-1 ring-border-subtle shadow-xs"
+                                                    : "bg-transparent group-hover:bg-surface-3"
                                             )}>
                                                 <DbLogo className={cn(
                                                     "text-[18px] shrink-0 transition-colors",
-                                                    isActive ? logoColor : "text-muted-foreground/35 group-hover:text-muted-foreground/60"
+                                                    isActive ? logoColor : "text-foreground/36 group-hover:text-foreground/56"
                                                 )} />
                                             </div>
                                             {/* DB label */}
                                             <span className={cn(
-                                                "text-[8px] font-mono leading-tight text-center w-full px-1 truncate transition-colors",
+                                                "w-full truncate px-1 text-center text-[9px] font-mono leading-tight transition-colors",
                                                 isActive
-                                                    ? "text-foreground/80"
-                                                    : "text-muted-foreground/40 group-hover:text-muted-foreground/60"
+                                                    ? "text-foreground/82"
+                                                    : "text-foreground/42 group-hover:text-foreground/62"
                                             )}>
                                                 {db}
                                             </span>
@@ -646,8 +640,10 @@ const Sidebar = () => {
             {dbCtxMenu && activeConn && (() => {
                 const menuW = 172;
                 const menuH = 160;
-                const left = Math.min(dbCtxMenu.x, window.innerWidth - menuW - 8);
-                const top = Math.min(dbCtxMenu.y, window.innerHeight - menuH - 8);
+                const maxX = Math.min(dbCtxMenu.x, (window.visualViewport?.width ?? window.innerWidth) - menuW - 8);
+                const maxY = Math.min(dbCtxMenu.y, (window.visualViewport?.height ?? window.innerHeight) - menuH - 8);
+                const left = maxX;
+                const top = maxY;
                 return (
                     <>
                         <div
@@ -656,7 +652,7 @@ const Sidebar = () => {
                             onContextMenu={(e) => { e.preventDefault(); setDbCtxMenu(null); }}
                         />
                         <div
-                            className="fixed z-50 bg-popover border border-border rounded-lg shadow-xl p-1 text-popover-foreground"
+                            className="fixed z-50 bg-popover/98 border border-border-subtle rounded-md shadow-xl p-1 text-popover-foreground backdrop-blur-xl"
                             style={{ top, left, width: menuW }}
                         >
                             <div className="px-2 py-1.5 mb-0.5">
@@ -665,7 +661,7 @@ const Sidebar = () => {
                                 </p>
                             </div>
                             <button
-                                className="w-full flex items-center gap-2 px-2 py-1.5 rounded-sm text-[11px] text-foreground/80 hover:bg-muted/40 transition-colors"
+                                className="w-full flex items-center gap-2 px-2 py-1.5 rounded-md text-[11px] text-foreground/80 hover:bg-surface-selected/82 transition-colors"
                                 onClick={() => {
                                     refreshTables(activeConn.id, dbCtxMenu.db);
                                     if (selectedDb !== dbCtxMenu.db) selectDatabase(activeConn.id, dbCtxMenu.db);
@@ -676,7 +672,7 @@ const Sidebar = () => {
                                 Refresh DB
                             </button>
                             <button
-                                className="w-full flex items-center gap-2 px-2 py-1.5 rounded-sm text-[11px] text-foreground/70 hover:bg-muted/40 transition-colors"
+                                className="w-full flex items-center gap-2 px-2 py-1.5 rounded-md text-[11px] text-foreground/70 hover:bg-surface-selected/82 transition-colors"
                                 onClick={() => {
                                     closeOpenDatabase(activeConn.id, dbCtxMenu.db);
                                     setDbCtxMenu(null);
@@ -687,7 +683,7 @@ const Sidebar = () => {
                             </button>
                             <div className="my-1 h-px bg-border/60" />
                             <button
-                                className="w-full flex items-center gap-2 px-2 py-1.5 rounded-sm text-[11px] text-destructive/80 hover:bg-destructive/10 transition-colors"
+                                className="w-full flex items-center gap-2 px-2 py-1.5 rounded-md text-[11px] text-destructive/80 hover:bg-destructive/10 transition-colors"
                                 onClick={() => {
                                     setDropConfirmInput("");
                                     setDropDbConfirm(dbCtxMenu.db);
@@ -704,13 +700,13 @@ const Sidebar = () => {
             {/* ── Right: main content ── */}
             <div className="flex-1 flex flex-col overflow-hidden min-w-0">
                 {/* ── Header ── */}
-                <div className="h-10 flex items-center justify-between px-3 border-b border-border shrink-0">
-                    <span className="text-[10px] font-mono font-bold uppercase tracking-[0.18em] text-muted-foreground/40">
+                    <div className="h-10 flex items-center justify-between px-3 border-b border-border-subtle bg-surface-1/92 shrink-0 backdrop-blur-sm">
+                    <span className="text-[11px] font-bold uppercase tracking-[0.16em] text-foreground/48">
                         Explorer
                     </span>
                     <div className="flex items-center gap-1">
                         {loadingIds.size > 0 && (
-                            <Loader2 size={10} className="animate-spin text-muted-foreground/40" />
+                            <Loader2 size={10} className="animate-spin text-foreground/40" />
                         )}
                         <Tooltip>
                             <TooltipTrigger asChild>
@@ -718,7 +714,7 @@ const Sidebar = () => {
                                     variant="ghost"
                                     size="icon-xs"
                                     onClick={() => setImportExportOpen(true)}
-                                    className="text-muted-foreground/40 hover:text-foreground"
+                                    className="text-foreground/48 hover:text-foreground"
                                 >
                                     <ArrowUpDown size={14} />
                                 </Button>
@@ -728,15 +724,16 @@ const Sidebar = () => {
                         <Tooltip>
                             <TooltipTrigger asChild>
                                 <Button
-                                    variant="ghost"
-                                    size="icon-xs"
+                                    variant="outline"
+                                    size="sm"
                                     onClick={() => {
                                         setEditingConnection(null);
                                         setConnectionDialogOpen(true);
                                     }}
-                                    className="text-muted-foreground/40 hover:text-foreground"
+                                    className="h-7 gap-1.5 rounded-md border-border-subtle bg-surface-3/96 px-2.5 text-[10px] font-semibold uppercase tracking-[0.12em] text-foreground/72 shadow-xs hover:bg-surface-elevated hover:text-foreground"
                                 >
-                                    <Plus size={14} />
+                                    <Plus size={12} />
+                                    Add
                                 </Button>
                             </TooltipTrigger>
                             <TooltipContent side="bottom" sideOffset={4}>New connection</TooltipContent>
@@ -745,14 +742,14 @@ const Sidebar = () => {
                 </div>
                 {/* ── Filter ── */}
                 {connections.length > 0 && (
-                    <div className="px-2 py-1.5 border-b border-border shrink-0">
+                    <div className="shrink-0 border-b border-border-subtle bg-surface-1/72 px-2 py-2">
                         <div className="relative">
-                            <Search size={10} className="absolute left-2 top-1/2 -translate-y-1/2 text-muted-foreground/30 pointer-events-none" />
+                            <Search size={11} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-foreground/36 pointer-events-none" />
                             <Input
                                 value={filter}
                                 onChange={(e) => setFilter(e.target.value)}
                                 placeholder="Filter tables…"
-                                className="h-7 pl-6 pr-2 text-[11px] font-mono bg-muted/30 border-border/40 placeholder:text-muted-foreground/30 focus-visible:ring-0 focus-visible:border-primary/40"
+                                className="h-8 pl-8 pr-3 text-[12px] font-mono bg-surface-elevated/96 border-border-subtle placeholder:text-foreground/38 focus-visible:border-primary/35 focus-visible:ring-0"
                             />
                         </div>
                     </div>
@@ -764,17 +761,17 @@ const Sidebar = () => {
                             <Database size={18} className="text-muted-foreground/70" />
                         </div>
                         <div className="text-center space-y-1">
-                            <p className="text-[10px] font-mono font-bold text-muted-foreground/40 uppercase tracking-widest">
+                            <p className="text-[11px] font-bold text-foreground/50 uppercase tracking-[0.16em]">
                                 No connections
                             </p>
-                            <p className="text-[9px] font-mono text-muted-foreground/70">
+                            <p className="text-[11px] text-foreground/62">
                                 Add a database to get started
                             </p>
                         </div>
                         <Button
                             size="sm"
                             onClick={() => { setEditingConnection(null); setConnectionDialogOpen(true); }}
-                            className="h-7 text-[10px] font-mono font-bold uppercase tracking-widest gap-1.5"
+                            className="h-7 text-[11px] font-semibold uppercase tracking-[0.12em] gap-1.5"
                         >
                             <Plus size={11} />
                             Add Connection
@@ -782,7 +779,7 @@ const Sidebar = () => {
                     </div>
                 ) : (
                     <ScrollArea className="flex-1 min-h-0">
-                        <div className="py-1">
+                        <div className="px-2 py-2">
                             {activeConn ? (() => {
                                 const conn = activeConn;
                                 const fns = connectionFunctions[conn.id] ?? [];
@@ -814,26 +811,26 @@ const Sidebar = () => {
                                 );
                             })() : (
                                 <div className="flex flex-col items-center justify-center gap-3 py-8 px-4 text-center">
-                                    <p className="text-[10px] font-mono text-muted-foreground/40">No active connection</p>
+                                    <p className="text-[11px] font-mono text-foreground/44">No active connection</p>
                                 </div>
                             )}
                         </div>
                     </ScrollArea>
                 )}
                 {/* ── Status Footer ── always pinned to bottom */}
-                <div className="shrink-0 border-t border-border px-3 h-7 flex items-center gap-2 bg-sidebar overflow-hidden">
+                <div className="shrink-0 border-t border-border-subtle px-3.5 h-8 flex items-center gap-2 bg-surface-1/94 overflow-hidden">
                     <CircleDot
                         size={8}
-                        className={cn("shrink-0", connectedIds.length > 0 ? "text-primary" : "text-muted-foreground/50")}
+                        className={cn("shrink-0", connectedIds.length > 0 ? "text-primary" : "text-foreground/42")}
                     />
-                    <span className="text-[10px] font-mono shrink-0 whitespace-nowrap">
-                        <span className={connectedIds.length > 0 ? "text-primary" : "text-muted-foreground/70"}>{connectedIds.length}</span>
-                        <span className="text-muted-foreground/60">/{connections.length} conn</span>
+                    <span className="text-[11px] font-mono shrink-0 whitespace-nowrap">
+                        <span className={connectedIds.length > 0 ? "text-primary" : "text-foreground/58"}>{connectedIds.length}</span>
+                        <span className="text-foreground/52">/{connections.length} conn</span>
                     </span>
-                    <span className="text-muted-foreground/40 shrink-0">·</span>
-                    <HardDrive size={8} className="shrink-0 text-muted-foreground/50" />
-                    <span className="text-[10px] font-mono truncate text-muted-foreground/70 min-w-0">
-                        {currentDb ?? <span className="text-muted-foreground/40">no db</span>}
+                    <span className="text-foreground/36 shrink-0">·</span>
+                    <HardDrive size={8} className="shrink-0 text-foreground/42" />
+                    <span className="text-[11px] font-mono truncate text-foreground/62 min-w-0">
+                        {currentDb ?? <span className="text-foreground/38">no db</span>}
                     </span>
                 </div>
             </div>{/* end right content */}

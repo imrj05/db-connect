@@ -1750,14 +1750,14 @@ export function TableGridView({
                 <h3 className="text-sm font-bold uppercase tracking-[0.2em] mb-2">
                     Empty table
                 </h3>
-                <p className="text-[10px] text-muted-foreground uppercase tracking-widest opacity-60">
+                <p className="text-[11px] text-foreground/55 uppercase tracking-widest">
                     0 rows · {effectiveResult.executionTimeMs}ms
                 </p>
             </div>
         );
     }
     return (
-        <div className="h-full flex flex-col bg-background overflow-hidden">
+        <div className="h-full flex flex-col bg-surface-2 overflow-hidden rounded-[inherit]">
             <GridToolbar
                 fn={fn}
                 executionTimeMs={effectiveResult.executionTimeMs}
@@ -1824,20 +1824,20 @@ export function TableGridView({
             />
             {/* Content: Data view */}
             {viewMode === "data" && (
-                <div className="flex-1 overflow-auto scrollbar-thin">
+                <div className="flex-1 overflow-auto scrollbar-thin bg-surface-3">
                     <div className="min-w-full block align-middle">
                         <Table
-                            className="border-collapse text-[11px] font-mono border-separate border-spacing-0"
+                            className="border-collapse text-[12px] font-mono border-separate border-spacing-0 bg-surface-3"
                             style={{ width: table.getTotalSize() }}
                         >
-                            <TableHeader className="sticky top-0 z-10 bg-background shadow-[0_1px_0_var(--color-border-table)]">
+                            <TableHeader className="sticky top-0 z-10 bg-surface-2/96 backdrop-blur-md shadow-[0_1px_0_var(--color-border-table)]">
                                 {table.getHeaderGroups().map((headerGroup) => (
                                     <TableRow
                                         key={headerGroup.id}
                                         className="hover:bg-transparent border-none"
                                     >
                                         <TableHead
-                                            className="w-10 h-8 px-2 text-center font-bold text-muted-foreground/30 border-r border-border bg-card cursor-pointer hover:text-muted-foreground/60 transition-colors sticky left-0 z-20"
+                                            className="w-11 h-8 px-2.5 text-center font-bold text-foreground/36 border-r border-border-subtle bg-surface-2 cursor-pointer hover:text-foreground/62 transition-colors sticky left-0 z-20"
                                             onClick={() => {
                                                 setSelectedColId(null);
                                                 setSelectedRowIdx(-1);
@@ -1859,12 +1859,12 @@ export function TableGridView({
                                                         position: "relative",
                                                     }}
                                                     className={cn(
-                                                        "h-8 px-4 text-left font-bold border-r border-border last:border-r-0 cursor-pointer transition-colors select-none overflow-hidden group/th",
+                                                        "h-8 px-4 text-left font-semibold border-r border-border-subtle last:border-r-0 cursor-pointer transition-colors select-none overflow-hidden group/th bg-surface-2/96",
                                                         isColSelected
-                                                            ? "bg-warning text-warning-foreground"
+                                                            ? "bg-surface-selected/82 text-foreground"
                                                             : header.column.getIsSorted()
-                                                                ? "text-foreground border-b-2 border-b-primary/50 hover:bg-muted/40"
-                                                                : "text-muted-foreground hover:bg-muted/40",
+                                                                ? "text-foreground border-b-2 border-b-primary/35 hover:bg-surface-3"
+                                                                : "text-foreground/68 hover:bg-surface-3",
                                                     )}
                                                     onClick={(e) => {
                                                         setSelectedColId(
@@ -1898,7 +1898,7 @@ export function TableGridView({
                                                         </span>
                                                         {header.column.getIsSorted() &&
                                                             !isColSelected && (
-                                                                <span className="text-primary/60 text-[9px] shrink-0">
+                                                                <span className="text-primary/70 text-[10px] shrink-0">
                                                                     {header.column.getIsSorted() ===
                                                                         "asc"
                                                                         ? "↑"
@@ -1924,13 +1924,13 @@ export function TableGridView({
                                                                     e,
                                                                 );
                                                             }}
-                                                            className={cn(
-                                                                "absolute right-0 top-0 h-full w-1 cursor-col-resize touch-none select-none transition-colors",
-                                                                header.column.getIsResizing()
-                                                                    ? "bg-primary/70"
-                                                                    : "bg-transparent hover:bg-primary/50",
-                                                            )}
-                                                        />
+                                                                className={cn(
+                                                                    "absolute right-0 top-0 h-full w-1 cursor-col-resize touch-none select-none transition-colors",
+                                                                    header.column.getIsResizing()
+                                                                        ? "bg-primary/80"
+                                                                        : "bg-transparent hover:bg-primary/36",
+                                                                )}
+                                                            />
                                                     )}
                                                 </TableHead>
                                             );
@@ -1945,7 +1945,7 @@ export function TableGridView({
                                             colSpan={
                                                 table.getAllColumns().length + 1
                                             }
-                                            className="h-24 text-center text-muted-foreground/40 text-[11px] font-mono"
+                                            className="h-24 text-center text-foreground/44 text-[12px] font-mono"
                                         >
                                             0 rows
                                         </TableCell>
@@ -1962,7 +1962,7 @@ export function TableGridView({
                                                 className={cn(
                                                     "hover:bg-row-hover transition-colors group cursor-default",
                                                     isSelected
-                                                        ? "bg-warning/10 border-l-2 border-warning"
+                                                        ? "bg-surface-selected/82 border-l-2 border-primary/70"
                                                         : idx % 2 === 0
                                                             ? "bg-table-bg"
                                                             : "bg-row-alt",
@@ -1970,10 +1970,10 @@ export function TableGridView({
                                             >
                                                 <TableCell
                                                     className={cn(
-                                                        "w-10 h-8 px-2 text-center border-r border-border cursor-pointer select-none transition-colors sticky left-0 z-20 bg-card",
+                                                        "w-11 h-8 px-2.5 text-center border-r border-border-subtle cursor-pointer select-none transition-colors sticky left-0 z-20 bg-surface-2",
                                                         isSelected
-                                                            ? "bg-warning text-warning-foreground font-bold"
-                                                            : "text-muted-foreground/30 bg-card/30 hover:bg-warning/20 hover:text-warning",
+                                                            ? "bg-surface-selected/82 text-foreground font-bold"
+                                                            : "text-foreground/38 bg-surface-2/92 hover:bg-surface-selected/82 hover:text-foreground",
                                                     )}
                                                     onClick={() =>
                                                         setSelectedRowIdx(
@@ -2009,15 +2009,15 @@ export function TableGridView({
                                                                     width: cell.column.getSize(),
                                                                 }}
                                                                 className={cn(
-                                                                    "h-8 px-4 border-r border-border last:border-r-0 text-foreground/90 whitespace-nowrap overflow-hidden text-ellipsis relative",
+                                                                    "h-8 px-4 border-r border-border-subtle last:border-r-0 text-foreground/92 whitespace-nowrap overflow-hidden text-ellipsis relative",
                                                                     pendingEdit &&
                                                                     "bg-warning/10",
                                                                     cell.column
                                                                         .id ===
                                                                     selectedColId &&
-                                                                    "bg-warning/10",
+                                                                    "bg-surface-selected/58",
                                                                     isCellSelected &&
-                                                                    "ring-1 ring-inset ring-warning",
+                                                                    "ring-1 ring-inset ring-primary/45 bg-surface-selected/82",
                                                                 )}
                                                                 onClick={() => {
                                                                     const key = `${idx}:${cell.column.id}`;
@@ -2277,9 +2277,9 @@ export function TableGridView({
             />
             {/* Content: Form view */}
             {viewMode === "form" && effectiveResult && (
-                <div className="flex-1 overflow-auto scrollbar-thin bg-background">
+                <div className="flex-1 overflow-auto scrollbar-thin bg-surface-3">
                     {effectiveResult.rows.length === 0 ? (
-                        <div className="h-full flex items-center justify-center text-muted-foreground/25 text-[11px] font-mono">
+                        <div className="h-full flex items-center justify-center text-foreground/38 text-[12px] font-mono">
                             0 rows
                         </div>
                     ) : (
@@ -2294,16 +2294,16 @@ export function TableGridView({
                             return (
                                 <div>
                                     {/* Record header */}
-                                    <div className="sticky top-0 z-10 flex items-center justify-between px-4 h-9 bg-card/95 backdrop-blur-sm border-b border-border">
+                                    <div className="sticky top-0 z-10 flex items-center justify-between px-4 h-9 bg-surface-2/94 backdrop-blur-md border-b border-border-subtle">
                                         <div className="flex items-center gap-2">
                                             <AlignLeft
                                                 size={10}
-                                                className="text-muted-foreground/40"
+                                                className="text-foreground/42"
                                             />
-                                            <span className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground/50">
+                                            <span className="text-[10px] font-bold uppercase tracking-widest text-foreground/52">
                                                 Record
                                             </span>
-                                            <span className="text-[9px] font-mono bg-muted text-muted-foreground/50 rounded px-1.5 py-0.5 leading-none">
+                                            <span className="text-[10px] font-mono bg-muted text-foreground/52 rounded-md px-1.5 py-0.5 leading-none">
                                                 {page * pageSize +
                                                     formRowIdx +
                                                     1}{" "}
@@ -2323,7 +2323,7 @@ export function TableGridView({
                                                         ),
                                                     )
                                                 }
-                                                className="h-6 w-6 text-muted-foreground/50 hover:text-foreground disabled:opacity-20"
+                                                className="h-6 w-6 text-foreground/52 hover:text-foreground disabled:opacity-20"
                                             >
                                                 <ChevronLeft size={11} />
                                             </Button>
@@ -2345,7 +2345,7 @@ export function TableGridView({
                                                         ),
                                                     )
                                                 }
-                                                className="h-6 w-6 text-muted-foreground/50 hover:text-foreground disabled:opacity-20"
+                                                className="h-6 w-6 text-foreground/52 hover:text-foreground disabled:opacity-20"
                                             >
                                                 <ChevronRight size={11} />
                                             </Button>
@@ -2353,7 +2353,7 @@ export function TableGridView({
                                                 <Button
                                                     variant="ghost"
                                                     size="icon-xs"
-                                                    className="h-6 w-6 text-muted-foreground/30 hover:text-destructive hover:bg-destructive/10 ml-1"
+                                                    className="h-6 w-6 text-foreground/38 hover:text-destructive hover:bg-destructive/10 ml-1"
                                                     onClick={() =>
                                                         buildAndShowDeleteSql(
                                                             row,
@@ -2366,7 +2366,7 @@ export function TableGridView({
                                         </div>
                                     </div>
                                     {/* Fields */}
-                                    <div className="divide-y divide-border/40">
+                                    <div className="divide-y divide-border-subtle">
                                         {cols.map((col, colIdx) => {
                                             const isEditing =
                                                 editingCell?.rowIdx ===
@@ -2379,7 +2379,7 @@ export function TableGridView({
                                                 <div
                                                     key={col}
                                                     className={cn(
-                                                        "group/field flex items-start gap-4 px-4 py-2.5 hover:bg-row-hover transition-colors",
+                                                        "group/field flex items-start gap-4 px-4 py-2.5 hover:bg-surface-hover transition-colors",
                                                         pendingEdit &&
                                                         "bg-warning/10",
                                                         colIdx % 2 === 0
@@ -2387,7 +2387,7 @@ export function TableGridView({
                                                             : "bg-row-alt",
                                                     )}
                                                 >
-                                                    <span className="w-40 shrink-0 text-[11px] font-mono font-semibold text-muted-foreground/50 truncate pt-0.5">
+                                                    <span className="w-40 shrink-0 text-[12px] font-mono font-semibold text-foreground/54 truncate pt-0.5">
                                                         {col}
                                                     </span>
                                                     {isEditing ? (
@@ -2427,7 +2427,7 @@ export function TableGridView({
                                                                     );
                                                                 }
                                                             }}
-                                                            className="flex-1 bg-primary/10 border border-primary/30 rounded px-2 py-0.5 outline-none text-[12px] font-mono text-foreground"
+                                                            className="flex-1 bg-primary/10 border border-primary/30 rounded-md px-2 py-0.5 outline-none text-[12px] font-mono text-foreground"
                                                         />
                                                     ) : (
                                                         <span
@@ -2436,7 +2436,7 @@ export function TableGridView({
                                                                 pendingEdit
                                                                     ? "text-warning"
                                                                     : val === null
-                                                                        ? "text-muted-foreground/25 italic"
+                                                                        ? "text-foreground/35 italic"
                                                                         : "text-foreground/90",
                                                             )}
                                                             onDoubleClick={() => {
@@ -2469,7 +2469,7 @@ export function TableGridView({
             )}
             {/* Content: Structure view */}
             {viewMode === "structure" && (
-                <div className="flex-1 overflow-auto scrollbar-thin bg-background">
+                <div className="flex-1 overflow-auto scrollbar-thin bg-surface-3">
                     {structureLoading ? (
                         <div className="h-full flex items-center justify-center">
                             <Loader2
@@ -2481,16 +2481,16 @@ export function TableGridView({
                         <div>
                             {/* ── Columns ── */}
                             <div>
-                                <div className="sticky top-0 z-10 flex items-center justify-between px-4 h-9 bg-card/95 backdrop-blur-sm border-b border-border">
+                                <div className="sticky top-0 z-10 flex items-center justify-between px-4 h-9 bg-surface-2/94 backdrop-blur-md border-b border-border-subtle">
                                     <div className="flex items-center gap-2">
                                         <Key
                                             size={10}
-                                            className="text-muted-foreground/40"
+                                            className="text-foreground/42"
                                         />
-                                        <span className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground/50">
+                                        <span className="text-[10px] font-bold uppercase tracking-widest text-foreground/52">
                                             Columns
                                         </span>
-                                        <span className="text-[9px] font-mono bg-muted text-muted-foreground/50 rounded px-1.5 py-0.5 leading-none">
+                                        <span className="text-[10px] font-mono bg-muted text-foreground/52 rounded-md px-1.5 py-0.5 leading-none">
                                             {structure.columns.length}
                                         </span>
                                     </div>
@@ -2509,13 +2509,13 @@ export function TableGridView({
                                                 });
                                                 setShowAddColumn(true);
                                             }}
-                                            className="h-6 w-6 text-muted-foreground/50 hover:text-foreground"
+                                            className="h-6 w-6 text-foreground/52 hover:text-foreground"
                                         >
                                             <Plus size={11} />
                                         </Button>
                                     )}
                                 </div>
-                                <div className="divide-y divide-border/40">
+                                <div className="divide-y divide-border-subtle">
                                     {structure.columns.map((col, idx) => (
                                         <div
                                             key={col.name}
@@ -2526,40 +2526,40 @@ export function TableGridView({
                                                     : "bg-row-alt",
                                             )}
                                         >
-                                            <span className="text-[10px] font-mono text-muted-foreground/20 w-4 shrink-0 text-right tabular-nums">
+                                            <span className="text-[10px] font-mono text-foreground/28 w-4 shrink-0 text-right tabular-nums">
                                                 {idx + 1}
                                             </span>
                                             <span className="text-[12px] font-mono font-semibold text-foreground flex-1 min-w-0 truncate">
                                                 {col.name}
                                             </span>
                                             <div className="flex items-center gap-1.5 shrink-0 flex-wrap justify-end">
-                                                <span className="text-[10px] font-mono text-accent-orange/70 bg-accent-orange/8 border border-accent-orange/15 px-1.5 py-0.5 rounded">
+                                                <span className="text-[10px] font-mono text-accent-orange/78 bg-accent-orange/8 border border-accent-orange/15 px-1.5 py-0.5 rounded-md">
                                                     {col.dataType}
                                                 </span>
                                                 {col.isPrimary && (
-                                                    <span className="px-1.5 py-0.5 rounded text-[8px] font-black uppercase tracking-wider bg-accent-orange/15 text-accent-orange border border-accent-orange/20">
+                                                    <span className="px-1.5 py-0.5 rounded-[4px] text-[8px] font-black uppercase tracking-wider bg-accent-orange/12 text-accent-orange/88 border border-accent-orange/16">
                                                         PK
                                                     </span>
                                                 )}
                                                 {col.isUnique &&
                                                     !col.isPrimary && (
-                                                        <span className="px-1.5 py-0.5 rounded text-[8px] font-black uppercase tracking-wider bg-accent-purple/15 text-accent-purple border border-accent-purple/20">
+                                                        <span className="px-1.5 py-0.5 rounded-[4px] text-[8px] font-black uppercase tracking-wider bg-accent-purple/12 text-accent-purple/88 border border-accent-purple/16">
                                                             UNI
                                                         </span>
                                                     )}
                                                 {!col.nullable && (
-                                                    <span className="px-1.5 py-0.5 rounded text-[8px] font-black uppercase tracking-wider bg-destructive/8 text-destructive/60 border border-destructive/15">
+                                                    <span className="px-1.5 py-0.5 rounded-[4px] text-[8px] font-black uppercase tracking-wider bg-destructive/8 text-destructive/60 border border-destructive/15">
                                                         NOT NULL
                                                     </span>
                                                 )}
                                                 {col.defaultValue != null && (
-                                                    <span className="px-1.5 py-0.5 rounded text-[8px] font-mono text-muted-foreground/50 bg-muted border border-border">
+                                                    <span className="px-1.5 py-0.5 rounded text-[9px] font-mono text-foreground/48 bg-muted border border-border">
                                                         default:{" "}
                                                         {col.defaultValue}
                                                     </span>
                                                 )}
                                                 {col.extra && (
-                                                    <span className="px-1.5 py-0.5 rounded text-[8px] font-mono text-muted-foreground/40 bg-muted border border-border">
+                                                    <span className="px-1.5 py-0.5 rounded text-[9px] font-mono text-foreground/42 bg-muted border border-border">
                                                         {col.extra}
                                                     </span>
                                                 )}
@@ -2567,7 +2567,7 @@ export function TableGridView({
                                             <Button
                                                 variant="ghost"
                                                 size="icon-xs"
-                                                className="opacity-0 group-hover/row:opacity-100 transition-opacity text-muted-foreground/30 hover:text-destructive hover:bg-destructive/10 shrink-0"
+                                                className="opacity-0 group-hover/row:opacity-100 transition-opacity text-foreground/38 hover:text-destructive hover:bg-destructive/10 shrink-0"
                                                 onClick={() =>
                                                     setDropColTarget(col.name)
                                                 }
@@ -2579,17 +2579,17 @@ export function TableGridView({
                                 </div>
                             </div>
                             {/* ── Indexes ── */}
-                            <div className="border-t border-border">
-                                <div className="sticky top-0 z-10 flex items-center justify-between px-4 h-9 bg-card/95 backdrop-blur-sm border-b border-border">
+                            <div className="border-t border-border-subtle">
+                                <div className="sticky top-0 z-10 flex items-center justify-between px-4 h-9 bg-surface-2/94 backdrop-blur-md border-b border-border-subtle">
                                     <div className="flex items-center gap-2">
                                         <Hash
                                             size={10}
-                                            className="text-muted-foreground/40"
+                                            className="text-foreground/42"
                                         />
-                                        <span className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground/50">
+                                        <span className="text-[10px] font-bold uppercase tracking-widest text-foreground/52">
                                             Indexes
                                         </span>
-                                        <span className="text-[9px] font-mono bg-muted text-muted-foreground/50 rounded px-1.5 py-0.5 leading-none">
+                                        <span className="text-[10px] font-mono bg-muted text-foreground/52 rounded px-1.5 py-0.5 leading-none">
                                             {structure.indexes.length}
                                         </span>
                                     </div>
@@ -2605,18 +2605,18 @@ export function TableGridView({
                                                 });
                                                 setShowCreateIndex(true);
                                             }}
-                                            className="h-6 w-6 text-muted-foreground/50 hover:text-foreground"
+                                            className="h-6 w-6 text-foreground/52 hover:text-foreground"
                                         >
                                             <Plus size={11} />
                                         </Button>
                                     )}
                                 </div>
                                 {structure.indexes.length === 0 ? (
-                                    <div className="px-4 py-8 text-center text-[11px] font-mono text-muted-foreground/25">
+                                    <div className="px-4 py-8 text-center text-[12px] font-mono text-foreground/38">
                                         No indexes
                                     </div>
                                 ) : (
-                                    <div className="divide-y divide-border/40">
+                                    <div className="divide-y divide-border-subtle">
                                         {structure.indexes.map((idx, i) => (
                                             <div
                                                 key={idx.name}
@@ -2627,25 +2627,25 @@ export function TableGridView({
                                                         : "bg-row-alt",
                                                 )}
                                             >
-                                                <span className="text-[12px] font-mono text-accent-blue/70 flex-1 min-w-0 truncate">
+                                                <span className="text-[13px] font-mono text-accent-blue/78 flex-1 min-w-0 truncate">
                                                     {idx.name}
                                                 </span>
                                                 <div className="flex items-center gap-1 shrink-0 flex-wrap justify-end">
                                                     {idx.columns.map((c) => (
                                                         <span
                                                             key={c}
-                                                            className="px-1.5 py-0.5 bg-muted border border-border rounded text-[9px] font-mono text-foreground/60"
+                                                            className="px-1.5 py-0.5 bg-muted border border-border rounded text-[10px] font-mono text-foreground/64"
                                                         >
                                                             {c}
                                                         </span>
                                                     ))}
                                                     {idx.indexType && (
-                                                        <span className="text-[9px] font-mono text-muted-foreground/35 uppercase">
+                                                        <span className="text-[10px] font-mono text-foreground/38 uppercase">
                                                             {idx.indexType}
                                                         </span>
                                                     )}
                                                     {idx.unique && (
-                                                        <span className="px-1.5 py-0.5 rounded text-[8px] font-black uppercase tracking-wider bg-accent-green/10 text-accent-green border border-accent-green/20">
+                                                        <span className="px-1.5 py-0.5 rounded-[4px] text-[8px] font-black uppercase tracking-wider bg-accent-green/8 text-accent-green/88 border border-accent-green/16">
                                                             UNIQUE
                                                         </span>
                                                     )}
@@ -2653,7 +2653,7 @@ export function TableGridView({
                                                 <Button
                                                     variant="ghost"
                                                     size="icon-xs"
-                                                    className="opacity-0 group-hover/row:opacity-100 transition-opacity text-muted-foreground/30 hover:text-destructive hover:bg-destructive/10 shrink-0"
+                                                    className="opacity-0 group-hover/row:opacity-100 transition-opacity text-foreground/38 hover:text-destructive hover:bg-destructive/10 shrink-0"
                                                     onClick={() =>
                                                         setDropIdxTarget(
                                                             idx.name,
@@ -2669,7 +2669,7 @@ export function TableGridView({
                             </div>
                         </div>
                     ) : (
-                        <div className="h-full flex items-center justify-center text-muted-foreground/25 text-[11px] font-mono">
+                        <div className="h-full flex items-center justify-center text-foreground/38 text-[12px] font-mono">
                             No structure data
                         </div>
                     )}
@@ -2684,7 +2684,7 @@ export function TableGridView({
                                     size={18}
                                     className="animate-spin text-primary mx-auto"
                                 />
-                                <p className="text-[10px] font-mono uppercase tracking-widest text-muted-foreground/45">
+                                <p className="text-[11px] font-mono uppercase tracking-widest text-foreground/48">
                                     Loading schema graph
                                 </p>
                             </div>
@@ -2717,7 +2717,7 @@ export function TableGridView({
                             isRefreshing={schemaGraphLoading}
                         />
                     ) : (
-                        <div className="h-full flex items-center justify-center text-muted-foreground/25 text-[11px] font-mono">
+                        <div className="h-full flex items-center justify-center text-foreground/38 text-[12px] font-mono">
                             No schema graph data
                         </div>
                     )}
@@ -2726,7 +2726,7 @@ export function TableGridView({
             {/* Cell edit error banner */}
             {cellEditError && (
                 <div className="px-3 py-1.5 bg-destructive/10 border-t border-destructive/20 flex items-center justify-between shrink-0">
-                    <span className="text-[10px] font-mono text-destructive">
+                    <span className="text-[11px] font-mono text-destructive">
                         {cellEditError}
                     </span>
                     <Button
@@ -2740,7 +2740,7 @@ export function TableGridView({
                 </div>
             )}
             {/* Footer toolbar */}
-            <div className="h-9 bg-card border-t border-border flex items-center justify-between px-2 shrink-0">
+            <div className="h-11 bg-surface-2/92 border-t border-border-subtle flex items-center justify-between px-3.5 shrink-0 gap-4 backdrop-blur-sm">
                 <div className="flex items-stretch gap-0 h-full">
                     {(
                         isRelationalDb
@@ -2751,10 +2751,10 @@ export function TableGridView({
                             key={mode}
                             onClick={() => handleViewMode(mode)}
                             className={cn(
-                                "relative flex items-center px-3 text-[10px] font-bold uppercase tracking-widest transition-colors",
+                                "relative flex items-center px-3 text-[11px] font-semibold uppercase tracking-[0.14em] transition-colors",
                                 viewMode === mode
-                                    ? "text-foreground"
-                                    : "text-muted-foreground/40 hover:text-muted-foreground",
+                                    ? "text-foreground bg-surface-3/92 rounded-[4px]"
+                                    : "text-foreground/46 hover:text-foreground/72 hover:bg-surface-3/72 rounded-[4px]",
                             )}
                         >
                             {mode}
@@ -2766,17 +2766,17 @@ export function TableGridView({
                 </div>
                 {viewMode === "data" && (
                     <>
-                        <div className="flex items-center gap-2 text-[10px] font-mono text-muted-foreground/60">
+                        <div className="flex items-center gap-2.5 text-[11px] font-mono text-foreground/54">
                             {cellEditLoading ? (
                                 <Loader2
                                     size={10}
                                     className="animate-spin text-accent-blue"
                                 />
                             ) : (
-                                <span className="flex items-center gap-1.5 text-[10px] text-muted-foreground/50 hidden sm:flex select-none">
+                                <span className="flex items-center gap-1.5 text-[11px] text-foreground/48 hidden sm:flex select-none">
                                     <Kbd>↵</Kbd>
                                     <span>inline edit</span>
-                                    <span className="text-muted-foreground/30">
+                                    <span className="text-foreground/28">
                                         ·
                                     </span>
                                     <Kbd>⇧↵</Kbd>
@@ -2788,11 +2788,11 @@ export function TableGridView({
                                 size="xs"
                                 disabled={page === 0}
                                 onClick={() => onPageChange(page - 1)}
-                                className="h-6 text-[10px] font-bold uppercase tracking-widest text-muted-foreground"
+                                className="h-6 text-[11px] font-semibold uppercase tracking-[0.12em] text-foreground/58"
                             >
                                 ← Prev
                             </Button>
-                            <span className="tabular-nums text-muted-foreground/60">
+                            <span className="tabular-nums text-foreground/56">
                                 {effectiveResult.rows.length === 0
                                     ? "0 rows"
                                     : `${page * pageSize + 1}–${page * pageSize + effectiveResult.rows.length}`}
@@ -2805,7 +2805,7 @@ export function TableGridView({
                                     filtersActive
                                 }
                                 onClick={() => onPageChange(page + 1)}
-                                className="h-6 text-[10px] font-bold uppercase tracking-widest text-muted-foreground"
+                                className="h-6 text-[11px] font-semibold uppercase tracking-[0.12em] text-foreground/58"
                             >
                                 Next →
                             </Button>
@@ -2815,7 +2815,7 @@ export function TableGridView({
                                 <Button
                                     variant="outline"
                                     size="xs"
-                                    className="h-6 text-[10px] font-bold uppercase tracking-widest gap-1"
+                                    className="h-6 text-[11px] font-semibold uppercase tracking-[0.12em] gap-1.5"
                                 >
                                     <Download size={10} />
                                     Export
@@ -2876,13 +2876,13 @@ export function TableGridView({
                     </>
                 )}
                 {viewMode === "structure" && structure && (
-                    <span className="text-[9px] font-mono text-muted-foreground/30">
+                    <span className="text-[11px] font-mono text-foreground/42">
                         {structure.columns.length} cols ·{" "}
                         {structure.indexes.length} idx
                     </span>
                 )}
                 {viewMode === "er" && schemaGraph && (
-                    <span className="text-[9px] font-mono text-muted-foreground/30">
+                    <span className="text-[11px] font-mono text-foreground/42">
                         {schemaGraph.tables.length} tables ·{" "}
                         {schemaGraph.relationships.length} relations
                     </span>

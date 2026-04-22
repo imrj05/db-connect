@@ -301,7 +301,7 @@ const ConnectionDialog = ({ onClose, initialData }: ConnectionDialogProps) => {
         <Dialog open onOpenChange={(open) => !open && onClose()}>
             <DialogContent
                 showCloseButton={false}
-                className="!max-w-[880px] !w-[880px] !p-0 !gap-0 overflow-hidden bg-card border border-border shadow-2xl rounded-2xl"
+                className="!max-w-[860px] !w-[860px] !p-0 !gap-0 overflow-hidden bg-card border border-border-subtle shadow-2xl rounded-md"
             >
                 <DialogTitle className="sr-only">
                     {initialData ? "Edit Connection" : "New Connection"}
@@ -312,14 +312,14 @@ const ConnectionDialog = ({ onClose, initialData }: ConnectionDialogProps) => {
                 <Tabs
                     value={activeTab}
                     onValueChange={setActiveTab}
-                    className="flex h-[600px] flex-col"
+                    className="flex h-[580px] flex-col"
                 >
-                    <div className="flex items-center justify-between gap-4 border-b border-border px-6 py-4">
+                    <div className="flex items-center justify-between gap-4 border-b border-border-subtle bg-surface-2/72 px-5 py-3.5">
                         <div className="min-w-0">
-                            <h2 className="text-sm font-sans font-bold text-foreground">
+                            <h2 className="text-[13px] font-sans font-semibold text-foreground">
                                 {initialData ? "Edit Connection" : "New Connection"}
                             </h2>
-                            <p className="mt-0.5 text-[10px] font-sans text-muted-foreground/50">
+                            <p className="mt-0.5 text-[11px] font-sans text-muted-foreground/62">
                                 {initialData
                                     ? `Editing ${initialData.name}`
                                     : "Create a connection from scratch or start with Quick Connect."}
@@ -328,15 +328,15 @@ const ConnectionDialog = ({ onClose, initialData }: ConnectionDialogProps) => {
                         {!initialData && (
                             <TabsList
                                 variant="line"
-                                className="grid h-11 auto-cols-fr grid-flow-col shrink-0 rounded-2xl  bg-muted/20 p-1"
+                                className="grid h-10 auto-cols-fr grid-flow-col shrink-0 rounded-md bg-surface-3 p-0.5"
                             >
                                 <TabsTrigger
                                     value="details"
                                     className={cn(
                                         tabTriggerBaseClass,
                                         activeTab === "details"
-                                            ? "border-border bg-background text-foreground shadow-sm [&_svg]:text-foreground"
-                                            : "border-transparent bg-transparent text-muted-foreground/55 hover:bg-background/50 hover:text-foreground/80 [&_svg]:text-muted-foreground/45",
+                                            ? "border-border-subtle bg-surface-elevated text-foreground shadow-xs [&_svg]:text-foreground"
+                                            : "border-transparent bg-transparent text-muted-foreground/60 hover:bg-surface-2 hover:text-foreground/80 [&_svg]:text-muted-foreground/45",
                                     )}
                                 >
                                     <LayoutTemplate data-icon="inline-start" />
@@ -347,8 +347,8 @@ const ConnectionDialog = ({ onClose, initialData }: ConnectionDialogProps) => {
                                     className={cn(
                                         tabTriggerBaseClass,
                                         activeTab === "quick-connect"
-                                            ? "border-border bg-background text-foreground shadow-sm [&_svg]:text-foreground"
-                                            : "border-transparent bg-transparent text-muted-foreground/55 hover:bg-background/50 hover:text-foreground/80 [&_svg]:text-muted-foreground/45",
+                                            ? "border-border-subtle bg-surface-elevated text-foreground shadow-xs [&_svg]:text-foreground"
+                                            : "border-transparent bg-transparent text-muted-foreground/60 hover:bg-surface-2 hover:text-foreground/80 [&_svg]:text-muted-foreground/45",
                                     )}
                                 >
                                     <WandSparkles data-icon="inline-start" />
@@ -364,8 +364,8 @@ const ConnectionDialog = ({ onClose, initialData }: ConnectionDialogProps) => {
                                 onSelect={handleEngineChange}
                             />
                             <div className="flex min-w-0 flex-1 flex-col">
-                                <div className="flex-1 overflow-y-auto p-6">
-                                    <div className="flex flex-col gap-5">
+                                <div className="flex-1 overflow-y-auto p-5">
+                                    <div className="flex flex-col gap-4">
                                         <FieldGroup>
                                             <div className="grid grid-cols-2 gap-4">
                                                 <Field>
@@ -432,7 +432,7 @@ const ConnectionDialog = ({ onClose, initialData }: ConnectionDialogProps) => {
                                         </FieldGroup>
                                         <div className="flex items-center gap-3">
                                             <Separator className="flex-1" />
-                                            <span className="text-[9px] font-bold uppercase tracking-widest text-muted-foreground/30 shrink-0">
+                                            <span className="text-[9px] font-bold uppercase tracking-[0.16em] text-muted-foreground/40 shrink-0">
                                                 Connection Details
                                             </span>
                                             <Separator className="flex-1" />
@@ -446,10 +446,10 @@ const ConnectionDialog = ({ onClose, initialData }: ConnectionDialogProps) => {
                                         {formData.type !== "redis" && formData.type !== "sqlite" && (
                                             <div
                                                 className={cn(
-                                                    "overflow-hidden rounded-2xl border transition-all",
+                                                    "overflow-hidden rounded-md border transition-all",
                                                     formData.ssl
-                                                        ? "border-accent/25 bg-accent/5"
-                                                        : "border-border bg-muted/15 hover:bg-muted/25",
+                                                        ? "border-primary/20 bg-primary/5"
+                                                        : "border-border-subtle bg-surface-2/72 hover:bg-surface-2",
                                                 )}
                                             >
                                                 <div
@@ -459,10 +459,10 @@ const ConnectionDialog = ({ onClose, initialData }: ConnectionDialogProps) => {
                                                     <div className="flex min-w-0 items-start gap-2.5">
                                                         <div
                                                             className={cn(
-                                                                "flex size-8 shrink-0 items-center justify-center rounded-lg border transition-colors",
+                                                                "flex size-8 shrink-0 items-center justify-center rounded-md border transition-colors",
                                                                 formData.ssl
-                                                                    ? "border-accent/25 bg-accent/10 text-foreground"
-                                                                    : "border-border/70 bg-muted/20 text-muted-foreground/55",
+                                                                    ? "border-primary/20 bg-primary/10 text-foreground"
+                                                                    : "border-border-subtle bg-surface-3 text-muted-foreground/55",
                                                             )}
                                                         >
                                                             <Shield size={13} />
@@ -474,10 +474,10 @@ const ConnectionDialog = ({ onClose, initialData }: ConnectionDialogProps) => {
                                                                 </p>
                                                                 <span
                                                                     className={cn(
-                                                                        "rounded-full border px-1.5 py-0.5 text-[7px] font-bold uppercase tracking-[0.16em]",
+                                                                        "rounded-md border px-1.5 py-0.5 text-[7px] font-bold uppercase tracking-[0.16em]",
                                                                         formData.ssl
-                                                                            ? "border-accent/30 bg-accent/10 text-foreground/80"
-                                                                            : "border-transparent bg-muted/30 text-muted-foreground/55",
+                                                                            ? "border-primary/24 bg-primary/10 text-foreground/80"
+                                                                            : "border-transparent bg-surface-3 text-muted-foreground/55",
                                                                     )}
                                                                 >
                                                                     {formData.ssl ? "Enabled" : "Optional"}
@@ -495,13 +495,13 @@ const ConnectionDialog = ({ onClose, initialData }: ConnectionDialogProps) => {
                                                         className="mt-0.5 shrink-0"
                                                     />
                                                 </div>
-                                                <div className="grid gap-1.5 border-t border-border/70 px-3.5 py-2.5 md:grid-cols-2">
+                                                <div className="grid gap-1.5 border-t border-border-subtle px-3.5 py-2.5 md:grid-cols-2">
                                                     <div
                                                         className={cn(
-                                                            "rounded-lg border px-2.5 py-2 transition-colors",
+                                                            "rounded-md border px-2.5 py-2 transition-colors",
                                                             formData.ssl
-                                                                ? "border-accent/25 bg-background/85"
-                                                                : "border-border/70 bg-background/70",
+                                                                ? "border-primary/20 bg-surface-elevated/92"
+                                                                : "border-border-subtle bg-surface-elevated/80",
                                                         )}
                                                     >
                                                         <p className="text-[8px] font-bold uppercase tracking-[0.16em] text-muted-foreground/55">
@@ -511,7 +511,7 @@ const ConnectionDialog = ({ onClose, initialData }: ConnectionDialogProps) => {
                                                             {formData.ssl ? "Encrypted in transit" : "Plain connection"}
                                                         </p>
                                                     </div>
-                                                    <div className="rounded-lg border border-border/70 bg-background/70 px-2.5 py-2">
+                                                    <div className="rounded-md border border-border-subtle bg-surface-elevated/80 px-2.5 py-2">
                                                         <p className="text-[8px] font-bold uppercase tracking-[0.16em] text-muted-foreground/55">
                                                             Best For
                                                         </p>
@@ -537,8 +537,8 @@ const ConnectionDialog = ({ onClose, initialData }: ConnectionDialogProps) => {
                         <TabsContent value="quick-connect" className="min-h-0 flex-1">
                             <div className="flex h-full min-h-0 flex-col overflow-y-auto p-6">
                                 <div className="flex flex-col gap-4">
-                                    <Card size="sm" className="border border-border bg-muted/20 py-0">
-                                        <CardHeader className="border-b border-border py-4">
+                                    <Card size="sm" className="border border-border-subtle bg-surface-2/72 py-0 rounded-md">
+                                        <CardHeader className="border-b border-border-subtle py-4">
                                             <CardTitle className="flex items-center gap-2 text-sm">
                                                 <Link2 className="size-4 text-muted-foreground" />
                                                 Paste Connection URI
@@ -589,8 +589,8 @@ const ConnectionDialog = ({ onClose, initialData }: ConnectionDialogProps) => {
                                             </FieldGroup>
                                         </CardContent>
                                     </Card>
-                                    <Card size="sm" className="border border-border bg-muted/20 py-0">
-                                        <CardHeader className="border-b border-border py-4">
+                                    <Card size="sm" className="border border-border-subtle bg-surface-2/72 py-0 rounded-md">
+                                        <CardHeader className="border-b border-border-subtle py-4">
                                             <CardTitle className="flex items-center gap-2 text-sm">
                                                 <Zap className="size-4 text-muted-foreground" />
                                                 Quick Connect Presets
@@ -608,10 +608,10 @@ const ConnectionDialog = ({ onClose, initialData }: ConnectionDialogProps) => {
                                                             key={preset.label}
                                                             type="button"
                                                             onClick={() => handlePreset(preset)}
-                                                            className="group flex items-center justify-between rounded-xl border border-border bg-background px-4 py-3 text-left transition-all hover:border-foreground/20 hover:bg-muted/60"
+                                                            className="group flex items-center justify-between rounded-md border border-border-subtle bg-surface-elevated px-4 py-3 text-left transition-all hover:border-border hover:bg-surface-3"
                                                         >
                                                             <div className="flex min-w-0 items-center gap-3">
-                                                                <div className="flex size-10 items-center justify-center rounded-lg bg-muted text-foreground/70">
+                                                                <div className="flex size-10 items-center justify-center rounded-md bg-surface-3 text-foreground/70">
                                                                     <Logo className="text-base" />
                                                                 </div>
                                                                 <div className="min-w-0">
@@ -639,9 +639,9 @@ const ConnectionDialog = ({ onClose, initialData }: ConnectionDialogProps) => {
                         </TabsContent>
                     )}
                     {/* ── Footer ── */}
-                    <div className="h-16 shrink-0 border-t border-border bg-card px-6">
+                    <div className="h-14 shrink-0 border-t border-border-subtle bg-surface-2/72 px-5">
                         <div className="flex h-full items-center justify-between gap-3">
-                            <p className="min-w-0 max-w-[320px] truncate text-[10px] text-muted-foreground/60">
+                            <p className="min-w-0 max-w-[320px] truncate text-[11px] text-muted-foreground/62">
                                     {isLoading
                                         ? "Connecting with the latest saved details..."
                                         : !formData.name
@@ -657,9 +657,9 @@ const ConnectionDialog = ({ onClose, initialData }: ConnectionDialogProps) => {
                                     onClick={handleTest}
                                     disabled={isTesting || isLoading}
                                     className={cn(
-                                        "h-8 text-[10px] font-bold uppercase tracking-widest gap-1.5",
+                                        "h-7 rounded-md text-[10px] font-semibold uppercase tracking-[0.12em] gap-1.5",
                                         testStatus === "success" &&
-                                        "bg-primary/10 text-primary border-primary/30",
+                                        "bg-primary/8 text-primary border-primary/24",
                                         testStatus === "error" &&
                                         "bg-destructive/10 text-destructive border-destructive/20",
                                     )}
@@ -684,7 +684,7 @@ const ConnectionDialog = ({ onClose, initialData }: ConnectionDialogProps) => {
                                         variant="ghost"
                                         size="sm"
                                         onClick={handleDelete}
-                                        className="h-8 text-[10px] font-bold uppercase tracking-widest text-destructive/60 hover:text-destructive hover:bg-destructive/10 gap-1.5"
+                                        className="h-7 rounded-md text-[10px] font-semibold uppercase tracking-[0.12em] text-destructive/60 hover:text-destructive hover:bg-destructive/10 gap-1.5"
                                     >
                                         <Trash2 size={11} />
                                         Delete
@@ -695,7 +695,7 @@ const ConnectionDialog = ({ onClose, initialData }: ConnectionDialogProps) => {
                                     size="sm"
                                     onClick={onClose}
                                     disabled={isLoading}
-                                    className="h-8 text-[10px] font-bold uppercase tracking-widest"
+                                    className="h-7 rounded-md text-[10px] font-semibold uppercase tracking-[0.12em]"
                                 >
                                     Close
                                 </Button>
@@ -704,7 +704,7 @@ const ConnectionDialog = ({ onClose, initialData }: ConnectionDialogProps) => {
                                     size="sm"
                                     onClick={handleSave}
                                     disabled={isLoading || !formData.name || !isDirty}
-                                    className="h-8 text-[10px] font-bold uppercase tracking-widest"
+                                    className="h-7 rounded-md text-[10px] font-semibold uppercase tracking-[0.12em]"
                                 >
                                     {isDirty ? "Save" : "Saved"}
                                 </Button>
@@ -712,7 +712,7 @@ const ConnectionDialog = ({ onClose, initialData }: ConnectionDialogProps) => {
                                     size="sm"
                                     onClick={handleConnect}
                                     disabled={isLoading || !formData.name}
-                                    className="h-8 px-5 text-[10px] font-black uppercase tracking-widest gap-1.5 active:scale-[0.97]"
+                                    className="h-7 rounded-md px-4 text-[10px] font-semibold uppercase tracking-[0.12em] gap-1.5 active:scale-[0.97]"
                                 >
                                     {isLoading ? (
                                         <Loader2 size={11} className="animate-spin" />

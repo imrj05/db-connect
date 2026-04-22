@@ -188,7 +188,7 @@ export function ImportExportDialog({ onClose, onImportComplete }: ImportExportDi
         value: string;
         onChange: (v: string) => void;
     }) => (
-        <div className="flex rounded-lg overflow-hidden border border-border/50 bg-muted/30">
+        <div className="flex rounded-md overflow-hidden border border-border/50 bg-muted/30">
             {options.map((opt) => (
                 <button
                     key={opt.value}
@@ -220,7 +220,7 @@ export function ImportExportDialog({ onClose, onImportComplete }: ImportExportDi
                 <button
                     type="button"
                     onClick={() => setView("export")}
-                    className="flex flex-col items-center gap-3 rounded-xl border border-border/50 bg-muted/20 hover:bg-muted/40 p-5 transition-colors group"
+                    className="flex flex-col items-center gap-3 rounded-md border border-border/50 bg-muted/20 hover:bg-muted/40 p-5 transition-colors group"
                 >
                     <Upload size={22} className="text-muted-foreground group-hover:text-foreground transition-colors" />
                     <div className="text-center">
@@ -231,7 +231,7 @@ export function ImportExportDialog({ onClose, onImportComplete }: ImportExportDi
                 <button
                     type="button"
                     onClick={() => setView("import")}
-                    className="flex flex-col items-center gap-3 rounded-xl border border-border/50 bg-muted/20 hover:bg-muted/40 p-5 transition-colors group"
+                    className="flex flex-col items-center gap-3 rounded-md border border-border/50 bg-muted/20 hover:bg-muted/40 p-5 transition-colors group"
                 >
                     <Download size={22} className="text-muted-foreground group-hover:text-foreground transition-colors" />
                     <div className="text-center">
@@ -302,7 +302,7 @@ export function ImportExportDialog({ onClose, onImportComplete }: ImportExportDi
                     </div>
                 )}
                 {includePasswords && exportFormat === "uri" && (
-                    <div className="flex items-center gap-2 rounded-lg bg-amber-500/10 border border-amber-500/20 px-3 py-2">
+                    <div className="flex items-center gap-2 rounded-md bg-amber-500/10 border border-amber-500/20 px-3 py-2">
                         <AlertTriangle size={12} className="text-amber-500 shrink-0" />
                         <span className="text-[10px] text-amber-600 dark:text-amber-400">
                             Passwords will be stored as plaintext in the URI file.
@@ -327,7 +327,7 @@ export function ImportExportDialog({ onClose, onImportComplete }: ImportExportDi
                             : "Select all"}
                     </button>
                 </div>
-                <div className="max-h-36 overflow-y-auto space-y-1 rounded-lg border border-border/40 p-1.5 bg-muted/10">
+                <div className="max-h-36 overflow-y-auto space-y-1 rounded-md border border-border/40 p-1.5 bg-muted/10">
                     {connections.length === 0 ? (
                         <p className="text-[10px] text-muted-foreground text-center py-2">No connections saved</p>
                     ) : (
@@ -414,7 +414,7 @@ export function ImportExportDialog({ onClose, onImportComplete }: ImportExportDi
                 <span className="text-[9px] font-bold uppercase tracking-widest text-muted-foreground/60">
                     If connection already exists
                 </span>
-                <div className="flex rounded-lg overflow-hidden border border-border/50 bg-muted/30">
+                <div className="flex rounded-md overflow-hidden border border-border/50 bg-muted/30">
                     {(["skip", "overwrite", "rename"] as ConflictStrategy[]).map((s) => (
                         <button
                             key={s}
@@ -436,7 +436,7 @@ export function ImportExportDialog({ onClose, onImportComplete }: ImportExportDi
             {/* Passphrase (shown after reading a protected file) */}
             {requiresPassphrase && (
                 <div className="space-y-2">
-                    <div className="flex items-center gap-2 rounded-lg bg-blue-500/10 border border-blue-500/20 px-3 py-2">
+                    <div className="flex items-center gap-2 rounded-md bg-blue-500/10 border border-blue-500/20 px-3 py-2">
                         <Lock size={12} className="text-blue-500 shrink-0" />
                         <span className="text-[10px] text-blue-600 dark:text-blue-400">
                             This export is password-protected. Enter the passphrase to decrypt.
@@ -469,7 +469,7 @@ export function ImportExportDialog({ onClose, onImportComplete }: ImportExportDi
 
             {/* Import result summary */}
             {importResult && (
-                <div className="rounded-lg border border-border/40 bg-muted/10 p-3 space-y-1">
+                <div className="rounded-md border border-border/40 bg-muted/10 p-3 space-y-1">
                     <div className="flex items-center gap-2">
                         <CheckCircle2 size={12} className="text-green-500" />
                         <span className="text-[11px] font-medium">
@@ -540,9 +540,9 @@ export function ImportExportDialog({ onClose, onImportComplete }: ImportExportDi
 
     return (
         <Dialog open onOpenChange={onClose}>
-            <DialogContent className="!max-w-[480px] p-0 overflow-hidden">
+            <DialogContent className="!max-w-[480px] rounded-md p-0 overflow-hidden">
                 {/* Header */}
-                <div className="flex items-center justify-between px-5 pt-5 pb-3 border-b border-border/40">
+                <div className="flex items-center justify-between px-4 pt-4 pb-3 border-b border-border-subtle bg-surface-2/72">
                     <div className="flex items-center gap-2">
                         <ArrowUpDown size={14} className="text-muted-foreground/60" />
                         <span className="text-[13px] font-semibold">{title}</span>
@@ -550,14 +550,14 @@ export function ImportExportDialog({ onClose, onImportComplete }: ImportExportDi
                     <button
                         type="button"
                         onClick={onClose}
-                        className="text-muted-foreground/40 hover:text-foreground transition-colors"
+                        className="rounded-md text-muted-foreground/40 transition-colors hover:text-foreground"
                     >
                         <X size={14} />
                     </button>
                 </div>
 
                 {/* Body */}
-                <div className="px-5 py-4">
+                <div className="px-4 py-4">
                     {view === "main" && <MainView />}
                     {view === "export" && <ExportView />}
                     {view === "import" && <ImportView />}

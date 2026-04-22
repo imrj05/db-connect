@@ -100,10 +100,10 @@ export function LicenseActivationDialog({ open, reason, onActivated, onClose }: 
 
 	return (
 		<Dialog open={open} onOpenChange={(o) => { if (!o && phase !== "loading") onClose(); }}>
-			<DialogContent className="max-w-md">
+			<DialogContent className="max-w-md rounded-md">
 				<DialogHeader>
 					<div className="flex items-center gap-3">
-						<div className="flex items-center justify-center w-9 h-9 rounded-xl bg-primary/10 border border-primary/20 shrink-0">
+						<div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md border border-primary/18 bg-primary/8">
 							<KeyRound size={17} className="text-primary" />
 						</div>
 						<div>
@@ -117,7 +117,7 @@ export function LicenseActivationDialog({ open, reason, onActivated, onClose }: 
 
 				{/* Reason banner — shown when user opens from the title bar badge */}
 				{reason && reason !== "missing_license" && (
-					<div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-amber-500/10 border border-amber-500/20 text-amber-600 dark:text-amber-400 text-xs">
+					<div className="flex items-center gap-2 rounded-md border border-amber-500/20 bg-amber-500/10 px-3 py-2 text-xs text-amber-600 dark:text-amber-400">
 						<AlertCircle size={13} className="shrink-0" />
 						<span>{reasonLabel(reason)}</span>
 					</div>
@@ -171,7 +171,7 @@ export function LicenseActivationDialog({ open, reason, onActivated, onClose }: 
 
 						{/* Error */}
 						{phase === "error" && errorMsg && (
-							<div className="flex items-start gap-2 px-3 py-2.5 rounded-lg bg-destructive/10 border border-destructive/20 text-destructive text-xs">
+							<div className="flex items-start gap-2 rounded-md border border-destructive/20 bg-destructive/10 px-3 py-2.5 text-xs text-destructive">
 								<AlertCircle size={13} className="shrink-0 mt-0.5" />
 								<span>{errorMsg}</span>
 							</div>
@@ -187,7 +187,7 @@ export function LicenseActivationDialog({ open, reason, onActivated, onClose }: 
 						</Button>
 
 						{/* Advanced */}
-						<div className="border-t border-border pt-3">
+						<div className="border-t border-border-subtle pt-3">
 							<button
 								type="button"
 								onClick={() => setShowAdvanced((v) => !v)}

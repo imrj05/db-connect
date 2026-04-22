@@ -81,11 +81,10 @@ export function RowContextMenu({
 				const canNullCurrentColumn = col ? canSetColumnToNull(col) : false;
 				const menuW = 224;
 				const menuH = hasTableName ? 480 : 340;
-				const left = Math.min(x, window.innerWidth - menuW - 8);
-				const top =
-					y + menuH > window.innerHeight - 8
-						? Math.max(8, y - menuH)
-						: y;
+				const maxX = Math.min(window.innerWidth, (window.visualViewport?.width ?? window.innerWidth) - menuW - 8);
+				const maxY = Math.min(window.innerHeight, (window.visualViewport?.height ?? window.innerHeight) - menuH - 8);
+				const left = Math.min(x, maxX);
+				const top = Math.min(y, maxY);
 				const close = () => {
 					onClose();
 					setShowQFSubmenu(false);
@@ -192,7 +191,7 @@ export function RowContextMenu({
 										style={{
 											left:
 												left + menuW + 4 >
-												window.innerWidth - 8
+												(window.visualViewport?.width ?? window.innerWidth) - 8
 													? -4
 													: "100%",
 										}}

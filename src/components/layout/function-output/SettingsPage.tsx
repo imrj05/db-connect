@@ -15,24 +15,22 @@ import {
     CalendarClock,
     Cpu,
     RefreshCw,
+    ArrowLeft,
+    Check,
+    ChevronDown,
+    Loader2,
 } from "lucide-react";
-import {
-    Dialog,
-    DialogContent,
-    DialogHeader,
-    DialogTitle,
-    DialogDescription,
-} from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Command, CommandInput, CommandList, CommandItem, CommandEmpty } from "@/components/ui/command";
 import { cn } from "@/lib/utils";
+import { getSystemFonts } from "@/lib/fonts";
 import { useAppStore, AppSettings, EditorThemeOption, UiDarkThemeOption, UiLightThemeOption } from "@/store/useAppStore";
 import { tauriApi } from "@/lib/tauri-api";
 import { licenseGetStored, licenseDeactivate, type StoredLicenseState } from "@/lib/license";
-import packageJson from "../../../package.json";
-
-// ── Section nav ───────────────────────────────────────────────────────────────
+import packageJson from "../../../../package.json";
 
 type Section = "appearance" | "editor" | "table" | "storage" | "license" | "about";
 
@@ -44,8 +42,6 @@ const NAV: { id: Section; label: string; icon: React.ReactNode }[] = [
     { id: "license",    label: "License",    icon: <KeyRound size={13} /> },
     { id: "about",      label: "About",      icon: <Info size={13} /> },
 ];
-
-// ── Small reusable pieces ──────────────────────────────────────────────────────
 
 function SectionHeading({ children }: { children: React.ReactNode }) {
     return (
@@ -108,10 +104,23 @@ function SegmentedControl<T extends string | number>({
     );
 }
 
-// ── Section content ────────────────────────────────────────────────────────────
-
 function AppearanceSection() {
     const { theme, setTheme, appSettings, updateAppSetting } = useAppStore();
+    const [systemFonts, setSystemFonts] = useState<{ value: string; label: string; isMono: boolean }[]>([]);
+    const [loadingFonts, setLoadingFonts] = useState(true);
+
+    useEffect(() => {
+        getSystemFonts().then(fonts => {
+            setSystemFonts(fonts);
+            setLoadingFonts(false);
+        }).catch(() => {
+            // Handle error - just show empty
+            setLoadingFonts(false);
+        });
+    }, []);
+
+    const sansFonts = systemFonts.filter(f => !f.isMono);
+    const monoFonts = systemFonts.filter(f => f.isMono);
 
     const uiDarkThemes: { value: UiDarkThemeOption; label: string }[] = [
         { value: "dark", label: "Dark" },
@@ -210,6 +219,102 @@ function AppearanceSection() {
                     onChange={(v) => updateAppSetting("uiZoom", v)}
                     format={(v) => `${v}%`}
                 />
+            </SettingRow>
+            <SettingRow label="Font" description="Sans-serif UI font">
+                {loadingFonts ? (
+                    <div className="h-7 w-44 flex items-center gap-2 text-[12px] text-muted-foreground">
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                        Loading fonts...
+                    </div>
+                ) : (
+                <Popover>
+                    <PopoverTrigger asChild>
+                        <Button
+                            variant="outline"
+                            className="h-7 w-44 justify-between text-[12px] font-normal"
+                        >
+                            <span className="truncate">
+                                {sansFonts.find(f => f.value === appSettings.uiFontFamily)?.label || appSettings.uiFontFamily || "Select..."}
+                            </span>
+                            <ChevronDown className="ml-auto h-4 w-4 opacity-50" />
+                        </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="p-0" align="start">
+                        <Command>
+                            <CommandInput
+                                placeholder="Search font..."
+                                className="h-9 text-[12px]"
+                            />
+                            <CommandList className="max-h-60">
+                                <CommandEmpty>No fonts found.</CommandEmpty>
+                                {sansFonts.map((f) => (
+                                    <CommandItem
+                                        key={f.value}
+                                        value={f.value}
+                                        onSelect={() => {
+                                            updateAppSetting("uiFontFamily", f.value);
+                                        }}
+                                        className="text-[13px]"
+                                    >
+                                        {f.label}
+                                        {appSettings.uiFontFamily === f.value && (
+                                            <Check className="ml-auto h-4 w-4" />
+                                        )}
+                                    </CommandItem>
+                                ))}
+                            </CommandList>
+                        </Command>
+                    </PopoverContent>
+                </Popover>
+                )}
+            </SettingRow>
+<SettingRow label="Monospace Font" description="Code and data display font">
+                {loadingFonts ? (
+                    <div className="h-7 w-44 flex items-center gap-2 text-[12px] text-muted-foreground">
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                        Loading fonts...
+                    </div>
+                ) : (
+                <Popover>
+                    <PopoverTrigger asChild>
+                        <Button
+                            variant="outline"
+                            className="h-7 w-44 justify-between text-[12px] font-normal"
+                        >
+                            <span className="truncate">
+                                {monoFonts.find(f => f.value === appSettings.monoFontFamily)?.label || appSettings.monoFontFamily || "Select..."}
+                            </span>
+                            <ChevronDown className="ml-auto h-4 w-4 opacity-50" />
+                        </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="p-0" align="start">
+                        <Command>
+                            <CommandInput
+                                placeholder="Search font..."
+                                className="h-9 text-[12px]"
+                            />
+                            <CommandList className="max-h-60">
+                                <CommandEmpty>No fonts found.</CommandEmpty>
+                                {monoFonts.map((f) => (
+                                    <CommandItem
+                                        key={f.value}
+                                        value={f.value}
+                                        onSelect={() => {
+                                            updateAppSetting("monoFontFamily", f.value);
+                                        }}
+                                        className="text-[13px]"
+                                    >
+                                        {f.label}
+                                        {appSettings.monoFontFamily === f.value && (
+                                            <Check className="ml-auto h-4 w-4" />
+                                        )}
+                                    </CommandItem>
+                                ))}
+                            </CommandList>
+                        </Command>
+                    </PopoverContent>
+                </Popover>
+                )}
             </SettingRow>
         </div>
     );
@@ -333,7 +438,6 @@ function StorageSection() {
         <div className="space-y-1">
             <SectionHeading>Storage</SectionHeading>
 
-            {/* Data directory */}
             <div className="py-2.5 space-y-1.5">
                 <p className="text-[12px] font-semibold text-foreground">Data Location</p>
                 <p className="text-[11px] text-muted-foreground/50">
@@ -351,7 +455,6 @@ function StorageSection() {
 
             <Separator className="my-1" />
 
-            {/* Stats */}
             <div className="py-2.5 grid grid-cols-3 gap-3">
                 {[
                     { label: "Connections", value: connections.length },
@@ -374,7 +477,6 @@ function StorageSection() {
 
             <Separator className="my-1" />
 
-            {/* Clear actions */}
             <SettingRow
                 label="Query History"
                 description={`${totalHistory} entries across all connections`}
@@ -501,7 +603,6 @@ function LicenseSection({ onActivate }: { onActivate: () => void }) {
         <div>
             <SectionHeading>License</SectionHeading>
 
-            {/* Status bar */}
             <div className={cn(
                 "flex items-center gap-2.5 px-3 py-2.5 rounded-xl border mb-4",
                 isExpired
@@ -522,7 +623,6 @@ function LicenseSection({ onActivate }: { onActivate: () => void }) {
                 </span>
             </div>
 
-            {/* Details */}
             <div className="space-y-0">
                 <SettingRow label="License Key">
                     <span className="text-[11px] font-mono text-muted-foreground/70 tracking-wider">
@@ -571,7 +671,6 @@ function LicenseSection({ onActivate }: { onActivate: () => void }) {
 
             <Separator className="my-4" />
 
-            {/* Actions */}
             <div className="flex items-center justify-between">
                 <div>
                     <p className="text-[12px] font-semibold text-foreground">Deactivate</p>
@@ -598,7 +697,6 @@ function AboutSection() {
         <div>
             <SectionHeading>About</SectionHeading>
 
-            {/* App identity */}
             <div className="flex items-center gap-4 py-3">
                 <div className="size-12 rounded-2xl bg-primary/10 border border-primary/20 flex items-center justify-center">
                     <Table2 size={22} className="text-primary" />
@@ -611,7 +709,6 @@ function AboutSection() {
 
             <Separator className="my-3" />
 
-            {/* Stack */}
             <div className="space-y-1.5">
                 {[
                     ["Built with", "Tauri 2 · React 19 · TypeScript"],
@@ -634,63 +731,63 @@ function AboutSection() {
     );
 }
 
-// ── Main dialog ───────────────────────────────────────────────────────────────
-
-export function SettingsDialog({ onActivate }: { onActivate?: () => void }) {
-    const { settingsOpen, setSettingsOpen } = useAppStore();
+export function SettingsPage({ onActivate }: { onActivate?: () => void }) {
+    const { setActiveView } = useAppStore();
     const [activeSection, setActiveSection] = useState<Section>("appearance");
 
     return (
-        <Dialog open={settingsOpen} onOpenChange={setSettingsOpen}>
-            <DialogHeader className="sr-only">
-                <DialogTitle>Settings</DialogTitle>
-                <DialogDescription>Configure DB Connect preferences</DialogDescription>
-            </DialogHeader>
-            <DialogContent className="w-[50vw]! max-w-[50vw]! h-[60vh]! max-h-[60vh]! p-0 gap-0 overflow-hidden rounded-md">
-                <div className="flex h-full w-full">
-                    {/* ── Left nav ── */}
-                    <div className="w-48 shrink-0 bg-surface-2/72 border-r border-border-subtle flex flex-col py-3 gap-0.5 px-2">
-                        <p className="text-[9px] font-black uppercase tracking-[0.16em] text-muted-foreground/40 px-2 pb-2 pt-1">
-                            Settings
-                        </p>
-                        {NAV.map((item) => (
-                            <button
-                                key={item.id}
-                                onClick={() => setActiveSection(item.id)}
-                                className={cn(
-                                    "flex items-center gap-2.5 h-7 px-2.5 rounded-md text-[12px] font-semibold transition-colors text-left w-full",
-                                    activeSection === item.id
-                                        ? "bg-surface-selected/82 text-foreground"
-                                        : "text-muted-foreground/60 hover:text-foreground hover:bg-surface-3",
-                                )}
-                            >
-                                <span className={cn(
-                                    "shrink-0",
-                                    activeSection === item.id ? "text-foreground" : "text-muted-foreground/40",
-                                )}>
-                                    {item.icon}
-                                </span>
-                                {item.label}
-                            </button>
-                        ))}
-                    </div>
-
-                    {/* ── Right content ── */}
-                    <div className="flex-1 overflow-y-auto px-5 py-5 bg-surface-elevated/65">
-                        {activeSection === "appearance" && <AppearanceSection />}
-                        {activeSection === "editor"     && <EditorSection />}
-                        {activeSection === "table"      && <TableSection />}
-                        {activeSection === "storage"    && <StorageSection />}
-                        {activeSection === "license"    && (
-                            <LicenseSection onActivate={() => {
-                                setSettingsOpen(false);
-                                onActivate?.();
-                            }} />
-                        )}
-                        {activeSection === "about"      && <AboutSection />}
-                    </div>
+        <div className="h-full flex flex-col bg-surface-1 overflow-hidden">
+            <div className="flex items-center gap-3 px-5 py-4 border-b border-border-subtle bg-surface-elevated/65 shrink-0">
+                <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={() => setActiveView("main")}
+                    className="shrink-0"
+                >
+                    <ArrowLeft size={16} />
+                </Button>
+                <span className="text-[14px] font-semibold text-foreground">Settings</span>
+            </div>
+            <div className="flex flex-1 overflow-hidden">
+                <div className="w-48 shrink-0 bg-surface-2/72 border-r border-border-subtle flex flex-col py-3 gap-0.5 px-2">
+                    <p className="text-[9px] font-black uppercase tracking-[0.16em] text-muted-foreground/40 px-2 pb-2 pt-1">
+                        Settings
+                    </p>
+                    {NAV.map((item) => (
+                        <button
+                            key={item.id}
+                            onClick={() => setActiveSection(item.id)}
+                            className={cn(
+                                "flex items-center gap-2.5 h-7 px-2.5 rounded-md text-[12px] font-semibold transition-colors text-left w-full",
+                                activeSection === item.id
+                                    ? "bg-surface-selected/82 text-foreground"
+                                    : "text-muted-foreground/60 hover:text-foreground hover:bg-surface-3",
+                            )}
+                        >
+                            <span className={cn(
+                                "shrink-0",
+                                activeSection === item.id ? "text-foreground" : "text-muted-foreground/40",
+                            )}>
+                                {item.icon}
+                            </span>
+                            {item.label}
+                        </button>
+                    ))}
                 </div>
-            </DialogContent>
-        </Dialog>
+                <div className="flex-1 overflow-y-auto px-5 py-5">
+                    {activeSection === "appearance" && <AppearanceSection />}
+                    {activeSection === "editor"     && <EditorSection />}
+                    {activeSection === "table"      && <TableSection />}
+                    {activeSection === "storage"    && <StorageSection />}
+                    {activeSection === "license"    && (
+                        <LicenseSection onActivate={() => {
+                            setActiveView("main");
+                            onActivate?.();
+                        }} />
+                    )}
+                    {activeSection === "about"      && <AboutSection />}
+                </div>
+            </div>
+        </div>
     );
 }

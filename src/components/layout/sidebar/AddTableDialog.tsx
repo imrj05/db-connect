@@ -58,7 +58,7 @@ function TypeCombobox({
                 collisionPadding={8}
                 style={{ zIndex: 200 }}
                 className={cn(
-                    "w-48 md:w-56 p-1 rounded-lg bg-popover text-popover-foreground shadow-xl border border-border/60 overflow-hidden",
+                    "w-48 md:w-56 rounded-md border border-border/60 bg-popover p-1 text-popover-foreground shadow-xl overflow-hidden",
                     "origin-[--radix-popover-content-transform-origin]",
                     "data-[state=open]:animate-in data-[state=open]:fade-in-0 data-[state=open]:zoom-in-95 data-[state=open]:slide-in-from-top-2",
                     "data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=closed]:zoom-out-95",
@@ -232,11 +232,11 @@ export function AddTableDialog({
     };
     return (
         <Dialog open={open} onOpenChange={handleOpenChange}>
-            <DialogContent className="flex flex-col p-0 gap-0 overflow-hidden" style={{ maxWidth: '80vw', maxHeight: '80vh', width: 'calc(100vw - 2rem)' }}>
+            <DialogContent className="flex flex-col gap-0 overflow-hidden rounded-md p-0" style={{ maxWidth: '80vw', maxHeight: '80vh', width: 'calc(100vw - 2rem)' }}>
                 {/* Header */}
-                <DialogHeader className="shrink-0 px-3 md:px-4 py-2 md:py-2.5 border-b border-border/50 bg-muted/20">
+                <DialogHeader className="shrink-0 px-3 md:px-4 py-2 md:py-2.5 border-b border-border-subtle bg-surface-2/72">
                     <div className="flex items-center gap-2">
-                        <div className="size-7 md:size-8 rounded-md bg-primary/10 border border-primary/20 flex items-center justify-center shrink-0">
+                        <div className="size-7 rounded-md border border-primary/18 bg-primary/8 md:size-8 flex items-center justify-center shrink-0">
                             <Table2 size={14} className="text-primary" />
                         </div>
                         <div className="min-w-0 flex-1">
@@ -449,7 +449,7 @@ export function AddTableDialog({
                     )}
                 </div>
                 {/* Footer */}
-                <div className="shrink-0 flex flex-col sm:flex-row items-center justify-between gap-2 sm:gap-4 border-t border-border bg-muted/30 px-3 md:px-4 py-2 md:py-3 rounded-b-xl">
+                <div className="shrink-0 flex flex-col sm:flex-row items-center justify-between gap-2 rounded-b-md border-t border-border-subtle bg-surface-2/72 px-3 py-2 md:px-4 md:py-3 sm:gap-4">
                     <div className="text-[8px] md:text-[9px] text-muted-foreground/50 hidden sm:block">
                         Press <kbd className="px-1 py-0.5 bg-muted rounded text-[7px] md:text-[8px] font-mono">Enter</kbd> to create
                     </div>

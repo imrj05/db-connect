@@ -65,6 +65,8 @@ pub fn run() {
             // ── Updater commands ───────────────────────────────────────────────
             commands::check_for_updates,
             commands::install_update,
+            // ── Font commands ──────────────────────────────────────────────────
+            commands::get_system_fonts,
             // ── License commands ───────────────────────────────────────────────
             commands::license_get_device_id,
             commands::license_check_offline,

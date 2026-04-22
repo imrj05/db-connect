@@ -22,8 +22,10 @@ export function DbTabContextMenu({
 }) {
 	const menuW = 172;
 	const menuH = 96;
-	const left = Math.min(x, window.innerWidth - menuW - 8);
-	const top = Math.min(y, window.innerHeight - menuH - 8);
+	const maxX = Math.min(window.innerWidth, (window.visualViewport?.width ?? window.innerWidth) - menuW - 8);
+	const maxY = Math.min(window.innerHeight, (window.visualViewport?.height ?? window.innerHeight) - menuH - 8);
+	const left = Math.min(x, maxX);
+	const top = Math.min(y, maxY);
 
 	return (
 		<>

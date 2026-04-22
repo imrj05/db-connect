@@ -27,11 +27,11 @@ export function LiveMockup() {
       {/* 1. Title Bar */}
       <div className="h-9 px-3 flex items-center justify-between bg-sidebar border-b border-border shrink-0 select-none">
         <div className="flex items-center gap-2">
-          <div className="flex gap-1.5 px-1">
-             <div className="size-3 rounded-full bg-[#ff5f57]" />
-             <div className="size-3 rounded-full bg-[#febc2e]" />
-             <div className="size-3 rounded-full bg-[#28c840]" />
-          </div>
+<div className="flex gap-1.5 px-1">
+              <div className="size-3 rounded-full bg-red-500" />
+              <div className="size-3 rounded-full bg-yellow-500" />
+              <div className="size-3 rounded-full bg-green-500" />
+            </div>
           <span className="text-xs font-medium text-muted-foreground">db-connect — example_app</span>
         </div>
       </div>

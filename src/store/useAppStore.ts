@@ -34,22 +34,88 @@ const LEGACY_QUERIES_KEY = "db_saved_queries_v1";
 const SETTINGS_KEY = "db_connect_settings_v1";
 
 // ── App settings (non-sensitive — persisted in localStorage) ──────────────────
+export type EditorThemeOption =
+  | "system"
+  | "dark-one-dark"
+  | "dark-monokai"
+  | "dark-palenight"
+  | "dark-dracula"
+  | "light-github"
+  | "light-solarized"
+  | "light-white-pine"
+  | "light-soft-white";
+
+export type UiDarkThemeOption =
+  | "dark"
+  | "dim"
+  | "midnight"
+  | "catppuccin-mocha"
+  | "nord"
+  | "dracula"
+  | "one-dark"
+  | "github-dark"
+  | "slack-dark"
+  | "linear"
+  | "voyage"
+  | "astro"
+  | "night-owl"
+  | "borland"
+  | "metals";
+
+export type UiLightThemeOption =
+  | "light"
+  | "sunrise"
+  | "cream"
+  | "catppuccin-latte"
+  | "nord-light"
+  | "github-light"
+  | "slack-zen"
+  | "linear-light"
+  | "voyage-light"
+  | "astro-light"
+  | "spring"
+  | "monokai-light"
+  | "solarized-light"
+  | "dracula-light";
+
 export interface AppSettings {
   editorFontSize: 12 | 13 | 14 | 16;
   tablePageSize: 25 | 50 | 100 | 200;
   uiZoom: 100 | 110 | 125 | 140 | 150;
+  editorDarkTheme: EditorThemeOption;
+  editorLightTheme: EditorThemeOption;
+  uiDarkTheme: UiDarkThemeOption;
+  uiLightTheme: UiLightThemeOption;
+  uiFontFamily: string;
+  monoFontFamily: string;
 }
 
 const DEFAULT_SETTINGS: AppSettings = {
   editorFontSize: 13,
   tablePageSize: 50,
   uiZoom: 125,
+  editorDarkTheme: "dark-one-dark",
+  editorLightTheme: "light-github",
+  uiDarkTheme: "dark",
+  uiLightTheme: "light",
+  uiFontFamily: "system-ui",
+  monoFontFamily: "Menlo",
 };
 
 function loadSettings(): AppSettings {
   try {
     const raw = localStorage.getItem(SETTINGS_KEY);
-    if (raw) return { ...DEFAULT_SETTINGS, ...JSON.parse(raw) };
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      return {
+        ...DEFAULT_SETTINGS,
+        ...parsed,
+        editorDarkTheme: parsed.editorDarkTheme ?? DEFAULT_SETTINGS.editorDarkTheme,
+        editorLightTheme: parsed.editorLightTheme ?? DEFAULT_SETTINGS.editorLightTheme,
+        uiDarkTheme: parsed.uiDarkTheme ?? DEFAULT_SETTINGS.uiDarkTheme,
+        uiLightTheme: parsed.uiLightTheme ?? DEFAULT_SETTINGS.uiLightTheme,
+      };
+    }
   } catch { /* ignore */ }
   return DEFAULT_SETTINGS;
 }
@@ -144,6 +210,10 @@ interface AppState {
   deleteSavedQuery: (id: string) => void;
 
   // ---- Actions: UI ----
+  // ---- UI ----
+  activeView: "main" | "settings";
+  setActiveView: (view: "main" | "settings") => void;
+
   toggleConnectionExpanded: (connectionId: string) => void;
   toggleSidebar: () => void;
   toggleQueryLog: () => void;
@@ -186,6 +256,7 @@ export const useAppStore = create<AppState>((set, get) => ({
   showConnectionsManager: false,
   theme: "dark",
   isLoading: false,
+  activeView: "main",
   tabs: [],
   activeTabId: null,
   queryHistory: [],
@@ -888,4 +959,5 @@ export const useAppStore = create<AppState>((set, get) => ({
   setTheme: (theme) => set({ theme }),
   setLoading: (isLoading) => set({ isLoading }),
   setShowConnectionsManager: (showConnectionsManager) => set({ showConnectionsManager }),
+  setActiveView: (activeView) => set({ activeView }),
 }));

@@ -41,16 +41,16 @@ export function FilterBar({
   const allFiltersHaveColumns = filters.every((f) => f.col && f.col !== "");
 
   return (
-    <div className="shrink-0 border-b border-border bg-card">
+    <div className="shrink-0 border-b border-border-subtle bg-surface-2/82">
       <div className="flex flex-col">
         {filters.map((f, i) => (
           <div
             key={f.id}
-            className="flex items-center gap-2 px-3 py-1.5 hover:bg-muted/30 transition-colors"
+            className="flex items-center gap-2 px-3 py-2 hover:bg-surface-3/72 transition-colors"
           >
             {/* Join indicator for first row */}
             {i === 0 ? (
-              <div className="w-8 h-7 flex items-center justify-center">
+              <div className="w-10 h-8 flex items-center justify-center">
                 {filters.length > 1 ? (
                   <button
                     onClick={() =>
@@ -58,7 +58,7 @@ export function FilterBar({
                         join: filters[1].join === "AND" ? "OR" : "AND",
                       })
                     }
-                    className="text-[10px] font-mono font-bold uppercase tracking-wider px-2 py-1 rounded-md bg-muted hover:bg-muted-foreground/20 text-muted-foreground transition-colors"
+                    className="text-[10px] font-semibold uppercase tracking-[0.14em] px-2 py-1.5 rounded-[4px] bg-surface-3 text-foreground/60 hover:bg-surface-selected/82 hover:text-foreground transition-colors"
                     title="Toggle AND/OR"
                   >
                     <svg
@@ -75,7 +75,7 @@ export function FilterBar({
                     </svg>
                   </button>
                 ) : (
-                  <span className="text-[10px] font-mono text-muted-foreground/50"></span>
+                  <span className="text-[10px] font-mono text-foreground/40"></span>
                 )}
               </div>
             ) : (
@@ -86,7 +86,7 @@ export function FilterBar({
                     join: f.join === "AND" ? "OR" : "AND",
                   })
                 }
-                className="w-8 h-7 flex items-center justify-center text-[10px] font-mono font-bold uppercase tracking-wider rounded-md bg-muted hover:bg-muted-foreground/20 text-muted-foreground transition-colors"
+                className="w-10 h-8 flex items-center justify-center text-[10px] font-semibold uppercase tracking-[0.14em] rounded-[4px] bg-surface-3 text-foreground/60 hover:bg-surface-selected/82 hover:text-foreground transition-colors"
                 title="Toggle AND/OR"
               >
                 {f.join}
@@ -97,7 +97,7 @@ export function FilterBar({
             <select
               value={f.col}
               onChange={(e) => onFilterChange(f.id, { col: e.target.value })}
-              className="h-7 px-2.5 rounded-md bg-background border border-input text-[12px] text-foreground outline-none min-w-[120px] flex-1 max-w-[200px]"
+              className="h-8 px-2.5 rounded-[4px] bg-surface-elevated/94 border border-border-subtle text-[12px] text-foreground outline-none min-w-[140px] flex-1 max-w-[220px]"
             >
               <option value="">Select column</option>
               {/* Include selected column even if not in availableCols to preserve selection */}
@@ -119,7 +119,7 @@ export function FilterBar({
               onChange={(e) =>
                 onFilterChange(f.id, { op: e.target.value as FilterOp })
               }
-              className="h-7 px-2.5 rounded-md bg-background border border-input text-[12px] text-foreground outline-none min-w-[120px] flex-1 max-w-[160px]"
+              className="h-8 px-2.5 rounded-[4px] bg-surface-elevated/94 border border-border-subtle text-[12px] text-foreground outline-none min-w-[130px] flex-1 max-w-[170px]"
             >
               {(
                 [
@@ -150,10 +150,10 @@ export function FilterBar({
                 }
                 onKeyDown={(e) => e.key === "Enter" && onApply()}
                 placeholder="Enter value"
-                className="h-7 text-[12px] flex-[2] min-w-[150px] bg-background focus-visible:ring-0"
+                className="h-8 text-[12px] flex-[2] min-w-[170px] bg-surface-elevated/94 focus-visible:ring-0"
               />
             ) : (
-              <div className="h-7 flex-[2] min-w-[150px] flex items-center text-[12px] text-muted-foreground italic px-2.5">
+              <div className="h-8 flex-[2] min-w-[170px] flex items-center text-[12px] text-foreground/52 italic px-2.5">
                 No value needed
               </div>
             )}
@@ -166,7 +166,7 @@ export function FilterBar({
                     variant="ghost"
                     size="icon-xs"
                     onClick={() => onRemoveFilter(f.id)}
-                    className="h-7 w-7 text-muted-foreground/60 hover:text-destructive hover:bg-destructive/10"
+                  className="h-8 w-8 text-foreground/56 hover:text-destructive hover:bg-destructive/10"
                   >
                     <X size={14} />
                   </Button>
@@ -175,21 +175,22 @@ export function FilterBar({
                   variant="ghost"
                   size="icon-xs"
                   onClick={onAddFilter}
-                  className="h-7 w-7 text-muted-foreground/60 hover:text-foreground hover:bg-muted"
+                  className="h-8 w-8 text-foreground/56 hover:text-foreground hover:bg-surface-3"
                 >
                   <Plus size={14} />
                 </Button>
                 <Button
-                  size="icon-xs"
+                  size="sm"
                   onClick={onApply}
                   disabled={filterLoading || filters.length === 0 || !allFiltersHaveColumns}
-                  className="h-7 w-7 bg-accent-blue hover:bg-accent-blue/90 text-white disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="h-8 px-3 bg-primary hover:bg-primary/92 text-primary-foreground disabled:opacity-50 disabled:cursor-not-allowed gap-1.5 text-[11px] font-medium rounded-[4px] shadow-xs"
                 >
                   {filterLoading ? (
                     <Loader2 size={14} className="animate-spin" />
                   ) : (
                     <Search size={14} />
                   )}
+                  Apply
                 </Button>
               </div>
             ) : (
@@ -199,7 +200,7 @@ export function FilterBar({
                   variant="ghost"
                   size="icon-xs"
                   onClick={() => onRemoveFilter(f.id)}
-                  className="h-7 w-7 text-muted-foreground/60 hover:text-destructive hover:bg-destructive/10"
+                  className="h-8 w-8 text-foreground/56 hover:text-destructive hover:bg-destructive/10"
                 >
                   <X size={14} />
                 </Button>

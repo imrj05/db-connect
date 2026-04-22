@@ -62,10 +62,33 @@ function ContextMenuContent({
 }: React.ComponentProps<typeof ContextMenuPrimitive.Content> & {
   side?: "top" | "right" | "bottom" | "left"
 }) {
+  const [side, setSide] = React.useState<"top" | "right" | "bottom" | "left">("bottom");
+
+  React.useEffect(() => {
+    const viewportWidth = window.visualViewport?.width ?? window.innerWidth;
+    const viewportHeight = window.visualViewport?.height ?? window.innerHeight;
+    const checkBounds = () => {
+      const menuEl = document.querySelector("[data-slot='context-menu-content']") as HTMLElement | null;
+      if (!menuEl) return;
+      const rect = menuEl.getBoundingClientRect();
+      if (rect.bottom > viewportHeight + 10) {
+        setSide("top");
+      } else if (rect.right > viewportWidth + 10) {
+        setSide("left");
+      } else {
+        setSide("bottom");
+      }
+    };
+    checkBounds();
+    const timeout = setTimeout(checkBounds, 50);
+    return () => clearTimeout(timeout);
+  }, []);
+
   return (
     <ContextMenuPrimitive.Portal>
       <ContextMenuPrimitive.Content
         data-slot="context-menu-content"
+        side={side}
         className={cn("z-50 max-h-(--radix-context-menu-content-available-height) min-w-36 origin-(--radix-context-menu-content-transform-origin) overflow-x-hidden overflow-y-auto rounded-lg bg-popover p-1 text-popover-foreground shadow-md ring-1 ring-foreground/10 duration-100 data-[side=bottom]:slide-in-from-top-2 data-[side=left]:slide-in-from-right-2 data-[side=right]:slide-in-from-left-2 data-[side=top]:slide-in-from-bottom-2 data-open:animate-in data-open:fade-in-0 data-open:zoom-in-95 data-closed:animate-out data-closed:fade-out-0 data-closed:zoom-out-95", className )}
         {...props}
       />

@@ -50,3 +50,4 @@ hmac = "0.12"
 url = "2"
 urlencoding = "2"
 p256 = { version = "0.13", features = ["ecdsa", "pkcs8", "pem"] }
+font-kit = "0.11"

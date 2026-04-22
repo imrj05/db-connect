@@ -40,14 +40,14 @@ export function QueryLog({
 		.map((e) => `-- ${formatTimestamp(e.executedAt)}\n${e.sql}`)
 		.join("\n\n");
 	return (
-		<div className="h-[140px] w-full border-t border-border flex flex-col bg-background shrink-0 overflow-hidden">
+		<div className="h-[168px] w-full border-t border-border/80 flex flex-col bg-background shrink-0 overflow-hidden">
 			{/* Query display */}
 			<div
 				ref={scrollRef}
-				className="flex-1 overflow-auto scrollbar-thin px-3 py-2"
+				className="flex-1 overflow-auto scrollbar-thin px-3.5 py-2.5"
 			>
 				{entries.length === 0 ? (
-					<p className="text-[10px] font-mono text-muted-foreground/30 py-1">
+					<p className="text-[11px] font-mono text-foreground/42 py-1">
 						No queries executed yet
 					</p>
 				) : showSyntax ? (
@@ -57,7 +57,7 @@ export function QueryLog({
 						basicSetup={{ lineNumbers: false, foldGutter: false }}
 						theme={EditorView.theme({
 							"&": {
-								fontSize: "11px",
+								fontSize: "12px",
 								backgroundColor: "transparent",
 								color: "var(--color-foreground)",
 							},
@@ -68,23 +68,23 @@ export function QueryLog({
 						height="auto"
 					/>
 				) : (
-					<pre className="text-[11px] font-mono text-foreground whitespace-pre-wrap break-words">
+					<pre className="text-[12px] leading-5 font-mono text-foreground whitespace-pre-wrap break-words select-text">
 						{fullText}
 					</pre>
 				)}
 			</div>
 			{/* Bottom toolbar */}
-			<div className="h-7 flex items-center justify-start px-3 py-1 border-t border-border shrink-0 bg-card gap-3">
+			<div className="h-8 flex items-center justify-start px-3.5 py-1 border-t border-border/80 shrink-0 bg-card gap-3.5">
 				<Button
 					variant="ghost"
 					size="icon-xs"
-					className="size-5 text-muted-foreground/40 hover:text-muted-foreground"
+					className="size-6 text-foreground/46 hover:text-foreground"
 					title="Clear logs"
 					onClick={onClear}
 				>
-					<Trash2 size={10} />
+					<Trash2 size={11} />
 				</Button>
-				<span className="text-[9px] font-mono text-muted-foreground/30">
+				<span className="text-[11px] font-mono text-foreground/44">
 					{entries.length}{" "}
 					{entries.length === 1 ? "query" : "queries"}
 				</span>
@@ -93,9 +93,9 @@ export function QueryLog({
 						type="checkbox"
 						checked={showSyntax}
 						onChange={(e) => onSyntaxToggle(e.target.checked)}
-						className="w-3 h-3 accent-primary"
+						className="w-3.5 h-3.5 accent-primary"
 					/>
-					<span className="text-[9px] font-label text-muted-foreground/70">
+					<span className="text-[11px] font-label text-foreground/62">
 						Enable Syntax highlighting
 					</span>
 				</label>

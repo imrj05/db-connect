@@ -1,4 +1,4 @@
-import { Plus, X } from "lucide-react";
+import { Code2, FileCode2, List, Play, Plus, Table2, X, type LucideIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
 	Tooltip,
@@ -8,13 +8,13 @@ import {
 import { cn } from "@/lib/utils";
 import { ResultTab } from "@/types";
 
-const TYPE_DOT: Record<string, string> = {
-	list: "bg-accent-purple",
-	src: "bg-muted-foreground",
-	query: "bg-accent-green",
-	execute: "bg-accent-orange",
-	tbl: "bg-accent-blue",
-	table: "bg-accent-blue",
+const TYPE_META: Record<string, { icon: LucideIcon; iconClassName: string }> = {
+	list: { icon: List, iconClassName: "text-accent-purple" },
+	src: { icon: FileCode2, iconClassName: "text-foreground/58" },
+	query: { icon: Code2, iconClassName: "text-accent-blue" },
+	execute: { icon: Play, iconClassName: "text-accent-orange" },
+	tbl: { icon: Table2, iconClassName: "text-accent-blue" },
+	table: { icon: Table2, iconClassName: "text-accent-blue" },
 };
 
 export function TabBar({
@@ -34,45 +34,38 @@ export function TabBar({
 }) {
 	if (tabs.length === 0) return null;
 	return (
-		<div className="h-8 bg-sidebar border-b border-border flex items-stretch overflow-x-auto shrink-0 no-scrollbar">
-			{tabs.map((tab, index) => {
+		<div className="flex h-11 shrink-0 items-center gap-1 overflow-x-auto border-b border-border-subtle bg-surface-1/94 px-2 no-scrollbar">
+			{tabs.map((tab) => {
 				const isActive = tab.id === activeTabId;
+				const hasPendingEdits = tab.pendingEdits.length > 0;
+				const typeMeta = TYPE_META[tab.fn.type] ?? TYPE_META.table;
+				const TabIcon = typeMeta.icon;
 				return (
 					<div
 						key={tab.id}
 						onClick={() => onSwitchTab(tab.id)}
 						className={cn(
-							"relative flex items-center gap-1.5 px-3 border-r border-border cursor-pointer shrink-0 select-none group/tab transition-colors",
+							"group/tab relative flex h-8 shrink-0 cursor-pointer select-none items-center gap-2 rounded-md border border-transparent bg-transparent px-3 transition-[color,background-color,border-color,box-shadow]",
 							isActive
-								? "bg-background text-foreground"
-								: "text-muted-foreground/50 hover:text-muted-foreground hover:bg-muted/40",
+								? "bg-surface-3 text-foreground shadow-xs ring-1 ring-border-subtle"
+								: "border-border/42 text-foreground/60 hover:border-border/60 hover:bg-surface-2 hover:text-foreground/84",
 						)}
 					>
-						{/* Neon-green active-tab indicator */}
-						{isActive && (
-							<span className="absolute inset-x-0 top-0 h-[2px] bg-primary" />
-						)}
-						<span
+						<TabIcon
+							size={13}
 							className={cn(
-								"w-1.5 h-1.5 shrink-0",
-								/* square in dark (sharp corners), pill in light */
-								"rounded-sm dark:rounded-none",
-								TYPE_DOT[tab.fn.type] ?? "bg-accent-blue",
+								"shrink-0 transition-opacity",
+								typeMeta.iconClassName,
+								isActive ? "opacity-100" : "opacity-70",
 							)}
 						/>
-						{index < 9 && (
-							<span
-								className={cn(
-									"text-[9px] font-mono shrink-0 tabular-nums",
-									isActive
-										? "text-primary/80"
-										: "text-muted-foreground/35 group-hover/tab:text-muted-foreground/55",
-								)}
-							>
-								{index + 1}
-							</span>
+						{hasPendingEdits && (
+							<span className="h-1.5 w-1.5 shrink-0 rounded-full bg-warning" />
 						)}
-						<span className="text-[10px] font-mono max-w-[120px] truncate">
+						<span className={cn(
+							"max-w-[160px] truncate text-[11px] font-medium",
+							isActive ? "text-foreground" : "text-foreground/68"
+						)}>
 							{tab.label}
 						</span>
 						{tabs.length > 1 && (
@@ -83,9 +76,12 @@ export function TabBar({
 									e.stopPropagation();
 									onCloseTab(tab.id);
 								}}
-								className="ml-0.5 size-4 opacity-0 group-hover/tab:opacity-100 text-muted-foreground/40 hover:text-foreground"
+								className={cn(
+									"ml-0.5 size-5 rounded-md text-foreground/36 hover:bg-surface-2 hover:text-foreground",
+									isActive ? "opacity-100" : "opacity-0 group-hover/tab:opacity-100",
+								)}
 							>
-								<X size={9} />
+								<X size={10} />
 							</Button>
 						)}
 					</div>
@@ -96,12 +92,13 @@ export function TabBar({
 				<Tooltip>
 					<TooltipTrigger asChild>
 						<Button
-							variant="ghost"
-							size="icon-xs"
+							variant="outline"
+							size="sm"
 							onClick={onNewTab}
-							className="mx-1 my-auto size-6 text-muted-foreground/40 hover:text-muted-foreground shrink-0"
+							className="my-auto ml-1 h-7 shrink-0 gap-1.5 rounded-md border-border-subtle bg-surface-2/88 px-2.5 text-[11px] font-medium text-foreground/72 shadow-xs hover:bg-surface-3 hover:text-foreground"
 						>
-							<Plus size={11} />
+							<Plus size={12} />
+							New Tab
 						</Button>
 					</TooltipTrigger>
 					<TooltipContent>New query tab</TooltipContent>

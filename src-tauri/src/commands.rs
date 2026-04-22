@@ -766,6 +766,20 @@ pub async fn license_update_validated() -> Result<(), String> {
         .map_err(|e| e.to_string())
 }
 
+// ── Font commands ──────────────────────────────────────────────────────────────
+
+/// Returns all font family names installed on the system.
+/// Uses native OS font APIs: CoreText on macOS, DirectWrite on Windows,
+/// and Fontconfig / FreeType on Linux — the same strategy used by Zed.
+#[tauri::command]
+pub fn get_system_fonts() -> Vec<String> {
+    use font_kit::source::SystemSource;
+    let source = SystemSource::new();
+    let mut families = source.all_families().unwrap_or_default();
+    families.sort_unstable_by(|a, b| a.to_lowercase().cmp(&b.to_lowercase()));
+    families
+}
+
 /// Returns the human-readable device name for the current machine.
 /// On macOS uses the friendly computer name (System Preferences → Sharing).
 /// Falls back to OS hostname on other platforms.

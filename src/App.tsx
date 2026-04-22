@@ -10,6 +10,7 @@ import {
     shouldShowOnboarding,
 } from "./components/layout/Onboarding";
 import { SettingsDialog } from "./components/layout/SettingsDialog";
+import { SettingsPage } from "./components/layout/function-output/SettingsPage";
 import { TooltipProvider } from "./components/ui/tooltip";
 import { Toaster } from "@/components/ui/sonner";
 import { getCurrentWindow } from "@tauri-apps/api/window";
@@ -29,9 +30,11 @@ import { Button } from "@/components/ui/button";
 import { Table2, Loader2 } from "lucide-react";
 import { licenseCheckOffline, syncLicenseInBackground, type OfflineCheckResult } from "@/lib/license";
 import { ErrorBoundary } from "./components/layout/ErrorBoundary";
+
 const SIDEBAR_MIN = 180;
 const SIDEBAR_MAX = 480;
 const SIDEBAR_DEFAULT = 260;
+
 function App() {
     const {
         theme,
@@ -48,7 +51,9 @@ function App() {
         closeTab,
         openNewTab,
         sidebarCollapsed,
+        activeView,
     } = useAppStore();
+
     const [onboardingDone, setOnboardingDone] = useState(false);
     const [updateInfo, setUpdateInfo] = useState<UpdateInfo | null>(null);
     const [showUpdateDialog, setShowUpdateDialog] = useState(false);
@@ -58,9 +63,11 @@ function App() {
     const isDragging = useRef(false);
     const startX = useRef(0);
     const startWidth = useRef(0);
+
     // ── License state (non-blocking) ─────────────────────────────────────────
     const [licenseCheck, setLicenseCheck] = useState<OfflineCheckResult | null>(null);
     const [licenseDialogOpen, setLicenseDialogOpen] = useState(false);
+
     useEffect(() => {
         licenseCheckOffline().then((result) => {
             setLicenseCheck(result);
@@ -72,12 +79,14 @@ function App() {
         });
     }, []);
     // ─────────────────────────────────────────────────────────────────────────
+
     const [isLoading, setIsLoading] = useState(true);
     useEffect(() => {
         setIsLoading(true);
         loadConnections()
             .finally(() => setIsLoading(false));
     }, [loadConnections]);
+
     useEffect(() => {
         const timer = setTimeout(async () => {
             try {
@@ -92,16 +101,71 @@ function App() {
         }, 2000);
         return () => clearTimeout(timer);
     }, []);
+
     useEffect(() => {
+        // Remove all UI theme classes first
+        document.documentElement.classList.remove(
+            "dark",
+            "ui-dark-dim", "ui-dark-midnight", "ui-dark-catppuccin-mocha", "ui-dark-nord", "ui-dark-dracula",
+            "ui-dark-one-dark", "ui-dark-github-dark", "ui-dark-slack-dark", "ui-dark-linear", "ui-dark-voyage",
+            "ui-dark-astro", "ui-dark-night-owl", "ui-dark-borland", "ui-dark-metals",
+            "ui-light-light", "ui-light-sunrise", "ui-light-cream", "ui-light-catppuccin-latte", "ui-light-nord-light",
+            "ui-light-github-light", "ui-light-slack-zen", "ui-light-linear-light", "ui-light-voyage-light",
+            "ui-light-astro-light", "ui-light-spring", "ui-light-monokai-light", "ui-light-solarized-light", "ui-light-dracula-light"
+        );
+
         if (theme === "dark") {
+            // Add .dark for Tailwind dark: variants
             document.documentElement.classList.add("dark");
+            // Apply dark variant class override (skip "dark" variant as .dark already handles it)
+            if (appSettings.uiDarkTheme !== "dark") {
+                document.documentElement.classList.add(`ui-dark-${appSettings.uiDarkTheme}`);
+            }
         } else {
-            document.documentElement.classList.remove("dark");
+            // Apply light variant class (skip "light" variant as it's the default)
+            if (appSettings.uiLightTheme !== "light") {
+                document.documentElement.classList.add(`ui-light-${appSettings.uiLightTheme}`);
+            }
         }
-    }, [theme]);
+
+        const editorTheme = theme === "dark" ? appSettings.editorDarkTheme : appSettings.editorLightTheme;
+        document.documentElement.dataset.editorTheme = editorTheme;
+    }, [theme, appSettings.uiDarkTheme, appSettings.uiLightTheme, appSettings.editorDarkTheme, appSettings.editorLightTheme]);
+
     useEffect(() => {
-        document.documentElement.style.zoom = `${appSettings.uiZoom}%`;
+        const scale = appSettings.uiZoom / 100;
+        const wrapper = document.getElementById("app-wrapper");
+        if (wrapper) {
+            wrapper.style.transform = `scale(${scale})`;
+            wrapper.style.transformOrigin = "top left";
+            wrapper.style.width = `${100 / scale}%`;
+            wrapper.style.height = `${100 / scale}%`;
+            wrapper.style.position = "absolute";
+            wrapper.style.left = "0";
+            wrapper.style.top = "0";
+        }
     }, [appSettings.uiZoom]);
+
+    useEffect(() => {
+        const sansFont = appSettings.uiFontFamily;
+        const monoFont = appSettings.monoFontFamily;
+        
+        // Check if font might be bundled (has quotes when loaded from system)
+        const hasQuotes = (f: string) => f.startsWith('"') || f.startsWith("'");
+        
+        // Build proper font-stack with fallbacks
+        const sansList = hasQuotes(sansFont)
+            ? `${sansFont}, system-ui, -apple-system, BlinkMacSystemFont, Segoe UI, Roboto, Helvetica Neue, Helvetica, Arial, sans-serif`
+            : `"${sansFont}", sans-serif`;
+            
+        const monoList = hasQuotes(monoFont)
+            ? `${monoFont}, ui-monospace, SF Mono, Menlo, Monaco, Consolas, monospace`
+            : `"${monoFont}", monospace`;
+        
+        document.documentElement.style.setProperty("--font-sans", sansList);
+        document.documentElement.style.setProperty("--font-mono", monoList);
+    }, [appSettings.uiFontFamily, appSettings.monoFontFamily]);
+
     // ⌘W / Ctrl+W — close active tab, or show close-app dialog when no tabs remain
     useEffect(() => {
         const handler = (e: KeyboardEvent) => {
@@ -117,6 +181,7 @@ function App() {
         window.addEventListener("keydown", handler);
         return () => window.removeEventListener("keydown", handler);
     }, [activeTabId, closeTab]);
+
     // ⌘T / Ctrl+T — open new tab
     useEffect(() => {
         const handler = (e: KeyboardEvent) => {
@@ -128,6 +193,7 @@ function App() {
         window.addEventListener("keydown", handler);
         return () => window.removeEventListener("keydown", handler);
     }, [openNewTab]);
+
     const handleCloseApp = useCallback(async () => {
         setIsClosing(true);
         // Gracefully disconnect all active connections before exit
@@ -136,6 +202,7 @@ function App() {
         );
         await getCurrentWindow().close();
     }, [connectedIds, disconnectConnection]);
+
     const onMouseDown = useCallback((e: React.MouseEvent) => {
         isDragging.current = true;
         startX.current = e.clientX;
@@ -143,6 +210,7 @@ function App() {
         document.body.style.cursor = "col-resize";
         document.body.style.userSelect = "none";
     }, [sidebarWidth]);
+
     useEffect(() => {
         const onMouseMove = (e: MouseEvent) => {
             if (!isDragging.current) return;
@@ -163,12 +231,15 @@ function App() {
             window.removeEventListener("mouseup", onMouseUp);
         };
     }, []);
+
     const showOnboarding =
         !onboardingDone && shouldShowOnboarding(connections.length > 0);
+
     // Active connection names for the close dialog
     const activeConnections = connections.filter((c) =>
         connectedIds.includes(c.id),
     );
+
     if (isLoading) {
         return (
             <div
@@ -176,7 +247,7 @@ function App() {
                 style={{ backgroundColor: "var(--background, #ffffff)" }}
             >
                 <div
-                    className="size-16 rounded-2xl flex items-center justify-center animate-pulse"
+                    className="size-16 rounded-md flex items-center justify-center animate-pulse"
                     style={{ backgroundColor: "oklch(0.52 0.13 265 / 0.1)", border: "1px solid oklch(0.52 0.13 265 / 0.2)" }}
                 >
                     <Table2 size={32} style={{ color: "oklch(0.52 0.13 265)" }} />
@@ -185,19 +256,20 @@ function App() {
             </div>
         );
     }
+
     return (
         <ErrorBoundary>
             <TooltipProvider>
-                <div className="h-full flex flex-col bg-background text-foreground overflow-hidden font-sans selection:bg-accent/30">
+                <div id="app-wrapper" className="h-full flex flex-col bg-app-bg text-foreground overflow-hidden font-sans selection:bg-accent/30">
                     <TitleBar
                         isLicensed={licenseCheck?.ok ?? null}
                         onActivate={() => setLicenseDialogOpen(true)}
                     />
-                    <main className="flex-1 overflow-hidden relative flex">
+                    <main className="relative z-0 flex-1 overflow-hidden flex bg-app-bg p-1.5 gap-1.5">
                         {/* Sidebar — collapses smoothly */}
                         <div
                             style={{ width: sidebarCollapsed ? 0 : sidebarWidth, minWidth: sidebarCollapsed ? 0 : sidebarWidth }}
-                            className="h-full shrink-0 overflow-hidden transition-[width,min-width] duration-200 ease-in-out"
+                            className="h-full shrink-0 overflow-hidden transition-[width,min-width] duration-200 ease-in-out rounded-md"
                         >
                             <Sidebar />
                         </div>
@@ -205,11 +277,11 @@ function App() {
                         {!sidebarCollapsed && (
                             <div
                                 onMouseDown={onMouseDown}
-                                className="w-0.5 h-full shrink-0 cursor-col-resize bg-border hover:bg-primary/60 transition-colors duration-150 relative z-10"
+                                className="relative h-full w-3 shrink-0 cursor-col-resize z-10 before:absolute before:inset-y-3 before:left-1/2 before:w-px before:-translate-x-1/2 before:bg-border-subtle before:transition-colors hover:before:bg-primary/35"
                             />
                         )}
                         {/* Main content */}
-                        <div className="flex-1 h-full min-w-0 overflow-hidden">
+                        <div className="flex-1 h-full min-w-0 overflow-hidden rounded-md border border-border-subtle bg-surface-1 shadow-sm">
                             {showOnboarding ? (
                                 <Onboarding
                                     onDone={() => setOnboardingDone(true)}
@@ -218,6 +290,8 @@ function App() {
                                         setConnectionDialogOpen(true);
                                     }}
                                 />
+                            ) : activeView === "settings" ? (
+                                <SettingsPage onActivate={() => setLicenseDialogOpen(true)} />
                             ) : (
                                 <FunctionOutput />
                             )}
@@ -320,4 +394,5 @@ function App() {
         </ErrorBoundary>
     );
 }
+
 export default App;
