@@ -34,21 +34,23 @@ export function TabBar({
 }) {
 	if (tabs.length === 0) return null;
 	return (
-		<div className="flex h-11 shrink-0 items-center gap-1 overflow-x-auto border-b border-border-subtle bg-surface-1/94 px-2 no-scrollbar">
+		<div className="flex h-12 shrink-0 items-center gap-1.5 overflow-x-auto border-b border-border-subtle bg-surface-1/94 px-3.5 py-1 no-scrollbar">
 			{tabs.map((tab) => {
 				const isActive = tab.id === activeTabId;
 				const hasPendingEdits = tab.pendingEdits.length > 0;
 				const typeMeta = TYPE_META[tab.fn.type] ?? TYPE_META.table;
 				const TabIcon = typeMeta.icon;
+				const tabPaddingClass = tabs.length > 1 ? "pl-3 pr-1.5" : "px-3";
 				return (
 					<div
 						key={tab.id}
 						onClick={() => onSwitchTab(tab.id)}
 						className={cn(
-							"group/tab relative flex h-8 shrink-0 cursor-pointer select-none items-center gap-2 rounded-md border border-transparent bg-transparent px-3 transition-[color,background-color,border-color,box-shadow]",
+							"group/tab relative flex h-9 shrink-0 cursor-pointer select-none items-center gap-2 rounded-md border border-transparent bg-transparent transition-[color,background-color,border-color,box-shadow]",
 							isActive
 								? "bg-surface-3 text-foreground shadow-xs ring-1 ring-border-subtle"
 								: "border-border/42 text-foreground/60 hover:border-border/60 hover:bg-surface-2 hover:text-foreground/84",
+							tabPaddingClass,
 						)}
 					>
 						<TabIcon
@@ -77,11 +79,11 @@ export function TabBar({
 									onCloseTab(tab.id);
 								}}
 								className={cn(
-									"ml-0.5 size-5 rounded-md text-foreground/36 hover:bg-surface-2 hover:text-foreground",
+									"ml-1 size-6 rounded-md text-foreground/36 hover:bg-surface-2 hover:text-foreground",
 									isActive ? "opacity-100" : "opacity-0 group-hover/tab:opacity-100",
 								)}
 							>
-								<X size={10} />
+								<X size={11} />
 							</Button>
 						)}
 					</div>
@@ -95,7 +97,7 @@ export function TabBar({
 							variant="outline"
 							size="sm"
 							onClick={onNewTab}
-							className="my-auto ml-1 h-7 shrink-0 gap-1.5 rounded-md border-border-subtle bg-surface-2/88 px-2.5 text-[11px] font-medium text-foreground/72 shadow-xs hover:bg-surface-3 hover:text-foreground"
+							className="my-auto ml-2 h-8 shrink-0 gap-1.5 rounded-md border-border-subtle bg-surface-2/88 px-3.5 text-[11px] font-medium text-foreground/72 shadow-xs hover:bg-surface-3 hover:text-foreground"
 						>
 							<Plus size={12} />
 							New Tab

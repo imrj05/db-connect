@@ -31,6 +31,12 @@ pub struct AppStorage {
     cipher: Aes256Gcm,
 }
 
+pub struct AiCredential {
+    pub provider: String,
+    pub auth_mode: String,
+    pub api_key: String,
+}
+
 // Safety: Aes256Gcm holds only stack-allocated byte arrays — Send + Sync.
 unsafe impl Send for AppStorage {}
 unsafe impl Sync for AppStorage {}
@@ -158,6 +164,18 @@ impl AppStorage {
                 execution_time_ms INTEGER NOT NULL,
                 row_count         INTEGER NOT NULL,
                 connection_id     TEXT NOT NULL
+            )",
+        )
+        .execute(&pool)
+        .await?;
+
+        sqlx::query(
+            "CREATE TABLE IF NOT EXISTS ai_credentials (
+                provider          TEXT PRIMARY KEY,
+                auth_mode         TEXT NOT NULL,
+                encrypted_api_key TEXT NOT NULL,
+                created_at        TEXT DEFAULT (datetime('now')),
+                updated_at        TEXT DEFAULT (datetime('now'))
             )",
         )
         .execute(&pool)
@@ -460,6 +478,60 @@ impl AppStorage {
 
     pub async fn clear_all_history(&self) -> Result<()> {
         sqlx::query("DELETE FROM query_history")
+            .execute(&self.pool)
+            .await?;
+        Ok(())
+    }
+
+    pub async fn save_ai_credential(
+        &self,
+        provider: &str,
+        auth_mode: &str,
+        api_key: &str,
+    ) -> Result<()> {
+        let encrypted_api_key = self.encrypt(api_key)?;
+        sqlx::query(
+            "INSERT INTO ai_credentials (provider, auth_mode, encrypted_api_key)
+             VALUES (?, ?, ?)
+             ON CONFLICT(provider) DO UPDATE SET
+                auth_mode = excluded.auth_mode,
+                encrypted_api_key = excluded.encrypted_api_key,
+                updated_at = datetime('now')",
+        )
+        .bind(provider)
+        .bind(auth_mode)
+        .bind(&encrypted_api_key)
+        .execute(&self.pool)
+        .await?;
+        Ok(())
+    }
+
+    pub async fn load_ai_credential(&self, provider: &str) -> Result<Option<AiCredential>> {
+        let row = sqlx::query(
+            "SELECT provider, auth_mode, encrypted_api_key
+             FROM ai_credentials
+             WHERE provider = ?",
+        )
+        .bind(provider)
+        .fetch_optional(&self.pool)
+        .await?;
+
+        let Some(row) = row else {
+            return Ok(None);
+        };
+
+        let encrypted_api_key: String = row.get("encrypted_api_key");
+        let api_key = self.decrypt(&encrypted_api_key)?;
+        Ok(Some(AiCredential {
+            provider: row.get("provider"),
+            auth_mode: row.get("auth_mode"),
+            api_key,
+        }))
+    }
+
+    pub async fn clear_ai_credential(&self, provider: &str) -> Result<()> {
+        sqlx::query("DELETE FROM ai_credentials WHERE provider = ?")
+            .bind(provider)
             .execute(&self.pool)
             .await?;
         Ok(())

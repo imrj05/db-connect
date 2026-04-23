@@ -75,7 +75,7 @@ export function ResultsGrid({
 						</p>
 					</div>
 				) : (
-					<Table className="w-full text-[11px] font-mono border-collapse">
+					<Table className="w-full text-[12px] font-mono border-collapse">
 						<TableHeader className="sticky top-0 z-10 bg-card">
 							{table.getHeaderGroups().map((hg) => (
 								<TableRow
@@ -100,20 +100,20 @@ export function ResultsGrid({
 												onClick={h.column.getToggleSortingHandler()}
 											>
 												<div className="flex items-center gap-1">
-													<span className="font-bold text-muted-foreground text-[10px] uppercase tracking-wider group-hover/th:text-foreground transition-colors">
+													<span className="font-bold text-muted-foreground text-[11px] uppercase tracking-wider group-hover/th:text-foreground transition-colors">
 														{flexRender(
 															h.column.columnDef.header,
 															h.getContext(),
 														)}
 													</span>
 													{sortDir && (
-														<span className="text-accent-blue text-[9px]">
+														<span className="text-accent-blue text-[10px]">
 															{sortDir === "asc" ? "↑" : "↓"}
 														</span>
 													)}
 												</div>
 												{colType && (
-													<div className="text-[9px] font-mono text-muted-foreground/35 leading-tight mt-0.5">
+													<div className="text-[10px] font-mono text-muted-foreground/35 leading-tight mt-0.5">
 														{colType}
 													</div>
 												)}

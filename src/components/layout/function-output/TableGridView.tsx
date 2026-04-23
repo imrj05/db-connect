@@ -1779,9 +1779,15 @@ export function TableGridView({
                         if (viewMode === "structure") {
                             await reloadStructure();
                             toast.success("Structure reloaded");
+                        } else if (viewMode === "er") {
+                            await loadSchemaGraph(true);
+                            toast.success("Diagram reloaded");
+                        } else if (filtersActive && filters.length > 0) {
+                            await applyFilters();
+                            toast.success("Filtered rows refreshed");
                         } else {
-                            await refreshTables(fn.connectionId);
-                            toast.success("Refreshed tables");
+                            await onPageChange(page);
+                            toast.success("Rows refreshed");
                         }
                     } catch {
                         toast.error("Refresh failed");

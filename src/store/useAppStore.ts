@@ -16,6 +16,7 @@ import { EncryptionUtils } from "@/lib/encryption";
 import { buildConnectionFunctions, suggestPrefix } from "@/lib/db-functions";
 import { tauriApi } from "@/lib/tauri-api";
 import { toast } from "@/components/ui/sonner";
+import { DB_FONT_SANS, DB_FONT_MONO } from "@/lib/fonts";
 
 // Helper to create a default empty filter
 function createDefaultFilter(): FilterCondition {
@@ -88,6 +89,18 @@ export interface AppSettings {
   uiLightTheme: UiLightThemeOption;
   uiFontFamily: string;
   monoFontFamily: string;
+  aiEnabled: boolean;
+  aiProvider:
+    | "openrouter"
+    | "opencode"
+    | "openai"
+    | "codex"
+    | "github-copilot"
+    | "anthropic"
+    | "groq"
+    | "gemini";
+  aiAuthMode: "api_key" | "oauth";
+  aiDefaultModel: string;
 }
 
 const DEFAULT_SETTINGS: AppSettings = {
@@ -98,8 +111,12 @@ const DEFAULT_SETTINGS: AppSettings = {
   editorLightTheme: "light-github",
   uiDarkTheme: "dark",
   uiLightTheme: "light",
-  uiFontFamily: "system-ui",
-  monoFontFamily: "Menlo",
+  uiFontFamily: DB_FONT_SANS,
+  monoFontFamily: DB_FONT_MONO,
+  aiEnabled: false,
+  aiProvider: "openrouter",
+  aiAuthMode: "oauth",
+  aiDefaultModel: "openrouter/free",
 };
 
 function loadSettings(): AppSettings {

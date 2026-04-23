@@ -1,5 +1,29 @@
 import { invoke } from "@tauri-apps/api/core";
 
+// ── Special built-in font aliases ─────────────────────────────────────────────
+// These work like Zed's ".SystemUIFont" / ".ZedMono" — they are virtual names
+// that resolve to well-known font stacks instead of being passed to the OS.
+export const DB_FONT_SANS = ".dbFontSans";
+export const DB_FONT_MONO = ".dbFontMono";
+
+// The actual CSS font-family stacks each alias resolves to
+export const DB_FONT_SANS_STACK =
+    `system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Helvetica, Arial, sans-serif`;
+export const DB_FONT_MONO_STACK =
+    `"JetBrains Mono", "IBM Plex Mono", "SF Mono", "Cascadia Code", ui-monospace, Menlo, Monaco, Consolas, monospace`;
+
+const BUILTIN_SANS: FontEntry = {
+    value: DB_FONT_SANS,
+    label: "System UI Font (Default)",
+    isMono: false,
+};
+
+const BUILTIN_MONO: FontEntry = {
+    value: DB_FONT_MONO,
+    label: "DB Mono (Default)",
+    isMono: true,
+};
+
 const monoPatterns = [
     "mono",
     "code",
@@ -58,11 +82,17 @@ export async function getSystemFonts(): Promise<FontEntry[]> {
         return [];
     }
 
-    if (!families || families.length === 0) return [];
+    if (!families || families.length === 0) return [BUILTIN_SANS, BUILTIN_MONO];
 
-    return families.map(family => ({
+    const systemFonts = families.map(family => ({
         value: family,
         label: family,
         isMono: isMono(family),
     }));
+
+    // Prepend the built-in aliases so they always appear at the top
+    const sansFonts = [BUILTIN_SANS, ...systemFonts.filter(f => !f.isMono)];
+    const monoFonts = [BUILTIN_MONO, ...systemFonts.filter(f => f.isMono)];
+
+    return [...sansFonts, ...monoFonts];
 }

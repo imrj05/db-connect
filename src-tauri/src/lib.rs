@@ -57,6 +57,20 @@ pub fn run() {
             commands::storage_save_history_entry,
             commands::storage_clear_history,
             commands::storage_clear_all_history,
+            // ── AI commands ───────────────────────────────────────────────────
+            commands::ai_get_credential_status,
+            commands::ai_save_api_key,
+            commands::ai_test_api_key,
+            commands::ai_clear_credential,
+            commands::ai_chat_completion,
+            // ── AI / OpenRouter commands ─────────────────────────────────────
+            commands::openrouter_get_credential_status,
+            commands::openrouter_save_api_key,
+            commands::openrouter_test_api_key,
+            commands::openrouter_clear_credential,
+            commands::openrouter_oauth_begin,
+            commands::openrouter_oauth_complete,
+            commands::openrouter_chat_completion,
             // ── Import / Export commands ───────────────────────────────────────
             commands::export_connections,
             commands::import_connections,

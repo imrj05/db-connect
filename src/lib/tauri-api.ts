@@ -11,6 +11,47 @@ export interface ImportSqlResult {
     detectedFormat: string;
 }
 
+export type AiProvider =
+  | "openrouter"
+  | "opencode"
+  | "openai"
+  | "codex"
+  | "github-copilot"
+  | "anthropic"
+  | "groq"
+  | "gemini";
+
+export interface AiCredentialStatus {
+  provider: string;
+  authMode: string;
+  configured: boolean;
+  maskedKey: string | null;
+}
+
+export interface OpenRouterOAuthBeginResult {
+  flowId: string;
+  authUrl: string;
+  callbackUrl: string;
+}
+
+export interface OpenRouterMessage {
+  role: "system" | "user" | "assistant";
+  content: string;
+}
+
+export interface OpenRouterChatRequest {
+  provider?: AiProvider;
+  model: string;
+  messages: OpenRouterMessage[];
+  temperature?: number;
+  maxTokens?: number;
+}
+
+export interface AiChatResponse {
+  content: string;
+  model?: string;
+}
+
 /** Detect dump format and database name from the first 2000 chars of a SQL file. */
 export function detectSqlDumpFormat(content: string): {
     detectedFormat: string;
@@ -171,6 +212,58 @@ export const tauriApi = {
     await invoke("storage_clear_all_history");
   },
 
+  // ── AI / OpenRouter ───────────────────────────────────────────────────────
+
+  async aiGetCredentialStatus(provider: AiProvider): Promise<AiCredentialStatus> {
+    return await invoke("ai_get_credential_status", { provider });
+  },
+
+  async aiSaveApiKey(provider: AiProvider, apiKey: string): Promise<AiCredentialStatus> {
+    return await invoke("ai_save_api_key", { provider, apiKey });
+  },
+
+  async aiTestApiKey(provider: AiProvider, apiKey: string): Promise<void> {
+    await invoke("ai_test_api_key", { provider, apiKey });
+  },
+
+  async aiClearCredential(provider: AiProvider): Promise<void> {
+    await invoke("ai_clear_credential", { provider });
+  },
+
+  async aiChatCompletion(request: OpenRouterChatRequest & { provider: AiProvider }): Promise<AiChatResponse> {
+    return await invoke("ai_chat_completion", { request });
+  },
+
+  // ── OpenRouter compatibility wrappers ─────────────────────────────────────
+
+  async openrouterGetCredentialStatus(): Promise<AiCredentialStatus> {
+    return await invoke("openrouter_get_credential_status");
+  },
+
+  async openrouterSaveApiKey(apiKey: string): Promise<AiCredentialStatus> {
+    return await invoke("openrouter_save_api_key", { apiKey });
+  },
+
+  async openrouterTestApiKey(apiKey: string): Promise<void> {
+    await invoke("openrouter_test_api_key", { apiKey });
+  },
+
+  async openrouterClearCredential(): Promise<void> {
+    await invoke("openrouter_clear_credential");
+  },
+
+  async openrouterOauthBegin(): Promise<OpenRouterOAuthBeginResult> {
+    return await invoke("openrouter_oauth_begin");
+  },
+
+  async openrouterOauthComplete(flowId: string): Promise<AiCredentialStatus> {
+    return await invoke("openrouter_oauth_complete", { flowId });
+  },
+
+  async openrouterChatCompletion(request: OpenRouterChatRequest): Promise<AiChatResponse> {
+    return await invoke("openrouter_chat_completion", { request });
+  },
+
   // ── Import / Export ────────────────────────────────────────────────────────
 
   async exportConnections(opts: ExportOptions): Promise<string> {
@@ -215,5 +308,10 @@ export const tauriApi = {
   async readTextFile(path: string): Promise<string> {
     const { readTextFile } = await import("@tauri-apps/plugin-fs");
     return await readTextFile(path);
+  },
+
+  async openExternalUrl(url: string): Promise<void> {
+    const { openUrl } = await import("@tauri-apps/plugin-opener");
+    await openUrl(url);
   },
 };

@@ -215,7 +215,7 @@ const FunctionOutput = () => {
 		if (invocationResult.error) {
 			return (
 				<div className="h-full flex items-center justify-center bg-background p-8">
-					<div className="max-w-lg w-full bg-destructive/5 border border-destructive/20 rounded-xl p-6">
+					<div className="max-w-lg w-full bg-destructive/5 border border-destructive/20 rounded-lg p-6">
 						<p className="text-[10px] font-bold uppercase tracking-widest text-destructive mb-2">
 							Error
 						</p>

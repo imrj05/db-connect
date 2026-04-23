@@ -72,7 +72,7 @@ function ColumnRow({ col }: { col: ColumnInfo }) {
         <div className="flex h-[22px] items-center gap-2 rounded-[4px] pl-1.5 pr-2.5 text-foreground/62 transition-colors hover:bg-surface-2/72 hover:text-foreground/82">
             <ColumnIcon col={col} />
             <span className="text-[11px] font-mono truncate flex-1">{col.name}</span>
-            <span className="text-[10px] font-mono text-foreground/38 shrink-0">
+            <span className="text-[11px] font-mono text-foreground/38 shrink-0">
                 {col.dataType}
             </span>
         </div>
@@ -204,7 +204,7 @@ function SchemaGroup({
                         ? <FolderOpen size={11} className="shrink-0 text-foreground/45" />
                         : <Folder size={11} className="shrink-0 text-foreground/38" />}
                     <span className="text-[11px] font-mono flex-1 text-left">{schema}</span>
-                    <span className="text-[10px] font-mono text-foreground/45">{fns.length}</span>
+                    <span className="text-[11px] font-mono text-foreground/45">{fns.length}</span>
                 </button>
             )}
             {open && (
@@ -355,7 +355,7 @@ function DatabaseNode({
                     const preset = GROUP_PRESETS.find(p => p.id === connection.group);
                     return (
                         <span className={cn(
-                            "shrink-0 px-1.5 h-[15px] flex items-center rounded-md text-[9px] font-bold uppercase tracking-wide border",
+                            "shrink-0 px-1.5 h-4 flex items-center rounded-md text-[10px] font-bold uppercase tracking-wide border",
                             preset ? preset.activeClass : "bg-muted/50 border-border/50 text-muted-foreground/60"
                         )}>
                             {connection.group}
@@ -371,11 +371,11 @@ function DatabaseNode({
             {isConnected && open && (
                 <div className="flex h-8 shrink-0 items-center gap-1.5 border-y border-border-subtle bg-surface-1/92 px-2.5">
                     <TableProperties size={12} className="shrink-0 text-foreground/35" />
-                    <span className="text-[10px] font-bold uppercase tracking-[0.16em] text-foreground/48 flex-1">
+                    <span className="text-[11px] font-bold uppercase tracking-[0.16em] text-foreground/48 flex-1">
                         Tables
                     </span>
                     {!isLoading && tableFns.length > 0 && (
-                        <span className="text-[10px] font-mono text-foreground/42 tabular-nums mr-0.5">
+                        <span className="text-[11px] font-mono text-foreground/42 tabular-nums mr-0.5">
                             {filter.trim() ? `${filtered.length}/` : ""}{tableFns.length}
                         </span>
                     )}
@@ -579,10 +579,10 @@ const Sidebar = () => {
     const activeDatabases = activeConn ? (openDatabases[activeConn.id] ?? []) : [];
     const selectedDb = activeConn ? (selectedDatabases[activeConn.id] ?? null) : null;
     return (
-        <div className="h-full flex bg-surface-1 border border-border-subtle shadow-sm overflow-hidden min-h-0 rounded-md">
+        <div className="h-full flex bg-surface-1 border border-border-subtle shadow-sm overflow-hidden min-h-0 rounded-lg">
             {/* ── Left: open database tabs ── */}
             {activeDatabases.length > 0 && activeConn && (
-                <div className="flex shrink-0 flex-col gap-1 overflow-y-auto border-r border-border-subtle bg-surface-1/94 px-1.5 py-2" style={{ width: 78 }}>
+                <div className="flex shrink-0 flex-col gap-1.5 overflow-y-auto border-r border-border-subtle bg-surface-1/94 px-2 py-2" style={{ width: 84 }}>
                     {activeDatabases.map((db) => {
                         const isActive = db === selectedDb;
                         const DbLogo = DB_LOGO[activeConn.type] ?? DB_LOGO.postgresql;
@@ -598,7 +598,7 @@ const Sidebar = () => {
                                                 setDbCtxMenu({ db, x: e.clientX, y: e.clientY });
                                             }}
                                             className={cn(
-                                                "group relative flex w-full shrink-0 flex-col items-center gap-1.5 rounded-md border px-2 py-2.5 transition-[color,background-color,border-color,box-shadow]",
+                                                "group relative flex w-full shrink-0 flex-col items-center gap-1.5 rounded-md border px-2 py-3 transition-[color,background-color,border-color,box-shadow]",
                                                 isActive
                                                     ? "border-border-subtle bg-surface-elevated text-foreground shadow-xs"
                                                     : "border-transparent bg-surface-2/64 text-foreground/50 hover:border-border/55 hover:bg-surface-2 hover:text-foreground/72"
@@ -618,7 +618,7 @@ const Sidebar = () => {
                                             </div>
                                             {/* DB label */}
                                             <span className={cn(
-                                                "w-full truncate px-1 text-center text-[9px] font-mono leading-tight transition-colors",
+                                                "w-full truncate px-1 text-center text-[11px] font-mono leading-tight transition-colors",
                                                 isActive
                                                     ? "text-foreground/82"
                                                     : "text-foreground/42 group-hover:text-foreground/62"
@@ -652,11 +652,11 @@ const Sidebar = () => {
                             onContextMenu={(e) => { e.preventDefault(); setDbCtxMenu(null); }}
                         />
                         <div
-                            className="fixed z-50 bg-popover/98 border border-border-subtle rounded-md shadow-xl p-1 text-popover-foreground backdrop-blur-xl"
+                            className="fixed z-50 bg-popover/98 border border-border-subtle rounded-md shadow-md p-1 text-popover-foreground backdrop-blur-xl"
                             style={{ top, left, width: menuW }}
                         >
                             <div className="px-2 py-1.5 mb-0.5">
-                                <p className="text-[9px] font-mono font-bold uppercase tracking-widest text-muted-foreground/40 truncate max-w-[148px]">
+                                <p className="text-[11px] font-mono font-bold uppercase tracking-widest text-muted-foreground/40 truncate max-w-[148px]">
                                     {dbCtxMenu.db}
                                 </p>
                             </div>
@@ -700,7 +700,7 @@ const Sidebar = () => {
             {/* ── Right: main content ── */}
             <div className="flex-1 flex flex-col overflow-hidden min-w-0">
                 {/* ── Header ── */}
-                    <div className="h-10 flex items-center justify-between px-3 border-b border-border-subtle bg-surface-1/92 shrink-0 backdrop-blur-sm">
+                    <div className="h-10 flex items-center justify-between px-4 border-b border-border-subtle bg-surface-1/92 shrink-0 backdrop-blur-sm">
                     <span className="text-[11px] font-bold uppercase tracking-[0.16em] text-foreground/48">
                         Explorer
                     </span>
@@ -742,7 +742,7 @@ const Sidebar = () => {
                 </div>
                 {/* ── Filter ── */}
                 {connections.length > 0 && (
-                    <div className="shrink-0 border-b border-border-subtle bg-surface-1/72 px-2 py-2">
+                    <div className="shrink-0 border-b border-border-subtle bg-surface-1/72 px-3 py-2">
                         <div className="relative">
                             <Search size={11} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-foreground/36 pointer-events-none" />
                             <Input
@@ -779,7 +779,7 @@ const Sidebar = () => {
                     </div>
                 ) : (
                     <ScrollArea className="flex-1 min-h-0">
-                        <div className="px-2 py-2">
+                        <div className="px-3 py-3">
                             {activeConn ? (() => {
                                 const conn = activeConn;
                                 const fns = connectionFunctions[conn.id] ?? [];
@@ -818,7 +818,7 @@ const Sidebar = () => {
                     </ScrollArea>
                 )}
                 {/* ── Status Footer ── always pinned to bottom */}
-                <div className="shrink-0 border-t border-border-subtle px-3.5 h-8 flex items-center gap-2 bg-surface-1/94 overflow-hidden">
+                <div className="shrink-0 border-t border-border-subtle px-4 h-9 flex items-center gap-2 bg-surface-1/94 overflow-hidden">
                     <CircleDot
                         size={8}
                         className={cn("shrink-0", connectedIds.length > 0 ? "text-primary" : "text-foreground/42")}

@@ -13,6 +13,8 @@ import type { Extension } from "@codemirror/state";
 import { Clock, Bookmark, Pencil } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
+import { Switch } from "@/components/ui/switch";
 import {
 	Dialog,
 	DialogContent,
@@ -24,6 +26,8 @@ import {
 import { useAppStore, EditorThemeOption } from "@/store/useAppStore";
 import { cn } from "@/lib/utils";
 import { Kbd } from "@/components/ui/kbd";
+import { tauriApi } from "@/lib/tauri-api";
+import { toast } from "@/components/ui/sonner";
 import {
 	ConnectionFunction,
 	TableInfo,
@@ -151,6 +155,13 @@ export function SqlEditorView({
 	const [saveOpen, setSaveOpen] = useState(false);
 	const [saveName, setSaveName] = useState("");
 	const [previewOpen, setPreviewOpen] = useState(false);
+	const [aiOpen, setAiOpen] = useState(false);
+	const [aiPrompt, setAiPrompt] = useState("");
+	const [aiIncludeSql, setAiIncludeSql] = useState(true);
+	const [aiIncludeSchema, setAiIncludeSchema] = useState(true);
+	const [aiReplaceEditor, setAiReplaceEditor] = useState(true);
+	const [aiLoading, setAiLoading] = useState(false);
+	const [aiConfigured, setAiConfigured] = useState(false);
 	// Query log state
 	const [showQueryLogSyntax, setShowQueryLogSyntax] = useState(true);
 	const history: QueryHistoryEntry[] = queryHistory.filter(
@@ -193,25 +204,36 @@ export function SqlEditorView({
 	// Resizable split
 	const [editorHeightPx, setEditorHeightPx] = useState(220);
 	const dragState = useRef<{ startY: number; startH: number } | null>(null);
+	const currentDragHeight = useRef(220);
+	const editorContainerRef = useRef<HTMLDivElement>(null);
 	const startDrag = useCallback(
 		(e: React.MouseEvent) => {
 			e.preventDefault();
 			dragState.current = { startY: e.clientY, startH: editorHeightPx };
+			document.body.style.cursor = "row-resize";
+			document.body.style.userSelect = "none";
 			const onMove = (ev: MouseEvent) => {
 				if (!dragState.current) return;
-				setEditorHeightPx(
-					Math.max(
-						80,
-						Math.min(
-							600,
-							dragState.current.startH +
-								(ev.clientY - dragState.current.startY),
-						),
+				const next = Math.max(
+					80,
+					Math.min(
+						600,
+						dragState.current.startH +
+							(ev.clientY - dragState.current.startY),
 					),
 				);
+				currentDragHeight.current = next;
+				// Direct DOM mutation — no React re-render on every pixel
+				if (editorContainerRef.current) {
+					editorContainerRef.current.style.height = `${next}px`;
+				}
 			};
 			const onUp = () => {
 				dragState.current = null;
+				document.body.style.cursor = "";
+				document.body.style.userSelect = "";
+				// Commit final height to React state (single re-render)
+				setEditorHeightPx(currentDragHeight.current);
 				window.removeEventListener("mousemove", onMove);
 				window.removeEventListener("mouseup", onUp);
 			};
@@ -235,6 +257,111 @@ export function SqlEditorView({
 		setPreviewOpen(false);
 		await onExplain();
 	};
+	useEffect(() => {
+		let mounted = true;
+		tauriApi
+			.aiGetCredentialStatus(appSettings.aiProvider)
+			.then((status) => {
+				if (mounted) setAiConfigured(status.configured);
+			})
+			.catch(() => {
+				if (mounted) setAiConfigured(false);
+			});
+		return () => {
+			mounted = false;
+		};
+	}, [aiOpen, appSettings.aiProvider]);
+
+	const runAiQuickAction = (mode: "generate" | "explain" | "fix") => {
+		if (mode === "explain") {
+			setAiPrompt("Explain what this SQL does and potential performance issues.");
+			setAiIncludeSql(true);
+			setAiIncludeSchema(false);
+			setAiReplaceEditor(false);
+			return;
+		}
+		if (mode === "fix") {
+			const last = history[0];
+			const errorHint = last
+				? "Use the last failed query context if relevant and provide a corrected query."
+				: "Fix syntax and logical issues in current SQL and return corrected SQL.";
+			setAiPrompt(errorHint);
+			setAiIncludeSql(true);
+			setAiIncludeSchema(true);
+			setAiReplaceEditor(true);
+			return;
+		}
+		setAiPrompt("");
+		setAiIncludeSql(true);
+		setAiIncludeSchema(true);
+		setAiReplaceEditor(true);
+	};
+	const handleAiGenerate = async () => {
+		if (!appSettings.aiEnabled) {
+			toast.error("AI is disabled. Enable it from Settings > AI.");
+			return;
+		}
+		if (!aiConfigured) {
+			toast.error(`${appSettings.aiProvider} is not configured. Setup in Settings > AI.`);
+			return;
+		}
+		const prompt = aiPrompt.trim();
+		if (!prompt) {
+			toast.error("Enter a prompt for AI generation.");
+			return;
+		}
+		setAiLoading(true);
+		try {
+			const contextParts: string[] = [];
+			contextParts.push("You are an expert SQL assistant. Return only executable SQL. No markdown code fences.");
+			contextParts.push(`Database engine: ${connections.find((c) => c.id === fn.connectionId)?.type ?? "unknown"}`);
+			if (aiIncludeSchema) {
+				const schemaLines = tables.slice(0, 40).map((t) => {
+					const cols = (t.columns ?? []).slice(0, 20).map((c) => `${c.name}:${c.dataType}`).join(", ");
+					return `${t.name}${cols ? ` (${cols})` : ""}`;
+				});
+				if (schemaLines.length) {
+					contextParts.push(`Schema context:\n${schemaLines.join("\n")}`);
+				}
+			}
+			if (aiIncludeSql && pendingSql.trim()) {
+				contextParts.push(`Current SQL:\n${pendingSql.trim()}`);
+			}
+			contextParts.push(`User request:\n${prompt}`);
+
+			const response = await tauriApi.aiChatCompletion({
+				provider: appSettings.aiProvider,
+				model: appSettings.aiDefaultModel || "openrouter/free",
+				messages: [
+					{ role: "system", content: "Generate safe, precise SQL for the user's database context." },
+					{ role: "user", content: contextParts.join("\n\n") },
+				],
+				temperature: 0.2,
+				maxTokens: 1200,
+			});
+
+			let generated = response.content.trim();
+			if (generated.startsWith("```") && generated.endsWith("```")) {
+				generated = generated
+					.replace(/^```[a-zA-Z]*\n?/, "")
+					.replace(/\n?```$/, "")
+					.trim();
+			}
+			if (!generated) {
+				throw new Error("AI returned empty SQL");
+			}
+			const shouldReplace = aiReplaceEditor;
+			onSqlChange(shouldReplace ? generated : `${pendingSql.trim()}\n\n${generated}`.trim());
+			setAiOpen(false);
+			setAiPrompt("");
+			toast.success("SQL generated");
+		} catch (error) {
+			const message = error instanceof Error ? error.message : String(error);
+			toast.error(message || "AI generation failed");
+		} finally {
+			setAiLoading(false);
+		}
+	};
 	const tabBtn = (
 		id: typeof panel,
 		icon: React.ReactNode,
@@ -245,7 +372,7 @@ export function SqlEditorView({
 			variant="ghost"
 			onClick={() => setPanel(id)}
 			className={cn(
-				"h-full px-3 rounded-none gap-1.5 text-[9px] font-bold uppercase tracking-widest border-b-2 border-transparent",
+				"h-full px-3 rounded-none gap-1.5 text-[11px] font-bold uppercase tracking-widest border-b-2 border-transparent",
 				panel === id
 					? "text-accent-blue border-blue-500"
 					: "text-muted-foreground/50 hover:text-muted-foreground",
@@ -256,7 +383,7 @@ export function SqlEditorView({
 			{count !== undefined && count > 0 && (
 				<Badge
 					variant="secondary"
-					className="h-4 px-1 text-[8px] font-mono"
+					className="h-4 px-1 text-[10px] font-mono"
 				>
 					{count}
 				</Badge>
@@ -272,7 +399,7 @@ export function SqlEditorView({
 						.slice(fn.prefix.length + 1)
 						.replace(/\(.*$/, "")}
 				</span>
-				<span className="text-[9px] font-mono text-muted-foreground/30 uppercase tracking-widest">
+				<span className="text-[10px] font-mono text-muted-foreground/30 uppercase tracking-widest">
 					{fn.type === "execute" ? "DDL / DML" : "SELECT"}
 				</span>
 			</div>
@@ -312,15 +439,16 @@ export function SqlEditorView({
 			{/* ── Editor panel ── */}
 			{panel === "editor" && (
 				<>
-					{/* Editor area — fixed height when results visible, flex-1 otherwise */}
-					<div
-						className="relative group min-h-0 overflow-hidden"
-						style={
-							queryResult
-								? { height: editorHeightPx, flexShrink: 0 }
-								: { flex: "1 1 0%" }
-						}
-					>
+				{/* Editor area — fixed height when results visible, flex-1 otherwise */}
+				<div
+					ref={editorContainerRef}
+					className="relative group min-h-0 overflow-hidden"
+					style={
+						queryResult
+							? { height: editorHeightPx, flexShrink: 0 }
+							: { flex: "1 1 0%" }
+					}
+				>
 						<div className="absolute inset-0 scrollbar-thin">
 							<CodeMirror
 								value={pendingSql}
@@ -363,6 +491,8 @@ export function SqlEditorView({
 						onPreview={() => setPreviewOpen(true)}
 						onExecute={onExecute}
 						onExplain={onExplain}
+						aiEnabled={appSettings.aiEnabled}
+						aiConfigured={aiConfigured}
 						onFormat={() => {
 							const keywords = [
 								"SELECT", "FROM", "WHERE", "JOIN", "LEFT JOIN",
@@ -378,6 +508,7 @@ export function SqlEditorView({
 							});
 							onSqlChange(fmt.replace(/^\n/, "").replace(/\n{2,}/g, "\n"));
 						}}
+						onAiOpen={() => setAiOpen(true)}
 						onSaveOpen={() => setSaveOpen(true)}
 						onSaveNameChange={setSaveName}
 						onSaveConfirm={handleSave}
@@ -412,17 +543,17 @@ export function SqlEditorView({
 								</DialogDescription>
 							</div>
 							<div className="flex items-center gap-2 shrink-0">
-								<Badge
-									variant="secondary"
-									className="text-[9px] font-mono uppercase tracking-widest"
-								>
-									{fn.type === "execute" ? "DDL / DML" : "Query"}
+							<Badge
+								variant="secondary"
+								className="text-[10px] font-mono uppercase tracking-widest"
+							>
+								{fn.type === "execute" ? "DDL / DML" : "Query"}
+							</Badge>
+							{destructivePreview && (
+								<Badge className="text-[10px] font-mono uppercase tracking-widest bg-destructive/12 text-destructive border border-destructive/20 hover:bg-destructive/12">
+									Destructive
 								</Badge>
-								{destructivePreview && (
-									<Badge className="text-[9px] font-mono uppercase tracking-widest bg-destructive/12 text-destructive border border-destructive/20 hover:bg-destructive/12">
-										Destructive
-									</Badge>
-								)}
+							)}
 							</div>
 						</div>
 					</DialogHeader>
@@ -447,6 +578,80 @@ export function SqlEditorView({
 							disabled={!hasSql || isLoading}
 						>
 							Run
+						</Button>
+					</DialogFooter>
+				</DialogContent>
+			</Dialog>
+			<Dialog open={aiOpen} onOpenChange={setAiOpen}>
+				<DialogContent className="max-w-2xl">
+					<DialogHeader>
+						<DialogTitle>AI SQL Assistant</DialogTitle>
+						<DialogDescription>
+							Generate SQL with {appSettings.aiProvider} ({appSettings.aiDefaultModel || "openrouter/free"}).
+						</DialogDescription>
+					</DialogHeader>
+					<div className="space-y-3">
+						<div className="flex flex-wrap items-center gap-2">
+							<Button
+								variant="outline"
+								size="xs"
+								onClick={() => runAiQuickAction("generate")}
+								className="h-7"
+							>
+								General SQL
+							</Button>
+							<Button
+								variant="outline"
+								size="xs"
+								onClick={() => runAiQuickAction("explain")}
+								className="h-7"
+							>
+								Explain SQL
+							</Button>
+							<Button
+								variant="outline"
+								size="xs"
+								onClick={() => runAiQuickAction("fix")}
+								className="h-7"
+							>
+								Fix SQL Error
+							</Button>
+							<span className={cn(
+								"ml-auto text-[10px] font-bold uppercase tracking-[0.12em] px-1.5 py-0.5 rounded-md border",
+								aiConfigured
+									? "border-emerald-500/35 bg-emerald-500/8 text-emerald-700 dark:text-emerald-300"
+									: "border-amber-500/35 bg-amber-500/8 text-amber-700 dark:text-amber-300",
+							)}>
+								{aiConfigured ? `${appSettings.aiProvider} Ready` : `${appSettings.aiProvider} Setup Needed`}
+							</span>
+						</div>
+						<Input
+							value={aiPrompt}
+							onChange={(e) => setAiPrompt(e.target.value)}
+							placeholder="e.g. find top 10 customers by revenue in last 30 days"
+							className="h-9"
+						/>
+						<div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+							<label className="flex items-center gap-2 text-[12px] text-muted-foreground">
+								<Switch checked={aiIncludeSql} onCheckedChange={(v) => setAiIncludeSql(!!v)} />
+								Include current SQL
+							</label>
+							<label className="flex items-center gap-2 text-[12px] text-muted-foreground">
+								<Switch checked={aiIncludeSchema} onCheckedChange={(v) => setAiIncludeSchema(!!v)} />
+								Include schema context
+							</label>
+							<label className="flex items-center gap-2 text-[12px] text-muted-foreground">
+								<Switch checked={aiReplaceEditor} onCheckedChange={(v) => setAiReplaceEditor(!!v)} />
+								Replace editor SQL
+							</label>
+						</div>
+					</div>
+					<DialogFooter>
+						<Button variant="outline" onClick={() => setAiOpen(false)}>
+							Cancel
+						</Button>
+						<Button onClick={handleAiGenerate} disabled={aiLoading || !aiPrompt.trim()}>
+							{aiLoading ? "Generating..." : "Generate SQL"}
 						</Button>
 					</DialogFooter>
 				</DialogContent>

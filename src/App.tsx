@@ -30,6 +30,7 @@ import { Button } from "@/components/ui/button";
 import { Table2, Loader2 } from "lucide-react";
 import { licenseCheckOffline, syncLicenseInBackground, type OfflineCheckResult } from "@/lib/license";
 import { ErrorBoundary } from "./components/layout/ErrorBoundary";
+import { DB_FONT_SANS, DB_FONT_MONO, DB_FONT_SANS_STACK, DB_FONT_MONO_STACK } from "@/lib/fonts";
 
 const SIDEBAR_MIN = 180;
 const SIDEBAR_MAX = 480;
@@ -63,6 +64,8 @@ function App() {
     const isDragging = useRef(false);
     const startX = useRef(0);
     const startWidth = useRef(0);
+    const currentDragWidth = useRef(SIDEBAR_DEFAULT);
+    const sidebarRef = useRef<HTMLDivElement>(null);
 
     // ── License state (non-blocking) ─────────────────────────────────────────
     const [licenseCheck, setLicenseCheck] = useState<OfflineCheckResult | null>(null);
@@ -144,24 +147,33 @@ function App() {
             wrapper.style.left = "0";
             wrapper.style.top = "0";
         }
-    }, [appSettings.uiZoom]);
+    }, [appSettings.uiZoom, isLoading]);
 
     useEffect(() => {
         const sansFont = appSettings.uiFontFamily;
         const monoFont = appSettings.monoFontFamily;
-        
-        // Check if font might be bundled (has quotes when loaded from system)
-        const hasQuotes = (f: string) => f.startsWith('"') || f.startsWith("'");
-        
-        // Build proper font-stack with fallbacks
-        const sansList = hasQuotes(sansFont)
-            ? `${sansFont}, system-ui, -apple-system, BlinkMacSystemFont, Segoe UI, Roboto, Helvetica Neue, Helvetica, Arial, sans-serif`
-            : `"${sansFont}", sans-serif`;
-            
-        const monoList = hasQuotes(monoFont)
-            ? `${monoFont}, ui-monospace, SF Mono, Menlo, Monaco, Consolas, monospace`
-            : `"${monoFont}", monospace`;
-        
+
+        // Resolve built-in aliases first
+        let sansList: string;
+        if (sansFont === DB_FONT_SANS) {
+            sansList = DB_FONT_SANS_STACK;
+        } else {
+            const hasQuotes = sansFont.startsWith('"') || sansFont.startsWith("'");
+            sansList = hasQuotes
+                ? `${sansFont}, system-ui, -apple-system, BlinkMacSystemFont, Segoe UI, Roboto, Helvetica Neue, Helvetica, Arial, sans-serif`
+                : `"${sansFont}", sans-serif`;
+        }
+
+        let monoList: string;
+        if (monoFont === DB_FONT_MONO) {
+            monoList = DB_FONT_MONO_STACK;
+        } else {
+            const hasQuotes = monoFont.startsWith('"') || monoFont.startsWith("'");
+            monoList = hasQuotes
+                ? `${monoFont}, ui-monospace, SF Mono, Menlo, Monaco, Consolas, monospace`
+                : `"${monoFont}", monospace`;
+        }
+
         document.documentElement.style.setProperty("--font-sans", sansList);
         document.documentElement.style.setProperty("--font-mono", monoList);
     }, [appSettings.uiFontFamily, appSettings.monoFontFamily]);
@@ -207,6 +219,11 @@ function App() {
         isDragging.current = true;
         startX.current = e.clientX;
         startWidth.current = sidebarWidth;
+        currentDragWidth.current = sidebarWidth;
+        // Disable CSS transition so every pixel is instant
+        if (sidebarRef.current) {
+            sidebarRef.current.style.transition = "none";
+        }
         document.body.style.cursor = "col-resize";
         document.body.style.userSelect = "none";
     }, [sidebarWidth]);
@@ -216,11 +233,21 @@ function App() {
             if (!isDragging.current) return;
             const delta = e.clientX - startX.current;
             const next = Math.min(SIDEBAR_MAX, Math.max(SIDEBAR_MIN, startWidth.current + delta));
-            setSidebarWidth(next);
+            currentDragWidth.current = next;
+            // Drive resize via direct DOM mutation — no React re-render on every pixel
+            if (sidebarRef.current) {
+                sidebarRef.current.style.width = `${next}px`;
+                sidebarRef.current.style.minWidth = `${next}px`;
+            }
         };
         const onMouseUp = () => {
             if (!isDragging.current) return;
             isDragging.current = false;
+            // Re-enable transition (for collapse animation), then commit state
+            if (sidebarRef.current) {
+                sidebarRef.current.style.transition = "";
+            }
+            setSidebarWidth(currentDragWidth.current);
             document.body.style.cursor = "";
             document.body.style.userSelect = "";
         };
@@ -265,11 +292,12 @@ function App() {
                         isLicensed={licenseCheck?.ok ?? null}
                         onActivate={() => setLicenseDialogOpen(true)}
                     />
-                    <main className="relative z-0 flex-1 overflow-hidden flex bg-app-bg p-1.5 gap-1.5">
+                    <main className="relative z-0 flex-1 overflow-hidden flex bg-app-bg p-2 gap-2">
                         {/* Sidebar — collapses smoothly */}
                         <div
+                            ref={sidebarRef}
                             style={{ width: sidebarCollapsed ? 0 : sidebarWidth, minWidth: sidebarCollapsed ? 0 : sidebarWidth }}
-                            className="h-full shrink-0 overflow-hidden transition-[width,min-width] duration-200 ease-in-out rounded-md"
+                            className="h-full shrink-0 overflow-hidden transition-[width,min-width] duration-200 ease-in-out rounded-lg"
                         >
                             <Sidebar />
                         </div>
@@ -281,7 +309,7 @@ function App() {
                             />
                         )}
                         {/* Main content */}
-                        <div className="flex-1 h-full min-w-0 overflow-hidden rounded-md border border-border-subtle bg-surface-1 shadow-sm">
+                        <div className="flex-1 h-full min-w-0 overflow-hidden rounded-lg border border-border-subtle bg-surface-1 shadow-sm">
                             {showOnboarding ? (
                                 <Onboarding
                                     onDone={() => setOnboardingDone(true)}

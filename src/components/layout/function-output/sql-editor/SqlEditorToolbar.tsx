@@ -1,5 +1,5 @@
 import { useRef } from "react";
-import { Play, Loader2, Search, AlignLeft, BookmarkPlus, Check, X, Eye } from "lucide-react";
+import { Play, Loader2, Search, AlignLeft, BookmarkPlus, Check, X, Eye, Bot } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
@@ -9,11 +9,14 @@ export function SqlEditorToolbar({
 	hasSql,
 	saveOpen,
 	saveName,
+	aiEnabled,
+	aiConfigured,
 	onPreview,
 	onExecute,
 	onExplain,
 	onFormat,
 	onSaveOpen,
+	onAiOpen,
 	onSaveNameChange,
 	onSaveConfirm,
 	onSaveCancel,
@@ -22,11 +25,14 @@ export function SqlEditorToolbar({
 	hasSql: boolean;
 	saveOpen: boolean;
 	saveName: string;
+	aiEnabled: boolean;
+	aiConfigured: boolean;
 	onPreview: () => void;
 	onExecute: () => void | Promise<void>;
 	onExplain: () => void | Promise<void>;
 	onFormat: () => void;
 	onSaveOpen: () => void;
+	onAiOpen: () => void;
 	onSaveNameChange: (name: string) => void;
 	onSaveConfirm: () => void;
 	onSaveCancel: () => void;
@@ -36,6 +42,25 @@ export function SqlEditorToolbar({
 	return (
 		<div className="h-10 bg-background border-t border-border flex items-center justify-between px-3 shrink-0 select-none gap-2">
 			<div className="flex items-center gap-1.5">
+				<Button
+					variant="ghost"
+					size="sm"
+					onClick={onAiOpen}
+					className="h-7 text-[10px] font-bold uppercase tracking-[0.15em] gap-1.5 text-accent-blue/80 hover:text-accent-blue"
+				>
+					<Bot size={11} />
+					AI
+					<span
+						className={cn(
+							"ml-0.5 inline-flex h-4 items-center rounded-sm px-1 text-[8px] font-bold tracking-wider",
+							aiEnabled && aiConfigured
+								? "bg-emerald-500/12 text-emerald-600 dark:text-emerald-400"
+								: "bg-amber-500/12 text-amber-700 dark:text-amber-300",
+						)}
+					>
+						{aiEnabled && aiConfigured ? "READY" : "SETUP"}
+					</span>
+				</Button>
 				<Button
 					variant="ghost"
 					size="sm"
