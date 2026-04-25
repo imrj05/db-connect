@@ -46,7 +46,7 @@ export function SqlEditorToolbar({
 					variant="ghost"
 					size="sm"
 					onClick={onAiOpen}
-					className="h-7 text-[10px] font-bold uppercase tracking-[0.15em] gap-1.5 text-accent-blue/80 hover:text-accent-blue"
+					className="h-7 text-[11px] font-medium gap-1.5 text-accent-blue/80 hover:text-accent-blue"
 				>
 					<Bot size={11} />
 					AI
@@ -66,7 +66,7 @@ export function SqlEditorToolbar({
 					size="sm"
 					disabled={!hasSql}
 					onClick={onPreview}
-					className="h-7 text-[10px] font-bold uppercase tracking-[0.15em] gap-1.5 text-muted-foreground/50 hover:text-muted-foreground"
+					className="h-7 text-[11px] font-medium gap-1.5 text-muted-foreground/60 hover:text-foreground"
 				>
 					<Eye size={11} />
 					Preview
@@ -77,9 +77,9 @@ export function SqlEditorToolbar({
 					variant="outline"
 					size="sm"
 					className={cn(
-						"h-7 text-[10px] font-black uppercase tracking-[0.15em] gap-2 border-border/60",
+						"h-7 text-[11px] font-semibold gap-2 border-border/60 bg-surface-elevated/90",
 						!isLoading && hasSql
-							? "text-accent-green border-primary/40 hover:border-primary/70 hover:text-accent-green"
+							? "text-accent-green border-primary/40 hover:border-primary/70 hover:bg-surface-3 hover:text-accent-green"
 							: "text-muted-foreground/40",
 					)}
 				>
@@ -88,14 +88,15 @@ export function SqlEditorToolbar({
 					) : (
 						<Play size={11} className="fill-current" />
 					)}
-					Run [Cmd+Enter]
+					Run
+					<span className="text-[10px] font-mono text-muted-foreground/60">Cmd+Enter</span>
 				</Button>
 				<Button
 					variant="ghost"
 					size="sm"
 					disabled={isLoading || !hasSql}
 					onClick={onExplain}
-					className="h-7 text-[10px] font-bold uppercase tracking-[0.15em] gap-1.5 text-muted-foreground/50 hover:text-muted-foreground"
+					className="h-7 text-[11px] font-medium gap-1.5 text-muted-foreground/60 hover:text-foreground"
 				>
 					<Search size={11} />
 					Explain
@@ -105,7 +106,7 @@ export function SqlEditorToolbar({
 					size="sm"
 					disabled={!hasSql}
 					onClick={onFormat}
-					className="h-7 text-[10px] font-bold uppercase tracking-[0.15em] gap-1.5 text-muted-foreground/50 hover:text-muted-foreground"
+					className="h-7 text-[11px] font-medium gap-1.5 text-muted-foreground/60 hover:text-foreground"
 				>
 					<AlignLeft size={11} />
 					Format
@@ -151,7 +152,7 @@ export function SqlEditorToolbar({
 						size="xs"
 						onClick={onSaveOpen}
 						disabled={!hasSql}
-						className="h-6 text-[9px] font-bold uppercase tracking-widest text-muted-foreground/40 gap-1"
+						className="h-6 text-[10px] font-medium text-muted-foreground/55 gap-1"
 					>
 						<BookmarkPlus size={10} />
 						Save

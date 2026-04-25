@@ -44,21 +44,24 @@ export function ConnectionsHome({
 	if (connections.length === 0) {
 		return (
 			<div className="h-full flex flex-col items-center justify-center bg-surface-2/72 gap-4 px-6">
-				<div className="w-14 h-14 rounded-lg bg-surface-3 border border-border-subtle flex items-center justify-center shadow-sm">
+				<div className="w-16 h-16 rounded-2xl bg-surface-3 border border-border-subtle flex items-center justify-center shadow-sm">
 					<Database size={24} className="text-foreground/32" />
 				</div>
 				<div className="text-center space-y-1.5">
-					<p className="text-[12px] font-bold uppercase tracking-[0.16em] text-foreground/56">
-						No connections
+					<p className="text-[12px] font-semibold text-muted-foreground">
+						Get Started
 					</p>
-					<p className="text-[13px] text-foreground/58">
-						Add your first database connection to get started
+					<h2 className="text-[22px] font-semibold tracking-tight text-foreground text-balance">
+						Create your first database connection
+					</h2>
+					<p className="text-[14px] text-foreground/58 text-pretty">
+						Save a local connection profile, connect in one click, and start browsing tables right away.
 					</p>
 				</div>
 				<Button
 					onClick={onNewConnection}
 					size="sm"
-					className="mt-1 gap-1.5 text-xs"
+					className="mt-1 h-9 gap-1.5 px-4 text-[12px] font-medium"
 				>
 					<Plus size={12} />
 					New Connection
@@ -154,11 +157,12 @@ export function ConnectionsHome({
 							<div className="flex items-center gap-1.5 shrink-0">
 								<Tooltip>
 									<TooltipTrigger asChild>
-										<Button
-											variant="ghost"
-											size="icon-xs"
-											className="size-7 text-foreground/46 hover:text-foreground"
-											onClick={() => onEdit(conn)}
+									<Button
+										variant="ghost"
+										size="icon-xs"
+										aria-label={`Edit ${conn.name || conn.host || "connection"}`}
+										className="size-7 text-foreground/46 hover:text-foreground"
+										onClick={() => onEdit(conn)}
 										>
 											<Pencil size={12} />
 										</Button>
@@ -170,11 +174,12 @@ export function ConnectionsHome({
 								{isConnected && onDisconnect && (
 									<Tooltip>
 										<TooltipTrigger asChild>
-											<Button
-											variant="ghost"
-											size="icon-xs"
-											className="size-7 text-foreground/46 hover:text-destructive hover:bg-destructive/10 transition-colors"
-											onClick={() =>
+										<Button
+										variant="ghost"
+										size="icon-xs"
+										aria-label={`Disconnect ${conn.name || conn.host || "connection"}`}
+										className="size-7 text-foreground/46 hover:text-destructive hover:bg-destructive/10 transition-colors"
+										onClick={() =>
 												onDisconnect(conn.id)
 											}
 											>

@@ -86,7 +86,7 @@ export function CommandPalette() {
         setCommandPaletteOpen(false);
     };
     return (
-        <CommandDialog className="w-[min(58rem,92vw)]!" open={commandPaletteOpen} onOpenChange={setCommandPaletteOpen}>
+        <CommandDialog open={commandPaletteOpen} onOpenChange={setCommandPaletteOpen}>
             <Command shouldFilter={false}>
                 <CommandInput
                     placeholder="Search functions, tables, commands…"

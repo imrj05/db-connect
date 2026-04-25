@@ -87,7 +87,7 @@ const QUICK_PRESETS = [
 ];
 const DEFAULT_DIALOG_TAB = "details";
 const tabTriggerBaseClass =
-    "flex h-9 min-w-[132px] items-center justify-center gap-2 rounded-xl border px-3 text-xs font-medium transition-all";
+    "flex h-9 min-w-[132px] items-center justify-center gap-2 rounded-xl border px-3 text-[12px] font-medium transition-colors";
 const createDraftConnectionId = () =>
     Math.random().toString(36).substring(7);
 const buildConnectionConfig = (
@@ -301,7 +301,7 @@ const ConnectionDialog = ({ onClose, initialData }: ConnectionDialogProps) => {
         <Dialog open onOpenChange={(open) => !open && onClose()}>
             <DialogContent
                 showCloseButton={false}
-                className="!max-w-[860px] !w-[860px] !p-0 !gap-0 overflow-hidden bg-card border border-border-subtle shadow-2xl rounded-md"
+                className="!max-w-[900px] !w-[900px] !p-0 !gap-0 overflow-hidden bg-card border border-border-subtle shadow-2xl rounded-xl"
             >
                 <DialogTitle className="sr-only">
                     {initialData ? "Edit Connection" : "New Connection"}
@@ -314,12 +314,12 @@ const ConnectionDialog = ({ onClose, initialData }: ConnectionDialogProps) => {
                     onValueChange={setActiveTab}
                     className="flex h-[580px] flex-col"
                 >
-                    <div className="flex items-center justify-between gap-4 border-b border-border-subtle bg-surface-2/72 px-5 py-3.5">
+                    <div className="flex items-center justify-between gap-4 border-b border-border-subtle bg-surface-2/72 px-6 py-4.5">
                         <div className="min-w-0">
-                            <h2 className="text-[13px] font-sans font-semibold text-foreground">
+                            <h2 className="text-[15px] font-semibold tracking-tight text-foreground">
                                 {initialData ? "Edit Connection" : "New Connection"}
                             </h2>
-                            <p className="mt-0.5 text-[11px] font-sans text-muted-foreground/62">
+                            <p className="mt-1 text-[12px] text-muted-foreground/68">
                                 {initialData
                                     ? `Editing ${initialData.name}`
                                     : "Create a connection from scratch or start with Quick Connect."}
@@ -328,7 +328,7 @@ const ConnectionDialog = ({ onClose, initialData }: ConnectionDialogProps) => {
                         {!initialData && (
                             <TabsList
                                 variant="line"
-                                className="grid h-10 auto-cols-fr grid-flow-col shrink-0 rounded-md bg-surface-3 p-0.5"
+                                className="grid h-10 auto-cols-fr grid-flow-col shrink-0 rounded-lg bg-surface-3 p-0.5"
                             >
                                 <TabsTrigger
                                     value="details"
@@ -364,8 +364,8 @@ const ConnectionDialog = ({ onClose, initialData }: ConnectionDialogProps) => {
                                 onSelect={handleEngineChange}
                             />
                             <div className="flex min-w-0 flex-1 flex-col">
-                                <div className="flex-1 overflow-y-auto p-5">
-                                    <div className="flex flex-col gap-4">
+                                <div className="flex-1 overflow-y-auto p-6">
+                                    <div className="flex flex-col gap-5">
                                         <FieldGroup>
                                             <div className="grid grid-cols-2 gap-4">
                                                 <Field>
@@ -432,7 +432,7 @@ const ConnectionDialog = ({ onClose, initialData }: ConnectionDialogProps) => {
                                         </FieldGroup>
                                         <div className="flex items-center gap-3">
                                             <Separator className="flex-1" />
-                                            <span className="text-[9px] font-bold uppercase tracking-[0.16em] text-muted-foreground/40 shrink-0">
+                                            <span className="text-[10px] font-semibold text-muted-foreground/55 shrink-0">
                                                 Connection Details
                                             </span>
                                             <Separator className="flex-1" />
@@ -445,11 +445,11 @@ const ConnectionDialog = ({ onClose, initialData }: ConnectionDialogProps) => {
                                         />
                                         {formData.type !== "redis" && formData.type !== "sqlite" && (
                                             <div
-                                                className={cn(
-                                                    "overflow-hidden rounded-md border transition-all",
-                                                    formData.ssl
-                                                        ? "border-primary/20 bg-primary/5"
-                                                        : "border-border-subtle bg-surface-2/72 hover:bg-surface-2",
+                                                    className={cn(
+                                                        "overflow-hidden rounded-xl border transition-colors",
+                                                        formData.ssl
+                                                            ? "border-primary/20 bg-primary/5"
+                                                            : "border-border-subtle bg-surface-2/72 hover:bg-surface-2",
                                                 )}
                                             >
                                                 <div
@@ -535,8 +535,8 @@ const ConnectionDialog = ({ onClose, initialData }: ConnectionDialogProps) => {
                     </TabsContent>
                     {!initialData && (
                         <TabsContent value="quick-connect" className="min-h-0 flex-1">
-                            <div className="flex h-full min-h-0 flex-col overflow-y-auto p-6">
-                                <div className="flex flex-col gap-4">
+                                        <div className="flex h-full min-h-0 flex-col overflow-y-auto p-6">
+                                            <div className="flex flex-col gap-4">
                                     <Card size="sm" className="border border-border-subtle bg-surface-2/72 py-0 rounded-md">
                                         <CardHeader className="border-b border-border-subtle py-4">
                                             <CardTitle className="flex items-center gap-2 text-sm">
@@ -608,7 +608,7 @@ const ConnectionDialog = ({ onClose, initialData }: ConnectionDialogProps) => {
                                                             key={preset.label}
                                                             type="button"
                                                             onClick={() => handlePreset(preset)}
-                                                            className="group flex items-center justify-between rounded-md border border-border-subtle bg-surface-elevated px-4 py-3 text-left transition-all hover:border-border hover:bg-surface-3"
+                                                            className="group flex items-center justify-between rounded-xl border border-border-subtle bg-surface-elevated px-4 py-3.5 text-left transition-colors hover:border-border hover:bg-surface-3"
                                                         >
                                                             <div className="flex min-w-0 items-center gap-3">
                                                                 <div className="flex size-10 items-center justify-center rounded-md bg-surface-3 text-foreground/70">
@@ -639,9 +639,9 @@ const ConnectionDialog = ({ onClose, initialData }: ConnectionDialogProps) => {
                         </TabsContent>
                     )}
                     {/* ── Footer ── */}
-                    <div className="h-14 shrink-0 border-t border-border-subtle bg-surface-2/72 px-5">
+                    <div className="shrink-0 border-t border-border-subtle bg-surface-2/72 px-6 py-3">
                         <div className="flex h-full items-center justify-between gap-3">
-                            <p className="min-w-0 max-w-[320px] truncate text-[11px] text-muted-foreground/62">
+                            <p className="min-w-0 max-w-[380px] text-[12px] text-muted-foreground/68 text-pretty">
                                     {isLoading
                                         ? "Connecting with the latest saved details..."
                                         : !formData.name
@@ -657,7 +657,7 @@ const ConnectionDialog = ({ onClose, initialData }: ConnectionDialogProps) => {
                                     onClick={handleTest}
                                     disabled={isTesting || isLoading}
                                     className={cn(
-                                        "h-7 rounded-md text-[10px] font-semibold uppercase tracking-[0.12em] gap-1.5",
+                                        "h-8 rounded-md px-3 text-[11px] font-medium gap-1.5",
                                         testStatus === "success" &&
                                         "bg-primary/8 text-primary border-primary/24",
                                         testStatus === "error" &&
@@ -684,7 +684,7 @@ const ConnectionDialog = ({ onClose, initialData }: ConnectionDialogProps) => {
                                         variant="ghost"
                                         size="sm"
                                         onClick={handleDelete}
-                                        className="h-7 rounded-md text-[10px] font-semibold uppercase tracking-[0.12em] text-destructive/60 hover:text-destructive hover:bg-destructive/10 gap-1.5"
+                                        className="h-8 rounded-md px-3 text-[11px] font-medium text-destructive/60 hover:text-destructive hover:bg-destructive/10 gap-1.5"
                                     >
                                         <Trash2 size={11} />
                                         Delete
@@ -695,7 +695,7 @@ const ConnectionDialog = ({ onClose, initialData }: ConnectionDialogProps) => {
                                     size="sm"
                                     onClick={onClose}
                                     disabled={isLoading}
-                                    className="h-7 rounded-md text-[10px] font-semibold uppercase tracking-[0.12em]"
+                                    className="h-8 rounded-md px-3 text-[11px] font-medium"
                                 >
                                     Close
                                 </Button>
@@ -704,7 +704,7 @@ const ConnectionDialog = ({ onClose, initialData }: ConnectionDialogProps) => {
                                     size="sm"
                                     onClick={handleSave}
                                     disabled={isLoading || !formData.name || !isDirty}
-                                    className="h-7 rounded-md text-[10px] font-semibold uppercase tracking-[0.12em]"
+                                    className="h-8 rounded-md px-3 text-[11px] font-medium"
                                 >
                                     {isDirty ? "Save" : "Saved"}
                                 </Button>
@@ -712,7 +712,7 @@ const ConnectionDialog = ({ onClose, initialData }: ConnectionDialogProps) => {
                                     size="sm"
                                     onClick={handleConnect}
                                     disabled={isLoading || !formData.name}
-                                    className="h-7 rounded-md px-4 text-[10px] font-semibold uppercase tracking-[0.12em] gap-1.5 active:scale-[0.97]"
+                                    className="h-8 rounded-md px-4 text-[11px] font-medium gap-1.5 active:scale-[0.97]"
                                 >
                                     {isLoading ? (
                                         <Loader2 size={11} className="animate-spin" />

@@ -15,7 +15,6 @@ import {
     CalendarClock,
     Cpu,
     RefreshCw,
-    ArrowLeft,
     Check,
     ChevronDown,
     Loader2,
@@ -24,6 +23,7 @@ import {
     ExternalLink,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
@@ -41,41 +41,146 @@ type Section = "appearance" | "editor" | "table" | "ai" | "storage" | "license" 
 
 const NAV: { id: Section; label: string; icon: React.ReactNode }[] = [
     { id: "appearance", label: "Appearance", icon: <Palette size={13} /> },
-    { id: "editor",     label: "Editor",     icon: <Code2 size={13} /> },
-    { id: "table",      label: "Table",      icon: <Table2 size={13} /> },
-    { id: "ai",         label: "AI",         icon: <Bot size={13} /> },
-    { id: "storage",    label: "Storage",    icon: <HardDrive size={13} /> },
-    { id: "license",    label: "License",    icon: <KeyRound size={13} /> },
-    { id: "about",      label: "About",      icon: <Info size={13} /> },
+    { id: "editor", label: "Editor", icon: <Code2 size={13} /> },
+    { id: "table", label: "Table", icon: <Table2 size={13} /> },
+    { id: "ai", label: "AI", icon: <Bot size={13} /> },
+    { id: "storage", label: "Storage", icon: <HardDrive size={13} /> },
+    { id: "license", label: "License", icon: <KeyRound size={13} /> },
+    { id: "about", label: "About", icon: <Info size={13} /> },
 ];
 
-function SectionHeading({ children }: { children: React.ReactNode }) {
+function SectionHeading({ className, ...props }: React.ComponentProps<"p">) {
     return (
-        <p className="text-[11px] font-black uppercase tracking-[0.14em] text-muted-foreground/40 mb-3">
-            {children}
-        </p>
+        <p
+            className={cn("mb-3 text-[12px] font-semibold text-muted-foreground/62", className)}
+            {...props}
+        />
     );
 }
 
 function SettingRow({
+    className,
     label,
     description,
     children,
-}: {
-    label: string;
-    description?: string;
-    children: React.ReactNode;
+}: React.ComponentProps<"div"> & {
+    label: React.ReactNode;
+    description?: React.ReactNode;
 }) {
     return (
-        <div className="flex items-center justify-between gap-6 py-3 border-b border-border/40 last:border-0">
+        <div
+            className={cn(
+                "flex items-center justify-between gap-6 border-b border-border/40 py-3 last:border-0",
+                className,
+            )}
+        >
             <div className="min-w-0 flex-1">
-                <p className="text-[13px] font-semibold text-foreground leading-tight">{label}</p>
-                {description && (
-                    <p className="text-[12px] text-muted-foreground/50 mt-0.5 leading-snug">{description}</p>
-                )}
+                <p className="text-[13px] font-semibold leading-tight text-foreground">{label}</p>
+                {description ? (
+                    <p className="mt-0.5 text-[11px] leading-snug text-muted-foreground/58">{description}</p>
+                ) : null}
             </div>
             <div className="shrink-0">{children}</div>
         </div>
+    );
+}
+
+function MetadataRow({
+    className,
+    label,
+    children,
+}: React.ComponentProps<"div"> & {
+    label: React.ReactNode;
+}) {
+    return (
+        <div className={cn("flex items-baseline gap-2 py-1", className)}>
+            <span className="w-20 shrink-0 text-[11px] font-medium text-muted-foreground/55">{label}</span>
+            <span className="text-[12px] font-mono text-muted-foreground/70">{children}</span>
+        </div>
+    );
+}
+
+function SettingsShell({
+    title,
+    description,
+    navItems,
+    activeSection,
+    onSectionChange,
+    onBack,
+    children,
+}: {
+    title: React.ReactNode;
+    description?: React.ReactNode;
+    navItems: { id: string; label: string; icon: React.ReactNode }[];
+    activeSection: string;
+    onSectionChange: (id: string) => void;
+    onBack?: () => void;
+    children: React.ReactNode;
+}) {
+    return (
+        <div className="flex h-full flex-col overflow-hidden bg-surface-1">
+            <div className="flex shrink-0 items-center gap-3 border-b border-border-subtle bg-surface-elevated/65 px-6 py-4">
+                {onBack ? (
+                    <Button variant="ghost" size="icon" aria-label="Back" onClick={onBack} className="shrink-0">
+                        <ChevronDown size={16} className="rotate-90" />
+                    </Button>
+                ) : null}
+                <div>
+                    <p className="text-[15px] font-semibold tracking-tight text-foreground">{title}</p>
+                    {description ? <p className="text-[12px] text-muted-foreground/62">{description}</p> : null}
+                </div>
+            </div>
+            <div className="flex flex-1 overflow-hidden">
+                <div className="flex w-52 shrink-0 flex-col gap-1 border-r border-border-subtle bg-surface-2/72 px-2.5 py-4">
+                    <p className="px-2.5 pb-2 pt-1 text-[12px] font-semibold text-muted-foreground/62">Categories</p>
+                    {navItems.map((item) => (
+                        <Button
+                            key={item.id}
+                            type="button"
+                            variant="ghost"
+                            onClick={() => onSectionChange(item.id)}
+                            className={cn(
+                                "h-8 w-full justify-start gap-2.5 rounded-lg px-3 text-left text-[12px] font-medium",
+                                activeSection === item.id
+                                    ? "bg-surface-selected/82 text-foreground shadow-xs hover:bg-surface-selected/82"
+                                    : "text-muted-foreground/60 hover:bg-surface-3 hover:text-foreground",
+                            )}
+                        >
+                            <span className={cn("shrink-0", activeSection === item.id ? "text-foreground" : "text-muted-foreground/40")}>
+                                {item.icon}
+                            </span>
+                            {item.label}
+                        </Button>
+                    ))}
+                </div>
+                <div className="flex-1 overflow-y-auto px-6 py-6">{children}</div>
+            </div>
+        </div>
+    );
+}
+
+function StatusBadge({
+    className,
+    tone = "neutral",
+    children,
+}: React.ComponentProps<typeof Badge> & {
+    tone?: "neutral" | "success" | "warning" | "danger" | "accent";
+}) {
+    return (
+        <Badge
+            variant="outline"
+            className={cn(
+                "h-5 rounded-md px-1.5 text-[10px] font-medium leading-none",
+                tone === "neutral" && "border-border/60 bg-muted/40 text-muted-foreground/72",
+                tone === "success" && "border-emerald-500/20 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400",
+                tone === "warning" && "border-amber-500/20 bg-amber-500/10 text-amber-700 dark:text-amber-300",
+                tone === "danger" && "border-destructive/20 bg-destructive/10 text-destructive",
+                tone === "accent" && "border-primary/20 bg-primary/10 text-primary",
+                className,
+            )}
+        >
+            {children}
+        </Badge>
     );
 }
 
@@ -227,6 +332,7 @@ function AppearanceSection() {
         { value: "night-owl", label: "Night Owl" },
         { value: "borland", label: "Borland" },
         { value: "metals", label: "Metals" },
+        { value: "cursor-dark", label: "Cursor Dark" },
     ];
 
     const uiLightThemes: { value: UiLightThemeOption; label: string }[] = [
@@ -244,6 +350,7 @@ function AppearanceSection() {
         { value: "monokai-light", label: "Monokai Light" },
         { value: "solarized-light", label: "Solarized Light" },
         { value: "dracula-light", label: "Dracula Light" },
+        { value: "cursor", label: "Cursor" },
     ];
 
     return (
@@ -810,7 +917,7 @@ function StorageSection() {
     const [confirmClear, setConfirmClear] = useState<"history" | "queries" | null>(null);
 
     useEffect(() => {
-        tauriApi.getAppDataDir().then(setDataDir).catch(() => {});
+        tauriApi.getAppDataDir().then(setDataDir).catch(() => { });
     }, []);
 
     const totalHistory = queryHistory.length;
@@ -853,14 +960,11 @@ function StorageSection() {
                     { label: "Saved Queries", value: savedQueries.length },
                     { label: "History Entries", value: totalHistory },
                 ].map((stat) => (
-                    <div
-                        key={stat.label}
-                        className="flex flex-col items-center gap-0.5 py-2 rounded-xl bg-muted/30 border border-border/40"
-                    >
+                    <div key={stat.label} className="flex flex-col items-center gap-0.5 py-2.5 rounded-xl bg-muted/30 border border-border/40">
                         <span className="text-[18px] font-black tabular-nums text-foreground">
                             {stat.value}
                         </span>
-                        <span className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground/40">
+                        <span className="text-[11px] font-medium text-muted-foreground/55">
                             {stat.label}
                         </span>
                     </div>
@@ -877,7 +981,7 @@ function StorageSection() {
                     variant={confirmClear === "history" ? "destructive" : "outline"}
                     size="xs"
                     onClick={() => handleClear("history")}
-                    className="gap-1.5 text-[11px] font-bold uppercase tracking-wider h-7"
+                    className="h-7 gap-1.5 px-3 text-[11px] font-medium"
                     disabled={totalHistory === 0}
                 >
                     <Trash2 size={10} />
@@ -893,7 +997,7 @@ function StorageSection() {
                     variant={confirmClear === "queries" ? "destructive" : "outline"}
                     size="xs"
                     onClick={() => handleClear("queries")}
-                    className="gap-1.5 text-[11px] font-bold uppercase tracking-wider h-7"
+                    className="h-7 gap-1.5 px-3 text-[11px] font-medium"
                     disabled={savedQueries.length === 0}
                 >
                     <Trash2 size={10} />
@@ -918,7 +1022,7 @@ function LicenseSection({ onActivate }: { onActivate: () => void }) {
             setTimeout(() => setConfirmDeactivate(false), 3000);
             return;
         }
-        await licenseDeactivate().catch(() => {});
+        await licenseDeactivate().catch(() => { });
         setState(null);
         setConfirmDeactivate(false);
     };
@@ -939,7 +1043,7 @@ function LicenseSection({ onActivate }: { onActivate: () => void }) {
             <div>
                 <SectionHeading>License</SectionHeading>
                 <div className="flex flex-col items-center gap-4 py-8 text-center">
-                <div className="flex items-center justify-center w-12 h-12 rounded-lg bg-muted/50 border border-border/50">
+                    <div className="flex items-center justify-center w-12 h-12 rounded-lg bg-muted/50 border border-border/50">
                         <ShieldOff size={20} className="text-muted-foreground/30" />
                     </div>
                     <div>
@@ -948,7 +1052,7 @@ function LicenseSection({ onActivate }: { onActivate: () => void }) {
                             Activate a license key to unlock all features.
                         </p>
                     </div>
-                    <Button size="sm" className="gap-2" onClick={onActivate}>
+                    <Button size="sm" className="h-8 gap-2 rounded-md px-3 text-[12px] font-medium" onClick={onActivate}>
                         <KeyRound size={12} />
                         Activate License
                     </Button>
@@ -984,8 +1088,8 @@ function LicenseSection({ onActivate }: { onActivate: () => void }) {
 
     const isExpired = new Date(license.expiry) < new Date();
     const planColors: Record<string, string> = {
-        pro:      "bg-primary/10 text-primary border-primary/20",
-        starter:  "bg-blue-500/10 text-blue-500 border-blue-500/20",
+        pro: "bg-primary/10 text-primary border-primary/20",
+        starter: "bg-blue-500/10 text-blue-500 border-blue-500/20",
         lifetime: "bg-amber-500/10 text-amber-500 border-amber-500/20",
     };
     const planColor = planColors[license.plan.toLowerCase()] ?? "bg-muted/50 text-muted-foreground border-border/50";
@@ -1006,12 +1110,7 @@ function LicenseSection({ onActivate }: { onActivate: () => void }) {
                 <span className="text-[13px] font-semibold">
                     {isExpired ? "License expired" : "License active"}
                 </span>
-                <span className={cn(
-                    "ml-auto px-2 py-0.5 rounded-md text-[11px] font-black uppercase tracking-wider border",
-                    planColor,
-                )}>
-                    {license.plan}
-                </span>
+                <StatusBadge className={cn("ml-auto", planColor)}>{license.plan}</StatusBadge>
             </div>
 
             <div className="space-y-0">
@@ -1073,7 +1172,7 @@ function LicenseSection({ onActivate }: { onActivate: () => void }) {
                     variant={confirmDeactivate ? "destructive" : "outline"}
                     size="xs"
                     onClick={handleDeactivate}
-                    className="gap-1.5 text-[11px] font-bold uppercase tracking-wider h-7 shrink-0"
+                    className="h-7 shrink-0 gap-1.5 px-3 text-[11px] font-medium"
                 >
                     <ShieldOff size={10} />
                     {confirmDeactivate ? "Confirm?" : "Deactivate"}
@@ -1093,7 +1192,7 @@ function AboutSection() {
                     <Table2 size={22} className="text-primary" />
                 </div>
                 <div>
-                    <p className="text-[15px] font-black text-foreground">DB Connect</p>
+                    <p className="text-[16px] font-semibold tracking-tight text-foreground">DB Connect</p>
                     <p className="text-[12px] text-muted-foreground/60">Version {packageJson.version}</p>
                 </div>
             </div>
@@ -1103,19 +1202,12 @@ function AboutSection() {
             <div className="space-y-1.5">
                 {[
                     ["Built with", "Tauri 2 · React 19 · TypeScript"],
-                    ["UI",         "Tailwind CSS v4 · shadcn/ui"],
-                    ["Database",   "SQLx · sqlx-sqlite · AES-256-GCM"],
-                    ["Editor",     "CodeMirror 6"],
-                    ["Grid",       "TanStack Table v8"],
+                    ["UI", "Tailwind CSS v4 · shadcn/ui"],
+                    ["Database", "SQLx · sqlx-sqlite · AES-256-GCM"],
+                    ["Editor", "CodeMirror 6"],
+                    ["Grid", "TanStack Table v8"],
                 ].map(([label, value]) => (
-                    <div key={label} className="flex items-baseline gap-2 py-1">
-                        <span className="text-[11px] font-bold uppercase tracking-widest text-muted-foreground/40 w-20 shrink-0">
-                            {label}
-                        </span>
-                        <span className="text-[12px] font-mono text-muted-foreground/70">
-                            {value}
-                        </span>
-                    </div>
+                    <MetadataRow key={label} label={label}>{value}</MetadataRow>
                 ))}
             </div>
         </div>
@@ -1127,59 +1219,26 @@ export function SettingsPage({ onActivate }: { onActivate?: () => void }) {
     const [activeSection, setActiveSection] = useState<Section>("appearance");
 
     return (
-        <div className="h-full flex flex-col bg-surface-1 overflow-hidden">
-            <div className="flex items-center gap-3 px-5 py-4 border-b border-border-subtle bg-surface-elevated/65 shrink-0">
-                <Button
-                    variant="ghost"
-                    size="icon"
-                    onClick={() => setActiveView("main")}
-                    className="shrink-0"
-                >
-                    <ArrowLeft size={16} />
-                </Button>
-                <span className="text-[14px] font-semibold text-foreground">Settings</span>
-            </div>
-            <div className="flex flex-1 overflow-hidden">
-                <div className="w-48 shrink-0 bg-surface-2/72 border-r border-border-subtle flex flex-col py-3 gap-0.5 px-2">
-                    <p className="text-[11px] font-black uppercase tracking-[0.12em] text-muted-foreground/40 px-2 pb-2 pt-1">
-                        Settings
-                    </p>
-                    {NAV.map((item) => (
-                        <button
-                            key={item.id}
-                            onClick={() => setActiveSection(item.id)}
-                            className={cn(
-                                "flex items-center gap-2.5 h-7 px-2.5 rounded-md text-[12px] font-semibold transition-colors text-left w-full",
-                                activeSection === item.id
-                                    ? "bg-surface-selected/82 text-foreground"
-                                    : "text-muted-foreground/60 hover:text-foreground hover:bg-surface-3",
-                            )}
-                        >
-                            <span className={cn(
-                                "shrink-0",
-                                activeSection === item.id ? "text-foreground" : "text-muted-foreground/40",
-                            )}>
-                                {item.icon}
-                            </span>
-                            {item.label}
-                        </button>
-                    ))}
-                </div>
-                <div className="flex-1 overflow-y-auto px-5 py-5">
-                    {activeSection === "appearance" && <AppearanceSection />}
-                    {activeSection === "editor"     && <EditorSection />}
-                    {activeSection === "table"      && <TableSection />}
-                    {activeSection === "ai"         && <AiSection />}
-                    {activeSection === "storage"    && <StorageSection />}
-                    {activeSection === "license"    && (
-                        <LicenseSection onActivate={() => {
-                            setActiveView("main");
-                            onActivate?.();
-                        }} />
-                    )}
-                    {activeSection === "about"      && <AboutSection />}
-                </div>
-            </div>
-        </div>
+        <SettingsShell
+            title="Settings"
+            description="Adjust appearance, editor behavior, AI, and local storage."
+            navItems={NAV}
+            activeSection={activeSection}
+            onSectionChange={(id) => setActiveSection(id as Section)}
+            onBack={() => setActiveView("main")}
+        >
+            {activeSection === "appearance" && <AppearanceSection />}
+            {activeSection === "editor" && <EditorSection />}
+            {activeSection === "table" && <TableSection />}
+            {activeSection === "ai" && <AiSection />}
+            {activeSection === "storage" && <StorageSection />}
+            {activeSection === "license" && (
+                <LicenseSection onActivate={() => {
+                    setActiveView("main");
+                    onActivate?.();
+                }} />
+            )}
+            {activeSection === "about" && <AboutSection />}
+        </SettingsShell>
     );
 }

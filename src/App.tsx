@@ -1,22 +1,21 @@
 import { useEffect, useState, useRef, useCallback } from "react";
-import Sidebar from "./components/layout/Sidebar";
-import TitleBar from "./components/layout/TitleBar";
+import Sidebar from "./components/layout/app-sidebar";
+import TitleBar from "./components/layout/title-bar";
 import FunctionOutput from "./components/layout/FunctionOutput";
 import { useAppStore } from "./store/useAppStore";
-import { CommandPalette } from "./components/layout/CommandPalette";
+import { CommandPalette } from "./components/layout/command-palette";
 import ConnectionDialog from "./components/layout/ConnectionDialog";
 import {
     Onboarding,
     shouldShowOnboarding,
-} from "./components/layout/Onboarding";
-import { SettingsDialog } from "./components/layout/SettingsDialog";
-import { SettingsPage } from "./components/layout/function-output/SettingsPage";
+} from "./components/layout/app-onboarding";
+import { SettingsPage } from "./components/layout/function-output/settings-page";
 import { TooltipProvider } from "./components/ui/tooltip";
 import { Toaster } from "@/components/ui/sonner";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { invoke } from "@tauri-apps/api/core";
-import { UpdateDialog, type UpdateInfo } from "./components/layout/UpdateDialog";
-import { LicenseActivationDialog } from "./components/layout/LicenseActivationDialog";
+import { UpdateDialog, type UpdateInfo } from "./components/layout/update-dialog";
+import { LicenseActivationDialog } from "./components/layout/license-activation-dialog";
 import {
     AlertDialog,
     AlertDialogCancel,
@@ -29,7 +28,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Table2, Loader2 } from "lucide-react";
 import { licenseCheckOffline, syncLicenseInBackground, type OfflineCheckResult } from "@/lib/license";
-import { ErrorBoundary } from "./components/layout/ErrorBoundary";
+import { ErrorBoundary } from "./components/layout/error-boundary";
 import { DB_FONT_SANS, DB_FONT_MONO, DB_FONT_SANS_STACK, DB_FONT_MONO_STACK } from "@/lib/fonts";
 
 const SIDEBAR_MIN = 180;
@@ -111,10 +110,10 @@ function App() {
             "dark",
             "ui-dark-dim", "ui-dark-midnight", "ui-dark-catppuccin-mocha", "ui-dark-nord", "ui-dark-dracula",
             "ui-dark-one-dark", "ui-dark-github-dark", "ui-dark-slack-dark", "ui-dark-linear", "ui-dark-voyage",
-            "ui-dark-astro", "ui-dark-night-owl", "ui-dark-borland", "ui-dark-metals",
+            "ui-dark-astro", "ui-dark-night-owl", "ui-dark-borland", "ui-dark-metals", "ui-dark-cursor-dark",
             "ui-light-light", "ui-light-sunrise", "ui-light-cream", "ui-light-catppuccin-latte", "ui-light-nord-light",
             "ui-light-github-light", "ui-light-slack-zen", "ui-light-linear-light", "ui-light-voyage-light",
-            "ui-light-astro-light", "ui-light-spring", "ui-light-monokai-light", "ui-light-solarized-light", "ui-light-dracula-light"
+            "ui-light-astro-light", "ui-light-spring", "ui-light-monokai-light", "ui-light-solarized-light", "ui-light-dracula-light", "ui-light-cursor"
         );
 
         if (theme === "dark") {
@@ -335,7 +334,6 @@ function App() {
                             }}
                         />
                     )}
-                    <SettingsDialog onActivate={() => setLicenseDialogOpen(true)} />
                     {/* Close app confirmation */}
                     <AlertDialog
                         open={showCloseApp}

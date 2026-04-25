@@ -76,6 +76,7 @@ const TitleBar = ({ isLicensed, onActivate }: TitleBarProps) => {
     const {
         setCommandPaletteOpen,
         setActiveView,
+        activeView,
         activeFunction,
         connectedIds,
         connections,
@@ -177,6 +178,7 @@ const TitleBar = ({ isLicensed, onActivate }: TitleBarProps) => {
                                 style={noDragStyle}
                                 variant="ghost"
                                 size="icon-xs"
+                                aria-label="Back"
                                 onClick={() =>
                                     setActiveFunctionOnly(null as any)
                                 }
@@ -231,6 +233,7 @@ const TitleBar = ({ isLicensed, onActivate }: TitleBarProps) => {
                                     style={noDragStyle}
                                     variant="ghost"
                                     size="icon-xs"
+                                    aria-label="Edit connection"
                                     onClick={() => {
                                         setEditingConnection(activeConn);
                                         setConnectionDialogOpen(true);
@@ -260,9 +263,10 @@ const TitleBar = ({ isLicensed, onActivate }: TitleBarProps) => {
                             style={noDragStyle}
                             variant="outline"
                             size="sm"
+                            aria-label={sidebarCollapsed ? "Show sidebar" : "Hide sidebar"}
                             onClick={toggleSidebar}
                             className={cn(
-                                "h-7 px-2.5 rounded-md border-transparent bg-transparent shadow-none transition-colors",
+                                "h-7 px-2.5 rounded-md border-transparent bg-transparent shadow-none text-[11px] font-medium transition-colors",
                                 sidebarCollapsed
                                     ? "text-foreground/54 hover:text-foreground hover:bg-surface-2"
                                     : "text-foreground/66 hover:text-foreground hover:bg-surface-2",
@@ -282,9 +286,10 @@ const TitleBar = ({ isLicensed, onActivate }: TitleBarProps) => {
                             style={noDragStyle}
                             variant="outline"
                             size="sm"
+                            aria-label={queryLogOpen ? "Hide query log" : "Show query log"}
                             onClick={toggleQueryLog}
                             className={cn(
-                                "h-7 px-2.5 rounded-md border-transparent bg-transparent shadow-none transition-colors",
+                                "h-7 px-2.5 rounded-md border-transparent bg-transparent shadow-none text-[11px] font-medium transition-colors",
                                 queryLogOpen
                                     ? "text-foreground/68 hover:text-foreground hover:bg-surface-2"
                                     : "text-foreground/54 hover:text-foreground hover:bg-surface-2",
@@ -302,7 +307,7 @@ const TitleBar = ({ isLicensed, onActivate }: TitleBarProps) => {
                     variant="outline"
                     size="sm"
                     onClick={() => setCommandPaletteOpen(true)}
-                    className="h-8 px-3 text-[11px] font-medium gap-1.5 text-foreground/68 hover:text-foreground border-border-subtle bg-surface-3/92 rounded-md"
+                    className="h-8 px-3 text-[12px] font-medium gap-1.5 text-foreground/72 hover:text-foreground border-border-subtle bg-surface-3/92 rounded-md"
                 >
                     <Search size={10} className="shrink-0" />
                     <span className="hidden sm:inline">Search</span>
@@ -343,6 +348,7 @@ const TitleBar = ({ isLicensed, onActivate }: TitleBarProps) => {
                                             <Button
                                                 variant="ghost"
                                                 size="icon-xs"
+                                                aria-label="Refresh databases"
                                                 className="size-6 text-foreground/45 hover:text-foreground shrink-0"
                                                 onClick={() => {
                                                     refreshDatabases(activeConn!.id);
@@ -431,12 +437,21 @@ const TitleBar = ({ isLicensed, onActivate }: TitleBarProps) => {
                             />
                         </Button>
                         {connMenuOpen && (
-                            <div className="absolute right-0 top-full mt-1 w-72 z-[80] bg-popover/98 border border-border-subtle rounded-md shadow-md p-1 text-popover-foreground backdrop-blur-xl">
-                                <div className="px-2 py-1.5 mb-1">
-                                    <p className="text-[10px] font-bold uppercase tracking-widest text-foreground/55">
-                                        Active connections
-                                    </p>
+                            <div className="absolute right-0 top-full mt-1 w-80 z-[80] overflow-hidden rounded-lg border border-border-subtle bg-popover/98 text-popover-foreground shadow-lg backdrop-blur-xl">
+                                <div className="flex items-center justify-between border-b border-border-subtle px-2.5 py-2">
+                                    <div className="min-w-0">
+                                        <p className="text-[12px] font-semibold leading-none text-foreground">
+                                            Connections
+                                        </p>
+                                        <p className="mt-0.5 text-[10px] text-muted-foreground/60">
+                                            {connectedConns.length} active
+                                        </p>
+                                    </div>
+                                    <span className="rounded-md border border-emerald-500/20 bg-emerald-500/10 px-1.5 py-0.5 text-[10px] font-medium text-emerald-600 dark:text-emerald-400">
+                                        Live
+                                    </span>
                                 </div>
+                                <div className="space-y-1 p-1.5">
                                 {orderedConns.map((conn) => {
                                     const Logo =
                                         DB_LOGO[conn.type] ??
@@ -450,9 +465,10 @@ const TitleBar = ({ isLicensed, onActivate }: TitleBarProps) => {
                                         <div
                                             key={conn.id}
                                             className={cn(
-                                                "flex items-center gap-2.5 px-2.5 py-2 rounded-md transition-colors",
+                                                "group grid grid-cols-[24px_minmax(0,1fr)_24px] items-center gap-2.5 rounded-md px-2 py-2 transition-colors",
+                                                isActive && "bg-surface-selected/64 ring-1 ring-border-subtle",
                                                 !isActive &&
-                                                "cursor-pointer hover:bg-surface-selected/82",
+                                                "cursor-pointer hover:bg-surface-selected/58",
                                             )}
                                             onClick={() => {
                                                 if (!isActive) {
@@ -463,26 +479,32 @@ const TitleBar = ({ isLicensed, onActivate }: TitleBarProps) => {
                                                 }
                                             }}
                                         >
-                                            <Logo
-                                                className={cn(
-                                                    "text-[16px] shrink-0",
-                                                    color,
-                                                )}
-                                            />
+                                            <span className={cn(
+                                                "relative flex size-6 shrink-0 items-center justify-center rounded-md bg-surface-3 ring-1 ring-border-subtle",
+                                                isActive && "bg-surface-elevated",
+                                            )}>
+                                                <Logo className={cn("text-[13px] shrink-0", color)} />
+                                                <span
+                                                    className={cn(
+                                                        "absolute -right-0.5 -bottom-0.5 size-2 rounded-full border border-popover",
+                                                        isActive ? "bg-emerald-500" : "bg-muted-foreground/35",
+                                                    )}
+                                                />
+                                            </span>
                                             <div className="flex-1 min-w-0">
-                                                <div className="flex items-center gap-1.5">
+                                                <div className="flex min-w-0 items-center gap-1.5">
                                                     <span
                                                         className={cn(
-                                                            "text-[13px] leading-none truncate",
+                                                            "min-w-0 truncate text-[12px] leading-none",
                                                             isActive
-                                                                ? "font-bold text-foreground"
-                                                                : "font-semibold text-foreground/80",
+                                                                ? "font-semibold text-foreground"
+                                                                : "font-medium text-foreground/82",
                                                         )}
                                                     >
                                                         {conn.name}
                                                     </span>
                                                     {isActive && (
-                                                        <span className="text-[10px] font-black uppercase tracking-wider px-1.5 py-0.5 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 rounded-md shrink-0">
+                                                        <span className="shrink-0 rounded border border-emerald-500/20 bg-emerald-500/10 px-1 py-0.5 text-[9px] font-medium leading-none text-emerald-600 dark:text-emerald-400">
                                                             Active
                                                         </span>
                                                     )}
@@ -497,7 +519,7 @@ const TitleBar = ({ isLicensed, onActivate }: TitleBarProps) => {
                                                             return (
                                                                 <span
                                                                     className={cn(
-                                                                        "shrink-0 px-1.5 h-4 flex items-center rounded-md text-[10px] font-bold uppercase tracking-wide border",
+                                                                        "shrink-0 h-4 px-1.5 flex items-center rounded text-[9px] font-medium border leading-none",
                                                                         preset
                                                                             ? preset.activeClass
                                                                             : "bg-muted/50 border-border/50 text-muted-foreground/60",
@@ -508,31 +530,39 @@ const TitleBar = ({ isLicensed, onActivate }: TitleBarProps) => {
                                                             );
                                                         })()}
                                                 </div>
-                                                <p className="text-[11px] font-mono text-foreground/50 truncate mt-0.5">
-                                                    {url}
-                                                </p>
+                                                <div className="mt-1 flex min-w-0 items-center gap-1.5">
+                                                    <span className="shrink-0 rounded bg-surface-3 px-1 py-0.5 text-[9px] font-medium leading-none text-muted-foreground/70">
+                                                        {conn.type === "postgresql" ? "Postgres" : conn.type}
+                                                    </span>
+                                                    <span className="min-w-0 truncate font-mono text-[10px] leading-none text-foreground/50">
+                                                        {url}
+                                                    </span>
+                                                </div>
                                             </div>
                                             <Button
                                                 variant="ghost"
-                                                size="sm"
-                                                className="h-7 px-2.5 text-[11px] gap-1 text-foreground/50 hover:text-destructive hover:bg-destructive/10 dark:hover:bg-destructive/15 shrink-0 transition-colors"
-                                                onClick={() =>
+                                                size="icon-xs"
+                                                aria-label={`Disconnect ${conn.name}`}
+                                                className="size-6 shrink-0 text-foreground/38 opacity-70 transition-colors hover:bg-destructive/10 hover:text-destructive group-hover:opacity-100 dark:hover:bg-destructive/15"
+                                                onClick={(event) => {
+                                                    event.stopPropagation();
                                                     disconnectConnection(
                                                         conn.id,
-                                                    )
-                                                }
+                                                    );
+                                                }}
                                             >
-                                                <WifiOff size={9} />
-                                                Disconnect
+                                                <WifiOff size={10} />
                                             </Button>
                                         </div>
                                     );
                                 })}
-                                <div className="my-1 h-px bg-border -mx-1" />
+                                </div>
+                                <div className="h-px bg-border-subtle" />
                                 <div
-                                    className="flex items-center gap-2 px-2.5 py-2 rounded-md text-[12px] text-foreground/72 cursor-pointer hover:bg-surface-selected/82 transition-colors"
+                                    className="flex cursor-pointer items-center gap-2 px-3 py-2 text-[12px] font-medium text-foreground/72 transition-colors hover:bg-surface-selected/58 hover:text-foreground"
                                     onClick={() => {
                                         setConnMenuOpen(false);
+                                        setActiveView("main");
                                         setShowConnectionsManager(true);
                                     }}
                                 >
@@ -553,9 +583,9 @@ const TitleBar = ({ isLicensed, onActivate }: TitleBarProps) => {
                             <Button
                                 style={noDragStyle}
                                 variant="outline"
-                            size="sm"
-                            onClick={onActivate}
-                            className="h-8 px-3 gap-1.5 border-amber-500/35 bg-amber-500/8 text-amber-700 dark:text-amber-300 hover:bg-amber-500/12 hover:border-amber-500/50 rounded-md"
+                                size="sm"
+                                onClick={onActivate}
+                                className="h-8 px-3 gap-1.5 border-amber-500/35 bg-amber-500/8 text-amber-700 dark:text-amber-300 hover:bg-amber-500/12 hover:border-amber-500/50 rounded-md"
                         >
                             <KeyRound size={10} className="shrink-0" />
                             <span className="text-[11px] font-semibold">Activate</span>
@@ -572,14 +602,15 @@ const TitleBar = ({ isLicensed, onActivate }: TitleBarProps) => {
                             style={noDragStyle}
                             variant="outline"
                             size="sm"
-                            onClick={() => setActiveView("settings")}
+                            aria-label="Settings"
+                            onClick={() => setActiveView(activeView === "settings" ? "main" : "settings")}
                             className="h-7 px-2.5 rounded-md border-transparent bg-transparent text-foreground/48 hover:text-foreground hover:bg-surface-2"
                         >
                             <Settings size={11} className="shrink-0" />
                         </Button>
                     </TooltipTrigger>
                     <TooltipContent side="bottom" sideOffset={4}>
-                        Settings
+                        {activeView === "settings" ? "Close settings" : "Settings"}
                     </TooltipContent>
                 </Tooltip>
             </div>

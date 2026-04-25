@@ -17,6 +17,7 @@ import {
 import {
     Loader2,
     Sparkles,
+    CircleAlert,
     Download,
     Hash,
     Key,
@@ -39,6 +40,8 @@ import {
     DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { Alert, AlertAction, AlertTitle } from "@/components/ui/alert";
 import { useAppStore } from "@/store/useAppStore";
 import { QueryLog } from "@/components/layout/function-output/QueryLog";
 import { cn } from "@/lib/utils";
@@ -51,6 +54,13 @@ import {
     TableRow,
 } from "@/components/ui/table";
 import { Kbd } from "@/components/ui/kbd";
+import {
+    Empty,
+    EmptyDescription,
+    EmptyHeader,
+    EmptyMedia,
+    EmptyTitle,
+} from "@/components/ui/empty";
 import {
     ConnectionFunction,
     TableStructure,
@@ -1669,9 +1679,10 @@ export function TableGridView({
                                             setEditingCell(null);
                                         }
                                     }}
-                                    className="flex-1 h-full min-w-0 bg-primary/10 border-0 border-b-2 border-primary/50 px-4 py-0 outline-none text-[11px] font-mono text-foreground"
+                                    className="flex-1 h-full min-w-0 border-0 border-b-2 border-primary/50 bg-primary/10 px-4 py-0 text-[12px] font-mono text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/25"
                                 />
                                 <button
+                                    aria-label="Cancel inline edit"
                                     onClick={(e) => {
                                         e.stopPropagation();
                                         setEditingCell(null);
@@ -1709,7 +1720,8 @@ export function TableGridView({
                             </span>
                             {showFkIcon && (
                                 <button
-                                    className="absolute right-1 top-1/2 -translate-y-1/2 opacity-0 group-hover/fk:opacity-100 transition-opacity p-0.5 rounded hover:bg-accent-blue/15 text-accent-blue/60 hover:text-accent-blue shrink-0"
+                                    aria-label={`Open related row in ${fkRel.targetTable}`}
+                                    className="absolute right-1 top-1/2 shrink-0 rounded p-0.5 text-accent-blue/60 opacity-0 transition-opacity hover:bg-accent-blue/15 hover:text-accent-blue group-hover/fk:opacity-100 focus-visible:opacity-100"
                                     title={`Go to ${fkRel.targetTable}.${fkRel.targetColumns[0]}`}
                                     onClick={(e) => {
                                         e.stopPropagation();
@@ -1734,8 +1746,11 @@ export function TableGridView({
     });
     if (isLoading) {
         return (
-            <div className="h-full flex items-center justify-center bg-background">
-                <Loader2 size={20} className="animate-spin text-primary" />
+            <div className="flex h-full items-center justify-center bg-background p-6">
+                <div className="space-y-3 text-center">
+                    <Loader2 size={18} className="mx-auto animate-spin text-primary" />
+                    <p className="text-[12px] text-muted-foreground/60">Loading table data...</p>
+                </div>
             </div>
         );
     }
@@ -1743,16 +1758,18 @@ export function TableGridView({
     // No columns at all means a DDL/non-SELECT result — show simple card
     if (effectiveResult.columns.length === 0 && !filtersActive) {
         return (
-            <div className="h-full flex flex-col items-center justify-center text-accent-green bg-background p-8 text-center">
-                <div className="w-16 h-16 mb-6 bg-accent/10 rounded-full flex items-center justify-center ring-1 ring-emerald-500/20">
-                    <Sparkles size={32} className="text-accent-green/40" />
-                </div>
-                <h3 className="text-sm font-bold uppercase tracking-[0.2em] mb-2">
-                    Empty table
-                </h3>
-                <p className="text-[11px] text-foreground/55 uppercase tracking-widest">
-                    0 rows · {effectiveResult.executionTimeMs}ms
-                </p>
+            <div className="flex h-full items-center justify-center bg-background p-6">
+                <Empty className="border-0 p-0">
+                    <EmptyHeader>
+                        <EmptyMedia variant="icon" className="size-12 rounded-2xl bg-surface-3 text-foreground/55">
+                            <Sparkles size={22} className="text-accent-green/60" />
+                        </EmptyMedia>
+                        <EmptyTitle className="text-[21px] font-semibold text-foreground">No rows to display</EmptyTitle>
+                        <EmptyDescription className="max-w-md text-[14px] text-foreground/60">
+                            {`The current result returned 0 rows in ${effectiveResult.executionTimeMs}ms.`}
+                        </EmptyDescription>
+                    </EmptyHeader>
+                </Empty>
             </div>
         );
     }
@@ -1953,7 +1970,7 @@ export function TableGridView({
                                             }
                                             className="h-24 text-center text-foreground/44 text-[12px] font-mono"
                                         >
-                                            0 rows
+                                            No rows match the current view.
                                         </TableCell>
                                     </TableRow>
                                 ) : (
@@ -2015,15 +2032,10 @@ export function TableGridView({
                                                                     width: cell.column.getSize(),
                                                                 }}
                                                                 className={cn(
-                                                                    "h-8 px-4 border-r border-border-subtle last:border-r-0 text-foreground/92 whitespace-nowrap overflow-hidden text-ellipsis relative",
-                                                                    pendingEdit &&
-                                                                    "bg-warning/10",
-                                                                    cell.column
-                                                                        .id ===
-                                                                    selectedColId &&
-                                                                    "bg-surface-selected/58",
-                                                                    isCellSelected &&
-                                                                    "ring-1 ring-inset ring-primary/45 bg-surface-selected/82",
+                                                                    "relative h-8 overflow-hidden border-r border-border-subtle px-4 text-foreground/92 whitespace-nowrap text-ellipsis last:border-r-0",
+                                                                    pendingEdit && "bg-warning/10 ring-1 ring-inset ring-warning/40",
+                                                                    cell.column.id === selectedColId && "bg-surface-selected/58",
+                                                                    isCellSelected && "bg-surface-selected/82 ring-1 ring-inset ring-primary/45",
                                                                 )}
                                                                 onClick={() => {
                                                                     const key = `${idx}:${cell.column.id}`;
@@ -2477,11 +2489,11 @@ export function TableGridView({
             {viewMode === "structure" && (
                 <div className="flex-1 overflow-auto scrollbar-thin bg-surface-3">
                     {structureLoading ? (
-                        <div className="h-full flex items-center justify-center">
-                            <Loader2
-                                size={18}
-                                className="animate-spin text-primary"
-                            />
+                        <div className="flex h-full items-center justify-center p-6">
+                            <div className="space-y-3 text-center">
+                                <Loader2 size={18} className="mx-auto animate-spin text-primary" />
+                                <p className="text-[12px] text-muted-foreground/60">Loading structure...</p>
+                            </div>
                         </div>
                     ) : structure ? (
                         <div>
@@ -2493,17 +2505,19 @@ export function TableGridView({
                                             size={10}
                                             className="text-foreground/42"
                                         />
-                                        <span className="text-[10px] font-bold uppercase tracking-widest text-foreground/52">
+                                        <span className="text-[11px] font-semibold text-foreground/60">
                                             Columns
                                         </span>
-                                        <span className="text-[10px] font-mono bg-muted text-foreground/52 rounded-md px-1.5 py-0.5 leading-none">
+                                        <Badge variant="outline" className="h-5 rounded-md border-border/60 bg-muted/40 px-1.5 text-[10px] font-medium text-muted-foreground/72">
                                             {structure.columns.length}
-                                        </span>
+                                        </Badge>
                                     </div>
                                     {fn.tableName && (
                                         <Button
                                             variant="ghost"
                                             size="icon-xs"
+                                            aria-label="Add column"
+                                            className="size-6 rounded-md text-foreground/48 transition-colors hover:bg-surface-3 hover:text-foreground focus-visible:ring-[3px] focus-visible:ring-ring/40"
                                             onClick={() => {
                                                 setAddCol({
                                                     name: "",
@@ -2515,7 +2529,6 @@ export function TableGridView({
                                                 });
                                                 setShowAddColumn(true);
                                             }}
-                                            className="h-6 w-6 text-foreground/52 hover:text-foreground"
                                         >
                                             <Plus size={11} />
                                         </Button>
@@ -2543,20 +2556,14 @@ export function TableGridView({
                                                     {col.dataType}
                                                 </span>
                                                 {col.isPrimary && (
-                                                    <span className="px-1.5 py-0.5 rounded-[4px] text-[8px] font-black uppercase tracking-wider bg-accent-orange/12 text-accent-orange/88 border border-accent-orange/16">
-                                                        PK
-                                                    </span>
-                                                )}
+                                                    <Badge variant="outline" className="h-4 rounded-md border-amber-500/20 bg-amber-500/10 px-1 text-[9px] text-amber-700 dark:text-amber-300">PK</Badge>
+                                                    )}
                                                 {col.isUnique &&
                                                     !col.isPrimary && (
-                                                        <span className="px-1.5 py-0.5 rounded-[4px] text-[8px] font-black uppercase tracking-wider bg-accent-purple/12 text-accent-purple/88 border border-accent-purple/16">
-                                                            UNI
-                                                        </span>
+                                                        <Badge variant="outline" className="h-4 rounded-md border-primary/20 bg-primary/10 px-1 text-[9px] text-primary">UNI</Badge>
                                                     )}
                                                 {!col.nullable && (
-                                                    <span className="px-1.5 py-0.5 rounded-[4px] text-[8px] font-black uppercase tracking-wider bg-destructive/8 text-destructive/60 border border-destructive/15">
-                                                        NOT NULL
-                                                    </span>
+                                                    <Badge variant="outline" className="h-4 rounded-md border-destructive/20 bg-destructive/10 px-1 text-[9px] text-destructive">NOT NULL</Badge>
                                                 )}
                                                 {col.defaultValue != null && (
                                                     <span className="px-1.5 py-0.5 rounded text-[9px] font-mono text-foreground/48 bg-muted border border-border">
@@ -2573,7 +2580,8 @@ export function TableGridView({
                                             <Button
                                                 variant="ghost"
                                                 size="icon-xs"
-                                                className="opacity-0 group-hover/row:opacity-100 transition-opacity text-foreground/38 hover:text-destructive hover:bg-destructive/10 shrink-0"
+                                                aria-label={`Drop column ${col.name}`}
+                                                className="shrink-0 opacity-0 transition-opacity group-hover/row:opacity-100 hover:text-destructive hover:bg-destructive/10"
                                                 onClick={() =>
                                                     setDropColTarget(col.name)
                                                 }
@@ -2592,17 +2600,19 @@ export function TableGridView({
                                             size={10}
                                             className="text-foreground/42"
                                         />
-                                        <span className="text-[10px] font-bold uppercase tracking-widest text-foreground/52">
+                                        <span className="text-[11px] font-semibold text-foreground/60">
                                             Indexes
                                         </span>
-                                        <span className="text-[10px] font-mono bg-muted text-foreground/52 rounded px-1.5 py-0.5 leading-none">
+                                        <Badge variant="outline" className="h-5 rounded-md border-border/60 bg-muted/40 px-1.5 text-[10px] font-medium text-muted-foreground/72">
                                             {structure.indexes.length}
-                                        </span>
+                                        </Badge>
                                     </div>
                                     {fn.tableName && (
                                         <Button
                                             variant="ghost"
                                             size="icon-xs"
+                                            aria-label="Create index"
+                                            className="size-6 rounded-md text-foreground/48 transition-colors hover:bg-surface-3 hover:text-foreground focus-visible:ring-[3px] focus-visible:ring-ring/40"
                                             onClick={() => {
                                                 setCreateIdxDef({
                                                     name: "",
@@ -2611,16 +2621,18 @@ export function TableGridView({
                                                 });
                                                 setShowCreateIndex(true);
                                             }}
-                                            className="h-6 w-6 text-foreground/52 hover:text-foreground"
                                         >
                                             <Plus size={11} />
                                         </Button>
                                     )}
                                 </div>
                                 {structure.indexes.length === 0 ? (
-                                    <div className="px-4 py-8 text-center text-[12px] font-mono text-foreground/38">
-                                        No indexes
-                                    </div>
+                                    <Empty className="border-0 py-10">
+                                        <EmptyHeader>
+                                            <EmptyTitle>No indexes yet</EmptyTitle>
+                                            <EmptyDescription>This table does not currently expose index metadata.</EmptyDescription>
+                                        </EmptyHeader>
+                                    </Empty>
                                 ) : (
                                     <div className="divide-y divide-border-subtle">
                                         {structure.indexes.map((idx, i) => (
@@ -2651,15 +2663,14 @@ export function TableGridView({
                                                         </span>
                                                     )}
                                                     {idx.unique && (
-                                                        <span className="px-1.5 py-0.5 rounded-[4px] text-[8px] font-black uppercase tracking-wider bg-accent-green/8 text-accent-green/88 border border-accent-green/16">
-                                                            UNIQUE
-                                                        </span>
+                                                        <Badge variant="outline" className="h-4 rounded-md border-emerald-500/20 bg-emerald-500/10 px-1 text-[9px] text-emerald-600 dark:text-emerald-400">UNIQUE</Badge>
                                                     )}
                                                 </div>
                                                 <Button
                                                     variant="ghost"
                                                     size="icon-xs"
-                                                    className="opacity-0 group-hover/row:opacity-100 transition-opacity text-foreground/38 hover:text-destructive hover:bg-destructive/10 shrink-0"
+                                                    aria-label={`Drop index ${idx.name}`}
+                                                    className="shrink-0 opacity-0 transition-opacity group-hover/row:opacity-100 hover:text-destructive hover:bg-destructive/10"
                                                     onClick={() =>
                                                         setDropIdxTarget(
                                                             idx.name,
@@ -2675,44 +2686,38 @@ export function TableGridView({
                             </div>
                         </div>
                     ) : (
-                        <div className="h-full flex items-center justify-center text-foreground/38 text-[12px] font-mono">
-                            No structure data
-                        </div>
+                        <Empty className="border-0 py-10">
+                            <EmptyHeader>
+                                <EmptyTitle>No structure data</EmptyTitle>
+                                <EmptyDescription>The schema metadata for this table is currently unavailable.</EmptyDescription>
+                            </EmptyHeader>
+                        </Empty>
                     )}
                 </div>
             )}
             {viewMode === "er" && (
                 <div className="flex-1 min-h-0 overflow-hidden bg-background">
                     {schemaGraphLoading && !schemaGraph ? (
-                        <div className="h-full flex items-center justify-center">
-                            <div className="text-center space-y-3">
-                                <Loader2
-                                    size={18}
-                                    className="animate-spin text-primary mx-auto"
-                                />
-                                <p className="text-[11px] font-mono uppercase tracking-widest text-foreground/48">
-                                    Loading schema graph
-                                </p>
+                        <div className="flex h-full items-center justify-center p-6">
+                            <div className="space-y-3 text-center">
+                                <Loader2 size={18} className="mx-auto animate-spin text-primary" />
+                                <p className="text-[12px] text-muted-foreground/60">Loading schema graph...</p>
                             </div>
                         </div>
                     ) : schemaGraphError && !schemaGraph ? (
-                        <div className="h-full flex items-center justify-center p-6">
-                            <div className="max-w-md w-full rounded-xl border border-destructive/20 bg-destructive/5 p-5 text-center">
-                                <p className="text-[10px] font-bold uppercase tracking-widest text-destructive mb-2">
+                        <div className="flex h-full items-center justify-center p-6">
+                            <Alert variant="destructive" className="max-w-md rounded-xl border-destructive/20 bg-destructive/5 p-5 text-center">
+                                <CircleAlert size={18} className="mx-auto mb-3 text-destructive" />
+                                <AlertTitle className="text-[15px] font-semibold tracking-tight text-destructive">
                                     Failed to load ER diagram
-                                </p>
-                                <p className="text-xs font-mono text-destructive/75 break-words">
-                                    {schemaGraphError}
-                                </p>
-                                <Button
-                                    variant="outline"
-                                    size="sm"
-                                    onClick={() => loadSchemaGraph(true)}
-                                    className="mt-4"
-                                >
-                                    Retry
-                                </Button>
-                            </div>
+                                </AlertTitle>
+                                <p className="mt-2 break-words text-[12px] font-mono text-destructive/75">{schemaGraphError}</p>
+                                <AlertAction className="static mt-4 flex justify-center">
+                                    <Button size="sm" variant="outline" className="h-8 gap-1.5 rounded-md px-3 text-[12px] font-medium" onClick={() => loadSchemaGraph(true)}>
+                                        Retry
+                                    </Button>
+                                </AlertAction>
+                            </Alert>
                         </div>
                     ) : schemaGraph && schemaGraph.tables.length > 0 ? (
                         <ERDiagramView
@@ -2723,27 +2728,25 @@ export function TableGridView({
                             isRefreshing={schemaGraphLoading}
                         />
                     ) : (
-                        <div className="h-full flex items-center justify-center text-foreground/38 text-[12px] font-mono">
-                            No schema graph data
-                        </div>
+                        <Empty className="border-0 py-10">
+                            <EmptyHeader>
+                                <EmptyTitle>No schema graph data</EmptyTitle>
+                                <EmptyDescription>This connection did not return enough relationship metadata to draw a diagram.</EmptyDescription>
+                            </EmptyHeader>
+                        </Empty>
                     )}
                 </div>
             )}
             {/* Cell edit error banner */}
             {cellEditError && (
-                <div className="px-3 py-1.5 bg-destructive/10 border-t border-destructive/20 flex items-center justify-between shrink-0">
-                    <span className="text-[11px] font-mono text-destructive">
-                        {cellEditError}
-                    </span>
-                    <Button
-                        variant="ghost"
-                        size="icon-xs"
-                        onClick={() => setCellEditError(null)}
-                        className="text-destructive/50 hover:text-destructive"
-                    >
+                <Alert variant="destructive" className="shrink-0 rounded-none border-x-0 border-b-0 border-t bg-destructive/10 px-3 py-2 text-[12px]">
+                    <span className="min-w-0 flex-1 truncate font-mono text-destructive">{cellEditError}</span>
+                    <AlertAction className="static ml-auto">
+                        <Button variant="ghost" size="icon-xs" aria-label="Dismiss error" onClick={() => setCellEditError(null)} className="text-destructive/60 hover:bg-destructive/10 hover:text-destructive">
                         <X size={10} />
-                    </Button>
-                </div>
+                        </Button>
+                    </AlertAction>
+                </Alert>
             )}
             {/* Footer toolbar */}
             <div className="h-11 bg-surface-2/92 border-t border-border-subtle flex items-center justify-between px-3.5 shrink-0 gap-4 backdrop-blur-sm">
@@ -2757,7 +2760,7 @@ export function TableGridView({
                             key={mode}
                             onClick={() => handleViewMode(mode)}
                             className={cn(
-                                "relative flex items-center px-3 text-[11px] font-semibold uppercase tracking-[0.14em] transition-colors",
+                                "relative flex items-center px-3 text-[12px] font-medium transition-colors focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ring/40",
                                 viewMode === mode
                                     ? "text-foreground bg-surface-3/92 rounded-[4px]"
                                     : "text-foreground/46 hover:text-foreground/72 hover:bg-surface-3/72 rounded-[4px]",
@@ -2794,7 +2797,7 @@ export function TableGridView({
                                 size="xs"
                                 disabled={page === 0}
                                 onClick={() => onPageChange(page - 1)}
-                                className="h-6 text-[11px] font-semibold uppercase tracking-[0.12em] text-foreground/58"
+                                className="h-6 px-2 text-[11px] text-foreground/58"
                             >
                                 ← Prev
                             </Button>
@@ -2811,18 +2814,14 @@ export function TableGridView({
                                     filtersActive
                                 }
                                 onClick={() => onPageChange(page + 1)}
-                                className="h-6 text-[11px] font-semibold uppercase tracking-[0.12em] text-foreground/58"
+                                className="h-6 px-2 text-[11px] text-foreground/58"
                             >
                                 Next →
                             </Button>
                         </div>
                         <DropdownMenu>
                             <DropdownMenuTrigger asChild>
-                                <Button
-                                    variant="outline"
-                                    size="xs"
-                                    className="h-6 text-[11px] font-semibold uppercase tracking-[0.12em] gap-1.5"
-                                >
+                                <Button size="xs" variant="outline" className="h-6 gap-1.5 px-2 text-[11px]">
                                     <Download size={10} />
                                     Export
                                 </Button>

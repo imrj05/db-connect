@@ -227,6 +227,7 @@ export function GridToolbar({
 									<Button
 								variant="ghost"
 								size="icon-xs"
+								aria-label="Rename table"
 								onClick={onRenameTable}
 								className="text-foreground/48 hover:bg-surface-3"
 							>
@@ -241,6 +242,7 @@ export function GridToolbar({
 								<Button
 								variant="ghost"
 								size="icon-xs"
+								aria-label="Drop table"
 								onClick={onDropTable}
 								className="text-destructive/60 hover:text-destructive hover:bg-destructive/10"
 							>
@@ -274,7 +276,7 @@ export function GridToolbar({
 									}
 								}}
 								placeholder="Search in all columns…"
-								className="h-9 text-[12px] bg-surface-elevated/96 border-border-subtle pr-20 focus-visible:ring-0"
+								className="h-9 text-[12px] bg-surface-elevated/96 border-border-subtle pr-20"
 							/>
 							{/* Result count badge */}
 							{cellSearch && (
@@ -288,6 +290,7 @@ export function GridToolbar({
 						<Button
 							variant="ghost"
 							size="icon-xs"
+							aria-label="Clear search"
 							onClick={onClearSearch}
 							className="h-8 w-8 text-foreground/58 hover:text-foreground hover:bg-surface-3"
 						>

@@ -16,7 +16,7 @@ import { ConnectionsHome } from "@/components/layout/function-output/Connections
 import { TableListView } from "@/components/layout/function-output/TableListView";
 import { ConnectionSrcView } from "@/components/layout/function-output/ConnectionSrcView";
 import { TabBar } from "@/components/layout/function-output/TabBar";
-import { TableGridView } from "@/components/layout/function-output/TableGridView";
+import { TableGridView } from "@/components/layout/function-output/table-grid-view";
 import { SqlEditorView } from "@/components/layout/function-output/SqlEditorView";
 
 function isDestructive(sql: string): boolean {

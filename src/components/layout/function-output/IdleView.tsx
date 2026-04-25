@@ -1,23 +1,30 @@
 import { Search } from "lucide-react";
 import { Kbd } from "@/components/ui/kbd";
+import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
 export function IdleView({ onNewConnection }: { onNewConnection: () => void }) {
 	return (
 		<div className="h-full flex flex-col items-center justify-center bg-surface-2/72 select-none gap-6 px-6">
 			{/* Icon */}
-			<div className="w-14 h-14 rounded-lg border border-border-subtle bg-surface-3 flex items-center justify-center shadow-sm">
-				<Search size={18} className="text-foreground/42" />
+			<div className="w-16 h-16 rounded-2xl border border-border-subtle bg-surface-3/96 flex items-center justify-center shadow-sm">
+				<Search size={20} className="text-foreground/42" />
 			</div>
 			{/* Message */}
 			<div className="text-center space-y-2 max-w-md">
-				<p className="text-[12px] font-bold uppercase tracking-[0.16em] text-foreground/56">
-					Nothing open
+				<p className="text-[12px] font-semibold text-muted-foreground">
+					Workspace Ready
 				</p>
-				<p className="text-[13px] text-foreground/58 leading-relaxed">
-					Select a table from the sidebar or search with <Kbd>⌘K</Kbd>
+				<h2 className="text-[22px] font-semibold tracking-tight text-foreground text-balance">
+					Open a table or start with a new connection
+				</h2>
+				<p className="text-[14px] text-foreground/60 leading-relaxed text-pretty">
+					Use the sidebar to browse connected databases, or jump anywhere with <Kbd>⌘K</Kbd>.
 				</p>
 			</div>
+			<Button onClick={onNewConnection} size="sm" className="h-9 px-4 text-[12px] font-medium">
+				Add Connection
+			</Button>
 			{/* Shortcuts */}
 			<div className="flex items-center gap-px border border-border-subtle rounded-lg overflow-hidden bg-surface-3 shadow-sm">
 				{[
@@ -41,12 +48,6 @@ export function IdleView({ onNewConnection }: { onNewConnection: () => void }) {
 					</div>
 				))}
 			</div>
-			<button
-				onClick={onNewConnection}
-				className="text-[12px] font-medium text-foreground/48 hover:text-foreground/72 transition-colors underline underline-offset-4 decoration-foreground/20"
-			>
-				+ add connection
-			</button>
 		</div>
 	);
 }

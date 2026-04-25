@@ -56,7 +56,10 @@ function CommandDialog({
           className
         )}
         showCloseButton={showCloseButton}
-        style={{ maxWidth: 'min(72rem, 92vw)' }}
+        style={{
+          width: "min(58rem, 92vw)",
+          maxWidth: "min(72rem, 92vw)",
+        }}
       >
         {children}
       </DialogContent>

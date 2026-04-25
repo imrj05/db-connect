@@ -96,8 +96,9 @@ export function FilterBar({
             {/* Column select */}
             <select
               value={f.col}
+              aria-label="Filter column"
               onChange={(e) => onFilterChange(f.id, { col: e.target.value })}
-              className="h-8 px-2.5 rounded-[4px] bg-surface-elevated/94 border border-border-subtle text-[12px] text-foreground outline-none min-w-[140px] flex-1 max-w-[220px]"
+              className="h-8 px-2.5 rounded-[4px] bg-surface-elevated/94 border border-border-subtle text-[12px] text-foreground min-w-[140px] flex-1 max-w-[220px] focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/40"
             >
               <option value="">Select column</option>
               {/* Include selected column even if not in availableCols to preserve selection */}
@@ -116,10 +117,11 @@ export function FilterBar({
             {/* Operator select */}
             <select
               value={f.op}
+              aria-label="Filter operator"
               onChange={(e) =>
                 onFilterChange(f.id, { op: e.target.value as FilterOp })
               }
-              className="h-8 px-2.5 rounded-[4px] bg-surface-elevated/94 border border-border-subtle text-[12px] text-foreground outline-none min-w-[130px] flex-1 max-w-[170px]"
+              className="h-8 px-2.5 rounded-[4px] bg-surface-elevated/94 border border-border-subtle text-[12px] text-foreground min-w-[130px] flex-1 max-w-[170px] focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/40"
             >
               {(
                 [
@@ -149,8 +151,8 @@ export function FilterBar({
                   onFilterChange(f.id, { value: e.target.value })
                 }
                 onKeyDown={(e) => e.key === "Enter" && onApply()}
-                placeholder="Enter value"
-                className="h-8 text-[12px] flex-[2] min-w-[170px] bg-surface-elevated/94 focus-visible:ring-0"
+                placeholder="Enter value…"
+                className="h-8 text-[12px] flex-[2] min-w-[170px] bg-surface-elevated/94"
               />
             ) : (
               <div className="h-8 flex-[2] min-w-[170px] flex items-center text-[12px] text-foreground/52 italic px-2.5">

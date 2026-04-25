@@ -74,6 +74,7 @@ export function TabBar({
 							<Button
 								variant="ghost"
 								size="icon-xs"
+								aria-label={`Close ${tab.label}`}
 								onClick={(e) => {
 									e.stopPropagation();
 									onCloseTab(tab.id);
@@ -97,7 +98,7 @@ export function TabBar({
 							variant="outline"
 							size="sm"
 							onClick={onNewTab}
-							className="my-auto ml-2 h-8 shrink-0 gap-1.5 rounded-md border-border-subtle bg-surface-2/88 px-3.5 text-[11px] font-medium text-foreground/72 shadow-xs hover:bg-surface-3 hover:text-foreground"
+							className="my-auto ml-2 h-8 shrink-0 gap-1.5 rounded-md border-border-subtle bg-surface-2/88 px-3.5 text-[12px] font-medium text-foreground/76 shadow-xs hover:bg-surface-3 hover:text-foreground"
 						>
 							<Plus size={12} />
 							New Tab

@@ -22,16 +22,16 @@ export function EngineSelector({
 	const activeEngine = DATABASE_ENGINES.find((e) => e.id === selectedType) ?? DATABASE_ENGINES[0];
 
 	return (
-		<div className="w-48 shrink-0 bg-muted/20 border-r border-border flex flex-col">
+		<div className="w-52 shrink-0 bg-muted/20 border-r border-border flex flex-col">
 			{/* Panel header */}
-			<div className="h-14 px-4 flex items-end pb-3 border-b border-border">
-				<span className="text-[9px] font-black uppercase tracking-[0.2em] text-muted-foreground/40">
+			<div className="h-16 px-4 flex items-end pb-3.5 border-b border-border">
+				<span className="text-[10px] font-semibold text-muted-foreground/55">
 					Engine
 				</span>
 			</div>
 
 			{/* Engine list */}
-			<div className="flex-1 p-2 space-y-0.5 overflow-y-auto">
+			<div className="flex-1 p-2.5 space-y-1 overflow-y-auto">
 				{DATABASE_ENGINES.map((engine) => {
 					const isActive = selectedType === engine.id;
 					const Logo = DB_LOGOS[engine.id];
@@ -40,14 +40,14 @@ export function EngineSelector({
 							key={engine.id}
 							onClick={() => onSelect(engine.id)}
 							className={cn(
-								"w-full flex items-center gap-2.5 px-2.5 py-2 rounded-lg transition-all duration-100 text-left group",
+							"w-full flex items-center gap-2.5 px-3 py-2.5 rounded-xl transition-colors text-left group",
 								isActive
 									? "bg-card border border-border shadow-sm"
 									: "border border-transparent hover:bg-muted/50",
 							)}
 						>
 							<div className={cn(
-								"size-7 rounded-md flex items-center justify-center shrink-0 transition-all",
+								"size-8 rounded-lg flex items-center justify-center shrink-0 transition-colors",
 								isActive ? "bg-muted" : "bg-muted/40 opacity-50 group-hover:opacity-75",
 							)}>
 								<Logo className={cn("text-base", isActive ? "text-foreground" : "text-muted-foreground")} />
@@ -74,7 +74,7 @@ export function EngineSelector({
 			</div>
 
 			{/* Panel footer */}
-			<div className="p-3 border-t border-border">
+			<div className="p-3.5 border-t border-border">
 				<div className="flex items-center gap-2 px-2.5 py-1.5 rounded-md bg-muted/40">
 					{(() => {
 						const Logo = DB_LOGOS[activeEngine.id];

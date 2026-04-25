@@ -61,7 +61,8 @@ export type UiDarkThemeOption =
   | "astro"
   | "night-owl"
   | "borland"
-  | "metals";
+  | "metals"
+  | "cursor-dark";
 
 export type UiLightThemeOption =
   | "light"
@@ -77,7 +78,8 @@ export type UiLightThemeOption =
   | "spring"
   | "monokai-light"
   | "solarized-light"
-  | "dracula-light";
+  | "dracula-light"
+  | "cursor";
 
 export interface AppSettings {
   editorFontSize: 12 | 13 | 14 | 16;
@@ -245,8 +247,6 @@ interface AppState {
   // ---- Settings ----
   appSettings: AppSettings;
   updateAppSetting: <K extends keyof AppSettings>(key: K, value: AppSettings[K]) => void;
-  settingsOpen: boolean;
-  setSettingsOpen: (open: boolean) => void;
 
   // ---- Extended history ----
   clearAllHistory: () => void;
@@ -279,7 +279,6 @@ export const useAppStore = create<AppState>((set, get) => ({
   queryHistory: [],
   savedQueries: [],
   appSettings: loadSettings(),
-  settingsOpen: false,
 
   // ---- Persistence ----
 
@@ -588,11 +587,11 @@ export const useAppStore = create<AppState>((set, get) => ({
       const { invocationResult, pendingSqlValue } = get();
       const savedTabs = tabs.map((t) => t.id === activeTabId ? { ...t, result: invocationResult, pendingSql: pendingSqlValue } : t);
       activeTabId = existingTab.id;
-      set({ tabs: savedTabs, activeTabId: existingTab.id, activeFunction: fn, invocationResult: existingTab.result, pendingSqlValue: existingTab.pendingSql });
+      set({ tabs: savedTabs, activeTabId: existingTab.id, activeFunction: fn, invocationResult: existingTab.result, pendingSqlValue: existingTab.pendingSql, showConnectionsManager: false, activeView: "main" });
     } else if (!activeTabId || tabs.length === 0) {
       const newId = `tab-${Date.now()}`;
       activeTabId = newId;
-      set({ activeTabId: newId, tabs: [{ id: newId, fn, result: null, pendingSql: get().pendingSqlValue, pendingEdits: [], label: getTabLabel(fn), filters: [createDefaultFilter()], filteredResult: null, filtersActive: false }] });
+      set({ activeTabId: newId, tabs: [{ id: newId, fn, result: null, pendingSql: get().pendingSqlValue, pendingEdits: [], label: getTabLabel(fn), filters: [createDefaultFilter()], filteredResult: null, filtersActive: false }], showConnectionsManager: false, activeView: "main" });
     } else {
       // No existing tab for this fn — open a new tab instead of overwriting
       const newId = `tab-${Date.now()}`;
@@ -600,6 +599,8 @@ export const useAppStore = create<AppState>((set, get) => ({
       set((s) => ({
         tabs: [...s.tabs, { id: newId, fn, result: null, pendingSql: "", pendingEdits: [], label: getTabLabel(fn), filters: [createDefaultFilter()], filteredResult: null, filtersActive: false }],
         activeTabId: newId,
+        showConnectionsManager: false,
+        activeView: "main",
       }));
     }
 
@@ -611,7 +612,7 @@ export const useAppStore = create<AppState>((set, get) => ({
       }));
 
     // Set loading state with the active function
-    set({ activeFunction: fn });
+    set({ activeFunction: fn, showConnectionsManager: false, activeView: "main" });
     setResult({ fn, outputType: "idle", isLoading: true, invokedAt: Date.now() });
 
     try {
@@ -743,6 +744,7 @@ export const useAppStore = create<AppState>((set, get) => ({
         invocationResult: result,
         pendingSqlValue: "",
         showConnectionsManager: false,
+        activeView: "main",
         tabs: s.tabs.map((t) => (t.id === s.activeTabId ? { ...t, fn, result, label: getTabLabel(fn), pendingSql: "" } : t)),
       };
     }),
@@ -774,6 +776,8 @@ export const useAppStore = create<AppState>((set, get) => ({
       activeFunction: queryFn,
       invocationResult: result,
       pendingSqlValue: "",
+      showConnectionsManager: false,
+      activeView: "main",
     }));
   },
 
@@ -786,6 +790,8 @@ export const useAppStore = create<AppState>((set, get) => ({
       activeFunction: fn,
       invocationResult: loadingResult,
       pendingSqlValue: "",
+      showConnectionsManager: false,
+      activeView: "main",
     }));
     await get().invokeFunction(fn);
   },
@@ -939,8 +945,6 @@ export const useAppStore = create<AppState>((set, get) => ({
       saveSettings(updated);
       return { appSettings: updated };
     }),
-
-  setSettingsOpen: (settingsOpen) => set({ settingsOpen }),
 
   // ---- Extended history ----
 
