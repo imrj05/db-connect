@@ -2,6 +2,17 @@
 
 All notable changes to DB Connect are documented here.
 
+## [0.0.14] — 2026-04-24
+
+- chore: bump version to 0.0.14 in package.json
+- feat: enhance UI components and integrate AI functionality
+- refactor: update UI components for improved styling and functionality
+- feat: enhance CommandDialog and DialogContent styles; add FieldInput component
+- feat: add ErrorBoundary component for error handling in the application
+- chore: update CHANGELOG.md for v0.0.13
+
+All notable changes to DB Connect are documented here.
+
 ## [0.0.13] — 2026-04-15
 
 - feat: update version to 0.0.13 and add database refresh functionality in TitleBar component
