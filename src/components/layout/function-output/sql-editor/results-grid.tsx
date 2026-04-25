@@ -17,7 +17,7 @@ import {
 } from "@/components/ui/table";
 import { cn } from "@/lib/utils";
 import { TableInfo } from "@/types";
-import { StatusBar } from "@/components/layout/function-output/StatusBar";
+import { StatusBar } from "@/components/layout/function-output/status-bar";
 
 export function ResultsGrid({
 	queryResult,

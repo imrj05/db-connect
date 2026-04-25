@@ -13,10 +13,10 @@ import {
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
 import { DB_LOGO, DB_COLOR } from "@/lib/db-ui";
-import { GROUP_PRESETS } from "@/components/layout/ConnectionDialog";
+import { GROUP_PRESETS } from "@/components/layout/connection-dialog-modal";
 import { ConnectionConfig, ConnectionFunction, ColumnInfo } from "@/types";
-import { SchemaGroup } from "@/components/layout/sidebar/SchemaGroup";
-import { AddTableDialog } from "@/components/layout/sidebar/AddTableDialog";
+import { SchemaGroup } from "@/components/layout/sidebar/schema-group";
+import { AddTableDialog } from "@/components/layout/sidebar/add-table-dialog";
 
 export function DatabaseNode({
 	connection,

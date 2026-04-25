@@ -53,9 +53,9 @@ export function SqlEditorToolbar({
 					<span
 						className={cn(
 							"ml-0.5 inline-flex h-4 items-center rounded-sm px-1 text-[8px] font-bold tracking-wider",
-							aiEnabled && aiConfigured
-								? "bg-emerald-500/12 text-emerald-600 dark:text-emerald-400"
-								: "bg-amber-500/12 text-amber-700 dark:text-amber-300",
+						aiEnabled && aiConfigured
+							? "bg-accent-green/12 text-accent-green"
+							: "bg-warning/12 text-warning",
 						)}
 					>
 						{aiEnabled && aiConfigured ? "READY" : "SETUP"}

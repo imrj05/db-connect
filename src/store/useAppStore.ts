@@ -62,7 +62,8 @@ export type UiDarkThemeOption =
   | "night-owl"
   | "borland"
   | "metals"
-  | "cursor-dark";
+  | "cursor-dark"
+  | "ember";
 
 export type UiLightThemeOption =
   | "light"
@@ -79,7 +80,8 @@ export type UiLightThemeOption =
   | "monokai-light"
   | "solarized-light"
   | "dracula-light"
-  | "cursor";
+  | "cursor"
+  | "ember";
 
 export interface AppSettings {
   editorFontSize: 12 | 13 | 14 | 16;

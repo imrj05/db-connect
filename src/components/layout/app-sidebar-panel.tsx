@@ -30,10 +30,10 @@ import {
 } from "lucide-react";
 import { useAppStore } from "@/store/useAppStore";
 import { DB_LOGO, DB_COLOR } from "@/lib/db-ui";
-import { GROUP_PRESETS } from "@/components/layout/ConnectionDialog";
-import { ImportExportDialog } from "@/components/layout/ImportExportDialog";
-import { DumpDatabaseDialog, type DumpOptions } from "@/components/layout/function-output/table-grid/DumpDatabaseDialog";
-import { AddTableDialog } from "@/components/layout/sidebar/AddTableDialog";
+import { GROUP_PRESETS } from "@/components/layout/connection-dialog-modal";
+import { ImportExportDialog } from "@/components/layout/import-export-dialog";
+import { DumpDatabaseDialog, type DumpOptions } from "@/components/layout/function-output/table-grid/dump-database-dialog";
+import { AddTableDialog } from "@/components/layout/sidebar/add-table-dialog";
 import { toast } from "@/components/ui/sonner";
 import { tauriApi } from "@/lib/tauri-api";
 import { ConnectionConfig, ConnectionFunction, ColumnInfo } from "@/types";
@@ -43,6 +43,14 @@ import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { Label } from "@/components/ui/label";
+import {
+    ContextMenu,
+    ContextMenuContent,
+    ContextMenuItem,
+    ContextMenuLabel,
+    ContextMenuSeparator,
+    ContextMenuTrigger,
+} from "@/components/ui/context-menu";
 import {
     Dialog,
     DialogContent,
@@ -382,6 +390,7 @@ function DatabaseNode({
                     <Tooltip>
                         <TooltipTrigger asChild>
                             <button
+                                aria-label="Add table"
                                 onClick={() => setAddTableOpen(true)}
                                 className="flex items-center justify-center w-5 h-5 rounded-md text-foreground/40 hover:text-foreground hover:bg-surface-3 transition-colors"
                             >
@@ -393,6 +402,7 @@ function DatabaseNode({
                     <Tooltip>
                         <TooltipTrigger asChild>
                             <button
+                                aria-label="Refresh tables"
                                 onClick={handleRefreshTables}
                                 disabled={isRefreshingTables}
                                 className="flex items-center justify-center w-5 h-5 rounded-md text-foreground/40 hover:text-foreground hover:bg-surface-3 transition-colors disabled:opacity-40"
@@ -406,6 +416,7 @@ function DatabaseNode({
                         <Tooltip>
                             <TooltipTrigger asChild>
                                 <button
+                                    aria-label={expandAll === true ? "Collapse all" : "Expand all"}
                                     onClick={() => setExpandAll((v) => v === true ? false : true)}
                                     className="flex items-center justify-center w-5 h-5 rounded-md text-foreground/40 hover:text-foreground hover:bg-surface-3 transition-colors"
                                 >
@@ -421,6 +432,7 @@ function DatabaseNode({
                         <Tooltip>
                             <TooltipTrigger asChild>
                                 <button
+                                    aria-label="Dump database"
                                     onClick={() => setShowDumpDialog(true)}
                                     disabled={dumpDbLoading}
                                     className="flex items-center justify-center w-5 h-5 rounded-md text-foreground/40 hover:text-foreground hover:bg-surface-3 transition-colors disabled:opacity-40"
@@ -491,7 +503,7 @@ function DatabaseNode({
         </div>
     );
 }
-// ── Main Sidebar ───────────────────────────────────────────────────────────────
+// ── Main Sidebar Panel ─────────────────────────────────────────────────────────
 const Sidebar = () => {
     const {
         connections,
@@ -516,17 +528,9 @@ const Sidebar = () => {
     const [filter, setFilter] = useState("");
     const [loadingIds, setLoadingIds] = useState<Set<string>>(new Set());
     const [importExportOpen, setImportExportOpen] = useState(false);
-    const [dbCtxMenu, setDbCtxMenu] = useState<{ db: string; x: number; y: number } | null>(null);
     const [dropDbConfirm, setDropDbConfirm] = useState<string | null>(null);
     const [dropConfirmInput, setDropConfirmInput] = useState("");
     const [droppingDb, setDroppingDb] = useState(false);
-    // Close context menu on Escape
-    useEffect(() => {
-        if (!dbCtxMenu) return;
-        const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") setDbCtxMenu(null); };
-        window.addEventListener("keydown", onKey);
-        return () => window.removeEventListener("keydown", onKey);
-    }, [dbCtxMenu]);
     const handleConnect = async (connId: string) => {
         setLoadingIds((prev) => new Set(prev).add(connId));
         try {
@@ -582,121 +586,89 @@ const Sidebar = () => {
         <div className="h-full flex bg-surface-1 border border-border-subtle shadow-sm overflow-hidden min-h-0 rounded-lg">
             {/* ── Left: open database tabs ── */}
             {activeDatabases.length > 0 && activeConn && (
-                <div className="flex shrink-0 flex-col gap-1.5 overflow-y-auto border-r border-border-subtle bg-surface-1/94 px-2 py-2" style={{ width: 84 }}>
+                <div className="flex shrink-0 flex-col gap-1.5 overflow-y-auto border-r border-border-subtle bg-surface-1/94 px-2 py-2 w-[88px] min-w-[72px]">
                     {activeDatabases.map((db) => {
                         const isActive = db === selectedDb;
                         const DbLogo = DB_LOGO[activeConn.type] ?? DB_LOGO.postgresql;
                         const logoColor = DB_COLOR[activeConn.type] ?? "text-muted-foreground";
                         return (
                             <div key={db} className="flex flex-col">
-                                <Tooltip delayDuration={600}>
-                                    <TooltipTrigger asChild>
-                                        <button
-                                            onClick={() => selectDatabase(activeConn.id, db)}
-                                            onContextMenu={(e) => {
-                                                e.preventDefault();
-                                                setDbCtxMenu({ db, x: e.clientX, y: e.clientY });
+                                <ContextMenu>
+                                    <Tooltip delayDuration={600}>
+                                        <ContextMenuTrigger asChild>
+                                            <TooltipTrigger asChild>
+                                                <button
+                                                    aria-label={`Select database ${db}`}
+                                                    onClick={() => selectDatabase(activeConn.id, db)}
+                                                    className={cn(
+                                                        "group relative flex w-full shrink-0 flex-col items-center gap-1.5 rounded-md border px-2 py-3 transition-[color,background-color,border-color,box-shadow]",
+                                                        isActive
+                                                            ? "border-border-subtle bg-surface-elevated text-foreground shadow-xs"
+                                                            : "border-transparent bg-surface-2/64 text-foreground/50 hover:border-border/55 hover:bg-surface-2 hover:text-foreground/72"
+                                                    )}
+                                                >
+                                                    {/* Icon container */}
+                                                    <div className={cn(
+                                                        "flex h-8 w-8 items-center justify-center rounded-md transition-colors",
+                                                        isActive
+                                                            ? "bg-surface-2 ring-1 ring-border-subtle shadow-xs"
+                                                            : "bg-transparent group-hover:bg-surface-3"
+                                                    )}>
+                                                        <DbLogo className={cn(
+                                                            "text-[18px] shrink-0 transition-colors",
+                                                            isActive ? logoColor : "text-foreground/36 group-hover:text-foreground/56"
+                                                        )} />
+                                                    </div>
+                                                    {/* DB label */}
+                                                    <span className={cn(
+                                                        "w-full truncate px-1 text-center text-[11px] font-mono leading-tight transition-colors",
+                                                        isActive
+                                                            ? "text-foreground/82"
+                                                            : "text-foreground/42 group-hover:text-foreground/62"
+                                                    )}>
+                                                        {db}
+                                                    </span>
+                                                </button>
+                                            </TooltipTrigger>
+                                        </ContextMenuTrigger>
+                                        <TooltipContent side="right" sideOffset={6} className="font-mono text-[11px]">
+                                            {db}
+                                        </TooltipContent>
+                                    </Tooltip>
+                                    <ContextMenuContent className="w-44">
+                                        <ContextMenuLabel className="font-mono text-[10px] uppercase tracking-widest text-muted-foreground/50 truncate">
+                                            {db}
+                                        </ContextMenuLabel>
+                                        <ContextMenuSeparator />
+                                        <ContextMenuItem onSelect={() => {
+                                            refreshTables(activeConn.id, db);
+                                            if (selectedDb !== db) selectDatabase(activeConn.id, db);
+                                        }}>
+                                            <RefreshCw size={11} className="shrink-0 text-muted-foreground/60" />
+                                            Refresh DB
+                                        </ContextMenuItem>
+                                        <ContextMenuItem onSelect={() => closeOpenDatabase(activeConn.id, db)}>
+                                            <XCircle size={11} className="shrink-0 text-muted-foreground/60" />
+                                            Close DB
+                                        </ContextMenuItem>
+                                        <ContextMenuSeparator />
+                                        <ContextMenuItem
+                                            variant="destructive"
+                                            onSelect={() => {
+                                                setDropConfirmInput("");
+                                                setDropDbConfirm(db);
                                             }}
-                                            className={cn(
-                                                "group relative flex w-full shrink-0 flex-col items-center gap-1.5 rounded-md border px-2 py-3 transition-[color,background-color,border-color,box-shadow]",
-                                                isActive
-                                                    ? "border-border-subtle bg-surface-elevated text-foreground shadow-xs"
-                                                    : "border-transparent bg-surface-2/64 text-foreground/50 hover:border-border/55 hover:bg-surface-2 hover:text-foreground/72"
-                                            )}
                                         >
-                                            {/* Icon container */}
-                                            <div className={cn(
-                                                "flex h-8 w-8 items-center justify-center rounded-md transition-colors",
-                                                isActive
-                                                    ? "bg-surface-2 ring-1 ring-border-subtle shadow-xs"
-                                                    : "bg-transparent group-hover:bg-surface-3"
-                                            )}>
-                                                <DbLogo className={cn(
-                                                    "text-[18px] shrink-0 transition-colors",
-                                                    isActive ? logoColor : "text-foreground/36 group-hover:text-foreground/56"
-                                                )} />
-                                            </div>
-                                            {/* DB label */}
-                                            <span className={cn(
-                                                "w-full truncate px-1 text-center text-[11px] font-mono leading-tight transition-colors",
-                                                isActive
-                                                    ? "text-foreground/82"
-                                                    : "text-foreground/42 group-hover:text-foreground/62"
-                                            )}>
-                                                {db}
-                                            </span>
-                                        </button>
-                                    </TooltipTrigger>
-                                    <TooltipContent side="right" sideOffset={6} className="font-mono text-[11px]">
-                                        {db}
-                                    </TooltipContent>
-                                </Tooltip>
+                                            <Trash2 size={11} className="shrink-0" />
+                                            Drop Database
+                                        </ContextMenuItem>
+                                    </ContextMenuContent>
+                                </ContextMenu>
                             </div>
                         );
                     })}
                 </div>
             )}
-            {/* ── DB tab context menu ── */}
-            {dbCtxMenu && activeConn && (() => {
-                const menuW = 172;
-                const menuH = 160;
-                const maxX = Math.min(dbCtxMenu.x, (window.visualViewport?.width ?? window.innerWidth) - menuW - 8);
-                const maxY = Math.min(dbCtxMenu.y, (window.visualViewport?.height ?? window.innerHeight) - menuH - 8);
-                const left = maxX;
-                const top = maxY;
-                return (
-                    <>
-                        <div
-                            className="fixed inset-0 z-40"
-                            onClick={() => setDbCtxMenu(null)}
-                            onContextMenu={(e) => { e.preventDefault(); setDbCtxMenu(null); }}
-                        />
-                        <div
-                            className="fixed z-50 bg-popover/98 border border-border-subtle rounded-md shadow-md p-1 text-popover-foreground backdrop-blur-xl"
-                            style={{ top, left, width: menuW }}
-                        >
-                            <div className="px-2 py-1.5 mb-0.5">
-                                <p className="text-[11px] font-mono font-bold uppercase tracking-widest text-muted-foreground/40 truncate max-w-[148px]">
-                                    {dbCtxMenu.db}
-                                </p>
-                            </div>
-                            <button
-                                className="w-full flex items-center gap-2 px-2 py-1.5 rounded-md text-[11px] text-foreground/80 hover:bg-surface-selected/82 transition-colors"
-                                onClick={() => {
-                                    refreshTables(activeConn.id, dbCtxMenu.db);
-                                    if (selectedDb !== dbCtxMenu.db) selectDatabase(activeConn.id, dbCtxMenu.db);
-                                    setDbCtxMenu(null);
-                                }}
-                            >
-                                <RefreshCw size={11} className="shrink-0 text-muted-foreground/60" />
-                                Refresh DB
-                            </button>
-                            <button
-                                className="w-full flex items-center gap-2 px-2 py-1.5 rounded-md text-[11px] text-foreground/70 hover:bg-surface-selected/82 transition-colors"
-                                onClick={() => {
-                                    closeOpenDatabase(activeConn.id, dbCtxMenu.db);
-                                    setDbCtxMenu(null);
-                                }}
-                            >
-                                <XCircle size={11} className="shrink-0 text-muted-foreground/60" />
-                                Close DB
-                            </button>
-                            <div className="my-1 h-px bg-border/60" />
-                            <button
-                                className="w-full flex items-center gap-2 px-2 py-1.5 rounded-md text-[11px] text-destructive/80 hover:bg-destructive/10 transition-colors"
-                                onClick={() => {
-                                    setDropConfirmInput("");
-                                    setDropDbConfirm(dbCtxMenu.db);
-                                    setDbCtxMenu(null);
-                                }}
-                            >
-                                <Trash2 size={11} className="shrink-0" />
-                                Drop Database
-                            </button>
-                        </div>
-                    </>
-                );
-            })()}
             {/* ── Right: main content ── */}
             <div className="flex-1 flex flex-col overflow-hidden min-w-0">
                 {/* ── Header ── */}
@@ -713,6 +685,7 @@ const Sidebar = () => {
                                 <Button
                                     variant="ghost"
                                     size="icon-xs"
+                                    aria-label="Import / Export"
                                     onClick={() => setImportExportOpen(true)}
                                     className="text-foreground/48 hover:text-foreground"
                                 >
@@ -884,7 +857,7 @@ const Sidebar = () => {
                                 disabled={droppingDb || dropConfirmInput !== dropDbConfirm}
                                 onClick={handleDrop}
                             >
-                                {droppingDb ? "Dropping..." : "Drop Database"}
+                                {droppingDb ? "Dropping\u2026" : "Drop Database"}
                             </Button>
                         </DialogFooter>
                     </DialogContent>

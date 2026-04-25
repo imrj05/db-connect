@@ -2,24 +2,25 @@
 @import "tw-animate-css";
 @import "shadcn/tailwind.css";
 @import "@fontsource-variable/inter";
+@import "@fontsource-variable/space-grotesk";
 @custom-variant dark (&:is(.dark *));
 
 :root {
     /* ========================================
    * CORE COLORS — LIGHT
    * ====================================== */
-    --background: oklch(1 0 0);
+    --background: oklch(0.985 0 0);
     --foreground: oklch(0.145 0 0);
-    --card: oklch(1 0 0);
+    --card: oklch(0.97 0 0);
     --card-foreground: oklch(0.145 0 0);
-    --popover: oklch(1 0 0);
+    --popover: oklch(0.985 0 0);
     --popover-foreground: oklch(0.145 0 0);
     --primary: oklch(0.205 0 0);
     --primary-foreground: oklch(0.985 0 0);
     --secondary: oklch(0.97 0 0);
     --secondary-foreground: oklch(0.205 0 0);
     --muted: oklch(0.97 0 0);
-    --muted-foreground: oklch(0.556 0 0);
+    --muted-foreground: oklch(0.55 0 0);
     --accent: oklch(0.97 0 0);
     --accent-foreground: oklch(0.205 0 0);
     --destructive: oklch(0.577 0.245 27.325);
@@ -27,50 +28,50 @@
     --warning: oklch(0.75 0.18 70);
     --warning-foreground: oklch(0.18 0.01 260);
     --success: oklch(0.72 0.18 145);
-    --border: oklch(0.922 0 0);
-    --input: oklch(0.922 0 0);
+    --border: oklch(0.906 0 0);
+    --input: oklch(0.906 0 0);
     --ring: oklch(0.708 0 0);
     /* ========================================
-   * CHART COLORS
+   * CHART COLORS — EMBER ENV PALETTE (LIGHT)
    * ====================================== */
-    --chart-1: oklch(0.87 0 0);
-    --chart-2: oklch(0.556 0 0);
-    --chart-3: oklch(0.439 0 0);
-    --chart-4: oklch(0.371 0 0);
-    --chart-5: oklch(0.269 0 0);
+    --chart-1: oklch(0.72 0.16 84.6);
+    --chart-2: oklch(0.65 0.15 162);
+    --chart-3: oklch(0.62 0.21 26);
+    --chart-4: oklch(0.70 0.15 70);
+    --chart-5: oklch(0.72 0.14 185);
     /* ========================================
    * SIDEBAR
    * ====================================== */
-    --sidebar: oklch(0.985 0 0);
+    --sidebar: oklch(0.97 0 0);
     --sidebar-foreground: oklch(0.145 0 0);
     --sidebar-primary: oklch(0.205 0 0);
     --sidebar-primary-foreground: oklch(0.985 0 0);
-    --sidebar-accent: oklch(0.97 0 0);
+    --sidebar-accent: oklch(0.906 0 0);
     --sidebar-accent-foreground: oklch(0.205 0 0);
-    --sidebar-border: oklch(0.922 0 0);
+    --sidebar-border: oklch(0.906 0 0);
     --sidebar-ring: oklch(0.708 0 0);
     --surface-0: var(--background);
-    --surface-1: oklch(0.973 0.004 84);
-    --surface-2: oklch(0.982 0.003 84);
-    --surface-3: oklch(0.988 0.002 84);
-    --surface-elevated: oklch(0.996 0.001 84);
-    --surface-hover: oklch(0.947 0.006 84);
-    --surface-selected: oklch(0.925 0.008 84);
-    --surface-selected-hover: oklch(0.914 0.009 84);
-    --border-subtle: oklch(0.89 0.004 84 / 0.45);
+    --surface-1: oklch(0.973 0 0);
+    --surface-2: oklch(0.982 0 0);
+    --surface-3: oklch(0.988 0 0);
+    --surface-elevated: oklch(0.996 0 0);
+    --surface-hover: oklch(0.947 0 0);
+    --surface-selected: oklch(0.925 0 0);
+    --surface-selected-hover: oklch(0.914 0 0);
+    --border-subtle: oklch(0.89 0 0 / 0.45);
     /* ========================================
 /* ========================================
  * TYPOGRAPHY — MODERN DATABASE CLIENT
  * ====================================== */
-    --font-sans: "Geist", "Inter", system-ui, -apple-system, sans-serif;
-    --font-serif: "Geist", "Inter", system-ui, -apple-system, sans-serif;
-    --font-mono: "JetBrains Mono", "IBM Plex Mono", "SF Mono",
+    --app-font-sans: "Space Grotesk Variable", "Geist", "Inter", system-ui, -apple-system, sans-serif;
+    --app-font-serif: "Space Grotesk Variable", "Geist", "Inter", system-ui, -apple-system, sans-serif;
+    --app-font-mono: "JetBrains Mono", "IBM Plex Mono", "SF Mono",
         "Cascadia Code", monospace;
-    --font-label: "Geist", "Inter", system-ui, -apple-system, sans-serif;
+    --app-font-label: "Space Grotesk Variable", "Geist", "Inter", system-ui, -apple-system, sans-serif;
     /* ========================================
    * SHAPE / SPACING
    * ====================================== */
-    --radius: 0.625rem;
+    --radius: 0.125rem;
     --spacing: 0.25rem;
     --tracking-normal: 0em;
     --letter-spacing: 0em;
@@ -138,6 +139,24 @@
     --color-code-preview-bg: var(--card);
     --color-code-preview-header-bg: var(--muted);
     --color-code-preview-text: var(--foreground);
+    /* ========================================
+   * EMBER ENV SAFETY TOKENS (LIGHT)
+   * ====================================== */
+    --env-prod:    #EF4444;
+    --env-staging: #F59E0B;
+    --env-local:   #10B981;
+    --env-brand:   #FACC15;
+    --env-color:   var(--env-local);
+    /* ========================================
+   * SQL SYNTAX TOKENS (LIGHT)
+   * ====================================== */
+    --sql-destructive: #B91C1C;
+    --sql-modifying:   #92400E;
+    --sql-read:        #854D0E;
+    --sql-keyword:     oklch(0.145 0 0);
+    --sql-string:      #0F766E;
+    --sql-type:        oklch(0.55 0 0);
+    --sql-identifier:  oklch(0.145 0 0);
 }
 
 /* ========================================
@@ -165,15 +184,15 @@
     --success: oklch(0.75 0.18 145);
     --border: oklch(1 0 0 / 10%);
     --input: oklch(1 0 0 / 15%);
-    --ring: oklch(0.556 0 0);
+    --ring: oklch(0.836 0.17 84.6);
     --sidebar: oklch(0.205 0 0);
     --sidebar-foreground: oklch(0.985 0 0);
-    --sidebar-primary: oklch(0.488 0.243 264.376);
-    --sidebar-primary-foreground: oklch(0.985 0 0);
+    --sidebar-primary: oklch(0.836 0.17 84.6);
+    --sidebar-primary-foreground: oklch(0.145 0 0);
     --sidebar-accent: oklch(0.269 0 0);
     --sidebar-accent-foreground: oklch(0.985 0 0);
     --sidebar-border: oklch(1 0 0 / 10%);
-    --sidebar-ring: oklch(0.556 0 0);
+    --sidebar-ring: oklch(0.836 0.17 84.6);
     --surface-0: var(--background);
     --surface-1: oklch(0.225 0.01 36);
     --surface-2: oklch(0.245 0.01 36);
@@ -183,11 +202,11 @@
     --surface-selected: oklch(0.315 0.013 36);
     --surface-selected-hover: oklch(0.335 0.013 36);
     --border-subtle: oklch(0.41 0.009 36 / 0.5);
-    --chart-1: oklch(0.87 0 0);
-    --chart-2: oklch(0.556 0 0);
-    --chart-3: oklch(0.439 0 0);
-    --chart-4: oklch(0.371 0 0);
-    --chart-5: oklch(0.269 0 0);
+    --chart-1: oklch(0.836 0.17 84.6);
+    --chart-2: oklch(0.735 0.149 162);
+    --chart-3: oklch(0.704 0.191 22.216);
+    --chart-4: oklch(0.78 0.16 70);
+    --chart-5: oklch(0.87 0.12 185);
     --overlay: rgb(10 10 10 / 0.54);
     --shadow-2xs: 0 1px 1px rgb(0 0 0 / 0.16);
     --shadow-xs: 0 1px 2px rgb(0 0 0 / 0.2);
@@ -210,6 +229,7 @@
     --color-cell-focus-bg: var(--surface-selected);
     --color-filter-bar-bg: var(--surface-2);
     --color-input-bg: var(--surface-elevated);
+    --color-sidebar-item-hover: var(--sidebar-accent);
     --color-sidebar-item-active: var(--surface-selected);
     --color-border-table: var(--border-subtle);
     --color-border-header: var(--border-subtle);
@@ -223,6 +243,24 @@
     --color-code-preview-bg: oklch(0.14 0.005 260);
     --color-code-preview-header-bg: oklch(0.12 0.005 260);
     --color-code-preview-text: oklch(0.88 0.003 260);
+    /* ========================================
+   * EMBER ENV SAFETY TOKENS (DARK)
+   * ====================================== */
+    --env-prod:    #EF4444;
+    --env-staging: #F59E0B;
+    --env-local:   #10B981;
+    --env-brand:   #FACC15;
+    --env-color:   var(--env-local);
+    /* ========================================
+   * SQL SYNTAX TOKENS (DARK)
+   * ====================================== */
+    --sql-destructive: #EF4444;
+    --sql-modifying:   #F59E0B;
+    --sql-read:        #FACC15;
+    --sql-keyword:     #FAFAFA;
+    --sql-string:      #5EEAD4;
+    --sql-type:        #A1A1AA;
+    --sql-identifier:  #FAFAFA;
 }
 
 /* ========================================
@@ -1625,6 +1663,167 @@
 }
 
 /* ========================================
+ * EMBER NAMED VARIANTS
+ * ======================================== */
+.ui-dark-ember {
+    /* ========================================
+   * CORE COLORS — EMBER DARK (CANONICAL)
+   * ====================================== */
+    --background: #09090B;
+    --foreground: #FAFAFA;
+    --card: #222220;
+    --card-foreground: #FAFAFA;
+    --popover: #1A1A1D;
+    --popover-foreground: #FAFAFA;
+    --primary: #27272A;
+    --primary-foreground: #FAFAFA;
+    --secondary: #222220;
+    --secondary-foreground: rgba(250, 250, 250, 0.7);
+    --muted: #222220;
+    --muted-foreground: #A1A1AA;
+    --accent: #FACC15;
+    --accent-foreground: #09090B;
+    --destructive: #EF4444;
+    --destructive-foreground: #FFFFFF;
+    --warning: #F59E0B;
+    --warning-foreground: #09090B;
+    --success: #10B981;
+    --border: rgba(255, 255, 255, 0.10);
+    --input: rgba(255, 255, 255, 0.15);
+    --ring: #FACC15;
+    /* ========================================
+   * SIDEBAR
+   * ====================================== */
+    --sidebar: #18181B;
+    --sidebar-foreground: #FAFAFA;
+    --sidebar-primary: #FACC15;
+    --sidebar-primary-foreground: #09090B;
+    --sidebar-accent: #27272A;
+    --sidebar-accent-foreground: #FAFAFA;
+    --sidebar-border: rgba(255, 255, 255, 0.10);
+    --sidebar-ring: #FACC15;
+    /* ========================================
+   * SURFACE SCALE
+   * ====================================== */
+    --surface-0: #09090B;
+    --surface-1: #18181B;
+    --surface-2: #222220;
+    --surface-3: #27272A;
+    --surface-elevated: #2E2D2A;
+    --surface-hover: rgba(250, 250, 250, 0.05);
+    --surface-selected: rgba(250, 250, 250, 0.08);
+    --surface-selected-hover: rgba(250, 250, 250, 0.10);
+    --border-subtle: rgba(161, 161, 170, 0.5);
+    /* ========================================
+   * CHARTS — EMBER ENV PALETTE
+   * ====================================== */
+    --chart-1: #FACC15;
+    --chart-2: #10B981;
+    --chart-3: #EF4444;
+    --chart-4: #F59E0B;
+    --chart-5: #5EEAD4;
+    --overlay: rgba(0, 0, 0, 0.65);
+    --radius: 0.125rem;
+    /* ========================================
+   * ENV SAFETY TOKENS
+   * ====================================== */
+    --env-prod:    #EF4444;
+    --env-staging: #F59E0B;
+    --env-local:   #10B981;
+    --env-brand:   #FACC15;
+    --env-color:   var(--env-local);
+    /* ========================================
+   * SQL SYNTAX TOKENS
+   * ====================================== */
+    --sql-destructive: #EF4444;
+    --sql-modifying:   #F59E0B;
+    --sql-read:        #FACC15;
+    --sql-keyword:     #FAFAFA;
+    --sql-string:      #5EEAD4;
+    --sql-type:        #A1A1AA;
+    --sql-identifier:  #FAFAFA;
+}
+
+.ui-light-ember {
+    /* ========================================
+   * CORE COLORS — EMBER LIGHT (CLEAN ZINC)
+   * ====================================== */
+    --background: #FAFAFA;
+    --foreground: #09090B;
+    --card: #F4F4F5;
+    --card-foreground: #09090B;
+    --popover: #FAFAFA;
+    --popover-foreground: #09090B;
+    --primary: #E4E4E7;
+    --primary-foreground: #09090B;
+    --secondary: #F4F4F5;
+    --secondary-foreground: #09090B;
+    --muted: #F4F4F5;
+    --muted-foreground: #71717A;
+    --accent: #F59E0B;
+    --accent-foreground: #09090B;
+    --destructive: #EF4444;
+    --destructive-foreground: #FFFFFF;
+    --warning: #F59E0B;
+    --warning-foreground: #09090B;
+    --success: #10B981;
+    --border: #E4E4E7;
+    --input: #E4E4E7;
+    --ring: #FACC15;
+    /* ========================================
+   * SIDEBAR
+   * ====================================== */
+    --sidebar: #F4F4F5;
+    --sidebar-foreground: #09090B;
+    --sidebar-primary: #09090B;
+    --sidebar-primary-foreground: #FAFAFA;
+    --sidebar-accent: #E4E4E7;
+    --sidebar-accent-foreground: #09090B;
+    --sidebar-border: #E4E4E7;
+    --sidebar-ring: #FACC15;
+    /* ========================================
+   * SURFACE SCALE
+   * ====================================== */
+    --surface-0: #FAFAFA;
+    --surface-1: #F4F4F5;
+    --surface-2: #EFEFEF;
+    --surface-3: #E4E4E7;
+    --surface-elevated: #FFFFFF;
+    --surface-hover: rgba(9, 9, 11, 0.04);
+    --surface-selected: rgba(9, 9, 11, 0.07);
+    --surface-selected-hover: rgba(9, 9, 11, 0.09);
+    --border-subtle: rgba(9, 9, 11, 0.12);
+    /* ========================================
+   * CHARTS — EMBER ENV PALETTE (DARK ON LIGHT)
+   * ====================================== */
+    --chart-1: #CA8A04;
+    --chart-2: #059669;
+    --chart-3: #DC2626;
+    --chart-4: #D97706;
+    --chart-5: #0D9488;
+    --overlay: rgba(9, 9, 11, 0.45);
+    --radius: 0.125rem;
+    /* ========================================
+   * ENV SAFETY TOKENS
+   * ====================================== */
+    --env-prod:    #EF4444;
+    --env-staging: #F59E0B;
+    --env-local:   #10B981;
+    --env-brand:   #FACC15;
+    --env-color:   var(--env-local);
+    /* ========================================
+   * SQL SYNTAX TOKENS (DARKENED FOR LIGHT BG)
+   * ====================================== */
+    --sql-destructive: #B91C1C;
+    --sql-modifying:   #92400E;
+    --sql-read:        #854D0E;
+    --sql-keyword:     #09090B;
+    --sql-string:      #0F766E;
+    --sql-type:        #71717A;
+    --sql-identifier:  #09090B;
+}
+
+/* ========================================
  * TAILWIND THEME EXPORT
  * ======================================== */
 @theme inline {
@@ -1663,14 +1862,14 @@
     --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
     --color-sidebar-border: var(--sidebar-border);
     --color-sidebar-ring: var(--sidebar-ring);
-    --font-sans: 'Inter Variable', sans-serif;
-    --font-mono: var(--font-mono);
-    --font-serif: var(--font-serif);
-    --font-label: var(--font-label);
-    --radius-sm: calc(var(--radius) - 4px);
-    --radius-md: calc(var(--radius) - 2px);
+    --font-sans: var(--app-font-sans);
+    --font-mono: var(--app-font-mono);
+    --font-serif: var(--app-font-serif);
+    --font-label: var(--app-font-label);
+    --radius-sm: 0px;
+    --radius-md: 0px;
     --radius-lg: var(--radius);
-    --radius-xl: calc(var(--radius) + 4px);
+    --radius-xl: var(--radius);
     --radius-2xl: var(--radius);
     --radius-3xl: var(--radius);
     --radius-4xl: var(--radius);
@@ -1705,47 +1904,67 @@
     --color-surface-selected: var(--surface-selected);
     --color-surface-selected-hover: var(--surface-selected-hover);
     --color-border-subtle: var(--border-subtle);
-    --color-app-bg: var(--color-app-bg);
-    --color-sidebar-bg: var(--color-sidebar-bg);
-    --color-toolbar-bg: var(--color-toolbar-bg);
-    --color-titlebar-bg: var(--color-titlebar-bg);
-    --color-tabbar-bg: var(--color-tabbar-bg);
-    --color-tab-active-bg: var(--color-tab-active-bg);
-    --color-table-bg: var(--color-table-bg);
-    --color-row-hover: var(--color-row-hover);
-    --color-row-selected: var(--color-row-selected);
-    --color-row-alt: var(--color-row-alt);
-    --color-cell-focus-bg: var(--color-cell-focus-bg);
-    --color-filter-bar-bg: var(--color-filter-bar-bg);
-    --color-input-bg: var(--color-input-bg);
-    --color-sidebar-item-hover: var(--color-sidebar-item-hover);
-    --color-sidebar-item-active: var(--color-sidebar-item-active);
-    --color-border-app: var(--color-border-app);
-    --color-border-sidebar: var(--color-border-sidebar);
-    --color-border-table: var(--color-border-table);
-    --color-border-header: var(--color-border-header);
-    --color-border-cell-focus: var(--color-border-cell-focus);
-    --color-border-input: var(--color-border-input);
-    --color-row-border: var(--color-row-border);
-    --color-text-primary: var(--color-text-primary);
-    --color-text-secondary: var(--color-text-secondary);
-    --color-text-muted: var(--color-text-muted);
-    --color-text-null: var(--color-text-null);
-    --color-text-sidebar-item: var(--color-text-sidebar-item);
-    --color-text-sidebar-active: var(--color-text-sidebar-active);
-    --color-text-table-header: var(--color-text-table-header);
-    --color-text-tag-applied: var(--color-text-tag-applied);
-    --color-accent-blue: var(--color-accent-blue);
-    --color-accent-green: var(--color-accent-green);
-    --color-accent-orange: var(--color-accent-orange);
-    --color-accent-purple: var(--color-accent-purple);
-    --color-accent-red: var(--color-accent-red);
-    --color-tag-applied-bg: var(--color-tag-applied-bg);
-    --color-tag-applied-text: var(--color-tag-applied-text);
-    --color-code-preview-bg: var(--color-code-preview-bg);
-    --color-code-preview-header-bg: var(--color-code-preview-header-bg);
-    --color-code-preview-text: var(--color-code-preview-text);
+    --color-app-bg: var(--surface-0);
+    --color-sidebar-bg: var(--surface-1);
+    --color-toolbar-bg: var(--surface-2);
+    --color-titlebar-bg: var(--surface-1);
+    --color-tabbar-bg: var(--surface-1);
+    --color-tab-active-bg: var(--surface-3);
+    --color-table-bg: var(--surface-3);
+    --color-row-hover: var(--surface-hover);
+    --color-row-selected: var(--surface-selected);
+    --color-row-alt: var(--surface-2);
+    --color-cell-focus-bg: var(--surface-selected);
+    --color-filter-bar-bg: var(--surface-2);
+    --color-input-bg: var(--surface-elevated);
+    --color-sidebar-item-hover: var(--sidebar-accent);
+    --color-sidebar-item-active: var(--surface-selected);
+    --color-border-app: var(--border);
+    --color-border-sidebar: var(--sidebar-border);
+    --color-border-table: var(--border-subtle);
+    --color-border-header: var(--border-subtle);
+    --color-border-cell-focus: var(--ring);
+    --color-border-input: var(--input);
+    --color-row-border: var(--border);
+    --color-text-primary: var(--foreground);
+    --color-text-secondary: var(--muted-foreground);
+    --color-text-muted: var(--muted-foreground);
+    --color-text-null: var(--muted-foreground);
+    --color-text-sidebar-item: var(--sidebar-foreground);
+    --color-text-sidebar-active: var(--sidebar-primary);
+    --color-text-table-header: var(--muted-foreground);
+    --color-text-tag-applied: var(--primary-foreground);
+    --color-accent-blue: var(--accent);
+    --color-accent-green: var(--success);
+    --color-accent-orange: var(--chart-5);
+    --color-accent-purple: var(--chart-4);
+    --color-accent-red: var(--destructive);
+    --color-tag-applied-bg: var(--primary);
+    --color-tag-applied-text: var(--primary-foreground);
+    --color-code-preview-bg: var(--card);
+    --color-code-preview-header-bg: var(--muted);
+    --color-code-preview-text: var(--foreground);
     --font-heading: var(--font-sans);
+    /* ========================================
+   * EMBER ENV SAFETY COLOR ALIASES
+   * ====================================== */
+    --color-env-prod: var(--env-prod);
+    --color-env-staging: var(--env-staging);
+    --color-env-local: var(--env-local);
+    --color-env-brand: var(--env-brand);
+    --color-env-color: var(--env-color);
+    /* ========================================
+   * SQL SYNTAX COLOR ALIASES
+   * ====================================== */
+    --color-sql-destructive: var(--sql-destructive);
+    --color-sql-modifying: var(--sql-modifying);
+    --color-sql-read: var(--sql-read);
+    --color-sql-keyword: var(--sql-keyword);
+    --color-sql-string: var(--sql-string);
+    --color-sql-type: var(--sql-type);
+    --color-sql-identifier: var(--sql-identifier);
+    /* Success */
+    --color-success: var(--success);
 }
 
 @layer base {
@@ -1835,5 +2054,14 @@
 
     .scrollbar-thin::-webkit-scrollbar-thumb:hover {
         background: var(--muted-foreground);
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after {
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.01ms !important;
+        scroll-behavior: auto !important;
     }
 }

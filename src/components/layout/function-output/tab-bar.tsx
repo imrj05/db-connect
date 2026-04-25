@@ -34,7 +34,7 @@ export function TabBar({
 }) {
 	if (tabs.length === 0) return null;
 	return (
-		<div className="flex h-12 shrink-0 items-center gap-1.5 overflow-x-auto border-b border-border-subtle bg-surface-1/94 px-3.5 py-1 no-scrollbar">
+		<div className="flex h-10 shrink-0 items-center gap-1.5 overflow-x-auto border-b border-border-subtle bg-surface-1/94 px-3.5 py-1 no-scrollbar">
 			{tabs.map((tab) => {
 				const isActive = tab.id === activeTabId;
 				const hasPendingEdits = tab.pendingEdits.length > 0;

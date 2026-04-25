@@ -11,13 +11,13 @@ import {
 	AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { useAppStore } from "@/store/useAppStore";
-import { IdleView } from "@/components/layout/function-output/IdleView";
-import { ConnectionsHome } from "@/components/layout/function-output/ConnectionsHome";
-import { TableListView } from "@/components/layout/function-output/TableListView";
-import { ConnectionSrcView } from "@/components/layout/function-output/ConnectionSrcView";
-import { TabBar } from "@/components/layout/function-output/TabBar";
+import { IdleView } from "@/components/layout/function-output/idle-view";
+import { ConnectionsHome } from "@/components/layout/function-output/connections-home";
+import { TableListView } from "@/components/layout/function-output/table-list-view";
+import { ConnectionSrcView } from "@/components/layout/function-output/connection-src-view";
+import { TabBar } from "@/components/layout/function-output/tab-bar";
 import { TableGridView } from "@/components/layout/function-output/table-grid-view";
-import { SqlEditorView } from "@/components/layout/function-output/SqlEditorView";
+import { SqlEditorView } from "@/components/layout/function-output/sql-editor-view";
 
 function isDestructive(sql: string): boolean {
 	return /\b(DELETE|DROP|TRUNCATE)\b/i.test(sql.trim());
@@ -36,7 +36,7 @@ function isEditableElement(target: EventTarget | null): boolean {
 	);
 }
 
-// ─── Main FunctionOutput component ────────────────────────────────────────────
+// ─── Main Function Output Panel ───────────────────────────────────────────────
 const FunctionOutput = () => {
 	const {
 		invocationResult,

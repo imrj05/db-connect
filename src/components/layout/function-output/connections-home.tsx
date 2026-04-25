@@ -7,7 +7,7 @@ import {
 } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
 import { DB_LOGO, DB_COLOR } from "@/lib/db-ui";
-import { GROUP_PRESETS } from "@/components/layout/ConnectionDialog";
+import { GROUP_PRESETS } from "@/components/layout/connection-dialog-modal";
 import { ConnectionConfig } from "@/types";
 
 function buildConnectionUrl(conn: ConnectionConfig): string {
@@ -139,7 +139,7 @@ export function ConnectionsHome({
 								className={cn(
 									"flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wide shrink-0 px-3 py-1 rounded-full",
 									isConnected
-										? "text-emerald-600 dark:text-emerald-400 bg-emerald-500/10"
+										? "text-accent-green bg-accent-green/10"
 										: "text-foreground/54 bg-surface-2",
 								)}
 							>
@@ -147,7 +147,7 @@ export function ConnectionsHome({
 									className={cn(
 										"w-1.5 h-1.5 rounded-full shrink-0",
 										isConnected
-											? "bg-emerald-500"
+											? "bg-accent-green"
 											: "bg-muted-foreground/30",
 									)}
 								/>

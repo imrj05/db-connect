@@ -2,7 +2,7 @@ import { useState } from "react";
 import { ChevronDown, ChevronRight, Folder, FolderOpen } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { ConnectionFunction, ColumnInfo } from "@/types";
-import { TableRow } from "@/components/layout/sidebar/TableRow";
+import { TableRow } from "@/components/layout/sidebar/table-row";
 
 export function SchemaGroup({
     schema,

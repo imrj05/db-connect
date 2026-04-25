@@ -56,10 +56,10 @@ import {
 import { cn } from "@/lib/utils";
 import { suggestPrefix } from "@/lib/db-functions";
 import { DB_LOGO as DB_LOGOS } from "@/lib/db-ui";
-import { EngineSelector } from "@/components/layout/connection-dialog/EngineSelector";
-import { GroupSelector } from "@/components/layout/connection-dialog/GroupSelector";
-import { EngineFields } from "@/components/layout/connection-dialog/EngineFields";
-import { SshTunnelSection } from "@/components/layout/connection-dialog/SshTunnelSection";
+import { EngineSelector } from "@/components/layout/connection-dialog/engine-selector";
+import { GroupSelector } from "@/components/layout/connection-dialog/group-selector";
+import { EngineFields } from "@/components/layout/connection-dialog/engine-fields";
+import { SshTunnelSection } from "@/components/layout/connection-dialog/ssh-tunnel-section";
 // ── Types ──────────────────────────────────────────────────────────────────────
 interface ConnectionDialogProps {
     onClose: () => void;

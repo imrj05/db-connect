@@ -1,14 +1,14 @@
 import { useEffect, useState, useRef, useCallback } from "react";
-import Sidebar from "./components/layout/app-sidebar";
+import Sidebar from "./components/layout/app-sidebar-panel";
 import TitleBar from "./components/layout/title-bar";
-import FunctionOutput from "./components/layout/FunctionOutput";
+import FunctionOutput from "./components/layout/function-output-panel";
 import { useAppStore } from "./store/useAppStore";
 import { CommandPalette } from "./components/layout/command-palette";
-import ConnectionDialog from "./components/layout/ConnectionDialog";
+import ConnectionDialog from "./components/layout/connection-dialog-modal";
 import {
     Onboarding,
     shouldShowOnboarding,
-} from "./components/layout/app-onboarding";
+} from "./components/layout/app-onboarding-screen";
 import { SettingsPage } from "./components/layout/function-output/settings-page";
 import { TooltipProvider } from "./components/ui/tooltip";
 import { Toaster } from "@/components/ui/sonner";
@@ -173,8 +173,8 @@ function App() {
                 : `"${monoFont}", monospace`;
         }
 
-        document.documentElement.style.setProperty("--font-sans", sansList);
-        document.documentElement.style.setProperty("--font-mono", monoList);
+        document.documentElement.style.setProperty("--app-font-sans", sansList);
+        document.documentElement.style.setProperty("--app-font-mono", monoList);
     }, [appSettings.uiFontFamily, appSettings.monoFontFamily]);
 
     // ⌘W / Ctrl+W — close active tab, or show close-app dialog when no tabs remain
@@ -291,7 +291,7 @@ function App() {
                         isLicensed={licenseCheck?.ok ?? null}
                         onActivate={() => setLicenseDialogOpen(true)}
                     />
-                    <main className="relative z-0 flex-1 overflow-hidden flex bg-app-bg p-2 gap-2">
+                    <main className="relative z-0 flex-1 overflow-hidden flex bg-app-bg p-1.5 gap-1.5">
                         {/* Sidebar — collapses smoothly */}
                         <div
                             ref={sidebarRef}

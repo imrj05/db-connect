@@ -43,7 +43,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Alert, AlertAction, AlertTitle } from "@/components/ui/alert";
 import { useAppStore } from "@/store/useAppStore";
-import { QueryLog } from "@/components/layout/function-output/QueryLog";
+import { QueryLog } from "@/components/layout/function-output/query-log";
 import { cn } from "@/lib/utils";
 import {
     Table,
@@ -74,23 +74,23 @@ import {
 } from "@/types";
 import { tauriApi } from "@/lib/tauri-api";
 import { toast } from "@/components/ui/sonner";
-import { GridToolbar } from "@/components/layout/function-output/table-grid/GridToolbar";
-import { FilterBar } from "@/components/layout/function-output/table-grid/FilterBar";
-import { ImportPanel } from "@/components/layout/function-output/table-grid/ImportPanel";
-import { RowContextMenu } from "@/components/layout/function-output/table-grid/RowContextMenu";
-import { ColumnContextMenu } from "@/components/layout/function-output/table-grid/ColumnContextMenu";
-import { CellEditModal } from "@/components/layout/function-output/table-grid/CellEditModal";
-import { DeleteRowDialog } from "@/components/layout/function-output/table-grid/DeleteRowDialog";
-import { ColumnNullDialog } from "@/components/layout/function-output/table-grid/ColumnNullDialog";
-import { DropTableDialog } from "@/components/layout/function-output/table-grid/DropTableDialog";
-import { RenameTableDialog } from "@/components/layout/function-output/table-grid/RenameTableDialog";
-import { AddColumnDialog } from "@/components/layout/function-output/table-grid/AddColumnDialog";
-import { DropColumnDialog } from "@/components/layout/function-output/table-grid/DropColumnDialog";
-import { CreateIndexDialog } from "@/components/layout/function-output/table-grid/CreateIndexDialog";
-import { DropIndexDialog } from "@/components/layout/function-output/table-grid/DropIndexDialog";
-import { DumpDatabaseDialog, type DumpOptions } from "@/components/layout/function-output/table-grid/DumpDatabaseDialog";
-import { ImportSqlDialog } from "@/components/layout/function-output/table-grid/ImportSqlDialog";
-import { ERDiagramView } from "@/components/layout/function-output/table-grid/ERDiagramView";
+import { GridToolbar } from "@/components/layout/function-output/table-grid/grid-toolbar";
+import { FilterBar } from "@/components/layout/function-output/table-grid/filter-bar";
+import { ImportPanel } from "@/components/layout/function-output/table-grid/import-panel";
+import { RowContextMenu } from "@/components/layout/function-output/table-grid/row-context-menu";
+import { ColumnContextMenu } from "@/components/layout/function-output/table-grid/column-context-menu";
+import { CellEditModal } from "@/components/layout/function-output/table-grid/cell-edit-modal";
+import { DeleteRowDialog } from "@/components/layout/function-output/table-grid/delete-row-dialog";
+import { ColumnNullDialog } from "@/components/layout/function-output/table-grid/column-null-dialog";
+import { DropTableDialog } from "@/components/layout/function-output/table-grid/drop-table-dialog";
+import { RenameTableDialog } from "@/components/layout/function-output/table-grid/rename-table-dialog";
+import { AddColumnDialog } from "@/components/layout/function-output/table-grid/add-column-dialog";
+import { DropColumnDialog } from "@/components/layout/function-output/table-grid/drop-column-dialog";
+import { CreateIndexDialog } from "@/components/layout/function-output/table-grid/create-index-dialog";
+import { DropIndexDialog } from "@/components/layout/function-output/table-grid/drop-index-dialog";
+import { DumpDatabaseDialog, type DumpOptions } from "@/components/layout/function-output/table-grid/dump-database-dialog";
+import { ImportSqlDialog } from "@/components/layout/function-output/table-grid/import-sql-dialog";
+import { ERDiagramView } from "@/components/layout/function-output/table-grid/er-diagram-view";
 
 type ViewMode = "data" | "form" | "structure" | "er";
 
@@ -2556,7 +2556,7 @@ export function TableGridView({
                                                     {col.dataType}
                                                 </span>
                                                 {col.isPrimary && (
-                                                    <Badge variant="outline" className="h-4 rounded-md border-amber-500/20 bg-amber-500/10 px-1 text-[9px] text-amber-700 dark:text-amber-300">PK</Badge>
+                                                    <Badge variant="outline" className="h-4 rounded-md border-warning/20 bg-warning/10 px-1 text-[9px] text-warning">PK</Badge>
                                                     )}
                                                 {col.isUnique &&
                                                     !col.isPrimary && (
@@ -2663,7 +2663,7 @@ export function TableGridView({
                                                         </span>
                                                     )}
                                                     {idx.unique && (
-                                                        <Badge variant="outline" className="h-4 rounded-md border-emerald-500/20 bg-emerald-500/10 px-1 text-[9px] text-emerald-600 dark:text-emerald-400">UNIQUE</Badge>
+                                                        <Badge variant="outline" className="h-4 rounded-md border-accent-green/20 bg-accent-green/10 px-1 text-[9px] text-accent-green">UNIQUE</Badge>
                                                     )}
                                                 </div>
                                                 <Button

@@ -34,11 +34,11 @@ import {
 	QueryHistoryEntry,
 	SavedQuery,
 } from "@/types";
-import { QueryLog } from "@/components/layout/function-output/QueryLog";
-import { QueryHistoryPanel } from "@/components/layout/function-output/sql-editor/QueryHistoryPanel";
-import { SavedQueriesPanel } from "@/components/layout/function-output/sql-editor/SavedQueriesPanel";
-import { SqlEditorToolbar } from "@/components/layout/function-output/sql-editor/SqlEditorToolbar";
-import { ResultsGrid } from "@/components/layout/function-output/sql-editor/ResultsGrid";
+import { QueryLog } from "@/components/layout/function-output/query-log";
+import { QueryHistoryPanel } from "@/components/layout/function-output/sql-editor/query-history-panel";
+import { SavedQueriesPanel } from "@/components/layout/function-output/sql-editor/saved-queries-panel";
+import { SqlEditorToolbar } from "@/components/layout/function-output/sql-editor/sql-editor-toolbar";
+import { ResultsGrid } from "@/components/layout/function-output/sql-editor/results-grid";
 
 // Theme imports
 import { monokai } from "@fsegurai/codemirror-theme-monokai";
@@ -374,7 +374,7 @@ export function SqlEditorView({
 			className={cn(
 				"h-full px-3 rounded-none gap-1.5 text-[11px] font-bold uppercase tracking-widest border-b-2 border-transparent",
 				panel === id
-					? "text-accent-blue border-blue-500"
+					? "text-accent-blue border-primary"
 					: "text-muted-foreground/50 hover:text-muted-foreground",
 			)}
 		>
@@ -618,9 +618,9 @@ export function SqlEditorView({
 							</Button>
 							<span className={cn(
 								"ml-auto text-[10px] font-bold uppercase tracking-[0.12em] px-1.5 py-0.5 rounded-md border",
-								aiConfigured
-									? "border-emerald-500/35 bg-emerald-500/8 text-emerald-700 dark:text-emerald-300"
-									: "border-amber-500/35 bg-amber-500/8 text-amber-700 dark:text-amber-300",
+							aiConfigured
+								? "border-accent-green/35 bg-accent-green/8 text-accent-green"
+								: "border-amber-500/35 bg-amber-500/8 text-amber-700 dark:text-amber-300",
 							)}>
 								{aiConfigured ? `${appSettings.aiProvider} Ready` : `${appSettings.aiProvider} Setup Needed`}
 							</span>

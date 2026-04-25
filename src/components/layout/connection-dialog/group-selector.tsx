@@ -1,7 +1,9 @@
 import { useState } from "react";
 import { X } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { GROUP_PRESETS } from "@/components/layout/ConnectionDialog";
+import { GROUP_PRESETS } from "@/components/layout/connection-dialog-modal";
+import { Input } from "@/components/ui/input";
+import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 
 export function GroupSelector({
 	group,
@@ -15,35 +17,37 @@ export function GroupSelector({
 	);
 
 	return (
-		<div className="space-y-2">
-			{/* Preset pills */}
-			<div className="flex flex-wrap gap-1.5">
-				{GROUP_PRESETS.map(({ id, label, icon: Icon, activeClass }) => {
-					const isActive = group === id;
-					return (
-						<button
-							key={id}
-							type="button"
-							onClick={() => {
-								onChange(isActive ? undefined : id);
-								setCustomGroup("");
-							}}
-							className={cn(
-								"flex items-center gap-1.5 h-7 px-2.5 rounded-md border text-xs font-medium transition-all",
-								isActive
-									? activeClass
-									: "border-border/60 text-muted-foreground/60 hover:border-border hover:text-foreground bg-transparent",
-							)}
-						>
-							<Icon size={11} />
-							{label}
-						</button>
-					);
-				})}
-			</div>
+		<div className="flex flex-col gap-2">
+			<ToggleGroup
+				type="single"
+				value={GROUP_PRESETS.find((preset) => preset.id === group)?.id ?? ""}
+				onValueChange={(value) => {
+					onChange(value || undefined);
+					setCustomGroup("");
+				}}
+				variant="outline"
+				size="sm"
+				spacing={1}
+				className="flex w-full flex-wrap"
+			>
+				{GROUP_PRESETS.map(({ id, label, icon: Icon, activeClass }) => (
+					<ToggleGroupItem
+						key={id}
+						value={id}
+						className={cn(
+							"gap-1.5 px-2.5 text-xs font-medium capitalize",
+							activeClass,
+							"data-[state=off]:border-border/60 data-[state=off]:bg-transparent data-[state=off]:text-muted-foreground/60 data-[state=off]:hover:border-border data-[state=off]:hover:text-foreground"
+						)}
+					>
+						<Icon data-icon="inline-start" className="size-3" />
+						{label}
+					</ToggleGroupItem>
+				))}
+			</ToggleGroup>
 			{/* Custom group input */}
 			<div className="relative">
-				<input
+				<Input
 					type="text"
 					placeholder="Custom group…"
 					value={
@@ -62,9 +66,8 @@ export function GroupSelector({
 						}
 					}}
 					className={cn(
-						"w-full h-8 px-3 rounded-md border bg-transparent text-xs outline-none transition-colors",
-						"placeholder:text-muted-foreground/35 text-foreground",
-						"border-border/60 focus:border-border",
+						"h-8 pr-8 text-xs",
+						"placeholder:text-muted-foreground/35",
 					)}
 				/>
 				{customGroup && !GROUP_PRESETS.find((p) => p.id === group) && group && (

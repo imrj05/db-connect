@@ -3,7 +3,7 @@ import { ChevronDown, ChevronRight, Loader2, Table2 } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
 import { ConnectionFunction, ColumnInfo } from "@/types";
-import { ColumnRow } from "@/components/layout/sidebar/ColumnRow";
+import { ColumnRow } from "@/components/layout/sidebar/column-row";
 
 function midTruncate(name: string, max = 24): string {
     if (name.length <= max) return name;

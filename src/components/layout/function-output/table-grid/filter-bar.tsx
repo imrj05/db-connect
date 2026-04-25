@@ -1,6 +1,8 @@
-import { Loader2, X, Plus, Search } from "lucide-react";
+import { Loader2, X, Plus, Search, ChevronDown } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { NativeSelect, NativeSelectOption } from "@/components/ui/native-select";
+import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { FilterCondition, FilterOp } from "@/types";
 
 const OP_LABELS: Record<FilterOp, string> = {
@@ -50,78 +52,76 @@ export function FilterBar({
           >
             {/* Join indicator for first row */}
             {i === 0 ? (
-              <div className="w-10 h-8 flex items-center justify-center">
+              <div className="flex h-8 w-10 items-center justify-center">
                 {filters.length > 1 ? (
-                  <button
+                  <Button
+                    variant="ghost"
+                    size="icon-xs"
                     onClick={() =>
                       onFilterChange(filters[1].id, {
                         join: filters[1].join === "AND" ? "OR" : "AND",
                       })
                     }
-                    className="text-[10px] font-semibold uppercase tracking-[0.14em] px-2 py-1.5 rounded-[4px] bg-surface-3 text-foreground/60 hover:bg-surface-selected/82 hover:text-foreground transition-colors"
+                    className="size-8 text-foreground/60 hover:bg-surface-selected/82 hover:text-foreground"
                     title="Toggle AND/OR"
+                    aria-label="Toggle first filter join"
                   >
-                    <svg
-                      width="12"
-                      height="12"
-                      viewBox="0 0 24 24"
-                      fill="none"
-                      stroke="currentColor"
-                      strokeWidth="2"
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                    >
-                      <path d="M6 9l6 6 6-6" />
-                    </svg>
-                  </button>
-                ) : (
-                  <span className="text-[10px] font-mono text-foreground/40"></span>
-                )}
+                    <ChevronDown />
+                  </Button>
+                ) : null}
               </div>
             ) : (
-              /* Join label for subsequent rows */
-              <button
-                onClick={() =>
-                  onFilterChange(f.id, {
-                    join: f.join === "AND" ? "OR" : "AND",
-                  })
-                }
-                className="w-10 h-8 flex items-center justify-center text-[10px] font-semibold uppercase tracking-[0.14em] rounded-[4px] bg-surface-3 text-foreground/60 hover:bg-surface-selected/82 hover:text-foreground transition-colors"
-                title="Toggle AND/OR"
+              <ToggleGroup
+                type="single"
+                value={f.join}
+                onValueChange={(value) => {
+                  if (value === "AND" || value === "OR") {
+                    onFilterChange(f.id, { join: value });
+                  }
+                }}
+                variant="outline"
+                size="sm"
+                className="w-10"
               >
-                {f.join}
-              </button>
+                <ToggleGroupItem
+                  value={f.join}
+                  className="h-8 w-10 rounded-[4px] px-0 text-[10px] font-semibold uppercase tracking-[0.14em]"
+                  aria-label={`Join with ${f.join}`}
+                >
+                  {f.join}
+                </ToggleGroupItem>
+              </ToggleGroup>
             )}
 
             {/* Column select */}
-            <select
+            <NativeSelect
               value={f.col}
               aria-label="Filter column"
               onChange={(e) => onFilterChange(f.id, { col: e.target.value })}
-              className="h-8 px-2.5 rounded-[4px] bg-surface-elevated/94 border border-border-subtle text-[12px] text-foreground min-w-[140px] flex-1 max-w-[220px] focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/40"
+              className="min-w-[140px] max-w-[220px] flex-1"
             >
-              <option value="">Select column</option>
+              <NativeSelectOption value="">Select column</NativeSelectOption>
               {/* Include selected column even if not in availableCols to preserve selection */}
               {f.col && !availableCols.includes(f.col) && (
-                <option key={f.col} value={f.col}>
+                <NativeSelectOption key={f.col} value={f.col}>
                   {f.col}
-                </option>
+                </NativeSelectOption>
               )}
               {availableCols.map((c) => (
-                <option key={c} value={c}>
+                <NativeSelectOption key={c} value={c}>
                   {c}
-                </option>
+                </NativeSelectOption>
               ))}
-            </select>
+            </NativeSelect>
 
             {/* Operator select */}
-            <select
+            <NativeSelect
               value={f.op}
               aria-label="Filter operator"
               onChange={(e) =>
                 onFilterChange(f.id, { op: e.target.value as FilterOp })
               }
-              className="h-8 px-2.5 rounded-[4px] bg-surface-elevated/94 border border-border-subtle text-[12px] text-foreground min-w-[130px] flex-1 max-w-[170px] focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/40"
+              className="min-w-[130px] max-w-[170px] flex-1"
             >
               {(
                 [
@@ -137,11 +137,11 @@ export function FilterBar({
                   "IS NOT NULL",
                 ] as FilterOp[]
               ).map((op) => (
-                <option key={op} value={op}>
+                <NativeSelectOption key={op} value={op}>
                   {OP_LABELS[op]}
-                </option>
+                </NativeSelectOption>
               ))}
-            </select>
+            </NativeSelect>
 
             {/* Value input */}
             {f.op !== "IS NULL" && f.op !== "IS NOT NULL" ? (

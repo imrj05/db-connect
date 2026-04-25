@@ -52,6 +52,8 @@ export function EngineFields({
 							onChange={(e) => onPatch({ uri: e.target.value })}
 							placeholder="mongodb+srv://user:pass@cluster0.example.net/db"
 							className="h-9 bg-muted/30 font-mono text-[12px]"
+							name="db-uri"
+							autoComplete="off"
 						/>
 					</div>
 				) : formData.type === "sqlite" ? (
@@ -66,6 +68,8 @@ export function EngineFields({
 								onChange={(e) => onPatch({ database: e.target.value })}
 								placeholder="/path/to/database.sqlite"
 								className="h-9 bg-muted/30 font-mono text-[12px] flex-1"
+								name="db-file"
+								autoComplete="off"
 							/>
 							<Button
 								type="button"
@@ -98,6 +102,8 @@ export function EngineFields({
 									onChange={(e) => onPatch({ host: e.target.value })}
 									placeholder="localhost"
 									className="h-9 bg-muted/30"
+									name="db-host"
+									autoComplete="off"
 								/>
 							</div>
 							<div>
@@ -108,6 +114,8 @@ export function EngineFields({
 									onChange={(e) => onPatch({ port: parseInt(e.target.value) || 0 })}
 									placeholder="5432"
 									className="h-9 bg-muted/30 font-mono"
+									name="db-port"
+									autoComplete="off"
 								/>
 							</div>
 						</div>
@@ -125,6 +133,8 @@ export function EngineFields({
 										onChange={(e) => onPatch({ user: e.target.value })}
 										placeholder="database_user"
 										className="h-9 bg-muted/30"
+										name="db-username"
+										autoComplete="username"
 									/>
 								</div>
 								<div>
@@ -136,6 +146,8 @@ export function EngineFields({
 											onChange={(e) => onPatch({ password: e.target.value })}
 											placeholder="••••••••"
 											className="h-9 bg-muted/30 pr-9"
+											name="db-password"
+											autoComplete="current-password"
 										/>
 										<Button
 											type="button"
@@ -163,6 +175,8 @@ export function EngineFields({
 									onChange={(e) => onPatch({ database: e.target.value })}
 									placeholder="e.g. postgres"
 									className="h-9 bg-muted/30"
+									name="db-database"
+									autoComplete="off"
 								/>
 							</div>
 						)}

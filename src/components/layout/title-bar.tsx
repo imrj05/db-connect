@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, type CSSProperties } from "react";
+import { useState, type CSSProperties } from "react";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import {
     Search,
@@ -13,6 +13,7 @@ import {
     Database,
     KeyRound,
     RefreshCw,
+    CheckIcon,
 } from "lucide-react";
 import { useAppStore } from "@/store/useAppStore";
 import { DB_LOGO, DB_COLOR } from "@/lib/db-ui";
@@ -22,8 +23,16 @@ import {
     TooltipContent,
     TooltipTrigger,
 } from "@/components/ui/tooltip";
+import {
+    DropdownMenu,
+    DropdownMenuContent,
+    DropdownMenuItem,
+    DropdownMenuLabel,
+    DropdownMenuSeparator,
+    DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { cn } from "@/lib/utils";
-import { GROUP_PRESETS } from "@/components/layout/ConnectionDialog";
+import { GROUP_PRESETS } from "@/components/layout/connection-dialog-modal";
 import type { ConnectionConfig } from "@/types";
 // Inline styles — only reliable way to set -webkit-app-region in Tauri 2
 const noDragStyle: CSSProperties = {
@@ -66,12 +75,11 @@ function buildDisplayUrl(conn: ConnectionConfig): string {
     const db = conn.database ? `/${conn.database}` : "";
     return `${proto}://${user}${host}${port}${db}`;
 }
-// ── TitleBar ────────────────────────────────────────────────────────────���─────
+// ── Title Bar ─────────────────────────────────────────────────────────────────
 interface TitleBarProps {
     isLicensed?: boolean | null;
     onActivate?: () => void;
 }
-
 const TitleBar = ({ isLicensed, onActivate }: TitleBarProps) => {
     const {
         setCommandPaletteOpen,
@@ -95,38 +103,9 @@ const TitleBar = ({ isLicensed, onActivate }: TitleBarProps) => {
         refreshDatabases,
         setActiveConnection,
     } = useAppStore();
-    const [connMenuOpen, setConnMenuOpen] = useState(false);
-    const connMenuRef = useRef<HTMLDivElement>(null);
     const [dbMenuOpen, setDbMenuOpen] = useState(false);
-    const dbMenuRef = useRef<HTMLDivElement>(null);
     const isMac =
         typeof navigator !== "undefined" && /Mac|iPhone|iPad|iPod/.test(navigator.platform);
-    useEffect(() => {
-        if (!connMenuOpen) return;
-        const handler = (e: MouseEvent) => {
-            if (
-                connMenuRef.current &&
-                !connMenuRef.current.contains(e.target as Node)
-            ) {
-                setConnMenuOpen(false);
-            }
-        };
-        document.addEventListener("mousedown", handler);
-        return () => document.removeEventListener("mousedown", handler);
-    }, [connMenuOpen]);
-    useEffect(() => {
-        if (!dbMenuOpen) return;
-        const handler = (e: MouseEvent) => {
-            if (
-                dbMenuRef.current &&
-                !dbMenuRef.current.contains(e.target as Node)
-            ) {
-                setDbMenuOpen(false);
-            }
-        };
-        document.addEventListener("mousedown", handler);
-        return () => document.removeEventListener("mousedown", handler);
-    }, [dbMenuOpen]);
     // Resolve which connection is "active" — prefer the one tied to the active function
     const activeConn =
         (activeFunction
@@ -155,11 +134,11 @@ const TitleBar = ({ isLicensed, onActivate }: TitleBarProps) => {
     // All currently connected connections, active-first
     const connectedConns = connections.filter((c) =>
         connectedIds.includes(c.id),
-);
+    );
     const orderedConns = activeConn
         ? [activeConn, ...connectedConns.filter((c) => c.id !== activeConn.id)]
         : [];
-    const leadingInset = isMac ? 78 : 12;
+    const leadingInset = isMac ? 85 : 12;
     return (
         <header
             onMouseDown={handleTitleBarMouseDown}
@@ -249,7 +228,7 @@ const TitleBar = ({ isLicensed, onActivate }: TitleBarProps) => {
                         </Tooltip>
                     </>
                 ) : (
-                    <span className="text-[11px] font-black uppercase tracking-[0.16em] text-foreground/48">
+                    <span className="text-[11px] font-semibold uppercase tracking-[0.14em] text-foreground/48">
                         DB Connect
                     </span>
                 )}
@@ -314,221 +293,156 @@ const TitleBar = ({ isLicensed, onActivate }: TitleBarProps) => {
                     <span className="font-mono text-[10px] text-foreground/45">Cmd+K</span>
                 </Button>
                 {showDbPicker && (
-                    <div
-                        ref={dbMenuRef}
-                        className="relative"
-                        style={noDragStyle}
-                    >
-                        <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => setDbMenuOpen((o) => !o)}
-                            className="h-8 px-3 text-[11px] font-medium gap-1.5 text-foreground/68 border-border-subtle bg-surface-3/92 hover:text-foreground rounded-md"
-                        >
-                            <Database
-                                size={10}
-                                className="shrink-0 text-foreground/55"
-                            />
-                            <span className="max-w-[92px] truncate">
-                                {selectedDb ?? "Select DB"}
-                            </span>
-                            <ChevronDown
-                                size={9}
-                                className="text-foreground/45 shrink-0"
-                            />
-                        </Button>
-                        {dbMenuOpen && (
-                            <div className="absolute right-0 top-full mt-1 w-52 z-[80] bg-popover/98 border border-border-subtle rounded-md shadow-md p-1 text-popover-foreground backdrop-blur-xl">
-                                <div className="flex items-center justify-between px-2 py-1.5 mb-1">
-                                    <p className="text-[10px] font-bold uppercase tracking-widest text-foreground/55">
-                                        Databases
-                                    </p>
-                                    <Tooltip>
-                                        <TooltipTrigger asChild>
-                                            <Button
-                                                variant="ghost"
-                                                size="icon-xs"
-                                                aria-label="Refresh databases"
-                                                className="size-6 text-foreground/45 hover:text-foreground shrink-0"
-                                                onClick={() => {
-                                                    refreshDatabases(activeConn!.id);
-                                                    setDbMenuOpen(false);
-                                                }}
-                                            >
-                                                <RefreshCw size={9} />
-                                            </Button>
-                                        </TooltipTrigger>
-                                        <TooltipContent side="top" sideOffset={4}>
-                                            Refresh databases
-                                        </TooltipContent>
-                                    </Tooltip>
-                                </div>
-                                {activeDatabases.map((db) => (
-                                    <div
-                                        key={db}
-                                        className={cn(
-                                            "flex items-center gap-2 px-2.5 py-2 rounded-md text-[12px] cursor-pointer hover:bg-surface-selected/82 transition-colors",
-                                            db === selectedDb
-                                                ? "font-bold text-foreground"
-                                                : "text-foreground/78",
-                                        )}
-                                        onClick={() => {
-                                            selectDatabase(activeConn!.id, db);
-                                            setDbMenuOpen(false);
-                                        }}
-                                    >
-                                        <Database
-                                            size={10}
-                                            className="shrink-0 text-muted-foreground/50"
-                                        />
-                                        <span className="truncate">{db}</span>
-                                        {db === selectedDb && (
-                                            <span className="ml-auto text-[10px] font-black uppercase tracking-wider px-1.5 py-0.5 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 rounded-md shrink-0">
-                                                Active
-                                            </span>
-                                        )}
-                                    </div>
-                                ))}
+                    <DropdownMenu open={dbMenuOpen} onOpenChange={setDbMenuOpen}>
+                        <DropdownMenuTrigger asChild style={noDragStyle}>
+                            <Button
+                                variant="outline"
+                                size="sm"
+                                className="h-8 px-3 text-[11px] font-medium gap-1.5 text-foreground/68 border-border-subtle bg-surface-3/92 hover:text-foreground rounded-md"
+                            >
+                                <Database size={10} className="shrink-0 text-foreground/55" />
+                                <span className="max-w-[92px] truncate">
+                                    {selectedDb ?? "Select DB"}
+                                </span>
+                                <ChevronDown size={9} className="text-foreground/45 shrink-0" />
+                            </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end" className="w-52">
+                            <div className="flex items-center justify-between px-2 py-1.5">
+                                <DropdownMenuLabel className="p-0 text-[10px] font-semibold uppercase tracking-widest text-foreground/55">
+                                    Databases
+                                </DropdownMenuLabel>
+                                <Tooltip>
+                                    <TooltipTrigger asChild>
+                                        <Button
+                                            variant="ghost"
+                                            size="icon-xs"
+                                            aria-label="Refresh databases"
+                                            className="size-6 text-foreground/45 hover:text-foreground shrink-0"
+                                            onClick={() => {
+                                                refreshDatabases(activeConn!.id);
+                                                setDbMenuOpen(false);
+                                            }}
+                                        >
+                                            <RefreshCw size={9} />
+                                        </Button>
+                                    </TooltipTrigger>
+                                    <TooltipContent side="top" sideOffset={4}>
+                                        Refresh databases
+                                    </TooltipContent>
+                                </Tooltip>
                             </div>
-                        )}
-                    </div>
+                            <DropdownMenuSeparator />
+                            {activeDatabases.map((db) => (
+                                <DropdownMenuItem
+                                    key={db}
+                                    onSelect={() => selectDatabase(activeConn!.id, db)}
+                                    className="gap-2 text-[12px]"
+                                >
+                                    <Database size={10} className="shrink-0 text-muted-foreground/50" />
+                                    <span className="truncate flex-1">{db}</span>
+                                    {db === selectedDb && (
+                                        <CheckIcon size={11} className="text-foreground/60 shrink-0" />
+                                    )}
+                                </DropdownMenuItem>
+                            ))}
+                        </DropdownMenuContent>
+                    </DropdownMenu>
                 )}
                 {connectedConns.length > 0 && (
-                    <div
-                        ref={connMenuRef}
-                        className="relative"
-                        style={noDragStyle}
-                    >
-                        <Button
-                                            variant="outline"
-                                            size="sm"
-                                            onClick={() => setConnMenuOpen((o) => !o)}
-                            className="h-8 px-3 text-[11px] font-medium gap-1.5 text-foreground/68 border-border-subtle bg-surface-3/92 hover:text-foreground rounded-md"
-                        >
-                            {activeConn ? (
-                                (() => {
-                                    const L =
-                                        DB_LOGO[activeConn.type] ??
-                                        DB_LOGO.postgresql;
-                                    return (
-                                        <L
-                                            className={cn(
-                                                "text-[12px] shrink-0",
-                                                DB_COLOR[activeConn.type] ??
-                                                "text-muted-foreground",
-                                            )}
-                                        />
-                                    );
-                                })()
-                            ) : (
-                                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 shrink-0 animate-pulse" />
-                            )}
-                            <span className="max-w-[112px] truncate">
-                                {activeConn?.name ?? connectedConns[0].name}
-                            </span>
-                            {connectedConns.length > 1 && (
-                                <span className="text-[10px] font-black text-foreground/45">
-                                    +{connectedConns.length - 1}
+                    <DropdownMenu>
+                        <DropdownMenuTrigger asChild style={noDragStyle}>
+                            <Button
+                                variant="outline"
+                                size="sm"
+                                className="h-8 px-3 text-[11px] font-medium gap-1.5 text-foreground/68 border-border-subtle bg-surface-3/92 hover:text-foreground rounded-md"
+                            >
+                                {activeConn ? (
+                                    (() => {
+                                        const L = DB_LOGO[activeConn.type] ?? DB_LOGO.postgresql;
+                                        return (
+                                            <L className={cn("text-[12px] shrink-0", DB_COLOR[activeConn.type] ?? "text-muted-foreground")} />
+                                        );
+                                    })()
+                                ) : (
+                                    <span className="w-1.5 h-1.5 rounded-full bg-accent-green shrink-0 animate-pulse" />
+                                )}
+                                <span className="max-w-[112px] truncate">
+                                    {activeConn?.name ?? connectedConns[0].name}
                                 </span>
-                            )}
-                            <ChevronDown
-                                size={9}
-                                className="text-foreground/45 shrink-0"
-                            />
-                        </Button>
-                        {connMenuOpen && (
-                            <div className="absolute right-0 top-full mt-1 w-80 z-[80] overflow-hidden rounded-lg border border-border-subtle bg-popover/98 text-popover-foreground shadow-lg backdrop-blur-xl">
-                                <div className="flex items-center justify-between border-b border-border-subtle px-2.5 py-2">
-                                    <div className="min-w-0">
-                                        <p className="text-[12px] font-semibold leading-none text-foreground">
-                                            Connections
-                                        </p>
-                                        <p className="mt-0.5 text-[10px] text-muted-foreground/60">
-                                            {connectedConns.length} active
-                                        </p>
-                                    </div>
-                                    <span className="rounded-md border border-emerald-500/20 bg-emerald-500/10 px-1.5 py-0.5 text-[10px] font-medium text-emerald-600 dark:text-emerald-400">
-                                        Live
+                                {connectedConns.length > 1 && (
+                                    <span className="text-[10px] font-semibold text-foreground/45">
+                                        +{connectedConns.length - 1}
                                     </span>
+                                )}
+                                <ChevronDown size={9} className="text-foreground/45 shrink-0" />
+                            </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end" className="w-80 p-0">
+                            <div className="flex items-center justify-between border-b border-border-subtle px-2.5 py-2">
+                                <div className="min-w-0">
+                                    <p className="text-[12px] font-semibold leading-none text-foreground">
+                                        Connections
+                                    </p>
+                                    <p className="mt-0.5 text-[10px] text-muted-foreground/60">
+                                        {connectedConns.length} active
+                                    </p>
                                 </div>
-                                <div className="space-y-1 p-1.5">
+                                <span className="rounded-md border border-accent-green/20 bg-accent-green/10 px-1.5 py-0.5 text-[10px] font-medium text-accent-green">
+                                    Live
+                                </span>
+                            </div>
+                            <div className="space-y-1 p-1.5">
                                 {orderedConns.map((conn) => {
-                                    const Logo =
-                                        DB_LOGO[conn.type] ??
-                                        DB_LOGO.postgresql;
-                                    const color =
-                                        DB_COLOR[conn.type] ??
-                                        "text-muted-foreground";
+                                    const ConnLogo = DB_LOGO[conn.type] ?? DB_LOGO.postgresql;
+                                    const color = DB_COLOR[conn.type] ?? "text-muted-foreground";
                                     const url = buildDisplayUrl(conn);
                                     const isActive = conn.id === activeConn?.id;
                                     return (
-                                        <div
+                                        <DropdownMenuItem
                                             key={conn.id}
-                                            className={cn(
-                                                "group grid grid-cols-[24px_minmax(0,1fr)_24px] items-center gap-2.5 rounded-md px-2 py-2 transition-colors",
-                                                isActive && "bg-surface-selected/64 ring-1 ring-border-subtle",
-                                                !isActive &&
-                                                "cursor-pointer hover:bg-surface-selected/58",
-                                            )}
-                                            onClick={() => {
-                                                if (!isActive) {
-                                                    setActiveConnection(
-                                                        conn.id,
-                                                    );
-                                                    setConnMenuOpen(false);
-                                                }
+                                            onSelect={() => {
+                                                if (!isActive) setActiveConnection(conn.id);
                                             }}
+                                            className={cn(
+                                                "grid grid-cols-[24px_minmax(0,1fr)_24px] items-center gap-2.5 rounded-md px-2 py-2",
+                                                isActive && "bg-surface-selected/64 ring-1 ring-border-subtle focus:bg-surface-selected/64",
+                                            )}
                                         >
                                             <span className={cn(
                                                 "relative flex size-6 shrink-0 items-center justify-center rounded-md bg-surface-3 ring-1 ring-border-subtle",
                                                 isActive && "bg-surface-elevated",
                                             )}>
-                                                <Logo className={cn("text-[13px] shrink-0", color)} />
-                                                <span
-                                                    className={cn(
-                                                        "absolute -right-0.5 -bottom-0.5 size-2 rounded-full border border-popover",
-                                                        isActive ? "bg-emerald-500" : "bg-muted-foreground/35",
-                                                    )}
-                                                />
+                                                <ConnLogo className={cn("text-[13px] shrink-0", color)} />
+                                                <span className={cn(
+                                                    "absolute -right-0.5 -bottom-0.5 size-2 rounded-full border border-popover",
+                                                    isActive ? "bg-accent-green" : "bg-muted-foreground/35",
+                                                )} />
                                             </span>
                                             <div className="flex-1 min-w-0">
                                                 <div className="flex min-w-0 items-center gap-1.5">
-                                                    <span
-                                                        className={cn(
-                                                            "min-w-0 truncate text-[12px] leading-none",
-                                                            isActive
-                                                                ? "font-semibold text-foreground"
-                                                                : "font-medium text-foreground/82",
-                                                        )}
-                                                    >
+                                                    <span className={cn(
+                                                        "min-w-0 truncate text-[12px] leading-none",
+                                                        isActive ? "font-semibold text-foreground" : "font-medium text-foreground/82",
+                                                    )}>
                                                         {conn.name}
                                                     </span>
                                                     {isActive && (
-                                                        <span className="shrink-0 rounded border border-emerald-500/20 bg-emerald-500/10 px-1 py-0.5 text-[9px] font-medium leading-none text-emerald-600 dark:text-emerald-400">
-                                                            Active
-                                                        </span>
+                                                            <span className="shrink-0 rounded border border-accent-green/20 bg-accent-green/10 px-1 py-0.5 text-[9px] font-medium leading-none text-accent-green">
+                                                                Active
+                                                            </span>
                                                     )}
-                                                    {conn.group &&
-                                                        (() => {
-                                                            const preset =
-                                                                GROUP_PRESETS.find(
-                                                                    (p) =>
-                                                                        p.id ===
-                                                                        conn.group,
-                                                                );
-                                                            return (
-                                                                <span
-                                                                    className={cn(
-                                                                        "shrink-0 h-4 px-1.5 flex items-center rounded text-[9px] font-medium border leading-none",
-                                                                        preset
-                                                                            ? preset.activeClass
-                                                                            : "bg-muted/50 border-border/50 text-muted-foreground/60",
-                                                                    )}
-                                                                >
-                                                                    {conn.group}
-                                                                </span>
-                                                            );
-                                                        })()}
+                                                    {conn.group && (() => {
+                                                        const preset = GROUP_PRESETS.find((p) => p.id === conn.group);
+                                                        return (
+                                                            <span className={cn(
+                                                                "shrink-0 h-4 px-1.5 flex items-center rounded text-[9px] font-medium border leading-none",
+                                                                preset ? preset.activeClass : "bg-muted/50 border-border/50 text-muted-foreground/60",
+                                                            )}>
+                                                                {conn.group}
+                                                            </span>
+                                                        );
+                                                    })()}
                                                 </div>
                                                 <div className="mt-1 flex min-w-0 items-center gap-1.5">
                                                     <span className="shrink-0 rounded bg-surface-3 px-1 py-0.5 text-[9px] font-medium leading-none text-muted-foreground/70">
@@ -543,38 +457,31 @@ const TitleBar = ({ isLicensed, onActivate }: TitleBarProps) => {
                                                 variant="ghost"
                                                 size="icon-xs"
                                                 aria-label={`Disconnect ${conn.name}`}
-                                                className="size-6 shrink-0 text-foreground/38 opacity-70 transition-colors hover:bg-destructive/10 hover:text-destructive group-hover:opacity-100 dark:hover:bg-destructive/15"
-                                                onClick={(event) => {
-                                                    event.stopPropagation();
-                                                    disconnectConnection(
-                                                        conn.id,
-                                                    );
+                                                className="size-6 shrink-0 text-foreground/38 opacity-70 transition-colors hover:bg-destructive/10 hover:text-destructive group-hover:opacity-100"
+                                                onClick={(e) => {
+                                                    e.stopPropagation();
+                                                    disconnectConnection(conn.id);
                                                 }}
                                             >
                                                 <WifiOff size={10} />
                                             </Button>
-                                        </div>
+                                        </DropdownMenuItem>
                                     );
                                 })}
-                                </div>
-                                <div className="h-px bg-border-subtle" />
-                                <div
-                                    className="flex cursor-pointer items-center gap-2 px-3 py-2 text-[12px] font-medium text-foreground/72 transition-colors hover:bg-surface-selected/58 hover:text-foreground"
-                                    onClick={() => {
-                                        setConnMenuOpen(false);
-                                        setActiveView("main");
-                                        setShowConnectionsManager(true);
-                                    }}
-                                >
-                                    <ExternalLink
-                                        size={11}
-                                        className="text-muted-foreground"
-                                    />
-                                    Manage connections
-                                </div>
                             </div>
-                        )}
-                    </div>
+                            <DropdownMenuSeparator />
+                            <DropdownMenuItem
+                                onSelect={() => {
+                                    setActiveView("main");
+                                    setShowConnectionsManager(true);
+                                }}
+                                className="gap-2 px-3 py-2 text-[12px] font-medium text-foreground/72"
+                            >
+                                <ExternalLink size={11} className="text-muted-foreground" />
+                                Manage connections
+                            </DropdownMenuItem>
+                        </DropdownMenuContent>
+                    </DropdownMenu>
                 )}
                 {/* License badge — only shown when check is done and not licensed */}
                 {isLicensed === false && (
@@ -585,11 +492,11 @@ const TitleBar = ({ isLicensed, onActivate }: TitleBarProps) => {
                                 variant="outline"
                                 size="sm"
                                 onClick={onActivate}
-                                className="h-8 px-3 gap-1.5 border-amber-500/35 bg-amber-500/8 text-amber-700 dark:text-amber-300 hover:bg-amber-500/12 hover:border-amber-500/50 rounded-md"
-                        >
-                            <KeyRound size={10} className="shrink-0" />
-                            <span className="text-[11px] font-semibold">Activate</span>
-                        </Button>
+                                className="h-8 gap-1.5 rounded-md border-warning/35 bg-warning/8 px-3 text-warning hover:border-warning/50 hover:bg-warning/12"
+                            >
+                                <KeyRound size={10} className="shrink-0" />
+                                <span className="text-[11px] font-semibold">Activate</span>
+                            </Button>
                         </TooltipTrigger>
                         <TooltipContent side="bottom" sideOffset={4}>
                             License not activated — click to activate

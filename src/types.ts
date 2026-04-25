@@ -98,7 +98,7 @@ export interface ConnectionFunction {
   connectionId: string;
   type: ConnectionFunctionType;
   tableName?: string;    // only for type === 'table' | 'tbl'
-  description: string;   // shown in CommandPalette
+  description: string;   // shown in the command palette
 }
 
 export type FunctionOutputType =

@@ -2,6 +2,8 @@ import { useRef } from "react";
 import { Loader2, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
+import { Textarea } from "@/components/ui/textarea";
 
 export function ImportPanel({
 	show,
@@ -40,7 +42,7 @@ export function ImportPanel({
 	return (
 		<div className="shrink-0 border-b border-border bg-card px-3 py-3 flex flex-col gap-2">
 			<div className="flex items-center justify-between">
-				<span className="text-[10px] font-black uppercase tracking-widest text-muted-foreground/50">
+				<span className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground/50">
 					Import data into {tableName}
 				</span>
 				<Button
@@ -56,17 +58,27 @@ export function ImportPanel({
 				<span className="text-[10px] font-mono text-muted-foreground/60">
 					Format:
 				</span>
-				{(["csv", "json"] as const).map((fmt) => (
-					<Button
-						key={fmt}
-						variant={importFormat === fmt ? "secondary" : "outline"}
-						size="xs"
-						onClick={() => onFormatChange(fmt)}
-						className="h-6 text-[10px] font-bold uppercase tracking-widest"
-					>
-						{fmt.toUpperCase()}
-					</Button>
-				))}
+				<ToggleGroup
+					type="single"
+					value={importFormat}
+					onValueChange={(value) => {
+						if (value === "csv" || value === "json") {
+							onFormatChange(value);
+						}
+					}}
+					variant="outline"
+					size="sm"
+				>
+					{(["csv", "json"] as const).map((fmt) => (
+						<ToggleGroupItem
+							key={fmt}
+							value={fmt}
+							className="text-[10px] font-bold uppercase tracking-widest"
+						>
+							{fmt.toUpperCase()}
+						</ToggleGroupItem>
+					))}
+				</ToggleGroup>
 				<Button
 					variant="outline"
 					size="xs"
@@ -83,7 +95,7 @@ export function ImportPanel({
 					onChange={onFileSelect}
 				/>
 			</div>
-			<textarea
+			<Textarea
 				value={importText}
 				onChange={(e) => onTextChange(e.target.value, importFormat)}
 				placeholder={
@@ -92,7 +104,7 @@ export function ImportPanel({
 						: "Paste JSON array of objects…"
 				}
 				rows={4}
-				className="w-full bg-background border border-border rounded px-2 py-1.5 text-[11px] font-mono text-foreground outline-none resize-none"
+				className="min-h-0 resize-none bg-background px-2 py-1.5 text-[11px] font-mono"
 			/>
 			{importError && (
 				<span className="text-[10px] font-mono text-destructive">
@@ -119,7 +131,7 @@ export function ImportPanel({
 				{importDone !== null && (
 					<Badge
 						variant="secondary"
-						className="text-[10px] font-mono h-5 text-accent-green"
+						className="h-5 text-[10px] font-mono text-success"
 					>
 						✓ {importDone} rows imported
 					</Badge>

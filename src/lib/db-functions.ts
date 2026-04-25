@@ -162,9 +162,9 @@ export function buildConnectionFunctions(
 }
 
 /**
- * Filter functions for the CommandPalette.
- * Supports prefix-anchored search ("lahman" → all lahman_* functions)
- * and partial match ("batting" → lahman_batting()).
+ * Filter functions for the command palette.
+ * Supports prefix-anchored search ("lahman" -> all lahman_* functions)
+ * and partial match ("batting" -> lahman_batting()).
  */
 export function filterFunctions(
   allFunctions: ConnectionFunction[],

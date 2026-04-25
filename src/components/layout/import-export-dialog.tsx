@@ -12,16 +12,17 @@ import {
     ChevronLeft,
     AlertTriangle,
     CheckCircle2,
-    X,
 } from "lucide-react";
 import { ConnectionConfig, ConflictStrategy, ExportFormat, ImportFormat, ImportResult } from "@/types";
 import { useAppStore } from "@/store/useAppStore";
 import { tauriApi } from "@/lib/tauri-api";
 import { toast } from "@/components/ui/sonner";
-import { Dialog, DialogContent } from "@/components/ui/dialog";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { cn } from "@/lib/utils";
+import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 
 interface ImportExportDialogProps {
     onClose: () => void;
@@ -35,7 +36,6 @@ export function ImportExportDialog({ onClose, onImportComplete }: ImportExportDi
 
     const [view, setView] = useState<View>("main");
 
-    // ── Export state ──────────────────────────────────────────────────────────
     const [exportFormat, setExportFormat] = useState<ExportFormat>("json");
     const [includePasswords, setIncludePasswords] = useState(false);
     const [exportPassphrase, setExportPassphrase] = useState("");
@@ -43,7 +43,6 @@ export function ImportExportDialog({ onClose, onImportComplete }: ImportExportDi
     const [selectedIds, setSelectedIds] = useState<string[]>([]);
     const [isExporting, setIsExporting] = useState(false);
 
-    // ── Import state ──────────────────────────────────────────────────────────
     const [importFormat, setImportFormat] = useState<ImportFormat>("json");
     const [conflictStrategy, setConflictStrategy] = useState<ConflictStrategy>("skip");
     const [importPassphrase, setImportPassphrase] = useState("");
@@ -52,8 +51,6 @@ export function ImportExportDialog({ onClose, onImportComplete }: ImportExportDi
     const [pendingContent, setPendingContent] = useState<string | null>(null);
     const [isImporting, setIsImporting] = useState(false);
     const [importResult, setImportResult] = useState<ImportResult | null>(null);
-
-    // ── Export logic ──────────────────────────────────────────────────────────
 
     const handleExport = async () => {
         if (includePasswords && !exportPassphrase) {
@@ -108,15 +105,13 @@ export function ImportExportDialog({ onClose, onImportComplete }: ImportExportDi
         );
     };
 
-    // ── Import logic ──────────────────────────────────────────────────────────
-
     const handlePickFile = async () => {
         const filters: Array<{ name: string; extensions: string[] }> =
             importFormat === "dbeaver"
                 ? [{ name: "DBeaver JSON", extensions: ["json"] }]
                 : importFormat === "json"
-                ? [{ name: "JSON", extensions: ["json"] }]
-                : [{ name: "Text", extensions: ["txt", "env"] }];
+                    ? [{ name: "JSON", extensions: ["json"] }]
+                    : [{ name: "Text", extensions: ["txt", "env"] }];
 
         try {
             const filePath = await tauriApi.openFileDialog(filters);
@@ -163,7 +158,6 @@ export function ImportExportDialog({ onClose, onImportComplete }: ImportExportDi
                 toast.info(`All ${result.skipped} connection${result.skipped !== 1 ? "s" : ""} already exist — nothing imported`);
             }
 
-            // Surface non-password DBeaver warnings as single grouped toast
             const warnings = result.errors.filter((e) => e.startsWith("Password for"));
             const others = result.errors.filter((e) => !e.startsWith("Password for"));
             if (warnings.length > 0) {
@@ -177,8 +171,6 @@ export function ImportExportDialog({ onClose, onImportComplete }: ImportExportDi
         }
     };
 
-    // ── Render helpers ────────────────────────────────────────────────────────
-
     const FormatToggle = ({
         options,
         value,
@@ -188,67 +180,65 @@ export function ImportExportDialog({ onClose, onImportComplete }: ImportExportDi
         value: string;
         onChange: (v: string) => void;
     }) => (
-        <div className="flex rounded-md overflow-hidden border border-border/50 bg-muted/30">
+        <ToggleGroup
+            type="single"
+            value={value}
+            onValueChange={(next) => {
+                if (next) onChange(next);
+            }}
+            variant="outline"
+            size="sm"
+            className="grid w-full grid-cols-[repeat(auto-fit,minmax(0,1fr))]"
+        >
             {options.map((opt) => (
-                <button
+                <ToggleGroupItem
                     key={opt.value}
-                    type="button"
-                    onClick={() => onChange(opt.value)}
-                    className={cn(
-                        "flex-1 flex items-center justify-center gap-1.5 px-3 py-2 text-[11px] font-medium transition-colors",
-                        value === opt.value
-                            ? "bg-background text-foreground shadow-sm"
-                            : "text-muted-foreground hover:text-foreground"
-                    )}
+                    value={opt.value}
+                    className="gap-1.5 px-3 text-[11px] font-medium data-[state=off]:text-muted-foreground"
                 >
                     {opt.icon}
                     {opt.label}
-                </button>
+                </ToggleGroupItem>
             ))}
-        </div>
+        </ToggleGroup>
     );
-
-    // ── Main view ─────────────────────────────────────────────────────────────
 
     const MainView = () => (
         <div className="flex flex-col gap-3 py-2">
-            <p className="text-[11px] text-muted-foreground leading-relaxed">
-                Export your connections to share or back up. Import from this app's JSON,
+            <p className="text-[11px] leading-relaxed text-muted-foreground">
+                Export your connections to share or back up. Import from this app&apos;s JSON,
                 connection URI strings, or a DBeaver export.
             </p>
-            <div className="grid grid-cols-2 gap-3 mt-1">
+            <div className="mt-1 grid grid-cols-2 gap-3">
                 <button
                     type="button"
                     onClick={() => setView("export")}
-                    className="flex flex-col items-center gap-3 rounded-md border border-border/50 bg-muted/20 hover:bg-muted/40 p-5 transition-colors group"
+                    className="group flex flex-col items-center gap-3 rounded-md border border-border/50 bg-muted/20 p-5 transition-colors hover:bg-muted/40"
                 >
-                    <Upload size={22} className="text-muted-foreground group-hover:text-foreground transition-colors" />
+                    <Upload size={22} className="text-muted-foreground transition-colors group-hover:text-foreground" />
                     <div className="text-center">
                         <div className="text-[12px] font-semibold">Export</div>
-                        <div className="text-[10px] text-muted-foreground mt-0.5">Save to JSON or URI</div>
+                        <div className="mt-0.5 text-[10px] text-muted-foreground">Save to JSON or URI</div>
                     </div>
                 </button>
                 <button
                     type="button"
                     onClick={() => setView("import")}
-                    className="flex flex-col items-center gap-3 rounded-md border border-border/50 bg-muted/20 hover:bg-muted/40 p-5 transition-colors group"
+                    className="group flex flex-col items-center gap-3 rounded-md border border-border/50 bg-muted/20 p-5 transition-colors hover:bg-muted/40"
                 >
-                    <Download size={22} className="text-muted-foreground group-hover:text-foreground transition-colors" />
+                    <Download size={22} className="text-muted-foreground transition-colors group-hover:text-foreground" />
                     <div className="text-center">
                         <div className="text-[12px] font-semibold">Import</div>
-                        <div className="text-[10px] text-muted-foreground mt-0.5">JSON, URI, or DBeaver</div>
+                        <div className="mt-0.5 text-[10px] text-muted-foreground">JSON, URI, or DBeaver</div>
                     </div>
                 </button>
             </div>
         </div>
     );
 
-    // ── Export view ───────────────────────────────────────────────────────────
-
     const ExportView = () => (
         <div className="flex flex-col gap-4">
-            {/* Format */}
-            <div className="space-y-2">
+            <div className="flex flex-col gap-2">
                 <span className="text-[9px] font-bold uppercase tracking-widest text-muted-foreground/60">
                     Format
                 </span>
@@ -262,35 +252,32 @@ export function ImportExportDialog({ onClose, onImportComplete }: ImportExportDi
                 />
                 {exportFormat === "uri" && (
                     <p className="text-[10px] text-muted-foreground">
-                        One <code className="font-mono text-[9px] bg-muted px-1 rounded">DATABASE_URL</code> per connection.
+                        One <code className="rounded bg-muted px-1 font-mono text-[9px]">DATABASE_URL</code> per connection.
                         Compatible with Prisma, Rails, .env files.
                     </p>
                 )}
             </div>
 
-            {/* Passwords */}
-            <div className="space-y-2">
+            <div className="flex flex-col gap-2">
                 <span className="text-[9px] font-bold uppercase tracking-widest text-muted-foreground/60">
                     Passwords
                 </span>
-                <label className="flex items-center gap-3 cursor-pointer">
-                    <input
-                        type="checkbox"
+                <label className="flex cursor-pointer items-center gap-3">
+                    <Checkbox
                         checked={includePasswords}
-                        onChange={(e) => setIncludePasswords(e.target.checked)}
-                        className="rounded"
+                        onCheckedChange={(checked) => setIncludePasswords(checked === true)}
                     />
                     <span className="text-[11px]">Include passwords in export</span>
                 </label>
                 {includePasswords && exportFormat === "json" && (
                     <div className="relative">
-                        <Lock size={11} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground/50" />
+                        <Lock size={11} className="absolute top-1/2 left-3 -translate-y-1/2 text-muted-foreground/50" />
                         <Input
                             type={showExportPass ? "text" : "password"}
                             value={exportPassphrase}
                             onChange={(e) => setExportPassphrase(e.target.value)}
                             placeholder="Passphrase to protect passwords"
-                            className="h-8 pl-8 pr-8 bg-muted/30 text-[11px]"
+                            className="h-8 bg-muted/30 pr-8 pl-8 text-[11px]"
                         />
                         <button
                             type="button"
@@ -302,59 +289,59 @@ export function ImportExportDialog({ onClose, onImportComplete }: ImportExportDi
                     </div>
                 )}
                 {includePasswords && exportFormat === "uri" && (
-                    <div className="flex items-center gap-2 rounded-md bg-amber-500/10 border border-amber-500/20 px-3 py-2">
-                        <AlertTriangle size={12} className="text-amber-500 shrink-0" />
-                        <span className="text-[10px] text-amber-600 dark:text-amber-400">
+                    <Alert className="border-warning/20 bg-warning/10 text-warning">
+                        <AlertTriangle className="text-warning" />
+                        <AlertTitle className="text-[10px] font-semibold uppercase tracking-wide text-warning">
+                            Plaintext Passwords
+                        </AlertTitle>
+                        <AlertDescription className="text-[10px] text-warning/90">
                             Passwords will be stored as plaintext in the URI file.
-                        </span>
-                    </div>
+                        </AlertDescription>
+                    </Alert>
                 )}
             </div>
 
-            {/* Connection selector */}
-            <div className="space-y-2">
+            <div className="flex flex-col gap-2">
                 <div className="flex items-center justify-between">
                     <span className="text-[9px] font-bold uppercase tracking-widest text-muted-foreground/60">
                         Connections ({selectedIds.length === 0 ? "all" : `${selectedIds.length} selected`})
                     </span>
-                    <button
+                    <Button
                         type="button"
                         onClick={toggleSelectAll}
-                        className="text-[9px] text-muted-foreground hover:text-foreground"
+                        variant="ghost"
+                        size="xs"
+                        className="h-auto px-0 text-[9px] text-muted-foreground hover:bg-transparent hover:text-foreground"
                     >
                         {selectedIds.length === connections.length && connections.length > 0
                             ? "Deselect all"
                             : "Select all"}
-                    </button>
+                    </Button>
                 </div>
-                <div className="max-h-36 overflow-y-auto space-y-1 rounded-md border border-border/40 p-1.5 bg-muted/10">
+                <div className="max-h-36 overflow-y-auto rounded-md border border-border/40 bg-muted/10 p-1.5">
                     {connections.length === 0 ? (
-                        <p className="text-[10px] text-muted-foreground text-center py-2">No connections saved</p>
+                        <p className="py-2 text-center text-[10px] text-muted-foreground">No connections saved</p>
                     ) : (
                         connections.map((c) => (
-                            <label key={c.id} className="flex items-center gap-2.5 px-2 py-1.5 rounded cursor-pointer hover:bg-muted/30">
-                                <input
-                                    type="checkbox"
+                            <label key={c.id} className="flex cursor-pointer items-center gap-2.5 rounded px-2 py-1.5 hover:bg-muted/30">
+                                <Checkbox
                                     checked={selectedIds.length === 0 || selectedIds.includes(c.id)}
-                                    onChange={() => {
+                                    onCheckedChange={() => {
                                         if (selectedIds.length === 0) {
-                                            // "all" selected — deselect this one
                                             setSelectedIds(connections.filter((x) => x.id !== c.id).map((x) => x.id));
                                         } else {
                                             toggleSelectId(c.id);
                                         }
                                     }}
-                                    className="rounded"
                                 />
-                                <span className="text-[11px] truncate">{c.name}</span>
-                                <span className="ml-auto text-[9px] text-muted-foreground/50 shrink-0">{c.type}</span>
+                                <span className="truncate text-[11px]">{c.name}</span>
+                                <span className="ml-auto shrink-0 text-[9px] text-muted-foreground/50">{c.type}</span>
                             </label>
                         ))
                     )}
                 </div>
             </div>
 
-            {/* Footer */}
             <div className="flex gap-2 pt-1">
                 <Button
                     variant="ghost"
@@ -378,12 +365,9 @@ export function ImportExportDialog({ onClose, onImportComplete }: ImportExportDi
         </div>
     );
 
-    // ── Import view ───────────────────────────────────────────────────────────
-
     const ImportView = () => (
         <div className="flex flex-col gap-4">
-            {/* Format */}
-            <div className="space-y-2">
+            <div className="flex flex-col gap-2">
                 <span className="text-[9px] font-bold uppercase tracking-widest text-muted-foreground/60">
                     Source format
                 </span>
@@ -403,45 +387,51 @@ export function ImportExportDialog({ onClose, onImportComplete }: ImportExportDi
                 />
                 {importFormat === "dbeaver" && (
                     <p className="text-[10px] text-muted-foreground">
-                        Import from DBeaver's <code className="font-mono text-[9px] bg-muted px-1 rounded">data-sources.json</code>.
+                        Import from DBeaver&apos;s <code className="rounded bg-muted px-1 font-mono text-[9px]">data-sources.json</code>.
                         Passwords are not imported (DBeaver uses proprietary encryption).
                     </p>
                 )}
             </div>
 
-            {/* Conflict strategy */}
-            <div className="space-y-2">
+            <div className="flex flex-col gap-2">
                 <span className="text-[9px] font-bold uppercase tracking-widest text-muted-foreground/60">
                     If connection already exists
                 </span>
-                <div className="flex rounded-md overflow-hidden border border-border/50 bg-muted/30">
+                <ToggleGroup
+                    type="single"
+                    value={conflictStrategy}
+                    onValueChange={(value) => {
+                        if (value === "skip" || value === "overwrite" || value === "rename") {
+                            setConflictStrategy(value);
+                        }
+                    }}
+                    variant="outline"
+                    size="sm"
+                    className="grid w-full grid-cols-3"
+                >
                     {(["skip", "overwrite", "rename"] as ConflictStrategy[]).map((s) => (
-                        <button
+                        <ToggleGroupItem
                             key={s}
-                            type="button"
-                            onClick={() => setConflictStrategy(s)}
-                            className={cn(
-                                "flex-1 py-2 text-[11px] font-medium transition-colors capitalize",
-                                conflictStrategy === s
-                                    ? "bg-background text-foreground shadow-sm"
-                                    : "text-muted-foreground hover:text-foreground"
-                            )}
+                            value={s}
+                            className="text-[11px] font-medium capitalize data-[state=off]:text-muted-foreground"
                         >
                             {s}
-                        </button>
+                        </ToggleGroupItem>
                     ))}
-                </div>
+                </ToggleGroup>
             </div>
 
-            {/* Passphrase (shown after reading a protected file) */}
             {requiresPassphrase && (
-                <div className="space-y-2">
-                    <div className="flex items-center gap-2 rounded-md bg-blue-500/10 border border-blue-500/20 px-3 py-2">
-                        <Lock size={12} className="text-blue-500 shrink-0" />
-                        <span className="text-[10px] text-blue-600 dark:text-blue-400">
+                <div className="flex flex-col gap-2">
+                    <Alert className="border-primary/20 bg-primary/10">
+                        <Lock className="text-primary" />
+                        <AlertTitle className="text-[10px] font-semibold uppercase tracking-wide text-primary">
+                            Protected Export
+                        </AlertTitle>
+                        <AlertDescription className="text-[10px] text-primary/90">
                             This export is password-protected. Enter the passphrase to decrypt.
-                        </span>
-                    </div>
+                        </AlertDescription>
+                    </Alert>
                     <div className="relative">
                         <Input
                             type={showImportPass ? "text" : "password"}
@@ -449,11 +439,11 @@ export function ImportExportDialog({ onClose, onImportComplete }: ImportExportDi
                             onChange={(e) => setImportPassphrase(e.target.value)}
                             onKeyDown={(e) => {
                                 if (e.key === "Enter" && pendingContent) {
-                                    executeImport(pendingContent);
+                                    void executeImport(pendingContent);
                                 }
                             }}
                             placeholder="Passphrase"
-                            className="h-8 pr-8 bg-muted/30 text-[11px]"
+                            className="h-8 bg-muted/30 pr-8 text-[11px]"
                             autoFocus
                         />
                         <button
@@ -467,11 +457,10 @@ export function ImportExportDialog({ onClose, onImportComplete }: ImportExportDi
                 </div>
             )}
 
-            {/* Import result summary */}
             {importResult && (
-                <div className="rounded-md border border-border/40 bg-muted/10 p-3 space-y-1">
+                <div className="flex flex-col gap-2 rounded-md border border-border/40 bg-muted/10 p-3">
                     <div className="flex items-center gap-2">
-                        <CheckCircle2 size={12} className="text-green-500" />
+                        <CheckCircle2 size={12} className="text-success" />
                         <span className="text-[11px] font-medium">
                             {importResult.imported} imported
                             {importResult.skipped > 0 && `, ${importResult.skipped} skipped`}
@@ -479,14 +468,13 @@ export function ImportExportDialog({ onClose, onImportComplete }: ImportExportDi
                     </div>
                     {importResult.errors.filter((e) => !e.startsWith("Password for")).map((e, i) => (
                         <div key={i} className="flex items-start gap-2">
-                            <AlertTriangle size={11} className="text-amber-500 mt-0.5 shrink-0" />
+                            <AlertTriangle size={11} className="mt-0.5 shrink-0 text-warning" />
                             <span className="text-[10px] text-muted-foreground">{e}</span>
                         </div>
                     ))}
                 </div>
             )}
 
-            {/* Footer */}
             <div className="flex gap-2 pt-1">
                 <Button
                     variant="ghost"
@@ -505,7 +493,7 @@ export function ImportExportDialog({ onClose, onImportComplete }: ImportExportDi
                 {requiresPassphrase && pendingContent ? (
                     <Button
                         size="sm"
-                        onClick={() => executeImport(pendingContent)}
+                        onClick={() => void executeImport(pendingContent)}
                         disabled={isImporting || !importPassphrase}
                         className="ml-auto text-[11px]"
                     >
@@ -540,23 +528,17 @@ export function ImportExportDialog({ onClose, onImportComplete }: ImportExportDi
 
     return (
         <Dialog open onOpenChange={onClose}>
-            <DialogContent className="!max-w-[480px] rounded-md p-0 overflow-hidden">
-                {/* Header */}
-                <div className="flex items-center justify-between px-4 pt-4 pb-3 border-b border-border-subtle bg-surface-2/72">
+            <DialogContent className="!max-w-[480px] overflow-hidden rounded-md p-0">
+                <DialogHeader className="border-b border-border-subtle bg-surface-2/72 px-4 pt-4 pb-3">
                     <div className="flex items-center gap-2">
                         <ArrowUpDown size={14} className="text-muted-foreground/60" />
-                        <span className="text-[13px] font-semibold">{title}</span>
+                        <DialogTitle className="text-[13px] font-semibold">{title}</DialogTitle>
                     </div>
-                    <button
-                        type="button"
-                        onClick={onClose}
-                        className="rounded-md text-muted-foreground/40 transition-colors hover:text-foreground"
-                    >
-                        <X size={14} />
-                    </button>
-                </div>
+                    <DialogDescription className="sr-only">
+                        Import or export saved database connections.
+                    </DialogDescription>
+                </DialogHeader>
 
-                {/* Body */}
                 <div className="px-4 py-4">
                     {view === "main" && <MainView />}
                     {view === "export" && <ExportView />}

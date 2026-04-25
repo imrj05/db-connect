@@ -44,13 +44,13 @@ const FEATURES = [
     },
     {
         icon: <Zap size={16} />,
-        color: "text-yellow-500 bg-yellow-500/10",
+        color: "text-warning bg-warning/10",
         title: "Inline Editing",
         desc: "Double-click any cell to edit. Changes generate UPDATE SQL.",
     },
     {
         icon: <Search size={16} />,
-        color: "text-pink-500 bg-pink-500/10",
+        color: "text-accent-red bg-accent-red/10",
         title: "Command Palette",
         desc: "Jump to any table or query with ⌘K.",
     },
@@ -87,7 +87,7 @@ function StepWelcome() {
             </div>
 
             <div className="space-y-2">
-                <h1 className="text-2xl font-black tracking-tight text-foreground">
+                <h1 className="text-2xl font-bold tracking-tight text-foreground">
                     Welcome to DB Connect
                 </h1>
                 <p className="text-sm text-muted-foreground max-w-xs leading-relaxed">
@@ -115,7 +115,7 @@ function StepFeatures() {
     return (
         <div className="flex flex-col items-center gap-6">
             <div className="text-center space-y-1.5">
-                <h2 className="text-xl font-black tracking-tight text-foreground">
+                <h2 className="text-xl font-bold tracking-tight text-foreground">
                     Everything you need
                 </h2>
                 <p className="text-sm text-muted-foreground">
@@ -150,12 +150,12 @@ function StepFeatures() {
 function StepConnect({ onConnect }: { onConnect: () => void }) {
     return (
         <div className="flex flex-col items-center text-center gap-8">
-            <div className="size-20 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center">
-                <Plus size={32} className="text-emerald-500" />
+            <div className="size-20 rounded-2xl bg-accent-green/10 border border-accent-green/20 flex items-center justify-center">
+                <Plus size={32} className="text-accent-green" />
             </div>
 
             <div className="space-y-2">
-                <h2 className="text-xl font-black tracking-tight text-foreground">
+                <h2 className="text-xl font-bold tracking-tight text-foreground">
                     Connect your first database
                 </h2>
                 <p className="text-sm text-muted-foreground max-w-xs leading-relaxed">
@@ -186,7 +186,7 @@ function StepConnect({ onConnect }: { onConnect: () => void }) {
     );
 }
 
-// ── Main Onboarding component ─────────────────────────────────────────────────
+// ── Main Onboarding Screen ────────────────────────────────────────────────────
 
 interface OnboardingProps {
     onDone: () => void;
@@ -233,7 +233,7 @@ export function Onboarding({ onDone, onOpenConnectionDialog }: OnboardingProps) 
             {/* Skip button */}
             <button
                 onClick={dismiss}
-                className="absolute top-4 right-4 text-[11px] font-bold uppercase tracking-widest text-muted-foreground/30 hover:text-muted-foreground transition-colors"
+                className="absolute top-4 right-4 text-[11px] font-semibold uppercase tracking-widest text-muted-foreground/60 hover:text-muted-foreground transition-colors"
             >
                 Skip
             </button>
@@ -269,7 +269,7 @@ export function Onboarding({ onDone, onOpenConnectionDialog }: OnboardingProps) 
                 {/* Nav buttons */}
                 <div className="flex items-center gap-3">
                     {step > 0 && (
-                        <Button variant="ghost" size="sm" onClick={prev} className="h-8 text-[11px] font-bold uppercase tracking-widest text-muted-foreground/50">
+                        <Button variant="ghost" size="sm" onClick={prev} className="h-8 text-[11px] font-semibold uppercase tracking-widest text-muted-foreground/60">
                             Back
                         </Button>
                     )}

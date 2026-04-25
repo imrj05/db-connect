@@ -4,6 +4,7 @@ import { sql } from "@codemirror/lang-sql";
 import { EditorView } from "@codemirror/view";
 import { Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
 
 export function QueryLog({
 	entries,
@@ -89,11 +90,10 @@ export function QueryLog({
 					{entries.length === 1 ? "query" : "queries"}
 				</span>
 				<label className="flex items-center gap-1.5 cursor-pointer shrink-0">
-					<input
-						type="checkbox"
+					<Checkbox
 						checked={showSyntax}
-						onChange={(e) => onSyntaxToggle(e.target.checked)}
-						className="w-3.5 h-3.5 accent-primary"
+						onCheckedChange={(checked) => onSyntaxToggle(checked === true)}
+						className="size-3.5"
 					/>
 					<span className="text-[11px] font-label text-foreground/62">
 						Enable Syntax highlighting
