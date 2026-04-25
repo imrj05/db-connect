@@ -5,9 +5,9 @@ import { cn } from "@/lib/utils";
 
 export function IdleView({ onNewConnection }: { onNewConnection: () => void }) {
 	return (
-		<div className="h-full flex flex-col items-center justify-center bg-surface-2/72 select-none gap-6 px-6">
+		<div className="flex h-full select-none flex-col items-center justify-center gap-6 bg-surface-2 px-6">
 			{/* Icon */}
-			<div className="w-16 h-16 rounded-2xl border border-border-subtle bg-surface-3/96 flex items-center justify-center shadow-sm">
+			<div className="flex h-16 w-16 items-center justify-center border border-border-subtle bg-surface-3">
 				<Search size={20} className="text-foreground/42" />
 			</div>
 			{/* Message */}
@@ -22,11 +22,11 @@ export function IdleView({ onNewConnection }: { onNewConnection: () => void }) {
 					Use the sidebar to browse connected databases, or jump anywhere with <Kbd>⌘K</Kbd>.
 				</p>
 			</div>
-			<Button onClick={onNewConnection} size="sm" className="h-9 px-4 text-[12px] font-medium">
+			<Button onClick={onNewConnection} size="sm" className="h-9 rounded-sm px-4 text-[12px] font-medium">
 				Add Connection
 			</Button>
 			{/* Shortcuts */}
-			<div className="flex items-center gap-px border border-border-subtle rounded-lg overflow-hidden bg-surface-3 shadow-sm">
+			<div className="flex items-center gap-px overflow-hidden border border-border-subtle bg-surface-3">
 				{[
 					{ key: "⌘K", label: "Search" },
 					{ key: "⌘T", label: "New tab" },

@@ -1,6 +1,5 @@
-import { ChevronRight } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { DB_LOGO as DB_LOGOS } from "@/lib/db-ui";
+import { DB_LOGO as DB_LOGOS, DB_COLOR } from "@/lib/db-ui";
 
 const DATABASE_ENGINES = [
 	{ id: "postgresql", label: "PostgreSQL", description: "Advanced open source RDBMS" },
@@ -19,72 +18,43 @@ export function EngineSelector({
 	selectedType: string;
 	onSelect: (id: string) => void;
 }) {
-	const activeEngine = DATABASE_ENGINES.find((e) => e.id === selectedType) ?? DATABASE_ENGINES[0];
-
 	return (
-		<div className="w-52 shrink-0 bg-muted/20 border-r border-border flex flex-col">
-			{/* Panel header */}
-			<div className="h-16 px-4 flex items-end pb-3.5 border-b border-border">
-				<span className="text-[10px] font-semibold text-muted-foreground/55">
-					Engine
-				</span>
-			</div>
-
-			{/* Engine list */}
-			<div className="flex-1 p-2.5 space-y-1 overflow-y-auto">
-				{DATABASE_ENGINES.map((engine) => {
-					const isActive = selectedType === engine.id;
-					const Logo = DB_LOGOS[engine.id];
-					return (
-						<button
-							key={engine.id}
-							onClick={() => onSelect(engine.id)}
-							className={cn(
-							"w-full flex items-center gap-2.5 px-3 py-2.5 rounded-xl transition-colors text-left group",
-								isActive
-									? "bg-card border border-border shadow-sm"
-									: "border border-transparent hover:bg-muted/50",
-							)}
-						>
-							<div className={cn(
-								"size-8 rounded-lg flex items-center justify-center shrink-0 transition-colors",
-								isActive ? "bg-muted" : "bg-muted/40 opacity-50 group-hover:opacity-75",
-							)}>
-								<Logo className={cn("text-base", isActive ? "text-foreground" : "text-muted-foreground")} />
-							</div>
-
-							<div className="min-w-0 flex-1">
-								<div className={cn(
-									"text-[11px] font-semibold leading-none",
-									isActive ? "text-foreground" : "text-muted-foreground",
-								)}>
-									{engine.label}
-								</div>
-								<div className="text-[9px] text-muted-foreground/40 mt-0.5 leading-tight truncate">
-									{engine.description}
-								</div>
-							</div>
-
-							{isActive && (
-								<ChevronRight size={11} className="shrink-0 text-muted-foreground/40" />
-							)}
-						</button>
-					);
-				})}
-			</div>
-
-			{/* Panel footer */}
-			<div className="p-3.5 border-t border-border">
-				<div className="flex items-center gap-2 px-2.5 py-1.5 rounded-md bg-muted/40">
-					{(() => {
-						const Logo = DB_LOGOS[activeEngine.id];
-						return <Logo className="text-sm text-muted-foreground/60 shrink-0" />;
-					})()}
-					<span className="text-[10px] font-semibold text-muted-foreground/60 truncate">
-						{activeEngine.label}
-					</span>
-				</div>
-			</div>
+		<div className="flex shrink-0 border-b border-border-subtle bg-surface-2">
+			{DATABASE_ENGINES.map((engine, i) => {
+				const isActive = selectedType === engine.id;
+				const Logo = DB_LOGOS[engine.id];
+				return (
+					<button
+						key={engine.id}
+						type="button"
+						onClick={() => onSelect(engine.id)}
+						className={cn(
+							"group relative flex flex-1 flex-col items-center gap-1.5 py-3 px-2 text-center transition-colors",
+							i < DATABASE_ENGINES.length - 1 && "border-r border-border-subtle",
+							isActive
+								? "bg-surface-1 text-foreground"
+								: "bg-surface-2 text-muted-foreground/60 hover:bg-surface-hover hover:text-foreground/80",
+						)}
+					>
+					<Logo
+						className={cn(
+							"text-xl transition-opacity",
+							DB_COLOR[engine.id],
+							isActive ? "opacity-100" : "opacity-40 group-hover:opacity-70",
+						)}
+					/>
+						<span className={cn(
+							"text-xs font-medium leading-none",
+							isActive ? "text-foreground" : "text-muted-foreground/60 group-hover:text-foreground/80",
+						)}>
+							{engine.label}
+						</span>
+						{isActive && (
+							<span className="absolute bottom-0 left-0 right-0 h-[2px] bg-primary" />
+						)}
+					</button>
+				);
+			})}
 		</div>
 	);
 }

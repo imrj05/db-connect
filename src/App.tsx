@@ -47,6 +47,7 @@ function App() {
         editingConnection,
         setConnectionDialogOpen,
         setEditingConnection,
+        setActiveView,
         activeTabId,
         closeTab,
         openNewTab,
@@ -291,12 +292,12 @@ function App() {
                         isLicensed={licenseCheck?.ok ?? null}
                         onActivate={() => setLicenseDialogOpen(true)}
                     />
-                    <main className="relative z-0 flex-1 overflow-hidden flex bg-app-bg p-1.5 gap-1.5">
+                    <main className="relative z-0 flex flex-1 overflow-hidden bg-app-bg">
                         {/* Sidebar — collapses smoothly */}
                         <div
                             ref={sidebarRef}
                             style={{ width: sidebarCollapsed ? 0 : sidebarWidth, minWidth: sidebarCollapsed ? 0 : sidebarWidth }}
-                            className="h-full shrink-0 overflow-hidden transition-[width,min-width] duration-200 ease-in-out rounded-lg"
+                            className="h-full shrink-0 overflow-hidden border-r border-border-subtle transition-[width,min-width] duration-200 ease-in-out"
                         >
                             <Sidebar />
                         </div>
@@ -304,21 +305,26 @@ function App() {
                         {!sidebarCollapsed && (
                             <div
                                 onMouseDown={onMouseDown}
-                                className="relative h-full w-3 shrink-0 cursor-col-resize z-10 before:absolute before:inset-y-3 before:left-1/2 before:w-px before:-translate-x-1/2 before:bg-border-subtle before:transition-colors hover:before:bg-primary/35"
+                                className="relative z-10 h-full w-2 shrink-0 cursor-col-resize before:absolute before:inset-y-0 before:left-1/2 before:w-px before:-translate-x-1/2 before:bg-border-subtle before:transition-colors hover:before:bg-primary/35"
                             />
                         )}
                         {/* Main content */}
-                        <div className="flex-1 h-full min-w-0 overflow-hidden rounded-lg border border-border-subtle bg-surface-1 shadow-sm">
+                        <div className="flex h-full min-w-0 flex-1 overflow-hidden bg-surface-1">
                             {showOnboarding ? (
                                 <Onboarding
                                     onDone={() => setOnboardingDone(true)}
-                                    onOpenConnectionDialog={() => {
+                                    onOpenConnectionPage={() => {
                                         setEditingConnection(null);
-                                        setConnectionDialogOpen(true);
+                                        setActiveView("new-connection");
                                     }}
                                 />
                             ) : activeView === "settings" ? (
                                 <SettingsPage onActivate={() => setLicenseDialogOpen(true)} />
+                            ) : activeView === "new-connection" ? (
+                                <ConnectionDialog
+                                    mode="page"
+                                    onClose={() => setActiveView("main")}
+                                />
                             ) : (
                                 <FunctionOutput />
                             )}

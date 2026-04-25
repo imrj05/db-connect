@@ -39,11 +39,11 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
-    Card,
-    CardAction,
-    CardContent,
+    Card as BaseCard,
+    CardAction as BaseCardAction,
+    CardContent as BaseCardContent,
     CardDescription,
-    CardHeader,
+    CardHeader as BaseCardHeader,
     CardTitle,
 } from "@/components/ui/card";
 import {
@@ -291,7 +291,36 @@ const AI_MODEL_PRESETS: Record<AiProvider, { id: string; label: string }[]> = {
 };
 
 const SETTINGS_FIELD_CLASS = "gap-4 border-b border-border/50 pb-4 last:border-0 last:pb-0";
-const SETTINGS_CONTROL_CLASS = "flex w-full shrink-0 justify-start @md/field-group:w-auto @md/field-group:justify-end";
+const SETTINGS_CONTROL_CLASS = "flex w-full min-w-0 shrink-0 justify-start";
+const SETTINGS_CONTENT_WIDTH_CLASS = "flex w-full min-w-0 flex-col gap-6";
+const SETTINGS_WIDE_CONTROL_CLASS = "w-full";
+const SETTINGS_XL_CONTROL_CLASS = "w-full";
+
+function Card({ className, ...props }: React.ComponentProps<typeof BaseCard>) {
+    return (
+        <BaseCard
+            className={cn("w-full min-w-0 rounded-none border border-border-subtle bg-surface-2 py-0 ring-0 shadow-none", className)}
+            {...props}
+        />
+    );
+}
+
+function CardHeader({ className, ...props }: React.ComponentProps<typeof BaseCardHeader>) {
+    return (
+        <BaseCardHeader
+            className={cn("rounded-none border-b border-border-subtle px-4 py-5", className)}
+            {...props}
+        />
+    );
+}
+
+function CardContent({ className, ...props }: React.ComponentProps<typeof BaseCardContent>) {
+    return <BaseCardContent className={cn("px-4 py-5", className)} {...props} />;
+}
+
+function CardAction({ className, ...props }: React.ComponentProps<typeof BaseCardAction>) {
+    return <BaseCardAction className={cn("self-start", className)} {...props} />;
+}
 
 function getPlanBadgeClass(plan: string) {
     switch (plan.toLowerCase()) {
@@ -495,7 +524,7 @@ function AppearanceSection() {
                                         updateAppSetting("uiLightTheme", value as UiLightThemeOption);
                                     }}
                                 >
-                                    <SelectTrigger className="w-full @md/field-group:w-56">
+                                    <SelectTrigger className={SETTINGS_WIDE_CONTROL_CLASS}>
                                         <SelectValue />
                                     </SelectTrigger>
                                     <SelectContent>
@@ -572,7 +601,7 @@ function AppearanceSection() {
                                         defaultAlias={DB_FONT_SANS}
                                         defaultAliasStack={DB_FONT_SANS_STACK}
                                         placeholder="Search font..."
-                                        className="@md/field-group:w-56"
+                                        className={SETTINGS_WIDE_CONTROL_CLASS}
                                         onSelect={(value) => updateAppSetting("uiFontFamily", value)}
                                     />
                                 )}
@@ -598,7 +627,7 @@ function AppearanceSection() {
                                         defaultAlias={DB_FONT_MONO}
                                         defaultAliasStack={DB_FONT_MONO_STACK}
                                         placeholder="Search font..."
-                                        className="@md/field-group:w-56"
+                                        className={SETTINGS_WIDE_CONTROL_CLASS}
                                         onSelect={(value) => updateAppSetting("monoFontFamily", value)}
                                     />
                                 )}
@@ -675,7 +704,7 @@ function EditorSection() {
                                     value={appSettings.editorDarkTheme}
                                     onValueChange={(value) => updateAppSetting("editorDarkTheme", value as EditorThemeOption)}
                                 >
-                                    <SelectTrigger className="w-full @md/field-group:w-52">
+                                    <SelectTrigger className={SETTINGS_WIDE_CONTROL_CLASS}>
                                         <SelectValue />
                                     </SelectTrigger>
                                     <SelectContent>
@@ -701,7 +730,7 @@ function EditorSection() {
                                     value={appSettings.editorLightTheme}
                                     onValueChange={(value) => updateAppSetting("editorLightTheme", value as EditorThemeOption)}
                                 >
-                                    <SelectTrigger className="w-full @md/field-group:w-52">
+                                    <SelectTrigger className={SETTINGS_WIDE_CONTROL_CLASS}>
                                         <SelectValue />
                                     </SelectTrigger>
                                     <SelectContent>
@@ -911,7 +940,7 @@ function AiSection() {
                                     value={appSettings.aiProvider}
                                     onValueChange={(value) => updateAppSetting("aiProvider", value as AppSettings["aiProvider"])}
                                 >
-                                    <SelectTrigger className="w-full @md/field-group:w-56">
+                                    <SelectTrigger className={SETTINGS_WIDE_CONTROL_CLASS}>
                                         <SelectValue />
                                     </SelectTrigger>
                                     <SelectContent>
@@ -941,7 +970,7 @@ function AiSection() {
                                     value={appSettings.aiAuthMode}
                                     onValueChange={(value) => updateAppSetting("aiAuthMode", value as "api_key" | "oauth")}
                                 >
-                                    <SelectTrigger className="w-full @md/field-group:w-56">
+                                    <SelectTrigger className={SETTINGS_WIDE_CONTROL_CLASS}>
                                         <SelectValue />
                                     </SelectTrigger>
                                     <SelectContent>
@@ -972,7 +1001,7 @@ function AiSection() {
                                 <FieldTitle>Default model</FieldTitle>
                                 <FieldDescription>Pick a preset or enter a custom model id for {providerLabel}.</FieldDescription>
                             </FieldContent>
-                            <div className="flex w-full shrink-0 flex-col gap-2 @md/field-group:w-[34rem]">
+                            <div className={cn("flex w-full shrink-0 flex-col gap-2", SETTINGS_XL_CONTROL_CLASS)}>
                                 <div className="flex flex-col gap-2 sm:flex-row">
                                     <Select
                                         value={selectedPreset}
@@ -984,7 +1013,7 @@ function AiSection() {
                                             updateAppSetting("aiDefaultModel", value);
                                         }}
                                     >
-                                        <SelectTrigger className="w-full sm:w-60">
+                                        <SelectTrigger className="w-full">
                                             <SelectValue placeholder="Choose preset" />
                                         </SelectTrigger>
                                         <SelectContent>
@@ -1078,7 +1107,7 @@ function AiSection() {
                                                 : "Paste a provider key and save it securely."}
                                         </FieldDescription>
                                     </FieldContent>
-                                    <div className="flex w-full shrink-0 flex-col gap-2 @md/field-group:w-[28rem]">
+                                    <div className={cn("flex w-full shrink-0 flex-col gap-2", SETTINGS_XL_CONTROL_CLASS)}>
                                         <Input
                                             type="password"
                                             value={apiKeyInput}
@@ -1638,8 +1667,8 @@ export function SettingsPage({ onActivate }: { onActivate?: () => void }) {
     };
 
     return (
-        <div className="flex h-full min-h-0 flex-col overflow-hidden bg-surface-1">
-            <div className="flex shrink-0 items-center gap-3 border-b border-border-subtle bg-surface-elevated/70 px-6 py-4">
+        <div className="flex h-full min-h-0 w-full min-w-0 flex-1 flex-col overflow-hidden bg-app-bg">
+            <div className="flex w-full shrink-0 items-center gap-3 border-b border-border-subtle bg-surface-1 px-6 py-4">
                 <Button
                     variant="ghost"
                     size="icon-sm"
@@ -1679,9 +1708,9 @@ export function SettingsPage({ onActivate }: { onActivate?: () => void }) {
                 value={activeSection}
                 onValueChange={handleSectionChange}
                 orientation="vertical"
-                className="min-h-0 flex-1 flex-col gap-0 md:flex-row"
+                className="min-h-0 flex-1 w-full min-w-0 flex-col gap-0 bg-app-bg md:flex-row"
             >
-                <aside className="hidden w-60 shrink-0 border-r border-border-subtle bg-surface-2/70 md:flex md:flex-col">
+                <aside className="hidden w-64 shrink-0 border-r border-border-subtle bg-surface-1 md:flex md:flex-col">
                     <div className="px-4 py-4">
                         <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground/70">Categories</p>
                     </div>
@@ -1696,9 +1725,9 @@ export function SettingsPage({ onActivate }: { onActivate?: () => void }) {
                                     key={item.id}
                                     value={item.id}
                                     className={cn(
-                                        "h-10 justify-start gap-2.5 rounded-lg border px-3 text-left text-sm font-medium after:hidden",
+                                        "h-10 justify-start gap-2.5 rounded-none border px-3 text-left text-sm font-medium after:hidden",
                                         isActive
-                                            ? "border-border-subtle bg-surface-selected/85 text-foreground shadow-xs"
+                                            ? "border-border-subtle bg-surface-2 text-foreground"
                                             : "border-transparent bg-transparent text-muted-foreground hover:bg-surface-3 hover:text-foreground",
                                     )}
                                 >
@@ -1710,9 +1739,10 @@ export function SettingsPage({ onActivate }: { onActivate?: () => void }) {
                     </TabsList>
                 </aside>
 
-                <ScrollArea className="min-h-0 flex-1">
-                    <div className="flex min-h-full flex-col gap-6 p-6">
-                        <div className="flex flex-col gap-2">
+                <ScrollArea className="min-h-0 flex-1 w-full min-w-0">
+                    <div className="min-h-full w-full bg-app-bg px-6 py-6">
+                        <div className={SETTINGS_CONTENT_WIDTH_CLASS}>
+                            <div className="flex flex-col gap-2">
                             <div className="flex items-center gap-2 text-sm font-medium text-muted-foreground">
                                 <ActiveIcon />
                                 <span>{activeNav.label}</span>
@@ -1721,24 +1751,24 @@ export function SettingsPage({ onActivate }: { onActivate?: () => void }) {
                                 <h2 className="text-2xl font-semibold tracking-tight text-foreground">{activeNav.label}</h2>
                                 <p className="max-w-2xl text-sm leading-6 text-muted-foreground">{activeNav.description}</p>
                             </div>
-                        </div>
+                            </div>
 
-                        <TabsContent value="appearance" className="mt-0 flex flex-col gap-6">
+                        <TabsContent value="appearance" className="mt-0 flex w-full min-w-0 flex-col gap-6">
                             <AppearanceSection />
                         </TabsContent>
-                        <TabsContent value="editor" className="mt-0 flex flex-col gap-6">
+                        <TabsContent value="editor" className="mt-0 flex w-full min-w-0 flex-col gap-6">
                             <EditorSection />
                         </TabsContent>
-                        <TabsContent value="table" className="mt-0 flex flex-col gap-6">
+                        <TabsContent value="table" className="mt-0 flex w-full min-w-0 flex-col gap-6">
                             <TableSection />
                         </TabsContent>
-                        <TabsContent value="ai" className="mt-0 flex flex-col gap-6">
+                        <TabsContent value="ai" className="mt-0 flex w-full min-w-0 flex-col gap-6">
                             <AiSection />
                         </TabsContent>
-                        <TabsContent value="storage" className="mt-0 flex flex-col gap-6">
+                        <TabsContent value="storage" className="mt-0 flex w-full min-w-0 flex-col gap-6">
                             <StorageSection />
                         </TabsContent>
-                        <TabsContent value="license" className="mt-0 flex flex-col gap-6">
+                        <TabsContent value="license" className="mt-0 flex w-full min-w-0 flex-col gap-6">
                             <LicenseSection
                                 onActivate={() => {
                                     setActiveView("main");
@@ -1746,9 +1776,10 @@ export function SettingsPage({ onActivate }: { onActivate?: () => void }) {
                                 }}
                             />
                         </TabsContent>
-                        <TabsContent value="about" className="mt-0 flex flex-col gap-6">
+                        <TabsContent value="about" className="mt-0 flex w-full min-w-0 flex-col gap-6">
                             <AboutSection />
                         </TabsContent>
+                        </div>
                     </div>
                 </ScrollArea>
             </Tabs>

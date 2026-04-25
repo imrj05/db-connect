@@ -40,7 +40,7 @@ export function CommandPalette() {
         connectedIds,
         invokeFunction,
         setActiveFunctionOnly,
-        setConnectionDialogOpen,
+        setActiveView,
         setEditingConnection,
     } = useAppStore();
     const [query, setQuery] = React.useState("");
@@ -160,7 +160,7 @@ export function CommandPalette() {
                                 <CommandItem
                                     onSelect={() => {
                                         setEditingConnection(null);
-                                        setConnectionDialogOpen(true);
+                                        setActiveView("new-connection");
                                         setCommandPaletteOpen(false);
                                     }}
                                 >
@@ -183,7 +183,7 @@ export function CommandPalette() {
                         <CommandItem
                             onSelect={() => {
                                 setEditingConnection(null);
-                                setConnectionDialogOpen(true);
+                                setActiveView("new-connection");
                                 setCommandPaletteOpen(false);
                             }}
                         >

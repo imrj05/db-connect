@@ -20,28 +20,32 @@ export const DB_LOGO: Record<string, React.FC<{ className?: string }>> = {
 };
 
 /**
- * Tailwind text-color class per DB type.
+ * Actual brand hex colors per DB type (Simple Icons canonical values).
+ * Applied directly to SVG icons via currentColor so they show their
+ * real brand identity in the engine selector, sidebar, and title bar.
+ *
+ * SQLite uses a brightened variant (#0F80CC) because the canonical
+ * brand navy (#003B57) is invisible on dark backgrounds.
  */
 export const DB_COLOR: Record<string, string> = {
-    postgresql: "text-accent-blue",
-    mysql:      "text-accent-purple",
-    sqlite:     "text-muted-foreground",
-    mongodb:    "text-accent-green",
-    redis:      "text-accent-red",
+    postgresql: "text-[#336791]",
+    mysql:      "text-[#4479A1]",
+    sqlite:     "text-[#0F80CC]",
+    mongodb:    "text-[#47A248]",
+    redis:      "text-[#FF4438]",
 };
 
 /**
  * Array form used by the onboarding screen's DB logo row.
- * Uses slightly brighter shades for the larger display context.
  */
 export const DB_LOGOS_ARRAY: {
     Icon: React.FC<{ className?: string }>;
     color: string;
     label: string;
 }[] = [
-    { Icon: SiPostgresql, color: "text-accent-blue",   label: "PostgreSQL" },
-    { Icon: SiMysql,      color: "text-accent-purple", label: "MySQL"      },
-    { Icon: SiSqlite,     color: "text-muted-foreground", label: "SQLite"     },
-    { Icon: SiMongodb,    color: "text-accent-green",  label: "MongoDB"    },
-    { Icon: SiRedis,      color: "text-accent-red",    label: "Redis"      },
+    { Icon: SiPostgresql, color: "text-[#336791]", label: "PostgreSQL" },
+    { Icon: SiMysql,      color: "text-[#4479A1]", label: "MySQL"      },
+    { Icon: SiSqlite,     color: "text-[#0F80CC]", label: "SQLite"     },
+    { Icon: SiMongodb,    color: "text-[#47A248]", label: "MongoDB"    },
+    { Icon: SiRedis,      color: "text-[#FF4438]", label: "Redis"      },
 ];

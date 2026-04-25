@@ -63,11 +63,11 @@
 /* ========================================
  * TYPOGRAPHY — MODERN DATABASE CLIENT
  * ====================================== */
-    --app-font-sans: "Space Grotesk Variable", "Geist", "Inter", system-ui, -apple-system, sans-serif;
-    --app-font-serif: "Space Grotesk Variable", "Geist", "Inter", system-ui, -apple-system, sans-serif;
+    --app-font-sans: "Space Grotesk Variable", "Space Grotesk", "Geist Variable", "Geist", system-ui, -apple-system, sans-serif;
+    --app-font-serif: "Space Grotesk Variable", "Space Grotesk", "Geist Variable", "Geist", system-ui, -apple-system, sans-serif;
     --app-font-mono: "JetBrains Mono", "IBM Plex Mono", "SF Mono",
         "Cascadia Code", monospace;
-    --app-font-label: "Space Grotesk Variable", "Geist", "Inter", system-ui, -apple-system, sans-serif;
+    --app-font-label: "Space Grotesk Variable", "Space Grotesk", "Geist Variable", "Geist", system-ui, -apple-system, sans-serif;
     /* ========================================
    * SHAPE / SPACING
    * ====================================== */
@@ -86,14 +86,14 @@
     --shadow-opacity: 0.08;
     --shadow-offset-x: 0px;
     --shadow-offset-y: 4px;
-    --shadow-2xs: 0 1px 1px rgb(28 24 24 / 0.02);
-    --shadow-xs: 0 1px 2px rgb(28 24 24 / 0.035);
-    --shadow-sm: 0 3px 10px rgb(28 24 24 / 0.045);
-    --shadow: 0 8px 24px rgb(28 24 24 / 0.055);
-    --shadow-md: 0 16px 36px rgb(28 24 24 / 0.07);
-    --shadow-lg: 0 24px 52px rgb(28 24 24 / 0.09);
-    --shadow-xl: 0 32px 72px rgb(28 24 24 / 0.12);
-    --shadow-2xl: 0 40px 96px rgb(28 24 24 / 0.14);
+    --shadow-2xs: 0 0 0 0 transparent;
+    --shadow-xs: 0 0 0 0 transparent;
+    --shadow-sm: 0 0 0 0 transparent;
+    --shadow: 0 0 0 0 transparent;
+    --shadow-md: 0 0 0 0 transparent;
+    --shadow-lg: 0 0 0 0 transparent;
+    --shadow-xl: 0 0 0 0 transparent;
+    --shadow-2xl: 0 0 0 0 transparent;
     --overlay: rgb(21 18 18 / 0.22);
     /* ========================================
    * APP SEMANTIC TOKENS
@@ -208,14 +208,14 @@
     --chart-4: oklch(0.78 0.16 70);
     --chart-5: oklch(0.87 0.12 185);
     --overlay: rgb(10 10 10 / 0.54);
-    --shadow-2xs: 0 1px 1px rgb(0 0 0 / 0.16);
-    --shadow-xs: 0 1px 2px rgb(0 0 0 / 0.2);
-    --shadow-sm: 0 6px 14px rgb(0 0 0 / 0.24);
-    --shadow: 0 12px 28px rgb(0 0 0 / 0.28);
-    --shadow-md: 0 20px 40px rgb(0 0 0 / 0.32);
-    --shadow-lg: 0 30px 56px rgb(0 0 0 / 0.36);
-    --shadow-xl: 0 40px 72px rgb(0 0 0 / 0.4);
-    --shadow-2xl: 0 52px 96px rgb(0 0 0 / 0.46);
+    --shadow-2xs: 0 0 0 0 transparent;
+    --shadow-xs: 0 0 0 0 transparent;
+    --shadow-sm: 0 0 0 0 transparent;
+    --shadow: 0 0 0 0 transparent;
+    --shadow-md: 0 0 0 0 transparent;
+    --shadow-lg: 0 0 0 0 transparent;
+    --shadow-xl: 0 0 0 0 transparent;
+    --shadow-2xl: 0 0 0 0 transparent;
     --color-app-bg: var(--surface-0);
     --color-sidebar-bg: var(--surface-1);
     --color-toolbar-bg: var(--surface-2);
@@ -1977,9 +1977,7 @@
         letter-spacing: var(--tracking-normal);
         font-size: 13px;
         line-height: 1.45;
-        background-image:
-            radial-gradient(circle at top, color-mix(in oklch, var(--primary) 5%, transparent), transparent 36%),
-            linear-gradient(180deg, color-mix(in oklch, var(--surface-2) 40%, transparent), transparent 26%);
+        background-image: none;
     }
 
     input::placeholder,
@@ -2021,6 +2019,57 @@
 }
 
 @layer utilities {
+    .shell-panel {
+        background: var(--surface-1);
+        border: 1px solid var(--border-subtle);
+        box-shadow: none;
+    }
+
+    .shell-panel-muted {
+        background: color-mix(in oklch, var(--surface-1) 88%, transparent);
+        border: 1px solid var(--border-subtle);
+        box-shadow: none;
+    }
+
+    .shell-toolbar {
+        background: color-mix(in oklch, var(--surface-1) 94%, transparent);
+        border-color: var(--border-subtle);
+        box-shadow: none;
+    }
+
+    .shell-section-label {
+        font-size: 11px;
+        font-weight: 700;
+        letter-spacing: 0.16em;
+        text-transform: uppercase;
+        color: color-mix(in oklch, var(--muted-foreground) 68%, transparent);
+    }
+
+    .shell-meta {
+        font-family: var(--app-font-mono);
+        font-size: 11px;
+        color: color-mix(in oklch, var(--muted-foreground) 82%, transparent);
+    }
+
+    .shell-badge {
+        display: inline-flex;
+        align-items: center;
+        height: 18px;
+        padding-inline: 6px;
+        border-radius: 2px;
+        border: 1px solid var(--border-subtle);
+        font-size: 10px;
+        font-weight: 700;
+        letter-spacing: 0.12em;
+        text-transform: uppercase;
+        line-height: 1;
+    }
+
+    .shell-icon-button {
+        border-radius: 2px;
+        box-shadow: none;
+    }
+
     .no-scrollbar {
         scrollbar-width: none;
         /* Firefox */

@@ -170,6 +170,7 @@ interface AppState {
   // ---- UI state ----
   expandedConnections: string[]; // connectionIds with open tree in sidebar
   sidebarCollapsed: boolean;
+  dbTabsCollapsed: boolean;
   queryLogOpen: boolean;
   commandPaletteOpen: boolean;
   connectionDialogOpen: boolean;
@@ -232,11 +233,12 @@ interface AppState {
 
   // ---- Actions: UI ----
   // ---- UI ----
-  activeView: "main" | "settings";
-  setActiveView: (view: "main" | "settings") => void;
+  activeView: "main" | "settings" | "new-connection";
+  setActiveView: (view: "main" | "settings" | "new-connection") => void;
 
   toggleConnectionExpanded: (connectionId: string) => void;
   toggleSidebar: () => void;
+  toggleDbTabs: () => void;
   toggleQueryLog: () => void;
   setCommandPaletteOpen: (open: boolean) => void;
   setConnectionDialogOpen: (open: boolean) => void;
@@ -268,6 +270,7 @@ export const useAppStore = create<AppState>((set, get) => ({
   pendingSqlValue: "",
   expandedConnections: [],
   sidebarCollapsed: false,
+  dbTabsCollapsed: false,
   queryLogOpen: false,
   commandPaletteOpen: false,
   connectionDialogOpen: false,
@@ -435,6 +438,14 @@ export const useAppStore = create<AppState>((set, get) => ({
       }));
 
       toast.success(`Connected: ${config.prefix}_list() and ${tables.length} table functions ready`);
+
+      // If the user triggered connect while on the new-connection page (either
+      // from the page-mode dialog or from the edit modal opened via the sidebar),
+      // navigate back to the main view so the page hides automatically.
+      if (get().activeView === "new-connection") {
+        set({ activeView: "main" });
+      }
+
       return true;
     } catch (error) {
       toast.error(`Connection failed: ${String(error)}`);
@@ -972,6 +983,8 @@ export const useAppStore = create<AppState>((set, get) => ({
 
   toggleSidebar: () =>
     set((state) => ({ sidebarCollapsed: !state.sidebarCollapsed })),
+  toggleDbTabs: () =>
+    set((state) => ({ dbTabsCollapsed: !state.dbTabsCollapsed })),
   toggleQueryLog: () =>
     set((state) => ({ queryLogOpen: !state.queryLogOpen })),
 

@@ -27,6 +27,8 @@ import {
     TriangleAlert,
     ArrowUpDown,
     Download,
+    PanelLeftClose,
+    PanelLeftOpen,
 } from "lucide-react";
 import { useAppStore } from "@/store/useAppStore";
 import { DB_LOGO, DB_COLOR } from "@/lib/db-ui";
@@ -339,13 +341,13 @@ function DatabaseNode({
     const schemaKeys = Object.keys(bySchema);
     const showSchemaLabels = schemaKeys.length > 1 || (schemaKeys.length === 1 && schemaKeys[0] !== "public");
     return (
-        <div className="border border-border-subtle bg-surface-2/86 shadow-xs rounded-md overflow-hidden">
+        <div className="overflow-hidden border border-border-subtle bg-surface-2">
             {/* DB name row */}
             <button
                 onClick={() => isConnected ? setOpen((v) => !v) : onConnect()}
                 className={cn(
-                    "group w-full flex items-center gap-2.5 h-9 px-3 transition-colors select-none",
-                    "hover:bg-surface-3/82 text-foreground",
+                    "group flex h-9 w-full items-center gap-2.5 px-3 text-foreground transition-colors select-none",
+                    "hover:bg-surface-3",
                 )}
             >
                 <span className="text-foreground/38 shrink-0 w-3">
@@ -353,7 +355,7 @@ function DatabaseNode({
                         ? open ? <ChevronDown size={11} /> : <ChevronRight size={11} />
                         : <ChevronRight size={11} />}
                 </span>
-                <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-surface-3 ring-1 ring-border-subtle">
+                <div className="flex h-7 w-7 shrink-0 items-center justify-center border border-border-subtle bg-surface-3">
                     <Logo className={cn("text-[14px] shrink-0", logoColor)} />
                 </div>
                 <span className="text-[13px] font-semibold flex-1 text-left truncate min-w-0">
@@ -363,7 +365,7 @@ function DatabaseNode({
                     const preset = GROUP_PRESETS.find(p => p.id === connection.group);
                     return (
                         <span className={cn(
-                            "shrink-0 px-1.5 h-4 flex items-center rounded-md text-[10px] font-bold uppercase tracking-wide border",
+                            "shell-badge shrink-0 px-1.5",
                             preset ? preset.activeClass : "bg-muted/50 border-border/50 text-muted-foreground/60"
                         )}>
                             {connection.group}
@@ -377,9 +379,9 @@ function DatabaseNode({
             </button>
             {/* Tables header */}
             {isConnected && open && (
-                <div className="flex h-8 shrink-0 items-center gap-1.5 border-y border-border-subtle bg-surface-1/92 px-2.5">
+                <div className="shell-toolbar flex h-8 shrink-0 items-center gap-1.5 border-y px-2.5">
                     <TableProperties size={12} className="shrink-0 text-foreground/35" />
-                    <span className="text-[11px] font-bold uppercase tracking-[0.16em] text-foreground/48 flex-1">
+                    <span className="shell-section-label flex-1 text-foreground/58">
                         Tables
                     </span>
                     {!isLoading && tableFns.length > 0 && (
@@ -392,7 +394,7 @@ function DatabaseNode({
                             <button
                                 aria-label="Add table"
                                 onClick={() => setAddTableOpen(true)}
-                                className="flex items-center justify-center w-5 h-5 rounded-md text-foreground/40 hover:text-foreground hover:bg-surface-3 transition-colors"
+                                className="shell-icon-button flex h-5 w-5 items-center justify-center text-foreground/40 transition-colors hover:bg-surface-3 hover:text-foreground"
                             >
                                 <Plus size={11} />
                             </button>
@@ -405,7 +407,7 @@ function DatabaseNode({
                                 aria-label="Refresh tables"
                                 onClick={handleRefreshTables}
                                 disabled={isRefreshingTables}
-                                className="flex items-center justify-center w-5 h-5 rounded-md text-foreground/40 hover:text-foreground hover:bg-surface-3 transition-colors disabled:opacity-40"
+                                className="shell-icon-button flex h-5 w-5 items-center justify-center text-foreground/40 transition-colors hover:bg-surface-3 hover:text-foreground disabled:opacity-40"
                             >
                                 <RefreshCw size={11} className={isRefreshingTables ? "animate-spin" : ""} />
                             </button>
@@ -418,7 +420,7 @@ function DatabaseNode({
                                 <button
                                     aria-label={expandAll === true ? "Collapse all" : "Expand all"}
                                     onClick={() => setExpandAll((v) => v === true ? false : true)}
-                                    className="flex items-center justify-center w-5 h-5 rounded-md text-foreground/40 hover:text-foreground hover:bg-surface-3 transition-colors"
+                                    className="shell-icon-button flex h-5 w-5 items-center justify-center text-foreground/40 transition-colors hover:bg-surface-3 hover:text-foreground"
                                 >
                                     {expandAll === true ? <ChevronsUp size={11} /> : <ChevronsDown size={11} />}
                                 </button>
@@ -435,7 +437,7 @@ function DatabaseNode({
                                     aria-label="Dump database"
                                     onClick={() => setShowDumpDialog(true)}
                                     disabled={dumpDbLoading}
-                                    className="flex items-center justify-center w-5 h-5 rounded-md text-foreground/40 hover:text-foreground hover:bg-surface-3 transition-colors disabled:opacity-40"
+                                    className="shell-icon-button flex h-5 w-5 items-center justify-center text-foreground/40 transition-colors hover:bg-surface-3 hover:text-foreground disabled:opacity-40"
                                 >
                                     {dumpDbLoading
                                         ? <Loader2 size={11} className="animate-spin" />
@@ -503,6 +505,85 @@ function DatabaseNode({
         </div>
     );
 }
+// ── Saved Connections List (shown when activeView === "new-connection") ────────
+function SavedConnectionsList({
+    connections,
+    connectedIds,
+    onEditConnection,
+}: {
+    connections: ConnectionConfig[];
+    connectedIds: string[];
+    onEditConnection: (conn: ConnectionConfig) => void;
+}) {
+    return (
+        <div className="flex-1 flex flex-col overflow-hidden min-w-0">
+            {/* Header */}
+            <div className="shell-toolbar flex h-10 shrink-0 items-center border-b px-4">
+                <span className="shell-section-label text-foreground/58">Saved Connections</span>
+            </div>
+            {connections.length === 0 ? (
+                <div className="flex-1 flex flex-col items-center justify-center gap-3 px-4 pb-10 text-center">
+                    <p className="text-[11px] font-mono text-foreground/44">No saved connections</p>
+                </div>
+            ) : (
+                <ScrollArea className="flex-1 min-h-0">
+                    <div className="px-2 py-2 flex flex-col gap-0.5">
+                        {connections.map((conn) => {
+                            const isConnected = connectedIds.includes(conn.id);
+                            const group = GROUP_PRESETS.find((g) => g.id === conn.group);
+                            const DbLogo = DB_LOGO[conn.type] ?? DB_LOGO.postgresql;
+                            const logoColor = DB_COLOR[conn.type] ?? "text-muted-foreground";
+                            const hostDisplay =
+                                conn.type === "sqlite"
+                                    ? (conn.database ?? "local.sqlite")
+                                    : conn.type === "mongodb"
+                                        ? (conn.host
+                                            ? `${conn.host}:${conn.port ?? 27017}`
+                                            : "localhost:27017")
+                                        : conn.type === "redis"
+                                            ? `${conn.host ?? "localhost"}:${conn.port ?? 6379}`
+                                            : `${conn.host ?? "localhost"}:${conn.port ?? 5432}`;
+                            return (
+                                <button
+                                    key={conn.id}
+                                    onClick={() => onEditConnection(conn)}
+                                    className="group w-full rounded px-2.5 py-2 text-left transition-colors hover:bg-surface-2 border border-transparent hover:border-border-subtle"
+                                >
+                                    <div className="flex items-center justify-between gap-1.5 mb-0.5">
+                                        <div className="flex items-center gap-1.5 min-w-0">
+                                            <DbLogo className={cn("shrink-0 text-[13px]", logoColor)} />
+                                            <span className="text-[12px] font-semibold text-foreground truncate">
+                                                {conn.name}
+                                            </span>
+                                        </div>
+                                        <div className="flex items-center gap-1.5 shrink-0">
+                                            {isConnected && (
+                                                <CircleDot size={7} className="text-primary shrink-0" />
+                                            )}
+                                            {group && (
+                                                <span
+                                                    className={cn(
+                                                        "text-[9px] font-bold uppercase tracking-[0.08em] px-1 py-0.5 rounded border",
+                                                        group.activeClass,
+                                                    )}
+                                                >
+                                                    {group.label.slice(0, 3)}
+                                                </span>
+                                            )}
+                                        </div>
+                                    </div>
+                                    <span className="block truncate font-mono text-[10px] text-foreground/42">
+                                        {hostDisplay}
+                                    </span>
+                                </button>
+                            );
+                        })}
+                    </div>
+                </ScrollArea>
+            )}
+        </div>
+    );
+}
 // ── Main Sidebar Panel ─────────────────────────────────────────────────────────
 const Sidebar = () => {
     const {
@@ -521,9 +602,13 @@ const Sidebar = () => {
         loadTableColumns,
         invokeFunction,
         setActiveFunctionOnly,
-        setConnectionDialogOpen,
+        setActiveView,
         setEditingConnection,
+        setConnectionDialogOpen,
         addConnection,
+        activeView,
+        dbTabsCollapsed,
+        toggleDbTabs,
     } = useAppStore();
     const [filter, setFilter] = useState("");
     const [loadingIds, setLoadingIds] = useState<Set<string>>(new Set());
@@ -582,11 +667,32 @@ const Sidebar = () => {
     };
     const activeDatabases = activeConn ? (openDatabases[activeConn.id] ?? []) : [];
     const selectedDb = activeConn ? (selectedDatabases[activeConn.id] ?? null) : null;
+
+    // ── New-connection mode: show saved connections list in sidebar ──
+    if (activeView === "new-connection") {
+        return (
+            <div className="flex h-full min-h-0 overflow-hidden bg-surface-1">
+                <SavedConnectionsList
+                    connections={connections}
+                    connectedIds={connectedIds}
+                    onEditConnection={(conn) => {
+                        setEditingConnection(conn);
+                        setConnectionDialogOpen(true);
+                    }}
+                />
+            </div>
+        );
+    }
+
     return (
-        <div className="h-full flex bg-surface-1 border border-border-subtle shadow-sm overflow-hidden min-h-0 rounded-lg">
+        <div className="flex h-full min-h-0 overflow-hidden bg-surface-1">
             {/* ── Left: open database tabs ── */}
             {activeDatabases.length > 0 && activeConn && (
-                <div className="flex shrink-0 flex-col gap-1.5 overflow-y-auto border-r border-border-subtle bg-surface-1/94 px-2 py-2 w-[88px] min-w-[72px]">
+                <div
+                    style={{ width: dbTabsCollapsed ? 0 : 88 }}
+                    className="shrink-0 overflow-hidden transition-[width] duration-200 ease-in-out"
+                >
+                    <div className="flex h-full w-[88px] flex-col gap-1.5 overflow-y-auto border-r border-border-subtle bg-surface-1 px-2 py-2">
                     {activeDatabases.map((db) => {
                         const isActive = db === selectedDb;
                         const DbLogo = DB_LOGO[activeConn.type] ?? DB_LOGO.postgresql;
@@ -601,17 +707,17 @@ const Sidebar = () => {
                                                     aria-label={`Select database ${db}`}
                                                     onClick={() => selectDatabase(activeConn.id, db)}
                                                     className={cn(
-                                                        "group relative flex w-full shrink-0 flex-col items-center gap-1.5 rounded-md border px-2 py-3 transition-[color,background-color,border-color,box-shadow]",
+                                                        "group relative flex w-full shrink-0 flex-col items-center gap-1.5 border px-2 py-3 transition-[color,background-color,border-color]",
                                                         isActive
-                                                            ? "border-border-subtle bg-surface-elevated text-foreground shadow-xs"
-                                                            : "border-transparent bg-surface-2/64 text-foreground/50 hover:border-border/55 hover:bg-surface-2 hover:text-foreground/72"
+                                                            ? "border-border-subtle bg-surface-elevated text-foreground"
+                                                            : "border-transparent bg-surface-2 text-foreground/50 hover:border-border/55 hover:bg-surface-3 hover:text-foreground/72"
                                                     )}
                                                 >
                                                     {/* Icon container */}
                                                     <div className={cn(
-                                                        "flex h-8 w-8 items-center justify-center rounded-md transition-colors",
+                                                        "flex h-8 w-8 items-center justify-center border border-transparent transition-colors",
                                                         isActive
-                                                            ? "bg-surface-2 ring-1 ring-border-subtle shadow-xs"
+                                                            ? "border-border-subtle bg-surface-2"
                                                             : "bg-transparent group-hover:bg-surface-3"
                                                     )}>
                                                         <DbLogo className={cn(
@@ -668,17 +774,39 @@ const Sidebar = () => {
                         );
                     })}
                 </div>
+                </div>
             )}
             {/* ── Right: main content ── */}
             <div className="flex-1 flex flex-col overflow-hidden min-w-0">
                 {/* ── Header ── */}
-                    <div className="h-10 flex items-center justify-between px-4 border-b border-border-subtle bg-surface-1/92 shrink-0 backdrop-blur-sm">
-                    <span className="text-[11px] font-bold uppercase tracking-[0.16em] text-foreground/48">
-                        Explorer
-                    </span>
+                    <div className="shell-toolbar flex h-10 shrink-0 items-center justify-between border-b px-4">
+                    <span className="shell-section-label text-foreground/58">
+                         Explorer
+                     </span>
                     <div className="flex items-center gap-1">
                         {loadingIds.size > 0 && (
                             <Loader2 size={10} className="animate-spin text-foreground/40" />
+                        )}
+                        {activeDatabases.length > 0 && activeConn && (
+                            <Tooltip>
+                                <TooltipTrigger asChild>
+                                    <Button
+                                        variant="ghost"
+                                        size="icon-xs"
+                                        aria-label={dbTabsCollapsed ? "Show database tabs" : "Hide database tabs"}
+                                        onClick={toggleDbTabs}
+                                        className="text-foreground/48 hover:text-foreground"
+                                    >
+                                        {dbTabsCollapsed
+                                            ? <PanelLeftOpen size={14} />
+                                            : <PanelLeftClose size={14} />
+                                        }
+                                    </Button>
+                                </TooltipTrigger>
+                                <TooltipContent side="bottom" sideOffset={4}>
+                                    {dbTabsCollapsed ? "Show database tabs" : "Hide database tabs"}
+                                </TooltipContent>
+                            </Tooltip>
                         )}
                         <Tooltip>
                             <TooltipTrigger asChild>
@@ -701,9 +829,9 @@ const Sidebar = () => {
                                     size="sm"
                                     onClick={() => {
                                         setEditingConnection(null);
-                                        setConnectionDialogOpen(true);
+                                        setActiveView("new-connection");
                                     }}
-                                    className="h-7 gap-1.5 rounded-md border-border-subtle bg-surface-3/96 px-2.5 text-[10px] font-semibold uppercase tracking-[0.12em] text-foreground/72 shadow-xs hover:bg-surface-elevated hover:text-foreground"
+                                    className="h-7 gap-1.5 rounded-sm border-border-subtle bg-surface-2 px-2.5 text-[10px] font-semibold uppercase tracking-[0.12em] text-foreground/72 hover:bg-surface-3 hover:text-foreground"
                                 >
                                     <Plus size={12} />
                                     Add
@@ -715,14 +843,14 @@ const Sidebar = () => {
                 </div>
                 {/* ── Filter ── */}
                 {connections.length > 0 && (
-                    <div className="shrink-0 border-b border-border-subtle bg-surface-1/72 px-3 py-2">
+                    <div className="shrink-0 border-b border-border-subtle bg-surface-1 px-3 py-2">
                         <div className="relative">
                             <Search size={11} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-foreground/36 pointer-events-none" />
                             <Input
                                 value={filter}
                                 onChange={(e) => setFilter(e.target.value)}
                                 placeholder="Filter tables…"
-                                className="h-8 pl-8 pr-3 text-[12px] font-mono bg-surface-elevated/96 border-border-subtle placeholder:text-foreground/38 focus-visible:border-primary/35 focus-visible:ring-0"
+                                className="h-8 border-border-subtle bg-surface-2 pl-8 pr-3 text-[12px] font-mono placeholder:text-foreground/38 focus-visible:border-primary/35 focus-visible:ring-0"
                             />
                         </div>
                     </div>
@@ -743,7 +871,7 @@ const Sidebar = () => {
                         </div>
                         <Button
                             size="sm"
-                            onClick={() => { setEditingConnection(null); setConnectionDialogOpen(true); }}
+                            onClick={() => { setEditingConnection(null); setActiveView("new-connection"); }}
                             className="h-7 text-[11px] font-semibold uppercase tracking-[0.12em] gap-1.5"
                         >
                             <Plus size={11} />
@@ -791,7 +919,7 @@ const Sidebar = () => {
                     </ScrollArea>
                 )}
                 {/* ── Status Footer ── always pinned to bottom */}
-                <div className="shrink-0 border-t border-border-subtle px-4 h-9 flex items-center gap-2 bg-surface-1/94 overflow-hidden">
+                <div className="shell-toolbar flex h-9 shrink-0 items-center gap-2 overflow-hidden border-t px-4">
                     <CircleDot
                         size={8}
                         className={cn("shrink-0", connectedIds.length > 0 ? "text-primary" : "text-foreground/42")}

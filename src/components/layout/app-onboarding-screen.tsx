@@ -190,10 +190,10 @@ function StepConnect({ onConnect }: { onConnect: () => void }) {
 
 interface OnboardingProps {
     onDone: () => void;
-    onOpenConnectionDialog: () => void;
+    onOpenConnectionPage: () => void;
 }
 
-export function Onboarding({ onDone, onOpenConnectionDialog }: OnboardingProps) {
+export function Onboarding({ onDone, onOpenConnectionPage }: OnboardingProps) {
     const [step, setStep] = useState(0);
     const STEPS = 3;
 
@@ -204,7 +204,7 @@ export function Onboarding({ onDone, onOpenConnectionDialog }: OnboardingProps) 
 
     const handleConnect = () => {
         dismiss();
-        onOpenConnectionDialog();
+        onOpenConnectionPage();
     };
 
     const next = () => {

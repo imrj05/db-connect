@@ -841,6 +841,15 @@ export function TableGridView({
             ),
         [structure],
     );
+    const structureColumnMap = useMemo<
+        Record<string, TableStructure["columns"][number]>
+    >(
+        () =>
+            Object.fromEntries(
+                (structure?.columns ?? []).map((column) => [column.name, column]),
+            ),
+        [structure],
+    );
     const isColumnEditable = useCallback(
         (columnId: string) => !(columnMetaMap[columnId]?.isPrimary ?? false),
         [columnMetaMap],
@@ -2309,172 +2318,377 @@ export function TableGridView({
                                 effectiveResult.columns.length > 0
                                     ? effectiveResult.columns
                                     : Object.keys(row);
+                            const rowPendingCount = cols.filter((col) =>
+                                Boolean(getPendingEditForCell(row, col)),
+                            ).length;
                             return (
-                                <div>
-                                    {/* Record header */}
-                                    <div className="sticky top-0 z-10 flex items-center justify-between px-4 h-9 bg-surface-2/94 backdrop-blur-md border-b border-border-subtle">
-                                        <div className="flex items-center gap-2">
-                                            <AlignLeft
-                                                size={10}
-                                                className="text-foreground/42"
-                                            />
-                                            <span className="text-[10px] font-bold uppercase tracking-widest text-foreground/52">
-                                                Record
-                                            </span>
-                                            <span className="text-[10px] font-mono bg-muted text-foreground/52 rounded-md px-1.5 py-0.5 leading-none">
-                                                {page * pageSize +
-                                                    formRowIdx +
-                                                    1}{" "}
-                                                / {effectiveResult.rows.length}
-                                            </span>
-                                        </div>
-                                        <div className="flex items-center gap-0.5">
-                                            <Button
-                                                variant="ghost"
-                                                size="icon-xs"
-                                                disabled={formRowIdx === 0}
-                                                onClick={() =>
-                                                    setSelectedRowIdx((i) =>
-                                                        Math.max(
-                                                            0,
-                                                            (i < 0 ? 0 : i) - 1,
-                                                        ),
-                                                    )
-                                                }
-                                                className="h-6 w-6 text-foreground/52 hover:text-foreground disabled:opacity-20"
-                                            >
-                                                <ChevronLeft size={11} />
-                                            </Button>
-                                            <Button
-                                                variant="ghost"
-                                                size="icon-xs"
-                                                disabled={
-                                                    formRowIdx ===
-                                                    effectiveResult.rows
-                                                        .length -
-                                                    1
-                                                }
-                                                onClick={() =>
-                                                    setSelectedRowIdx((i) =>
-                                                        Math.min(
-                                                            effectiveResult.rows
-                                                                .length - 1,
-                                                            (i < 0 ? 0 : i) + 1,
-                                                        ),
-                                                    )
-                                                }
-                                                className="h-6 w-6 text-foreground/52 hover:text-foreground disabled:opacity-20"
-                                            >
-                                                <ChevronRight size={11} />
-                                            </Button>
-                                            {fn.tableName && (
+                                <div className="p-4 space-y-4">
+                                    <div className="sticky top-0 z-10 rounded-xl border border-border-subtle bg-surface-2/96 backdrop-blur-md shadow-sm">
+                                        <div className="flex flex-col gap-3 border-b border-border-subtle px-4 py-3 sm:flex-row sm:items-start sm:justify-between">
+                                            <div className="space-y-2">
+                                                <div className="flex items-center gap-2">
+                                                    <AlignLeft
+                                                        size={12}
+                                                        className="text-foreground/42"
+                                                    />
+                                                    <span className="text-[10px] font-bold uppercase tracking-widest text-foreground/52">
+                                                        Record details
+                                                    </span>
+                                                </div>
+                                                <div className="flex flex-wrap items-center gap-2 text-[11px] font-mono text-foreground/64">
+                                                    <Badge variant="outline" className="h-5 rounded-md border-border/60 bg-muted/40 px-1.5 text-[10px] font-medium text-muted-foreground/72">
+                                                        Row {page * pageSize + formRowIdx + 1}
+                                                    </Badge>
+                                                    <Badge variant="outline" className="h-5 rounded-md border-border/60 bg-muted/40 px-1.5 text-[10px] font-medium text-muted-foreground/72">
+                                                        {cols.length} fields
+                                                    </Badge>
+                                                    {structure && (
+                                                        <Badge variant="outline" className="h-5 rounded-md border-border/60 bg-muted/40 px-1.5 text-[10px] font-medium text-muted-foreground/72">
+                                                            {primaryKeyColumns.length} PK
+                                                        </Badge>
+                                                    )}
+                                                    {rowPendingCount > 0 && (
+                                                        <Badge variant="outline" className="h-5 rounded-md border-warning/30 bg-warning/10 px-1.5 text-[10px] font-medium text-warning">
+                                                            {rowPendingCount} pending
+                                                        </Badge>
+                                                    )}
+                                                </div>
+                                                {fn.tableName && (
+                                                    <div className="text-[12px] text-foreground/58">
+                                                        Table <span className="font-mono text-foreground">{fn.tableName}</span>
+                                                    </div>
+                                                )}
+                                            </div>
+                                            <div className="flex flex-wrap items-center gap-2 sm:justify-end">
                                                 <Button
-                                                    variant="ghost"
-                                                    size="icon-xs"
-                                                    className="h-6 w-6 text-foreground/38 hover:text-destructive hover:bg-destructive/10 ml-1"
+                                                    variant="outline"
+                                                    size="xs"
+                                                    disabled={formRowIdx === 0}
                                                     onClick={() =>
-                                                        buildAndShowDeleteSql(
-                                                            row,
+                                                        setSelectedRowIdx((i) =>
+                                                            Math.max(
+                                                                0,
+                                                                (i < 0 ? 0 : i) - 1,
+                                                            ),
                                                         )
                                                     }
+                                                    className="text-[11px]"
                                                 >
-                                                    <Trash2 size={10} />
+                                                    <ChevronLeft size={11} />
+                                                    Prev
                                                 </Button>
-                                            )}
+                                                <Button
+                                                    variant="outline"
+                                                    size="xs"
+                                                    disabled={
+                                                        formRowIdx ===
+                                                        effectiveResult.rows
+                                                            .length -
+                                                        1
+                                                    }
+                                                    onClick={() =>
+                                                        setSelectedRowIdx((i) =>
+                                                            Math.min(
+                                                                effectiveResult.rows
+                                                                    .length - 1,
+                                                                (i < 0 ? 0 : i) + 1,
+                                                            ),
+                                                        )
+                                                    }
+                                                    className="text-[11px]"
+                                                >
+                                                    Next
+                                                    <ChevronRight size={11} />
+                                                </Button>
+                                                {fn.tableName && (
+                                                    <>
+                                                        <Button
+                                                            variant="outline"
+                                                            size="xs"
+                                                            onClick={() =>
+                                                                void cloneRow(row)
+                                                            }
+                                                            className="text-[11px]"
+                                                        >
+                                                            <Plus size={11} />
+                                                            Clone row
+                                                        </Button>
+                                                        <Button
+                                                            variant="destructive"
+                                                            size="xs"
+                                                            onClick={() =>
+                                                                void buildAndShowDeleteSql(
+                                                                    row,
+                                                                )
+                                                            }
+                                                            className="text-[11px]"
+                                                        >
+                                                            <Trash2 size={11} />
+                                                            Delete row
+                                                        </Button>
+                                                    </>
+                                                )}
+                                            </div>
+                                        </div>
+                                        <div className="grid grid-cols-2 gap-3 px-4 py-3 text-[11px] text-foreground/58 sm:grid-cols-4">
+                                            <div className="rounded-lg border border-border-subtle bg-surface-3 px-3 py-2">
+                                                <div className="text-[10px] uppercase tracking-wide text-foreground/42">
+                                                    Current row
+                                                </div>
+                                                <div className="mt-1 font-mono text-foreground">
+                                                    {page * pageSize + formRowIdx + 1} / {effectiveResult.rows.length}
+                                                </div>
+                                            </div>
+                                            <div className="rounded-lg border border-border-subtle bg-surface-3 px-3 py-2">
+                                                <div className="text-[10px] uppercase tracking-wide text-foreground/42">
+                                                    Visible fields
+                                                </div>
+                                                <div className="mt-1 font-mono text-foreground">
+                                                    {cols.length}
+                                                </div>
+                                            </div>
+                                            <div className="rounded-lg border border-border-subtle bg-surface-3 px-3 py-2">
+                                                <div className="text-[10px] uppercase tracking-wide text-foreground/42">
+                                                    Primary keys
+                                                </div>
+                                                <div className="mt-1 font-mono text-foreground">
+                                                    {primaryKeyColumns.length || 0}
+                                                </div>
+                                            </div>
+                                            <div className="rounded-lg border border-border-subtle bg-surface-3 px-3 py-2">
+                                                <div className="text-[10px] uppercase tracking-wide text-foreground/42">
+                                                    Pending changes
+                                                </div>
+                                                <div className="mt-1 font-mono text-foreground">
+                                                    {rowPendingCount}
+                                                </div>
+                                            </div>
                                         </div>
                                     </div>
-                                    {/* Fields */}
-                                    <div className="divide-y divide-border-subtle">
+                                    <div className="space-y-3">
                                         {cols.map((col, colIdx) => {
                                             const isEditing =
                                                 editingCell?.rowIdx ===
                                                 formRowIdx &&
                                                 editingCell?.col === col;
                                             const val = row[col];
+                                            const displayValue =
+                                                val === null
+                                                    ? "[NULL]"
+                                                    : typeof val === "object"
+                                                        ? JSON.stringify(val, null, 2)
+                                                        : String(val);
                                             const pendingEdit =
                                                 getPendingEditForCell(row, col);
+                                            const columnInfo =
+                                                structureColumnMap[col];
                                             return (
                                                 <div
                                                     key={col}
                                                     className={cn(
-                                                        "group/field flex items-start gap-4 px-4 py-2.5 hover:bg-surface-hover transition-colors",
+                                                        "rounded-xl border border-border-subtle bg-surface-2 shadow-sm transition-colors",
                                                         pendingEdit &&
-                                                        "bg-warning/10",
+                                                        "border-warning/30 bg-warning/5",
                                                         colIdx % 2 === 0
-                                                            ? "bg-table-bg"
-                                                            : "bg-row-alt",
+                                                            ? ""
+                                                            : "",
                                                     )}
                                                 >
-                                                    <span className="w-40 shrink-0 text-[12px] font-mono font-semibold text-foreground/54 truncate pt-0.5">
-                                                        {col}
-                                                    </span>
-                                                    {isEditing ? (
-                                                        <input
-                                                            autoFocus
-                                                            value={
-                                                                editingCell.value
-                                                            }
-                                                            onChange={(e) =>
-                                                                setEditingCell(
-                                                                    (prev) =>
-                                                                        prev
-                                                                            ? {
-                                                                                ...prev,
-                                                                                value: e
-                                                                                    .target
-                                                                                    .value,
+                                                    <div className="flex flex-col gap-3 p-4 lg:flex-row lg:items-start lg:justify-between">
+                                                        <div className="min-w-0 lg:w-72 lg:shrink-0">
+                                                            <div className="flex flex-wrap items-center gap-2">
+                                                                <span className="text-[12px] font-mono font-semibold text-foreground truncate">
+                                                                    {col}
+                                                                </span>
+                                                                {columnInfo?.isPrimary && (
+                                                                    <Badge variant="outline" className="h-4 rounded-md border-warning/20 bg-warning/10 px-1 text-[9px] text-warning">
+                                                                        PK
+                                                                    </Badge>
+                                                                )}
+                                                                {columnInfo?.isUnique &&
+                                                                    !columnInfo.isPrimary && (
+                                                                        <Badge variant="outline" className="h-4 rounded-md border-primary/20 bg-primary/10 px-1 text-[9px] text-primary">
+                                                                            UNIQUE
+                                                                        </Badge>
+                                                                    )}
+                                                                {columnInfo && !columnInfo.nullable && (
+                                                                    <Badge variant="outline" className="h-4 rounded-md border-destructive/20 bg-destructive/10 px-1 text-[9px] text-destructive">
+                                                                        NOT NULL
+                                                                    </Badge>
+                                                                )}
+                                                                {pendingEdit && (
+                                                                    <Badge variant="outline" className="h-4 rounded-md border-warning/30 bg-warning/10 px-1 text-[9px] text-warning">
+                                                                        PENDING
+                                                                    </Badge>
+                                                                )}
+                                                            </div>
+                                                            <div className="mt-2 space-y-1 text-[11px] text-foreground/58">
+                                                                <div>
+                                                                    Type <span className="font-mono text-foreground/80">{columnInfo?.dataType ?? "Unknown"}</span>
+                                                                </div>
+                                                                <div>
+                                                                    Nullability <span className="font-mono text-foreground/80">{columnInfo ? (columnInfo.nullable ? "Nullable" : "Required") : "Unknown"}</span>
+                                                                </div>
+                                                                {columnInfo?.defaultValue != null && (
+                                                                    <div>
+                                                                        Default <span className="font-mono text-foreground/80">{columnInfo.defaultValue}</span>
+                                                                    </div>
+                                                                )}
+                                                                {columnInfo?.extra && (
+                                                                    <div>
+                                                                        Extra <span className="font-mono text-foreground/80">{columnInfo.extra}</span>
+                                                                    </div>
+                                                                )}
+                                                            </div>
+                                                        </div>
+                                                        <div className="min-w-0 flex-1 space-y-3">
+                                                            <div className="rounded-lg border border-border-subtle bg-surface-3 px-3 py-2">
+                                                                {isEditing ? (
+                                                                    <input
+                                                                        autoFocus
+                                                                        value={
+                                                                            editingCell.value
+                                                                        }
+                                                                        onChange={(e) =>
+                                                                            setEditingCell(
+                                                                                (prev) =>
+                                                                                    prev
+                                                                                        ? {
+                                                                                            ...prev,
+                                                                                            value: e
+                                                                                                .target
+                                                                                                .value,
+                                                                                        }
+                                                                                        : null,
+                                                                            )
+                                                                        }
+                                                                        onKeyDown={(e) => {
+                                                                            if (
+                                                                                e.key ===
+                                                                                "Enter"
+                                                                            ) {
+                                                                                e.preventDefault();
+                                                                                commitEdit();
                                                                             }
-                                                                            : null,
-                                                                )
-                                                            }
-                                                            onKeyDown={(e) => {
-                                                                if (
-                                                                    e.key ===
-                                                                    "Enter"
-                                                                ) {
-                                                                    e.preventDefault();
-                                                                    commitEdit();
-                                                                }
-                                                                if (
-                                                                    e.key ===
-                                                                    "Escape"
-                                                                ) {
-                                                                    e.preventDefault();
-                                                                    setEditingCell(
-                                                                        null,
-                                                                    );
-                                                                }
-                                                            }}
-                                                            className="flex-1 bg-primary/10 border border-primary/30 rounded-md px-2 py-0.5 outline-none text-[12px] font-mono text-foreground"
-                                                        />
-                                                    ) : (
-                                                        <span
-                                                            className={cn(
-                                                                "flex-1 text-[12px] font-mono break-all",
-                                                                pendingEdit
-                                                                    ? "text-warning"
-                                                                    : val === null
-                                                                        ? "text-foreground/35 italic"
-                                                                        : "text-foreground/90",
+                                                                            if (
+                                                                                e.key ===
+                                                                                "Escape"
+                                                                            ) {
+                                                                                e.preventDefault();
+                                                                                setEditingCell(
+                                                                                    null,
+                                                                                );
+                                                                            }
+                                                                        }}
+                                                                        className="w-full bg-transparent outline-none text-[12px] font-mono text-foreground"
+                                                                    />
+                                                                ) : (
+                                                                    <button
+                                                                        type="button"
+                                                                        className={cn(
+                                                                            "block w-full text-left text-[12px] font-mono break-all outline-none",
+                                                                            pendingEdit
+                                                                                ? "text-warning"
+                                                                                : val ===
+                                                                                    null
+                                                                                    ? "text-foreground/35 italic"
+                                                                                    : "text-foreground/90",
+                                                                        )}
+                                                                        onDoubleClick={() => {
+                                                                            if (!fn.tableName)
+                                                                                return;
+                                                                            void startInlineEdit(
+                                                                                formRowIdx,
+                                                                                col,
+                                                                                val,
+                                                                                row,
+                                                                            );
+                                                                        }}
+                                                                    >
+                                                                        {displayValue}
+                                                                    </button>
+                                                                )}
+                                                            </div>
+                                                            <div className="flex flex-wrap items-center gap-2">
+                                                                {fn.tableName && (
+                                                                    <>
+                                                                        <Button
+                                                                            variant="outline"
+                                                                            size="xs"
+                                                                            onClick={() =>
+                                                                                void startInlineEdit(
+                                                                                    formRowIdx,
+                                                                                    col,
+                                                                                    val,
+                                                                                    row,
+                                                                                )
+                                                                            }
+                                                                            disabled={!isColumnEditable(col)}
+                                                                        >
+                                                                            Edit
+                                                                        </Button>
+                                                                        <Button
+                                                                            variant="outline"
+                                                                            size="xs"
+                                                                            onClick={() =>
+                                                                                void editCellInModal(
+                                                                                    formRowIdx,
+                                                                                    col,
+                                                                                    val,
+                                                                                    row,
+                                                                                )
+                                                                            }
+                                                                            disabled={!isColumnEditable(col)}
+                                                                        >
+                                                                            Detailed edit
+                                                                        </Button>
+                                                                        <Button
+                                                                            variant="outline"
+                                                                            size="xs"
+                                                                            onClick={() =>
+                                                                                void setNullCell(
+                                                                                    row,
+                                                                                    col,
+                                                                                )
+                                                                            }
+                                                                            disabled={!canSetColumnToNull(col)}
+                                                                        >
+                                                                            Set NULL
+                                                                        </Button>
+                                                                    </>
+                                                                )}
+                                                                <Button
+                                                                    variant="ghost"
+                                                                    size="xs"
+                                                                    onClick={() =>
+                                                                        copyToClipboard(
+                                                                            toEditString(
+                                                                                val,
+                                                                            ),
+                                                                        )
+                                                                    }
+                                                                >
+                                                                    Copy value
+                                                                </Button>
+                                                                <Button
+                                                                    variant="ghost"
+                                                                    size="xs"
+                                                                    onClick={() =>
+                                                                        copyToClipboard(
+                                                                            col,
+                                                                        )
+                                                                    }
+                                                                >
+                                                                    Copy field
+                                                                </Button>
+                                                            </div>
+                                                            {pendingEdit && (
+                                                                <div className="rounded-lg border border-warning/20 bg-warning/10 px-3 py-2 text-[11px] text-warning">
+                                                                    Pending value: <span className="font-mono">{pendingEdit.pendingValue ?? "NULL"}</span>
+                                                                </div>
                                                             )}
-                                                            onDoubleClick={() => {
-                                                                if (!fn.tableName)
-                                                                    return;
-                                                                void startInlineEdit(
-                                                                    formRowIdx,
-                                                                    col,
-                                                                    val,
-                                                                    row,
-                                                                );
-                                                            }}
-                                                        >
-                                                            {val === null
-                                                                ? "[NULL]"
-                                                                : typeof val === "object"
-                                                                    ? JSON.stringify(val)
-                                                                    : String(val)}
-                                                        </span>
-                                                    )}
+                                                        </div>
+                                                    </div>
                                                 </div>
                                             );
                                         })}
@@ -2496,16 +2710,39 @@ export function TableGridView({
                             </div>
                         </div>
                     ) : structure ? (
-                        <div>
-                            {/* ── Columns ── */}
-                            <div>
-                                <div className="sticky top-0 z-10 flex items-center justify-between px-4 h-9 bg-surface-2/94 backdrop-blur-md border-b border-border-subtle">
+                        <div className="space-y-4 p-4">
+                            <div className="grid gap-3 sm:grid-cols-3">
+                                <div className="rounded-xl border border-border-subtle bg-surface-2 px-4 py-3 shadow-sm">
+                                    <div className="text-[10px] uppercase tracking-wide text-foreground/42">
+                                        Table
+                                    </div>
+                                    <div className="mt-1 text-[13px] font-mono text-foreground">
+                                        {fn.tableName ?? "Unknown"}
+                                    </div>
+                                </div>
+                                <div className="rounded-xl border border-border-subtle bg-surface-2 px-4 py-3 shadow-sm">
+                                    <div className="text-[10px] uppercase tracking-wide text-foreground/42">
+                                        Columns
+                                    </div>
+                                    <div className="mt-1 text-[13px] font-mono text-foreground">
+                                        {structure.columns.length}
+                                    </div>
+                                </div>
+                                <div className="rounded-xl border border-border-subtle bg-surface-2 px-4 py-3 shadow-sm">
+                                    <div className="text-[10px] uppercase tracking-wide text-foreground/42">
+                                        Indexes
+                                    </div>
+                                    <div className="mt-1 text-[13px] font-mono text-foreground">
+                                        {structure.indexes.length}
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div className="rounded-xl border border-border-subtle bg-surface-2 shadow-sm overflow-hidden">
+                                <div className="flex items-center justify-between gap-3 border-b border-border-subtle px-4 py-3">
                                     <div className="flex items-center gap-2">
-                                        <Key
-                                            size={10}
-                                            className="text-foreground/42"
-                                        />
-                                        <span className="text-[11px] font-semibold text-foreground/60">
+                                        <Key size={12} className="text-foreground/42" />
+                                        <span className="text-[12px] font-semibold text-foreground/72">
                                             Columns
                                         </span>
                                         <Badge variant="outline" className="h-5 rounded-md border-border/60 bg-muted/40 px-1.5 text-[10px] font-medium text-muted-foreground/72">
@@ -2514,16 +2751,15 @@ export function TableGridView({
                                     </div>
                                     {fn.tableName && (
                                         <Button
-                                            variant="ghost"
-                                            size="icon-xs"
+                                            variant="outline"
+                                            size="xs"
                                             aria-label="Add column"
-                                            className="size-6 rounded-md text-foreground/48 transition-colors hover:bg-surface-3 hover:text-foreground focus-visible:ring-[3px] focus-visible:ring-ring/40"
                                             onClick={() => {
                                                 setAddCol({
                                                     name: "",
                                                     type:
                                                         COL_TYPES[
-                                                        dbType as DatabaseType
+                                                            dbType as DatabaseType
                                                         ]?.[0] ?? "TEXT",
                                                     nullable: true,
                                                 });
@@ -2531,76 +2767,82 @@ export function TableGridView({
                                             }}
                                         >
                                             <Plus size={11} />
+                                            Add column
                                         </Button>
                                     )}
                                 </div>
                                 <div className="divide-y divide-border-subtle">
-                                    {structure.columns.map((col, idx) => (
-                                        <div
-                                            key={col.name}
-                                            className={cn(
-                                                "group/row flex items-center gap-3 px-4 py-2.5 hover:bg-row-hover transition-colors",
-                                                idx % 2 === 0
-                                                    ? "bg-table-bg"
-                                                    : "bg-row-alt",
-                                            )}
-                                        >
-                                            <span className="text-[10px] font-mono text-foreground/28 w-4 shrink-0 text-right tabular-nums">
-                                                {idx + 1}
-                                            </span>
-                                            <span className="text-[12px] font-mono font-semibold text-foreground flex-1 min-w-0 truncate">
-                                                {col.name}
-                                            </span>
-                                            <div className="flex items-center gap-1.5 shrink-0 flex-wrap justify-end">
-                                                <span className="text-[10px] font-mono text-accent-orange/78 bg-accent-orange/8 border border-accent-orange/15 px-1.5 py-0.5 rounded-md">
-                                                    {col.dataType}
-                                                </span>
-                                                {col.isPrimary && (
-                                                    <Badge variant="outline" className="h-4 rounded-md border-warning/20 bg-warning/10 px-1 text-[9px] text-warning">PK</Badge>
-                                                    )}
-                                                {col.isUnique &&
-                                                    !col.isPrimary && (
-                                                        <Badge variant="outline" className="h-4 rounded-md border-primary/20 bg-primary/10 px-1 text-[9px] text-primary">UNI</Badge>
-                                                    )}
-                                                {!col.nullable && (
-                                                    <Badge variant="outline" className="h-4 rounded-md border-destructive/20 bg-destructive/10 px-1 text-[9px] text-destructive">NOT NULL</Badge>
-                                                )}
-                                                {col.defaultValue != null && (
-                                                    <span className="px-1.5 py-0.5 rounded text-[9px] font-mono text-foreground/48 bg-muted border border-border">
-                                                        default:{" "}
-                                                        {col.defaultValue}
+                                    {structure.columns.map((col) => (
+                                        <div key={col.name} className="flex flex-col gap-3 px-4 py-4 lg:flex-row lg:items-start lg:justify-between">
+                                            <div className="min-w-0 flex-1 space-y-2">
+                                                <div className="flex flex-wrap items-center gap-2">
+                                                    <span className="text-[12px] font-mono font-semibold text-foreground break-all">
+                                                        {col.name}
                                                     </span>
-                                                )}
-                                                {col.extra && (
-                                                    <span className="px-1.5 py-0.5 rounded text-[9px] font-mono text-foreground/42 bg-muted border border-border">
-                                                        {col.extra}
+                                                    <span className="rounded-md border border-accent-orange/15 bg-accent-orange/8 px-1.5 py-0.5 text-[10px] font-mono text-accent-orange/78">
+                                                        {col.dataType}
                                                     </span>
-                                                )}
+                                                    {col.isPrimary && (
+                                                        <Badge variant="outline" className="h-4 rounded-md border-warning/20 bg-warning/10 px-1 text-[9px] text-warning">
+                                                            PK
+                                                        </Badge>
+                                                    )}
+                                                    {col.isUnique && !col.isPrimary && (
+                                                        <Badge variant="outline" className="h-4 rounded-md border-primary/20 bg-primary/10 px-1 text-[9px] text-primary">
+                                                            UNIQUE
+                                                        </Badge>
+                                                    )}
+                                                    {!col.nullable && (
+                                                        <Badge variant="outline" className="h-4 rounded-md border-destructive/20 bg-destructive/10 px-1 text-[9px] text-destructive">
+                                                            NOT NULL
+                                                        </Badge>
+                                                    )}
+                                                </div>
+                                                <div className="grid gap-2 text-[11px] text-foreground/58 sm:grid-cols-2 xl:grid-cols-3">
+                                                    <div>
+                                                        Default <span className="font-mono text-foreground/82">{col.defaultValue ?? "None"}</span>
+                                                    </div>
+                                                    <div>
+                                                        Extra <span className="font-mono text-foreground/82">{col.extra ?? "None"}</span>
+                                                    </div>
+                                                    <div>
+                                                        Nullable <span className="font-mono text-foreground/82">{col.nullable ? "Yes" : "No"}</span>
+                                                    </div>
+                                                </div>
                                             </div>
-                                            <Button
-                                                variant="ghost"
-                                                size="icon-xs"
-                                                aria-label={`Drop column ${col.name}`}
-                                                className="shrink-0 opacity-0 transition-opacity group-hover/row:opacity-100 hover:text-destructive hover:bg-destructive/10"
-                                                onClick={() =>
-                                                    setDropColTarget(col.name)
-                                                }
-                                            >
-                                                <Trash2 size={10} />
-                                            </Button>
+                                            {fn.tableName && (
+                                                <div className="flex items-center gap-2 lg:shrink-0">
+                                                    <Button
+                                                        variant="ghost"
+                                                        size="xs"
+                                                        onClick={() => copyToClipboard(col.name)}
+                                                    >
+                                                        Copy name
+                                                    </Button>
+                                                    <Button
+                                                        variant="ghost"
+                                                        size="xs"
+                                                        aria-label={`Drop column ${col.name}`}
+                                                        onClick={() =>
+                                                            setDropColTarget(col.name)
+                                                        }
+                                                        className="text-destructive hover:bg-destructive/10 hover:text-destructive"
+                                                    >
+                                                        <Trash2 size={11} />
+                                                        Drop
+                                                    </Button>
+                                                </div>
+                                            )}
                                         </div>
                                     ))}
                                 </div>
                             </div>
-                            {/* ── Indexes ── */}
-                            <div className="border-t border-border-subtle">
-                                <div className="sticky top-0 z-10 flex items-center justify-between px-4 h-9 bg-surface-2/94 backdrop-blur-md border-b border-border-subtle">
+
+                            <div className="rounded-xl border border-border-subtle bg-surface-2 shadow-sm overflow-hidden">
+                                <div className="flex items-center justify-between gap-3 border-b border-border-subtle px-4 py-3">
                                     <div className="flex items-center gap-2">
-                                        <Hash
-                                            size={10}
-                                            className="text-foreground/42"
-                                        />
-                                        <span className="text-[11px] font-semibold text-foreground/60">
+                                        <Hash size={12} className="text-foreground/42" />
+                                        <span className="text-[12px] font-semibold text-foreground/72">
                                             Indexes
                                         </span>
                                         <Badge variant="outline" className="h-5 rounded-md border-border/60 bg-muted/40 px-1.5 text-[10px] font-medium text-muted-foreground/72">
@@ -2609,10 +2851,9 @@ export function TableGridView({
                                     </div>
                                     {fn.tableName && (
                                         <Button
-                                            variant="ghost"
-                                            size="icon-xs"
+                                            variant="outline"
+                                            size="xs"
                                             aria-label="Create index"
-                                            className="size-6 rounded-md text-foreground/48 transition-colors hover:bg-surface-3 hover:text-foreground focus-visible:ring-[3px] focus-visible:ring-ring/40"
                                             onClick={() => {
                                                 setCreateIdxDef({
                                                     name: "",
@@ -2623,6 +2864,7 @@ export function TableGridView({
                                             }}
                                         >
                                             <Plus size={11} />
+                                            Create index
                                         </Button>
                                     )}
                                 </div>
@@ -2635,50 +2877,60 @@ export function TableGridView({
                                     </Empty>
                                 ) : (
                                     <div className="divide-y divide-border-subtle">
-                                        {structure.indexes.map((idx, i) => (
-                                            <div
-                                                key={idx.name}
-                                                className={cn(
-                                                    "group/row flex items-center gap-3 px-4 py-2.5 hover:bg-row-hover transition-colors",
-                                                    i % 2 === 0
-                                                        ? "bg-table-bg"
-                                                        : "bg-row-alt",
-                                                )}
-                                            >
-                                                <span className="text-[13px] font-mono text-accent-blue/78 flex-1 min-w-0 truncate">
-                                                    {idx.name}
-                                                </span>
-                                                <div className="flex items-center gap-1 shrink-0 flex-wrap justify-end">
-                                                    {idx.columns.map((c) => (
-                                                        <span
-                                                            key={c}
-                                                            className="px-1.5 py-0.5 bg-muted border border-border rounded text-[10px] font-mono text-foreground/64"
-                                                        >
-                                                            {c}
+                                        {structure.indexes.map((idx) => (
+                                            <div key={idx.name} className="flex flex-col gap-3 px-4 py-4 lg:flex-row lg:items-start lg:justify-between">
+                                                <div className="min-w-0 flex-1 space-y-2">
+                                                    <div className="flex flex-wrap items-center gap-2">
+                                                        <span className="text-[12px] font-mono font-semibold text-accent-blue/78 break-all">
+                                                            {idx.name}
                                                         </span>
-                                                    ))}
-                                                    {idx.indexType && (
-                                                        <span className="text-[10px] font-mono text-foreground/38 uppercase">
-                                                            {idx.indexType}
-                                                        </span>
-                                                    )}
-                                                    {idx.unique && (
-                                                        <Badge variant="outline" className="h-4 rounded-md border-accent-green/20 bg-accent-green/10 px-1 text-[9px] text-accent-green">UNIQUE</Badge>
-                                                    )}
+                                                        {idx.unique && (
+                                                            <Badge variant="outline" className="h-4 rounded-md border-accent-green/20 bg-accent-green/10 px-1 text-[9px] text-accent-green">
+                                                                UNIQUE
+                                                            </Badge>
+                                                        )}
+                                                        {idx.indexType && (
+                                                            <span className="text-[10px] font-mono uppercase text-foreground/42">
+                                                                {idx.indexType}
+                                                            </span>
+                                                        )}
+                                                    </div>
+                                                    <div className="flex flex-wrap gap-1.5">
+                                                        {idx.columns.map((c) => (
+                                                            <span
+                                                                key={c}
+                                                                className="rounded-md border border-border bg-muted px-1.5 py-0.5 text-[10px] font-mono text-foreground/64"
+                                                            >
+                                                                {c}
+                                                            </span>
+                                                        ))}
+                                                    </div>
                                                 </div>
-                                                <Button
-                                                    variant="ghost"
-                                                    size="icon-xs"
-                                                    aria-label={`Drop index ${idx.name}`}
-                                                    className="shrink-0 opacity-0 transition-opacity group-hover/row:opacity-100 hover:text-destructive hover:bg-destructive/10"
-                                                    onClick={() =>
-                                                        setDropIdxTarget(
-                                                            idx.name,
-                                                        )
-                                                    }
-                                                >
-                                                    <Trash2 size={10} />
-                                                </Button>
+                                                <div className="flex items-center gap-2 lg:shrink-0">
+                                                    <Button
+                                                        variant="ghost"
+                                                        size="xs"
+                                                        onClick={() =>
+                                                            copyToClipboard(idx.name)
+                                                        }
+                                                    >
+                                                        Copy name
+                                                    </Button>
+                                                    <Button
+                                                        variant="ghost"
+                                                        size="xs"
+                                                        aria-label={`Drop index ${idx.name}`}
+                                                        onClick={() =>
+                                                            setDropIdxTarget(
+                                                                idx.name,
+                                                            )
+                                                        }
+                                                        className="text-destructive hover:bg-destructive/10 hover:text-destructive"
+                                                    >
+                                                        <Trash2 size={11} />
+                                                        Drop
+                                                    </Button>
+                                                </div>
                                             </div>
                                         ))}
                                     </div>

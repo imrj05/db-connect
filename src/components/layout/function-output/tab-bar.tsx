@@ -34,23 +34,21 @@ export function TabBar({
 }) {
 	if (tabs.length === 0) return null;
 	return (
-		<div className="flex h-10 shrink-0 items-center gap-1.5 overflow-x-auto border-b border-border-subtle bg-surface-1/94 px-3.5 py-1 no-scrollbar">
+		<div className="shell-toolbar no-scrollbar flex h-10 shrink-0 items-center gap-1 overflow-x-auto border-b px-3 py-1">
 			{tabs.map((tab) => {
 				const isActive = tab.id === activeTabId;
 				const hasPendingEdits = tab.pendingEdits.length > 0;
 				const typeMeta = TYPE_META[tab.fn.type] ?? TYPE_META.table;
 				const TabIcon = typeMeta.icon;
-				const tabPaddingClass = tabs.length > 1 ? "pl-3 pr-1.5" : "px-3";
 				return (
 					<div
 						key={tab.id}
 						onClick={() => onSwitchTab(tab.id)}
 						className={cn(
-							"group/tab relative flex h-9 shrink-0 cursor-pointer select-none items-center gap-2 rounded-md border border-transparent bg-transparent transition-[color,background-color,border-color,box-shadow]",
+							"group/tab relative flex h-8 shrink-0 cursor-pointer select-none items-center gap-2 border border-transparent bg-transparent px-3 transition-[color,background-color,border-color]",
 							isActive
-								? "bg-surface-3 text-foreground shadow-xs ring-1 ring-border-subtle"
+								? "border-border-subtle bg-surface-3 text-foreground"
 								: "border-border/42 text-foreground/60 hover:border-border/60 hover:bg-surface-2 hover:text-foreground/84",
-							tabPaddingClass,
 						)}
 					>
 						<TabIcon
@@ -79,10 +77,10 @@ export function TabBar({
 									e.stopPropagation();
 									onCloseTab(tab.id);
 								}}
-								className={cn(
-									"ml-1 size-6 rounded-md text-foreground/36 hover:bg-surface-2 hover:text-foreground",
-									isActive ? "opacity-100" : "opacity-0 group-hover/tab:opacity-100",
-								)}
+							className={cn(
+								"shell-icon-button ml-1 size-6 text-foreground/36 hover:bg-surface-2 hover:text-foreground",
+								isActive ? "opacity-100" : "opacity-0 group-hover/tab:opacity-100",
+							)}
 							>
 								<X size={11} />
 							</Button>
@@ -98,8 +96,8 @@ export function TabBar({
 							variant="outline"
 							size="sm"
 							onClick={onNewTab}
-							className="my-auto ml-2 h-8 shrink-0 gap-1.5 rounded-md border-border-subtle bg-surface-2/88 px-3.5 text-[12px] font-medium text-foreground/76 shadow-xs hover:bg-surface-3 hover:text-foreground"
-						>
+						className="my-auto ml-2 h-8 shrink-0 gap-1.5 rounded-sm border-border-subtle bg-surface-2 px-3.5 text-[12px] font-medium text-foreground/76 hover:bg-surface-3 hover:text-foreground"
+					>
 							<Plus size={12} />
 							New Tab
 						</Button>

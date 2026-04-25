@@ -8,7 +8,7 @@ export const DB_FONT_MONO = ".dbFontMono";
 
 // The actual CSS font-family stacks each alias resolves to
 export const DB_FONT_SANS_STACK =
-    `system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Helvetica, Arial, sans-serif`;
+    `"Space Grotesk Variable", "Space Grotesk", "Geist Variable", "Geist", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif`;
 export const DB_FONT_MONO_STACK =
     `"JetBrains Mono", "IBM Plex Mono", "SF Mono", "Cascadia Code", ui-monospace, Menlo, Monaco, Consolas, monospace`;
 

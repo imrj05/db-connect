@@ -43,8 +43,8 @@ export function ConnectionsHome({
 }) {
 	if (connections.length === 0) {
 		return (
-			<div className="h-full flex flex-col items-center justify-center bg-surface-2/72 gap-4 px-6">
-				<div className="w-16 h-16 rounded-2xl bg-surface-3 border border-border-subtle flex items-center justify-center shadow-sm">
+			<div className="flex h-full flex-col items-center justify-center gap-4 bg-surface-2 px-6">
+				<div className="flex h-16 w-16 items-center justify-center border border-border-subtle bg-surface-3">
 					<Database size={24} className="text-foreground/32" />
 				</div>
 				<div className="text-center space-y-1.5">
@@ -61,7 +61,7 @@ export function ConnectionsHome({
 				<Button
 					onClick={onNewConnection}
 					size="sm"
-					className="mt-1 h-9 gap-1.5 px-4 text-[12px] font-medium"
+					className="mt-1 h-9 gap-1.5 rounded-sm px-4 text-[12px] font-medium"
 				>
 					<Plus size={12} />
 					New Connection
@@ -70,9 +70,9 @@ export function ConnectionsHome({
 		);
 	}
 	return (
-		<div className="h-full overflow-auto scrollbar-thin bg-surface-2/72">
+		<div className="h-full overflow-auto scrollbar-thin bg-surface-2">
 			{/* Header */}
-			<div className="flex items-center justify-between px-6 py-4 border-b border-border-subtle sticky top-0 bg-surface-2/94 backdrop-blur-md z-10">
+			<div className="sticky top-0 z-10 flex items-center justify-between border-b border-border-subtle bg-surface-1 px-6 py-4">
 				<div>
 					<h2 className="text-[15px] font-semibold text-foreground">
 						Connections
@@ -86,14 +86,14 @@ export function ConnectionsHome({
 				<Button
 					onClick={onNewConnection}
 					size="sm"
-					className="gap-1.5 text-[11px]"
+					className="gap-1.5 rounded-sm text-[11px]"
 				>
 					<Plus size={12} />
 					New Connection
 				</Button>
 			</div>
 			{/* Connection list */}
-			<div className="px-6 py-5 space-y-3 max-w-3xl">
+			<div className="max-w-3xl space-y-2 px-6 py-5">
 				{connections.map((conn) => {
 					const isConnected = connectedIds.includes(conn.id);
 					const Logo = DB_LOGO[conn.type] ?? DB_LOGO.postgresql;
@@ -103,7 +103,7 @@ export function ConnectionsHome({
 					return (
 						<div
 							key={conn.id}
-						className="flex items-center gap-4 px-4 py-4 border border-border-subtle rounded-lg bg-surface-3 hover:bg-surface-elevated hover:border-border/70 transition-colors shadow-sm"
+						className="flex items-center gap-4 border border-border-subtle bg-surface-3 px-4 py-4 transition-colors hover:bg-surface-elevated hover:border-border/70"
 						>
 							{/* DB logo */}
 							<Logo
@@ -122,9 +122,9 @@ export function ConnectionsHome({
 										const preset = GROUP_PRESETS.find(p => p.id === conn.group);
 										return (
 											<span className={cn(
-												"shrink-0 px-1.5 h-[15px] flex items-center rounded text-[9px] font-bold uppercase tracking-wide border",
-												preset ? preset.activeClass : "bg-muted/50 border-border/50 text-muted-foreground/60"
-											)}>
+								"shell-badge h-[15px] shrink-0 px-1.5 text-[9px]",
+								preset ? preset.activeClass : "bg-muted/50 border-border/50 text-muted-foreground/60"
+							)}>
 												{conn.group}
 											</span>
 										);
@@ -137,10 +137,10 @@ export function ConnectionsHome({
 							{/* Status badge */}
 							<div
 								className={cn(
-									"flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wide shrink-0 px-3 py-1 rounded-full",
-									isConnected
-										? "text-accent-green bg-accent-green/10"
-										: "text-foreground/54 bg-surface-2",
+								"shell-badge shrink-0 gap-1.5 px-3",
+								isConnected
+									? "text-accent-green bg-accent-green/10"
+									: "text-foreground/54 bg-surface-2",
 								)}
 							>
 								<span
@@ -161,8 +161,8 @@ export function ConnectionsHome({
 										variant="ghost"
 										size="icon-xs"
 										aria-label={`Edit ${conn.name || conn.host || "connection"}`}
-										className="size-7 text-foreground/46 hover:text-foreground"
-										onClick={() => onEdit(conn)}
+									className="size-7 rounded-sm text-foreground/46 hover:text-foreground"
+									onClick={() => onEdit(conn)}
 										>
 											<Pencil size={12} />
 										</Button>
@@ -178,8 +178,8 @@ export function ConnectionsHome({
 										variant="ghost"
 										size="icon-xs"
 										aria-label={`Disconnect ${conn.name || conn.host || "connection"}`}
-										className="size-7 text-foreground/46 hover:text-destructive hover:bg-destructive/10 transition-colors"
-										onClick={() =>
+									className="size-7 rounded-sm text-foreground/46 transition-colors hover:bg-destructive/10 hover:text-destructive"
+									onClick={() =>
 												onDisconnect(conn.id)
 											}
 											>
@@ -196,7 +196,7 @@ export function ConnectionsHome({
 									variant={
 										isConnected ? "outline" : "default"
 									}
-									className="text-[12px] h-8 px-3.5"
+									className="h-8 rounded-sm px-3.5 text-[12px]"
 									onClick={() => onConnect(conn.id)}
 								>
 									{isConnected ? "Open" : "Connect"}

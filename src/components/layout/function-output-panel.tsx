@@ -62,6 +62,7 @@ const FunctionOutput = () => {
 		appSettings,
 		showConnectionsManager,
 		setShowConnectionsManager,
+		setActiveView,
 	} = useAppStore();
 	const [page, setPage] = useState(0);
 	const [pendingDangerSql, setPendingDangerSql] = useState<string | null>(null);
@@ -164,6 +165,11 @@ const FunctionOutput = () => {
 	}, [activeFunction, connectionTables, connections]);
 	// ── Content renderer ──
 	const renderContent = () => {
+		const openNewConnectionPage = () => {
+			setShowConnectionsManager(false);
+			setActiveView("new-connection");
+		};
+
 		const outputType = invocationResult?.outputType ?? "idle";
 		if (isLoading || invocationResult?.isLoading) {
 			const label = activeFunction
@@ -195,7 +201,7 @@ const FunctionOutput = () => {
 					<ConnectionsHome
 						connections={connections}
 						connectedIds={connectedIds}
-						onNewConnection={() => setConnectionDialogOpen(true)}
+						onNewConnection={openNewConnectionPage}
 						onEdit={(conn) => {
 							setEditingConnection(conn);
 							setConnectionDialogOpen(true);
@@ -209,7 +215,7 @@ const FunctionOutput = () => {
 				);
 			}
 			return (
-				<IdleView onNewConnection={() => setConnectionDialogOpen(true)} />
+				<IdleView onNewConnection={openNewConnectionPage} />
 			);
 		}
 		if (invocationResult.error) {
@@ -269,12 +275,12 @@ const FunctionOutput = () => {
 				);
 			default:
 				return (
-					<IdleView onNewConnection={() => setConnectionDialogOpen(true)} />
+					<IdleView onNewConnection={openNewConnectionPage} />
 				);
 		}
 	};
 	return (
-		<div className="h-full w-full flex flex-col overflow-hidden rounded-[inherit] bg-surface-1">
+		<div className="flex h-full w-full flex-col overflow-hidden bg-surface-1">
 			<TabBar
 				tabs={tabs}
 				activeTabId={activeTabId}
@@ -283,7 +289,7 @@ const FunctionOutput = () => {
 				onCloseTab={handleCloseTab}
 				onNewTab={openNewTab}
 			/>
-			<div className="flex-1 min-h-0 overflow-hidden rounded-b-[inherit] bg-surface-2">{renderContent()}</div>
+			<div className="flex-1 min-h-0 overflow-hidden bg-surface-2">{renderContent()}</div>
 			{/* Destructive query confirmation dialog */}
 			<AlertDialog
 				open={!!pendingDangerSql}
