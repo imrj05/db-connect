@@ -1861,15 +1861,7 @@ export function TableGridView({
                                     <ExternalLink size={11} />
                                 </button>
                  )}
-                 {/* Feature 1: Column Stats Panel */}
-                 {statsCol && effectiveResult && (
-                     <ColumnStatsPanel
-                         colId={statsCol}
-                         rows={effectiveResult.rows}
-                         onClose={() => setStatsCol(null)}
-                     />
-                 )}
-              </div>
+               </div>
                     );
                 },
             })),
@@ -2047,6 +2039,7 @@ export function TableGridView({
             />
             {/* Content: Data view */}
             {viewMode === "data" && (
+                <div className="flex flex-col flex-1 min-h-0 overflow-hidden">
                 <div className="flex flex-1 min-h-0 overflow-hidden">
                 <div className="flex-1 overflow-auto scrollbar-thin bg-surface-3">
                     <div className="min-w-full block align-middle">
@@ -2480,6 +2473,15 @@ export function TableGridView({
                     />
                 )}
              </div>
+                {/* Feature 1: Column Stats Panel — bottom strip */}
+                {statsCol && effectiveResult && (
+                    <ColumnStatsPanel
+                        colId={statsCol}
+                        rows={effectiveResult.rows}
+                        onClose={() => setStatsCol(null)}
+                    />
+                )}
+                </div>
             )}
             <RowContextMenu
                 contextMenu={contextMenuCell}
