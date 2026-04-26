@@ -3,7 +3,7 @@
 @import "shadcn/tailwind.css";
 @import "@fontsource-variable/inter";
 @import "@fontsource-variable/space-grotesk";
-@custom-variant dark (&:is(.dark *));
+@custom-variant dark (&.dark, &:is(.dark *));
 
 :root {
     /* ========================================
@@ -16,18 +16,19 @@
     --popover: oklch(0.985 0.002 255);
     --popover-foreground: oklch(0.18 0.016 254);
     --primary: oklch(0.52 0.145 255);
-    --primary-foreground: #ffffff;
+    --primary-foreground: oklch(1 0 0);
     --secondary: oklch(0.945 0.004 255);
     --secondary-foreground: oklch(0.18 0.016 254);
     --muted: oklch(0.955 0.003 255);
     --muted-foreground: oklch(0.575 0.010 255);
     --accent: oklch(0.54 0.145 255);
-    --accent-foreground: #ffffff;
+    --accent-foreground: oklch(1 0 0);
     --destructive: oklch(0.577 0.245 27.325);
-    --destructive-foreground: white;
+    --destructive-foreground: oklch(1 0 0);
     --warning: oklch(0.75 0.18 70);
     --warning-foreground: oklch(0.18 0.01 260);
     --success: oklch(0.72 0.18 145);
+    --success-foreground: oklch(1 0 0);
     --border: oklch(0.875 0.008 254);
     --input: oklch(0.875 0.008 254);
     --ring: oklch(0.54 0.145 255);
@@ -45,7 +46,7 @@
     --sidebar: oklch(0.960 0.004 255);
     --sidebar-foreground: oklch(0.18 0.016 254);
     --sidebar-primary: oklch(0.52 0.145 255);
-    --sidebar-primary-foreground: #ffffff;
+    --sidebar-primary-foreground: oklch(1 0 0);
     --sidebar-accent: oklch(0.930 0.005 255);
     --sidebar-accent-foreground: oklch(0.18 0.016 254);
     --sidebar-border: oklch(0.875 0.008 254);
@@ -142,19 +143,19 @@
     /* ========================================
    * EMBER ENV SAFETY TOKENS (LIGHT)
    * ====================================== */
-    --env-prod:    #EF4444;
-    --env-staging: #F59E0B;
-    --env-local:   #10B981;
-    --env-brand:   #FACC15;
+    --env-prod:    oklch(0.577 0.245 27.325);
+    --env-staging: oklch(0.75 0.18 70);
+    --env-local:   oklch(0.72 0.18 145);
+    --env-brand:   oklch(0.88 0.19 90);
     --env-color:   var(--env-local);
     /* ========================================
    * SQL SYNTAX TOKENS (LIGHT)
    * ====================================== */
-    --sql-destructive: #B91C1C;
-    --sql-modifying:   #92400E;
-    --sql-read:        #854D0E;
+    --sql-destructive: oklch(0.44 0.20 27);
+    --sql-modifying:   oklch(0.45 0.15 55);
+    --sql-read:        oklch(0.47 0.13 65);
     --sql-keyword:     oklch(0.145 0 0);
-    --sql-string:      #0F766E;
+    --sql-string:      oklch(0.52 0.14 185);
     --sql-type:        oklch(0.55 0 0);
     --sql-identifier:  oklch(0.145 0 0);
 }
@@ -170,18 +171,19 @@
     --popover: oklch(0.21 0.016 254);
     --popover-foreground: oklch(0.895 0.009 255);
     --primary: oklch(0.55 0.15 255);
-    --primary-foreground: #ffffff;
+    --primary-foreground: oklch(1 0 0);
     --secondary: oklch(0.27 0.018 254);
     --secondary-foreground: oklch(0.895 0.009 255);
     --muted: oklch(0.23 0.017 254);
     --muted-foreground: oklch(0.68 0.012 255);
     --accent: oklch(0.70 0.12 257);
-    --accent-foreground: oklch(0.15 0.01 255);
+    --accent-foreground: oklch(0.98 0.003 255);
     --destructive: oklch(0.65 0.20 25);
-    --destructive-foreground: white;
+    --destructive-foreground: oklch(1 0 0);
     --warning: oklch(0.78 0.16 70);
     --warning-foreground: oklch(0.15 0.01 260);
     --success: oklch(0.72 0.18 145);
+    --success-foreground: oklch(1 0 0);
     --border: oklch(0.37 0.016 254 / 0.65);
     --input: oklch(0.32 0.016 254);
     --ring: oklch(0.68 0.13 257);
@@ -231,14 +233,28 @@
     --color-input-bg: var(--surface-elevated);
     --color-sidebar-item-hover: var(--sidebar-accent);
     --color-sidebar-item-active: var(--surface-selected);
+    --color-border-app: var(--border);
+    --color-border-sidebar: var(--sidebar-border);
     --color-border-table: var(--border-subtle);
     --color-border-header: var(--border-subtle);
+    --color-border-input: var(--input);
     --color-border-cell-focus: var(--accent);
+    --color-row-border: var(--border);
     --color-accent-blue: var(--accent);
     --color-accent-green: var(--success);
     --color-accent-orange: var(--chart-5);
     --color-accent-purple: var(--chart-4);
     --color-accent-red: var(--destructive);
+    --color-tag-applied-bg: var(--primary);
+    --color-tag-applied-text: var(--primary-foreground);
+    --color-text-primary: var(--foreground);
+    --color-text-secondary: var(--muted-foreground);
+    --color-text-muted: var(--muted-foreground);
+    --color-text-null: var(--muted-foreground);
+    --color-text-sidebar-item: var(--sidebar-foreground);
+    --color-text-sidebar-active: var(--sidebar-primary);
+    --color-text-table-header: var(--muted-foreground);
+    --color-text-tag-applied: var(--primary-foreground);
     /* Code Preview */
     --color-code-preview-bg: oklch(0.13 0.013 254);
     --color-code-preview-header-bg: oklch(0.11 0.012 254);
@@ -246,21 +262,21 @@
     /* ========================================
    * EMBER ENV SAFETY TOKENS (DARK)
    * ====================================== */
-    --env-prod:    #EF4444;
-    --env-staging: #F59E0B;
-    --env-local:   #10B981;
-    --env-brand:   #FACC15;
+    --env-prod:    oklch(0.65 0.22 27);
+    --env-staging: oklch(0.78 0.16 70);
+    --env-local:   oklch(0.72 0.18 145);
+    --env-brand:   oklch(0.88 0.19 90);
     --env-color:   var(--env-local);
     /* ========================================
    * SQL SYNTAX TOKENS (DARK)
    * ====================================== */
-    --sql-destructive: #EF4444;
-    --sql-modifying:   #F59E0B;
-    --sql-read:        #FACC15;
-    --sql-keyword:     #dce0e5;
-    --sql-string:      #5EEAD4;
-    --sql-type:        #a9afbc;
-    --sql-identifier:  #dce0e5;
+    --sql-destructive: oklch(0.65 0.22 27);
+    --sql-modifying:   oklch(0.78 0.16 70);
+    --sql-read:        oklch(0.88 0.19 90);
+    --sql-keyword:     oklch(0.89 0.006 255);
+    --sql-string:      oklch(0.87 0.12 185);
+    --sql-type:        oklch(0.72 0.005 255);
+    --sql-identifier:  oklch(0.89 0.006 255);
 }
 
 /* ========================================
@@ -1866,13 +1882,13 @@
     --font-mono: var(--app-font-mono);
     --font-serif: var(--app-font-serif);
     --font-label: var(--app-font-label);
-    --radius-sm: 0px;
-    --radius-md: 0px;
-    --radius-lg: var(--radius);
-    --radius-xl: var(--radius);
-    --radius-2xl: var(--radius);
-    --radius-3xl: var(--radius);
-    --radius-4xl: var(--radius);
+    --radius-sm: 0.125rem;
+    --radius-md: 0.25rem;
+    --radius-lg: 0.5rem;
+    --radius-xl: 0.5rem;
+    --radius-2xl: 0.5rem;
+    --radius-3xl: 0.5rem;
+    --radius-4xl: 0.5rem;
     --shadow-2xs: var(--shadow-2xs);
     --shadow-xs: var(--shadow-xs);
     --shadow-sm: var(--shadow-sm);
@@ -2066,7 +2082,7 @@
     }
 
     .shell-icon-button {
-        border-radius: 2px;
+        border-radius: 4px;
         box-shadow: none;
     }
 

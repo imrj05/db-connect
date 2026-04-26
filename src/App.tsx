@@ -1,4 +1,4 @@
-import { useEffect, useState, useRef, useCallback } from "react";
+import { useEffect, useLayoutEffect, useState, useRef, useCallback } from "react";
 import Sidebar from "./components/layout/app-sidebar-panel";
 import TitleBar from "./components/layout/title-bar";
 import FunctionOutput from "./components/layout/function-output-panel";
@@ -115,21 +115,14 @@ function App() {
         return () => clearTimeout(timer);
     }, []);
 
-    useEffect(() => {
-        // Remove all UI theme classes first
-        document.documentElement.classList.remove(
-            "dark",
-            "ui-dark-dim", "ui-dark-midnight", "ui-dark-catppuccin-mocha", "ui-dark-nord", "ui-dark-dracula",
-            "ui-dark-one-dark", "ui-dark-github-dark", "ui-dark-slack-dark", "ui-dark-linear", "ui-dark-voyage",
-            "ui-dark-astro", "ui-dark-night-owl", "ui-dark-borland", "ui-dark-metals", "ui-dark-cursor-dark",
-            "ui-light-light", "ui-light-sunrise", "ui-light-cream", "ui-light-catppuccin-latte", "ui-light-nord-light",
-            "ui-light-github-light", "ui-light-slack-zen", "ui-light-linear-light", "ui-light-voyage-light",
-            "ui-light-astro-light", "ui-light-spring", "ui-light-monokai-light", "ui-light-solarized-light", "ui-light-dracula-light", "ui-light-cursor"
+    useLayoutEffect(() => {
+        // Remove all UI sub-theme variant classes by prefix (NOT "dark" — managed by setTheme directly)
+        const toRemove = [...document.documentElement.classList].filter(
+            (c) => c.startsWith("ui-dark-") || c.startsWith("ui-light-")
         );
+        document.documentElement.classList.remove(...toRemove);
 
         if (theme === "dark") {
-            // Add .dark for Tailwind dark: variants
-            document.documentElement.classList.add("dark");
             // Apply dark variant class override (skip "dark" variant as .dark already handles it)
             if (appSettings.uiDarkTheme !== "dark") {
                 document.documentElement.classList.add(`ui-dark-${appSettings.uiDarkTheme}`);
@@ -148,7 +141,17 @@ function App() {
     useEffect(() => {
         const scale = appSettings.uiZoom / 100;
         const wrapper = document.getElementById("app-wrapper");
-        if (wrapper) {
+        if (!wrapper) return;
+        if (scale === 1) {
+            // Reset any previously applied zoom styles
+            wrapper.style.transform = "";
+            wrapper.style.transformOrigin = "";
+            wrapper.style.width = "";
+            wrapper.style.height = "";
+            wrapper.style.position = "";
+            wrapper.style.left = "";
+            wrapper.style.top = "";
+        } else {
             wrapper.style.transform = `scale(${scale})`;
             wrapper.style.transformOrigin = "top left";
             wrapper.style.width = `${100 / scale}%`;
@@ -284,17 +287,11 @@ function App() {
 
     if (isLoading) {
         return (
-            <div
-                className="h-full w-full flex flex-col items-center justify-center gap-4"
-                style={{ backgroundColor: "var(--background, #ffffff)" }}
-            >
-                <div
-                    className="size-16 rounded-md flex items-center justify-center animate-pulse"
-                    style={{ backgroundColor: "oklch(0.52 0.13 265 / 0.1)", border: "1px solid oklch(0.52 0.13 265 / 0.2)" }}
-                >
-                    <Table2 size={32} style={{ color: "oklch(0.52 0.13 265)" }} />
+            <div className="h-full w-full flex flex-col items-center justify-center gap-4 bg-background">
+                <div className="size-16 rounded-md flex items-center justify-center animate-pulse bg-primary/10 border border-primary/20">
+                    <Table2 size={32} className="text-primary" />
                 </div>
-                <p className="text-sm font-semibold" style={{ color: "var(--foreground, #1e1e1e)" }}>DB Connect</p>
+                <p className="text-sm font-semibold text-foreground">DB Connect</p>
             </div>
         );
     }

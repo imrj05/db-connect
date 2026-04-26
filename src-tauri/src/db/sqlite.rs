@@ -48,6 +48,39 @@ impl DatabaseDriver for SqliteDriver {
         Ok(vec!["main".to_string()])
     }
 
+    async fn create_database(&self, name: &str) -> Result<()> {
+        // SQLite "databases" are files. Create a new .db file next to the current one.
+        let pool_lock = self.pool.read().await;
+        let pool = pool_lock.as_ref().ok_or_else(|| anyhow!("Not connected"))?;
+
+        // Get the current file path from PRAGMA database_list
+        let row = sqlx::query("PRAGMA database_list")
+            .fetch_one(pool)
+            .await?;
+        let current_path: String = row.get(2);
+
+        let parent = std::path::Path::new(&current_path)
+            .parent()
+            .ok_or_else(|| anyhow!("Cannot determine parent directory of current SQLite file"))?;
+
+        let safe_name = name.replace(['/', '\\', ':', '*', '?', '"', '<', '>', '|'], "_");
+        let new_path = parent.join(format!("{}.db", safe_name));
+
+        if new_path.exists() {
+            return Err(anyhow!("A database file '{}' already exists", new_path.display()));
+        }
+
+        // Opening (connecting) to a new path creates the file in SQLite
+        let url = format!("sqlite:{}", new_path.to_string_lossy());
+        let new_pool = sqlx::sqlite::SqlitePoolOptions::new()
+            .max_connections(1)
+            .connect(&url)
+            .await?;
+        new_pool.close().await;
+
+        Ok(())
+    }
+
     async fn get_schemas(&self, _database: &str) -> Result<Vec<String>> {
         Ok(vec!["main".to_string()])
     }

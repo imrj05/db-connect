@@ -144,7 +144,7 @@ export function TabBar({
 	const GhostIcon = ghostMeta?.icon ?? null;
 
 	return (
-		<div className="shell-toolbar no-scrollbar flex h-10 shrink-0 items-center gap-1 overflow-x-auto border-b px-3 py-1">
+		<div className="shell-toolbar no-scrollbar flex h-10 shrink-0 items-center gap-1 overflow-x-auto border-b border-border-subtle px-3 py-1">
 			{tabs.map((tab) => {
 				const isActive = tab.id === activeTabId;
 				const hasPendingEdits = tab.pendingEdits.length > 0;
@@ -290,7 +290,7 @@ export function TabBar({
 							variant="outline"
 							size="sm"
 							onClick={onNewTab}
-							className="my-auto ml-2 h-8 shrink-0 gap-1.5 rounded-sm border-border-subtle bg-surface-2 px-3.5 text-[12px] font-medium text-foreground/76 hover:bg-surface-3 hover:text-foreground"
+							className="my-auto ml-2 h-8 shrink-0 gap-1.5 rounded-md border-border-subtle bg-surface-2 px-3.5 text-[12px] font-medium text-foreground/76 hover:bg-surface-3 hover:text-foreground"
 						>
 							<Plus size={12} />
 							New Tab

@@ -34,6 +34,7 @@ pub fn run() {
             commands::connect_database,
             commands::disconnect_database,
             commands::get_databases,
+            commands::create_database,
             commands::get_tables,
             commands::execute_query,
             commands::ping_connection,

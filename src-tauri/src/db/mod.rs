@@ -45,6 +45,10 @@ pub trait DatabaseDriver: Send + Sync {
         page_size: u32,
     ) -> Result<QueryResult>;
 
+    async fn create_database(&self, _name: &str) -> Result<()> {
+        Err(anyhow::anyhow!("Create database not supported for this database type"))
+    }
+
     async fn dump_database(
         &self,
         _database: &str,

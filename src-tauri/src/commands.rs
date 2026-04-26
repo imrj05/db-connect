@@ -860,6 +860,16 @@ pub async fn get_databases(id: String) -> Result<Vec<String>, String> {
 }
 
 #[tauri::command]
+pub async fn create_database(id: String, name: String) -> Result<(), String> {
+    let driver = REGISTRY
+        .connections
+        .get(&id)
+        .ok_or_else(|| "Not connected".to_string())?;
+
+    driver.create_database(&name).await.map_err(|e| e.to_string())
+}
+
+#[tauri::command]
 pub async fn get_tables(
     id: String,
     database: String,

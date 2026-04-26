@@ -59,6 +59,7 @@ function scheduleWorkspaceSave(getState: () => AppState) {
 const LEGACY_CONNECTIONS_KEY = "db_connections_v3";
 const LEGACY_QUERIES_KEY = "db_saved_queries_v1";
 const SETTINGS_KEY = "db_connect_settings_v1";
+const THEME_KEY = "db_connect_theme_v1";
 const LAYOUT_KEY = "db_connect_layout_v1";
 const PINNED_TABLES_KEY = "db_connect_pinned_tables_v1";
 
@@ -215,8 +216,8 @@ interface AppState {
 
   // ---- Live connection state ----
   connectedIds: string[]; // IDs with active Rust driver in REGISTRY
-  connectionFunctions: Record<string, ConnectionFunction[]>; // connectionId → generated fns
-  connectionTables: Record<string, TableInfo[]>; // connectionId → discovered tables
+  connectionFunctions: Record<string, Record<string, ConnectionFunction[]>>; // connectionId → database → generated fns
+  connectionTables: Record<string, Record<string, TableInfo[]>>; // connectionId → database → discovered tables
   connectionDatabases: Record<string, string[]>; // connectionId → available user databases
   selectedDatabases: Record<string, string>; // connectionId → currently selected database
   openDatabases: Record<string, string[]>; // connectionId → explicitly opened databases (shown as tabs)
@@ -232,6 +233,7 @@ interface AppState {
   expandedConnections: string[]; // connectionIds with open tree in sidebar
   sidebarCollapsed: boolean;
   dbTabsCollapsed: boolean;
+  activeConnectionId: string | null; // which connection is selected in the connections panel
   queryLogOpen: boolean;
   commandPaletteOpen: boolean;
   connectionDialogOpen: boolean;
@@ -318,6 +320,7 @@ interface AppState {
   toggleConnectionExpanded: (connectionId: string) => void;
   toggleSidebar: () => void;
   toggleDbTabs: () => void;
+  setActiveConnectionId: (id: string | null) => void;
   toggleQueryLog: () => void;
   setCommandPaletteOpen: (open: boolean) => void;
   setConnectionDialogOpen: (open: boolean) => void;
@@ -358,11 +361,12 @@ export const useAppStore = create<AppState>((set, get) => ({
   pendingSqlValue: "",
   expandedConnections: [],
   ...loadLayout(),
+  activeConnectionId: null,
   commandPaletteOpen: false,
   connectionDialogOpen: false,
   editingConnection: null,
   showConnectionsManager: false,
-  theme: "dark",
+  theme: (localStorage.getItem(THEME_KEY) as "dark" | "light") ?? "dark",
   isLoading: false,
   activeView: "main",
   tabs: [],
@@ -520,10 +524,10 @@ export const useAppStore = create<AppState>((set, get) => ({
         connectionConnectedAt: state.connectionConnectedAt[connectionId]
           ? state.connectionConnectedAt
           : { ...state.connectionConnectedAt, [connectionId]: Date.now() },
-        connectionTables: { ...state.connectionTables, [connectionId]: tables },
+        connectionTables: { ...state.connectionTables, [connectionId]: { ...(state.connectionTables[connectionId] ?? {}), [autoSelected ?? ""]: tables } },
         connectionFunctions: {
           ...state.connectionFunctions,
-          [connectionId]: fns,
+          [connectionId]: { ...(state.connectionFunctions[connectionId] ?? {}), [autoSelected ?? ""]: fns },
         },
         connectionDatabases: { ...state.connectionDatabases, [connectionId]: userDbs },
         selectedDatabases: autoSelected
@@ -535,6 +539,7 @@ export const useAppStore = create<AppState>((set, get) => ({
         expandedConnections: state.expandedConnections.includes(connectionId)
           ? state.expandedConnections
           : [...state.expandedConnections, connectionId],
+        activeConnectionId: connectionId,
       }));
 
       toast.success(`Connected: ${config.prefix}_list() and ${tables.length} table functions ready`);
@@ -562,6 +567,21 @@ export const useAppStore = create<AppState>((set, get) => ({
             pendingSqlValue: activeTab.pendingSql,
             _pendingWorkspaceSnapshot: null,
             selectedDatabases: { ...s.selectedDatabases, ...snapshot.selectedDatabases },
+          }));
+
+          // Re-invoke non-SQL tabs so their data is actually loaded (table/list/src tabs show nothing without this)
+          const tabsToLoad = restoredTabs.filter((t) => t.fn.type !== "query" && t.fn.type !== "execute");
+          for (const tab of tabsToLoad) {
+            await get().invokeFunction(tab.fn);
+          }
+
+          // Restore focus to the originally active tab after all invocations
+          const finalActiveTab = restoredTabs.find((t) => t.id === snapshot.activeTabId) ?? restoredTabs[restoredTabs.length - 1];
+          set((s) => ({
+            activeTabId: finalActiveTab.id,
+            activeFunction: finalActiveTab.fn,
+            invocationResult: s.tabs.find((t) => t.id === finalActiveTab.id)?.result ?? finalActiveTab.result,
+            pendingSqlValue: finalActiveTab.pendingSql,
           }));
         } else {
           set({ _pendingWorkspaceSnapshot: null });
@@ -632,8 +652,8 @@ export const useAppStore = create<AppState>((set, get) => ({
 
       set((state) => ({
         selectedDatabases: { ...state.selectedDatabases, [connectionId]: database },
-        connectionTables: { ...state.connectionTables, [connectionId]: tables },
-        connectionFunctions: { ...state.connectionFunctions, [connectionId]: fns },
+        connectionTables: { ...state.connectionTables, [connectionId]: { ...(state.connectionTables[connectionId] ?? {}), [database]: tables } },
+        connectionFunctions: { ...state.connectionFunctions, [connectionId]: { ...(state.connectionFunctions[connectionId] ?? {}), [database]: fns } },
         openDatabases: {
           ...state.openDatabases,
           [connectionId]: state.openDatabases[connectionId]?.includes(database)
@@ -691,9 +711,10 @@ export const useAppStore = create<AppState>((set, get) => ({
     try {
       const tables = await tauriApi.listAllTables(connectionId, db);
       const fns = buildConnectionFunctions(config, tables);
+      const dbKey = db ?? "";
       set((state) => ({
-        connectionTables: { ...state.connectionTables, [connectionId]: tables },
-        connectionFunctions: { ...state.connectionFunctions, [connectionId]: fns },
+        connectionTables: { ...state.connectionTables, [connectionId]: { ...(state.connectionTables[connectionId] ?? {}), [dbKey]: tables } },
+        connectionFunctions: { ...state.connectionFunctions, [connectionId]: { ...(state.connectionFunctions[connectionId] ?? {}), [dbKey]: fns } },
       }));
       toast.success(`${tables.length} tables loaded`);
     } catch (error) {
@@ -708,11 +729,12 @@ export const useAppStore = create<AppState>((set, get) => ({
     try {
       const structure = await tauriApi.getTableStructure(connectionId, database, tableName);
       set((state) => {
-        const tables = state.connectionTables[connectionId] ?? [];
+        const dbTables = state.connectionTables[connectionId] ?? {};
+        const tables = dbTables[database] ?? [];
         const updated = tables.map((t) =>
           t.name === tableName ? { ...t, columns: structure.columns } : t,
         );
-        return { connectionTables: { ...state.connectionTables, [connectionId]: updated } };
+        return { connectionTables: { ...state.connectionTables, [connectionId]: { ...dbTables, [database]: updated } } };
       });
     } catch {
       // silently ignore — no columns shown
@@ -724,6 +746,9 @@ export const useAppStore = create<AppState>((set, get) => ({
   invokeFunction: async (fn, args = {}) => {
     const state = get();
     const { connectionTables, connections } = state;
+    // Helper: get flat table list for a connection (merge all databases)
+    const getTablesForConn = (connId: string): TableInfo[] =>
+      Object.values(connectionTables[connId] ?? {}).flat();
 
     // Find existing tab for this function, or create a new one
     let { activeTabId, tabs } = get();
@@ -764,14 +789,14 @@ export const useAppStore = create<AppState>((set, get) => ({
     try {
       switch (fn.type) {
         case "list": {
-          const tables = connectionTables[fn.connectionId] ?? [];
+          const tables = getTablesForConn(fn.connectionId);
           setResult({ fn, outputType: "table-list", tables, isLoading: false, invokedAt: Date.now() });
           break;
         }
 
         case "src": {
           const config = connections.find((c) => c.id === fn.connectionId);
-          const tables = connectionTables[fn.connectionId] ?? [];
+          const tables = getTablesForConn(fn.connectionId);
           const info: ConnectionSourceInfo = {
             connectionId: fn.connectionId,
             name: config?.name ?? fn.connectionId,
@@ -831,7 +856,7 @@ export const useAppStore = create<AppState>((set, get) => ({
         }
 
         case "table": {
-          const tables = connectionTables[fn.connectionId] ?? [];
+          const tables = getTablesForConn(fn.connectionId);
           const tableInfo = tables.find((t) => t.name === fn.tableName);
           const database = tableInfo?.schema ?? connections.find((c) => c.id === fn.connectionId)?.database ?? "default";
           const page = args.page ?? 0;
@@ -858,11 +883,11 @@ export const useAppStore = create<AppState>((set, get) => ({
 
         case "tbl": {
           if (!args.tableName) {
-            const tables = connectionTables[fn.connectionId] ?? [];
+            const tables = getTablesForConn(fn.connectionId);
             setResult({ fn, outputType: "table-list", tables, isLoading: false, invokedAt: Date.now() });
             break;
           }
-          const tables = connectionTables[fn.connectionId] ?? [];
+          const tables = getTablesForConn(fn.connectionId);
           const tableInfo = tables.find((t) => t.name === args.tableName);
           const database = tableInfo?.schema ?? connections.find((c) => c.id === fn.connectionId)?.database ?? "default";
           const ps2 = get().appSettings.tablePageSize;
@@ -945,7 +970,8 @@ export const useAppStore = create<AppState>((set, get) => ({
 
   setActiveConnection: (connectionId) =>
     set((s) => ({
-      activeFunction: s.connectionFunctions[connectionId]?.[0] ?? null,
+      activeConnectionId: connectionId,
+      activeFunction: Object.values(s.connectionFunctions[connectionId] ?? {}).flat()[0] ?? null,
     })),
 
   setPendingSql: (pendingSqlValue) => {
@@ -1054,7 +1080,7 @@ export const useAppStore = create<AppState>((set, get) => ({
     const { connectedIds, connectionFunctions } = get();
     const firstConnId = connectedIds[0];
     if (!firstConnId) return;
-    const queryFn = (connectionFunctions[firstConnId] ?? []).find((f) => f.type === "query");
+    const queryFn = Object.values(connectionFunctions[firstConnId] ?? {}).flat().find((f) => f.type === "query");
     if (!queryFn) return;
     const id = `tab-${Date.now()}`;
     const result: FunctionInvocationResult = { fn: queryFn, outputType: "sql-editor", isLoading: false, invokedAt: Date.now() };
@@ -1409,6 +1435,12 @@ export const useAppStore = create<AppState>((set, get) => ({
       saveLayout({ sidebarCollapsed: state.sidebarCollapsed, dbTabsCollapsed: updated.dbTabsCollapsed, queryLogOpen: state.queryLogOpen });
       return updated;
     }),
+  setActiveConnectionId: (id) => set((s) => ({
+    activeConnectionId: id,
+    activeFunction: id
+      ? (Object.values(s.connectionFunctions[id] ?? {}).flat()[0] ?? s.activeFunction)
+      : s.activeFunction,
+  })),
   toggleQueryLog: () =>
     set((state) => {
       const updated = { queryLogOpen: !state.queryLogOpen };
@@ -1420,8 +1452,25 @@ export const useAppStore = create<AppState>((set, get) => ({
   setConnectionDialogOpen: (connectionDialogOpen) =>
     set({ connectionDialogOpen }),
   setEditingConnection: (editingConnection) => set({ editingConnection }),
-  setTheme: (theme) => set({ theme }),
+  setTheme: (theme) => {
+    localStorage.setItem(THEME_KEY, theme);
+    // Eagerly apply/remove the dark class so there's no timing gap waiting for React's useEffect
+    if (theme === "dark") {
+      document.documentElement.classList.add("dark");
+    } else {
+      document.documentElement.classList.remove("dark");
+    }
+    set({ theme });
+  },
   setLoading: (isLoading) => set({ isLoading }),
   setShowConnectionsManager: (showConnectionsManager) => set({ showConnectionsManager }),
   setActiveView: (activeView) => set({ activeView }),
 }));
+
+// Apply initial theme class to <html> at module load time (before first React render)
+const _initialTheme = (localStorage.getItem(THEME_KEY) as "dark" | "light") ?? "dark";
+if (_initialTheme === "dark") {
+  document.documentElement.classList.add("dark");
+} else {
+  document.documentElement.classList.remove("dark");
+}

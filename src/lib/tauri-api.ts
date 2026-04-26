@@ -96,6 +96,10 @@ export const tauriApi = {
     return await invoke("get_databases", { id });
   },
 
+  async createDatabase(id: string, name: string): Promise<void> {
+    return await invoke("create_database", { id, name });
+  },
+
   async getTables(id: string, database: string, schema?: string): Promise<TableInfo[]> {
     return await invoke("get_tables", { id, database, schema });
   },

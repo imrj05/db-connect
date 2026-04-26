@@ -17,7 +17,7 @@ export function StatusBar({
 	const dbName =
 		selectedDatabases[connectionId] ?? conn?.database ?? conn?.name ?? "—";
 	return (
-		<div className="h-7 bg-card border-t border-border/80 flex items-center justify-between px-3.5 shrink-0 select-none">
+		<div className="h-7 bg-surface-1 border-t border-border-subtle flex items-center justify-between px-3.5 shrink-0 select-none">
 			{/* Left: connection indicator */}
 			<div className="flex items-center gap-3">
 				<div className="flex items-center gap-1.5">

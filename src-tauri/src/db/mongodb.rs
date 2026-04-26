@@ -188,6 +188,20 @@ impl DatabaseDriver for MongoDriver {
         Ok(client.list_database_names(None, None).await?)
     }
 
+    async fn create_database(&self, name: &str) -> Result<()> {
+        // MongoDB creates a database implicitly when a collection is inserted into.
+        // We create a sentinel collection then drop it so the DB persists as empty.
+        let client_lock = self.client.read().await;
+        let client = client_lock
+            .as_ref()
+            .ok_or_else(|| anyhow!("Not connected"))?;
+
+        let db = client.database(name);
+        // Creating a collection forces the database to materialise on disk.
+        db.create_collection("_init", None).await?;
+        Ok(())
+    }
+
     async fn get_schemas(&self, _database: &str) -> Result<Vec<String>> {
         Ok(vec!["collection".to_string()])
     }

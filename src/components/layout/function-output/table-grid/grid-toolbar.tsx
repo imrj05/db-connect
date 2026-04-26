@@ -19,6 +19,8 @@ import {
 	Paintbrush,
 	Plus,
 	Timer,
+	MoreHorizontal,
+	Eye,
 } from "lucide-react";
 import {
 	DropdownMenu,
@@ -26,6 +28,10 @@ import {
 	DropdownMenuItem,
 	DropdownMenuSeparator,
 	DropdownMenuTrigger,
+	DropdownMenuSub,
+	DropdownMenuSubTrigger,
+	DropdownMenuSubContent,
+	DropdownMenuCheckboxItem,
 } from "@/components/ui/dropdown-menu";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -36,7 +42,57 @@ import {
 } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
 import { ConnectionFunction } from "@/types";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+
+function ColumnVisibilityPanel({
+	columnIds,
+	hiddenColumns,
+	onToggleColumn,
+}: {
+	columnIds: string[];
+	hiddenColumns?: Record<string, boolean>;
+	onToggleColumn: (colId: string, visible: boolean) => void;
+}) {
+	const [search, setSearch] = useState("");
+	const filtered = columnIds.filter(
+		(id) => !search || id.toLowerCase().includes(search.toLowerCase()),
+	);
+	return (
+		<>
+			<div className="px-2.5 py-1.5 border-b border-border-subtle">
+				<input
+					autoFocus
+					value={search}
+					onChange={(e) => setSearch(e.target.value)}
+					placeholder="Search columns…"
+					className="w-full bg-transparent text-[11px] font-mono outline-none text-foreground placeholder:text-foreground/38"
+				/>
+			</div>
+			<div className="max-h-60 overflow-y-auto">
+				{filtered.map((colId) => {
+					const visible = hiddenColumns?.[colId] !== false;
+					return (
+						<button
+							key={colId}
+							type="button"
+							onClick={() => onToggleColumn(colId, !visible)}
+							className="flex items-center gap-2 w-full px-2 py-1.5 hover:bg-surface-2 cursor-pointer"
+						>
+							<span
+								className={cn(
+									"w-3.5 h-3.5 flex items-center justify-center rounded border border-border-subtle shrink-0",
+									visible ? "bg-primary border-primary" : "bg-transparent",
+								)}
+							>
+								{visible && <Check size={9} className="text-primary-foreground" />}
+							</span>
+							<span className="font-mono text-[11px] truncate">{colId}</span>
+						</button>
+					);
+				})}
+			</div>
+		</>
+	);
+}
 
 export function GridToolbar({
 	fn,
@@ -129,8 +185,6 @@ export function GridToolbar({
 	autoRefreshInterval?: number | null;
 	onSetAutoRefresh?: (n: number | null) => void;
 }) {
-	const [colSearch, setColSearch] = useState("");
-	const [colVisOpen, setColVisOpen] = useState(false);
 	return (
 		<>
 			{/* Header */}
@@ -362,103 +416,7 @@ export function GridToolbar({
 							</DropdownMenuContent>
 						</DropdownMenu>
 					)}
-			{viewMode === "data" && columnIds && columnIds.length > 0 && onToggleColumn && (
-				<Popover open={colVisOpen} onOpenChange={(open) => { setColVisOpen(open); if (open) setColSearch(""); }}>
-					<Tooltip>
-						<TooltipTrigger asChild>
-							<PopoverTrigger asChild>
-								<Button
-									variant="outline"
-									size="sm"
-									className="h-7 rounded-md border-border-subtle bg-surface-elevated px-2 text-[11px] font-medium text-foreground/68 shadow-xs hover:bg-surface-2"
-								>
-									<Columns3 size={11} />
-								</Button>
-							</PopoverTrigger>
-						</TooltipTrigger>
-						<TooltipContent>Toggle columns</TooltipContent>
-					</Tooltip>
-					<PopoverContent align="end" className="min-w-[180px] w-auto p-0">
-						<div className="px-2.5 py-1.5 border-b border-border-subtle">
-							<input
-								autoFocus
-								value={colSearch}
-								onChange={(e) => setColSearch(e.target.value)}
-								placeholder="Search columns…"
-								className="w-full bg-transparent text-[11px] font-mono outline-none text-foreground placeholder:text-foreground/38"
-							/>
-						</div>
-						<div className="max-h-60 overflow-y-auto">
-							{columnIds
-								.filter(
-									(colId) =>
-										!colSearch ||
-										colId.toLowerCase().includes(colSearch.toLowerCase()),
-								)
-								.map((colId) => {
-									const visible = hiddenColumns?.[colId] !== false;
-									return (
-										<button
-											key={colId}
-											type="button"
-											onClick={() => onToggleColumn(colId, !visible)}
-											className="flex items-center gap-2 w-full px-2 py-1.5 hover:bg-surface-2 cursor-pointer"
-										>
-											<span className={cn("w-3.5 h-3.5 flex items-center justify-center rounded border border-border-subtle shrink-0", visible ? "bg-primary border-primary" : "bg-transparent")}>
-												{visible && <Check size={9} className="text-primary-foreground" />}
-											</span>
-											<span className="font-mono text-[11px] truncate">{colId}</span>
-										</button>
-									);
-								})}
-						</div>
-					</PopoverContent>
-				</Popover>
-			)}
-					{/* Aggregation footer toggle */}
-					{viewMode === "data" && onToggleAggFooter && (
-						<Tooltip>
-							<TooltipTrigger asChild>
-								<Button
-									variant="outline"
-									size="sm"
-									onClick={onToggleAggFooter}
-									className={cn(
-										"h-7 rounded-md border-border-subtle px-2 text-[11px] font-medium shadow-xs",
-										showAggFooter
-											? "bg-accent-blue/12 text-accent-blue border-accent-blue/22 hover:bg-accent-blue/16"
-											: "bg-surface-elevated text-foreground/68 hover:bg-surface-2",
-									)}
-								>
-									<Sigma size={11} />
-								</Button>
-							</TooltipTrigger>
-							<TooltipContent>Aggregation footer (Σ)</TooltipContent>
-						</Tooltip>
-					)}
-				{/* Color rules toggle */}
-				{viewMode === "data" && onToggleColorRules && (
-					<Tooltip>
-						<TooltipTrigger asChild>
-							<Button
-								variant="outline"
-								size="sm"
-								onClick={onToggleColorRules}
-								className={cn(
-									"h-7 rounded-md border-border-subtle px-2 text-[11px] font-medium shadow-xs",
-									showColorRules
-										? "bg-accent-purple/12 text-accent-purple border-accent-purple/22 hover:bg-accent-purple/16"
-										: "bg-surface-elevated text-foreground/68 hover:bg-surface-2",
-								)}
-							>
-								<Paintbrush size={11} />
-							</Button>
-						</TooltipTrigger>
-						<TooltipContent>Conditional cell color rules</TooltipContent>
-					</Tooltip>
-				)}
-				{/* Insert new row button */}
-				{fn.tableName && viewMode === "data" && onInsertRow && (
+			{fn.tableName && viewMode === "data" && onInsertRow && (
 					<Tooltip>
 						<TooltipTrigger asChild>
 							<Button
@@ -466,145 +424,172 @@ export function GridToolbar({
 								size="sm"
 								onClick={onInsertRow}
 								className={cn(
-									"h-7 rounded-md border-border-subtle px-2 text-[11px] font-medium shadow-xs",
+									"h-7 rounded-md border-border-subtle px-3 text-[11px] font-medium shadow-xs",
 									showInsertRow
 										? "bg-accent-green/12 text-accent-green border-accent-green/22 hover:bg-accent-green/16"
 										: "bg-surface-elevated text-foreground/68 hover:bg-surface-2",
 								)}
 							>
 								<Plus size={11} />
+								New Row
 							</Button>
 						</TooltipTrigger>
 						<TooltipContent>Insert new row</TooltipContent>
 					</Tooltip>
 				)}
-				{/* Auto-refresh dropdown */}
-				{viewMode === "data" && onSetAutoRefresh && (
+				{/* View dropdown — Columns, Aggregation, Color rules, Auto-refresh */}
+				{viewMode === "data" && (
 					<DropdownMenu>
-						<Tooltip>
-							<TooltipTrigger asChild>
-								<DropdownMenuTrigger asChild>
-									<Button
-										variant="outline"
-										size="sm"
-										className={cn(
-											"h-7 rounded-md border-border-subtle px-2 text-[11px] font-medium shadow-xs",
-											autoRefreshInterval
-												? "bg-accent-green/12 text-accent-green border-accent-green/22 hover:bg-accent-green/16"
-												: "bg-surface-elevated text-foreground/68 hover:bg-surface-2",
-										)}
-									>
-										<span className="relative">
-											<Timer size={11} />
-											{autoRefreshInterval && (
-												<span className="absolute -top-1 -right-1 w-1.5 h-1.5 rounded-full bg-accent-green animate-pulse" />
-											)}
-										</span>
-									</Button>
-								</DropdownMenuTrigger>
-							</TooltipTrigger>
-							<TooltipContent>Auto-refresh interval</TooltipContent>
-						</Tooltip>
-						<DropdownMenuContent align="end" className="text-[11px] w-[130px]">
-							{(
-								[
-									{ label: "Off", value: null },
-									{ label: "30 seconds", value: 30 },
-									{ label: "1 minute", value: 60 },
-									{ label: "5 minutes", value: 300 },
-								] as { label: string; value: number | null }[]
-							).map(({ label, value }) => (
-								<DropdownMenuItem
-									key={label}
-									onClick={() => onSetAutoRefresh(value)}
-									className={cn(
-										"gap-2 cursor-pointer",
-										autoRefreshInterval === value && "font-semibold text-primary",
-									)}
+						<DropdownMenuTrigger asChild>
+							<Button
+								variant="outline"
+								size="sm"
+								className="h-7 rounded-md border-border-subtle bg-surface-elevated px-3 text-[11px] font-medium text-foreground/68 shadow-xs hover:bg-surface-2"
+							>
+								<Eye size={11} />
+								View
+							</Button>
+						</DropdownMenuTrigger>
+						<DropdownMenuContent align="end" className="min-w-[200px]">
+							{/* Columns sub-menu */}
+							{columnIds && columnIds.length > 0 && onToggleColumn && (
+								<DropdownMenuSub>
+									<DropdownMenuSubTrigger className="text-[11px] gap-2">
+										<Columns3 size={11} />
+										Columns
+									</DropdownMenuSubTrigger>
+									<DropdownMenuSubContent className="p-0 min-w-[180px]">
+										<ColumnVisibilityPanel
+											columnIds={columnIds}
+											hiddenColumns={hiddenColumns}
+											onToggleColumn={onToggleColumn}
+										/>
+									</DropdownMenuSubContent>
+								</DropdownMenuSub>
+							)}
+							{/* Aggregation footer */}
+							{onToggleAggFooter && (
+								<DropdownMenuCheckboxItem
+									checked={!!showAggFooter}
+									onCheckedChange={onToggleAggFooter}
+									className="text-[11px] gap-2"
 								>
-									{label}
-									{autoRefreshInterval === value && (
-										<span className="ml-auto text-primary">✓</span>
-									)}
-								</DropdownMenuItem>
-							))}
+									<Sigma size={11} />
+									Aggregation footer
+								</DropdownMenuCheckboxItem>
+							)}
+							{/* Color rules */}
+							{onToggleColorRules && (
+								<DropdownMenuCheckboxItem
+									checked={!!showColorRules}
+									onCheckedChange={onToggleColorRules}
+									className="text-[11px] gap-2"
+								>
+									<Paintbrush size={11} />
+									Color rules
+								</DropdownMenuCheckboxItem>
+							)}
+							{/* Auto-refresh sub-menu */}
+							{onSetAutoRefresh && (
+								<>
+									<DropdownMenuSeparator />
+									<DropdownMenuSub>
+										<DropdownMenuSubTrigger className="text-[11px] gap-2">
+											<span className="relative">
+												<Timer size={11} />
+												{autoRefreshInterval && (
+													<span className="absolute -top-1 -right-1 w-1.5 h-1.5 rounded-full bg-accent-green animate-pulse" />
+												)}
+											</span>
+											Auto-refresh
+											{autoRefreshInterval && (
+												<span className="ml-auto text-[10px] text-accent-green font-medium">
+													{autoRefreshInterval < 60
+														? `${autoRefreshInterval}s`
+														: `${autoRefreshInterval / 60}m`}
+												</span>
+											)}
+										</DropdownMenuSubTrigger>
+										<DropdownMenuSubContent className="text-[11px] w-[130px]">
+											{(
+												[
+													{ label: "Off", value: null },
+													{ label: "30 seconds", value: 30 },
+													{ label: "1 minute", value: 60 },
+													{ label: "5 minutes", value: 300 },
+												] as { label: string; value: number | null }[]
+											).map(({ label, value }) => (
+												<DropdownMenuItem
+													key={label}
+													onClick={() => onSetAutoRefresh(value)}
+													className={cn(
+														"gap-2 cursor-pointer",
+														autoRefreshInterval === value && "font-semibold text-primary",
+													)}
+												>
+													{label}
+													{autoRefreshInterval === value && (
+														<span className="ml-auto text-primary">✓</span>
+													)}
+												</DropdownMenuItem>
+											))}
+										</DropdownMenuSubContent>
+									</DropdownMenuSub>
+								</>
+							)}
 						</DropdownMenuContent>
 					</DropdownMenu>
 				)}
-					{fn.tableName && (
-						<>
-						{/* Info panel toggle */}
-						{onToggleInfo && (
-							<Tooltip>
-								<TooltipTrigger asChild>
-									<Button
-										variant="ghost"
-										size="icon-xs"
-										aria-label="Table info"
-										onClick={onToggleInfo}
-										className={cn(
-											"text-foreground/48 hover:bg-surface-3",
-											showInfo && "bg-accent-blue/10 text-accent-blue",
-										)}
-									>
-										<Info size={11} />
-									</Button>
-								</TooltipTrigger>
-								<TooltipContent>Table info</TooltipContent>
-							</Tooltip>
-						)}
-						{/* Row detail panel toggle */}
-						{onToggleRowDetail && (
-							<Tooltip>
-								<TooltipTrigger asChild>
-									<Button
-										variant="ghost"
-										size="icon-xs"
-										aria-label="Row detail"
-										onClick={onToggleRowDetail}
-										className={cn(
-											"text-foreground/48 hover:bg-surface-3",
-											showRowDetail && "bg-accent-blue/10 text-accent-blue",
-										)}
-									>
-										{showRowDetail ? <PanelRightClose size={11} /> : <PanelRightOpen size={11} />}
-									</Button>
-								</TooltipTrigger>
-								<TooltipContent>Row detail (double-click row)</TooltipContent>
-							</Tooltip>
-						)}
-							{/* Rename table */}
-							<Tooltip>
-								<TooltipTrigger asChild>
-									<Button
-								variant="ghost"
-								size="icon-xs"
-								aria-label="Rename table"
+				{/* More (...) dropdown — Info, Row detail, Rename, Drop table */}
+				{fn.tableName && (
+					<DropdownMenu>
+						<DropdownMenuTrigger asChild>
+							<Button
+								variant="outline"
+								size="sm"
+								className="h-7 rounded-md border-border-subtle bg-surface-elevated px-3 text-[11px] font-medium text-foreground/68 shadow-xs hover:bg-surface-2"
+							>
+								<MoreHorizontal size={11} />
+								More
+							</Button>
+						</DropdownMenuTrigger>
+						<DropdownMenuContent align="end" className="min-w-[180px]">
+							{onToggleInfo && (
+								<DropdownMenuItem
+									onClick={onToggleInfo}
+									className={cn("text-[11px] gap-2", showInfo && "text-accent-blue")}
+								>
+									<Info size={11} />
+									{showInfo ? "Hide table info" : "Table info"}
+								</DropdownMenuItem>
+							)}
+							{onToggleRowDetail && (
+								<DropdownMenuItem
+									onClick={onToggleRowDetail}
+									className={cn("text-[11px] gap-2", showRowDetail && "text-accent-blue")}
+								>
+									{showRowDetail ? <PanelRightClose size={11} /> : <PanelRightOpen size={11} />}
+									{showRowDetail ? "Close row detail" : "Row detail"}
+								</DropdownMenuItem>
+							)}
+							<DropdownMenuSeparator />
+							<DropdownMenuItem
 								onClick={onRenameTable}
-								className="text-foreground/48 hover:bg-surface-3"
+								className="text-[11px] gap-2"
 							>
-										<Pencil size={11} />
-									</Button>
-								</TooltipTrigger>
-								<TooltipContent>Rename table</TooltipContent>
-							</Tooltip>
-							{/* Drop table */}
-							<Tooltip>
-								<TooltipTrigger asChild>
-								<Button
-								variant="ghost"
-								size="icon-xs"
-								aria-label="Drop table"
+								<Pencil size={11} />
+								Rename table
+							</DropdownMenuItem>
+							<DropdownMenuItem
 								onClick={onDropTable}
-								className="text-destructive/60 hover:text-destructive hover:bg-destructive/10"
+								className="text-[11px] gap-2 text-destructive focus:text-destructive focus:bg-destructive/10"
 							>
-									<Trash2 size={11} />
-								</Button>
-								</TooltipTrigger>
-								<TooltipContent>Drop table</TooltipContent>
-							</Tooltip>
-						</>
-					)}
+								<Trash2 size={11} />
+								Drop table
+							</DropdownMenuItem>
+						</DropdownMenuContent>
+					</DropdownMenu>
+				)}
 				</div>
 			</div>
 			{/* Search bar */}

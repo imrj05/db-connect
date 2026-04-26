@@ -105,12 +105,16 @@ const TitleBar = ({ isLicensed, onActivate }: TitleBarProps) => {
         selectDatabase,
         refreshDatabases,
         setActiveConnection,
+        activeConnectionId,
     } = useAppStore();
     const [dbMenuOpen, setDbMenuOpen] = useState(false);
     const isMac =
         typeof navigator !== "undefined" && /Mac|iPhone|iPad|iPod/.test(navigator.platform);
-    // Resolve which connection is "active" — prefer the one tied to the active function
+    // Resolve which connection is "active" — prefer activeConnectionId, then activeFunction, then first connected
     const activeConn =
+        (activeConnectionId
+            ? connections.find((c) => c.id === activeConnectionId)
+            : null) ??
         (activeFunction
             ? connections.find((c) => c.id === activeFunction.connectionId)
             : null) ??
@@ -257,7 +261,7 @@ const TitleBar = ({ isLicensed, onActivate }: TitleBarProps) => {
                             aria-label={sidebarCollapsed ? "Show sidebar" : "Hide sidebar"}
                             onClick={toggleSidebar}
                             className={cn(
-                                "h-7 rounded-sm border-transparent bg-transparent px-2.5 text-[11px] font-medium shadow-none transition-colors",
+                                "h-7 rounded-md border-transparent bg-transparent px-2.5 text-[11px] font-medium shadow-none transition-colors",
                                 sidebarCollapsed
                                     ? "text-foreground/54 hover:text-foreground hover:bg-surface-2"
                                     : "text-foreground/66 hover:text-foreground hover:bg-surface-2",
@@ -283,7 +287,7 @@ const TitleBar = ({ isLicensed, onActivate }: TitleBarProps) => {
                             aria-label={queryLogOpen ? "Hide query log" : "Show query log"}
                             onClick={toggleQueryLog}
                             className={cn(
-                                "h-7 rounded-sm border-transparent bg-transparent px-2.5 text-[11px] font-medium shadow-none transition-colors",
+                                "h-7 rounded-md border-transparent bg-transparent px-2.5 text-[11px] font-medium shadow-none transition-colors",
                                 queryLogOpen
                                     ? "text-foreground/68 hover:text-foreground hover:bg-surface-2"
                                     : "text-foreground/54 hover:text-foreground hover:bg-surface-2",
@@ -301,7 +305,7 @@ const TitleBar = ({ isLicensed, onActivate }: TitleBarProps) => {
                     variant="outline"
                     size="sm"
                     onClick={() => setCommandPaletteOpen(true)}
-                    className="h-8 gap-1.5 rounded-sm border-border-subtle bg-surface-2 px-3 text-[12px] font-medium text-foreground/72 hover:bg-surface-3 hover:text-foreground"
+                    className="h-8 gap-1.5 rounded-md border-border-subtle bg-surface-2 px-3 text-[12px] font-medium text-foreground/72 hover:bg-surface-3 hover:text-foreground"
                 >
                     <Search size={10} className="shrink-0" />
                     <span className="hidden sm:inline">Search</span>
@@ -313,7 +317,7 @@ const TitleBar = ({ isLicensed, onActivate }: TitleBarProps) => {
                             <Button
                                 variant="outline"
                                 size="sm"
-                                className="h-8 gap-1.5 rounded-sm border-border-subtle bg-surface-2 px-3 text-[11px] font-medium text-foreground/68 hover:bg-surface-3 hover:text-foreground"
+                                className="h-8 gap-1.5 rounded-md border-border-subtle bg-surface-2 px-3 text-[11px] font-medium text-foreground/68 hover:bg-surface-3 hover:text-foreground"
                             >
                                 <Database size={10} className="shrink-0 text-foreground/55" />
                                 <span className="max-w-[92px] truncate">
@@ -370,7 +374,7 @@ const TitleBar = ({ isLicensed, onActivate }: TitleBarProps) => {
                             <Button
                                 variant="outline"
                                 size="sm"
-                                className="h-8 gap-1.5 rounded-sm border-border-subtle bg-surface-2 px-3 text-[11px] font-medium text-foreground/68 hover:bg-surface-3 hover:text-foreground"
+                                className="h-8 gap-1.5 rounded-md border-border-subtle bg-surface-2 px-3 text-[11px] font-medium text-foreground/68 hover:bg-surface-3 hover:text-foreground"
                             >
                                 {activeConn ? (
                                     (() => {
@@ -507,7 +511,7 @@ const TitleBar = ({ isLicensed, onActivate }: TitleBarProps) => {
                                 variant="outline"
                                 size="sm"
                                 onClick={onActivate}
-                                className="h-8 gap-1.5 rounded-sm border-warning/35 bg-warning/8 px-3 text-warning hover:border-warning/50 hover:bg-warning/12"
+                                className="h-8 gap-1.5 rounded-md border-warning/35 bg-warning/8 px-3 text-warning hover:border-warning/50 hover:bg-warning/12"
                             >
                                 <KeyRound size={10} className="shrink-0" />
                                 <span className="text-[11px] font-semibold">Activate</span>
@@ -526,7 +530,7 @@ const TitleBar = ({ isLicensed, onActivate }: TitleBarProps) => {
                             size="sm"
                             aria-label="Schema Diff"
                             onClick={() => setActiveView(activeView === "schema-diff" ? "main" : "schema-diff")}
-                            className={cn("h-7 rounded-sm border-transparent bg-transparent px-2.5 text-foreground/48 hover:bg-surface-2 hover:text-foreground", activeView === "schema-diff" && "bg-surface-2 text-foreground")}
+                            className={cn("h-7 rounded-md border-transparent bg-transparent px-2.5 text-foreground/48 hover:bg-surface-2 hover:text-foreground", activeView === "schema-diff" && "bg-surface-2 text-foreground")}
                         >
                             <ArrowRightLeft size={11} className="shrink-0" />
                         </Button>
@@ -543,7 +547,7 @@ const TitleBar = ({ isLicensed, onActivate }: TitleBarProps) => {
                             size="sm"
                             aria-label="Settings"
                             onClick={() => setActiveView(activeView === "settings" ? "main" : "settings")}
-                            className="h-7 rounded-sm border-transparent bg-transparent px-2.5 text-foreground/48 hover:bg-surface-2 hover:text-foreground"
+                            className="h-7 rounded-md border-transparent bg-transparent px-2.5 text-foreground/48 hover:bg-surface-2 hover:text-foreground"
                         >
                             <Settings size={11} className="shrink-0" />
                         </Button>

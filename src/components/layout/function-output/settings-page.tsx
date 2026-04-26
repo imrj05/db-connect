@@ -1829,12 +1829,12 @@ export function SettingsPage({ onActivate }: { onActivate?: () => void }) {
                 orientation="vertical"
                 className="min-h-0 flex-1 w-full min-w-0 flex-col gap-0 bg-app-bg md:flex-row"
             >
-                <aside className="hidden w-64 shrink-0 border-r border-border-subtle bg-surface-1 md:flex md:flex-col">
-                    <div className="px-4 py-4">
-                        <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground/70">Categories</p>
+                <aside className="hidden w-56 shrink-0 border-r border-border-subtle bg-surface-1 md:flex md:flex-col">
+                    <div className="px-5 pb-2 pt-6">
+                        <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-muted-foreground/50">Categories</p>
                     </div>
 
-                    <TabsList variant="line" className="h-auto w-full items-stretch gap-1 bg-transparent p-2">
+                    <TabsList variant="line" className="h-auto w-full flex-col items-stretch gap-1 bg-transparent px-3 pb-4">
                         {NAV.map((item) => {
                             const Icon = item.icon;
                             const isActive = activeSection === item.id;
@@ -1843,14 +1843,21 @@ export function SettingsPage({ onActivate }: { onActivate?: () => void }) {
                                 <TabsTrigger
                                     key={item.id}
                                     value={item.id}
+                                    asChild={false}
                                     className={cn(
-                                        "h-10 justify-start gap-2.5 rounded-none border px-3 text-left text-sm font-medium after:hidden",
+                                        "h-10 w-full justify-start gap-3 rounded-md px-4 py-2.5 text-left text-[13px] font-medium after:hidden transition-colors",
+                                        "border",
                                         isActive
-                                            ? "border-border-subtle bg-surface-2 text-foreground"
-                                            : "border-transparent bg-transparent text-muted-foreground hover:bg-surface-3 hover:text-foreground",
+                                            ? "border-border bg-muted text-foreground shadow-sm"
+                                            : "border-transparent bg-transparent text-muted-foreground hover:bg-muted/50 hover:text-foreground",
                                     )}
                                 >
-                                    <Icon data-icon="inline-start" className={cn(isActive ? "text-foreground" : "text-muted-foreground/70")} />
+                                    <Icon
+                                        className={cn(
+                                            "size-4 shrink-0 transition-colors",
+                                            isActive ? "text-foreground" : "text-muted-foreground/60",
+                                        )}
+                                    />
                                     {item.label}
                                 </TabsTrigger>
                             );

@@ -37,12 +37,14 @@ function CommandDialog({
   children,
   className,
   showCloseButton = false,
+  width,
   ...props
 }: React.ComponentProps<typeof Dialog> & {
   title?: string
   description?: string
   className?: string
   showCloseButton?: boolean
+  width?: string
 }) {
   return (
     <Dialog {...props}>
@@ -53,8 +55,8 @@ function CommandDialog({
         )}
         showCloseButton={showCloseButton}
         style={{
-          width: "min(58rem, 92vw)",
-          maxWidth: "min(72rem, 92vw)",
+          width: width ?? "min(58rem, 92vw)",
+          maxWidth: width ?? "min(72rem, 92vw)",
         }}
       >
         <DialogHeader className="sr-only">

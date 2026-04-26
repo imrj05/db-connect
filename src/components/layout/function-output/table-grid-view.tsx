@@ -340,7 +340,7 @@ export function TableGridView({
     }, [schemaGraph, fn.tableName]);
     const navigateToFkTarget = useCallback(
         async (relation: ForeignKeyRelation, cellValue: unknown) => {
-            const allFns = Object.values(connectionFunctions).flat();
+            const allFns = Object.values(connectionFunctions).flatMap((dbMap) => Object.values(dbMap).flat());
             const targetFn = allFns.find(
                 (candidate) =>
                     candidate.type === "table" &&
@@ -1204,7 +1204,7 @@ export function TableGridView({
     const handleDiagramTableSelect = useCallback(
         async (tableName: string) => {
             if (tableName === fn.tableName) return;
-            const allFns = Object.values(connectionFunctions).flat();
+            const allFns = Object.values(connectionFunctions).flatMap((dbMap) => Object.values(dbMap).flat());
             const tableFn = allFns.find(
                 (candidate) =>
                     candidate.type === "table" &&

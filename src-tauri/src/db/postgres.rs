@@ -69,6 +69,15 @@ impl DatabaseDriver for PostgresDriver {
         Ok(rows.iter().map(|r| r.get::<String, _>(0)).collect())
     }
 
+    async fn create_database(&self, name: &str) -> Result<()> {
+        let pool_lock = self.pool.read().await;
+        let pool = pool_lock.as_ref().ok_or_else(|| anyhow!("Not connected"))?;
+        // CREATE DATABASE cannot run inside a transaction; use a simple execute.
+        let sql = format!("CREATE DATABASE \"{}\"", name.replace('"', ""));
+        sqlx::query(&sql).execute(pool).await?;
+        Ok(())
+    }
+
     async fn get_schemas(&self, _database: &str) -> Result<Vec<String>> {
         let pool_lock = self.pool.read().await;
         let pool = pool_lock.as_ref().ok_or_else(|| anyhow!("Not connected"))?;
@@ -323,6 +332,24 @@ impl DatabaseDriver for PostgresDriver {
         let pool = pool_lock.as_ref().ok_or_else(|| anyhow!("Not connected"))?;
 
         let start = Instant::now();
+
+        // Multi-statement SQL (e.g. CREATE TABLE + COMMENT ON COLUMN) must use the
+        // simple query protocol — prepared statements reject multiple commands.
+        let stmt_count = query
+            .split(';')
+            .map(|s| s.trim())
+            .filter(|s| !s.is_empty())
+            .count();
+        if stmt_count > 1 {
+            sqlx::raw_sql(query).execute(pool).await?;
+            let duration = start.elapsed().as_millis() as u64;
+            return Ok(QueryResult {
+                columns: vec![],
+                rows: vec![],
+                execution_time_ms: duration,
+            });
+        }
+
         let rows = sqlx::query(query).fetch_all(pool).await?;
         let duration = start.elapsed().as_millis() as u64;
 

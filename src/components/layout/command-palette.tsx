@@ -65,7 +65,7 @@ export function CommandPalette() {
         if (!commandPaletteOpen) setQuery("");
     }, [commandPaletteOpen]);
     const allFunctions = React.useMemo(
-        () => Object.values(connectionFunctions).flat(),
+        () => Object.values(connectionFunctions).flatMap((dbMap) => Object.values(dbMap).flat()),
         [connectionFunctions],
     );
     const filteredFunctions = React.useMemo(
@@ -109,7 +109,8 @@ export function CommandPalette() {
     const schemaHits = React.useMemo<SchemaHit[]>(() => {
         if (!isSchemaSearch || !schemaQuery) return [];
         const hits: SchemaHit[] = [];
-        for (const [connId, tables] of Object.entries(connectionTables)) {
+        for (const [connId, dbMap] of Object.entries(connectionTables)) {
+            for (const tables of Object.values(dbMap)) {
             for (const table of tables) {
                 if (table.name.toLowerCase().includes(schemaQuery)) {
                     hits.push({ type: "table", connId, tableName: table.name });
@@ -119,6 +120,7 @@ export function CommandPalette() {
                         hits.push({ type: "column", connId, tableName: table.name, columnName: col.name, dataType: col.dataType });
                     }
                 }
+            }
             }
         }
         return hits.slice(0, 30);
@@ -141,7 +143,7 @@ export function CommandPalette() {
     const showSaved = filteredSavedQueries.length > 0;
 
     return (
-        <CommandDialog open={commandPaletteOpen} onOpenChange={setCommandPaletteOpen}>
+        <CommandDialog open={commandPaletteOpen} onOpenChange={setCommandPaletteOpen} className="sm:max-w-sm" width="min(28rem, 92vw)">
             <Command shouldFilter={false}>
                 <CommandInput
                     placeholder={isSchemaSearch ? "Search tables and columns across all databases…" : "Search functions, tables, queries, commands…"}
@@ -168,7 +170,7 @@ export function CommandPalette() {
                             }>
                                 {schemaHits.map((hit, i) => {
                                     const conn = connections.find((c) => c.id === hit.connId);
-                                    const tableFn = Object.values(connectionFunctions).flat().find(
+                                    const tableFn = Object.values(connectionFunctions).flatMap((dbMap) => Object.values(dbMap).flat()).find(
                                         (fn) => fn.connectionId === hit.connId && fn.tableName === hit.tableName && fn.type === "table"
                                     );
                                     return (

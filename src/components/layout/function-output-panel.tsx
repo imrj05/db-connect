@@ -139,7 +139,7 @@ const FunctionOutput = () => {
 	const handleTableClick = useCallback(
 		async (tableName: string) => {
 			if (!invocationResult) return;
-			const allFns = Object.values(connectionFunctions).flat();
+			const allFns = Object.values(connectionFunctions).flatMap((dbMap) => Object.values(dbMap).flat());
 			const tableFn = allFns.find(
 				(fn) =>
 					fn.type === "table" &&
@@ -173,7 +173,7 @@ const FunctionOutput = () => {
 	);
 	const activeTableDatabase = useMemo(() => {
 		if (!activeFunction?.tableName) return "default";
-		const tables = connectionTables[activeFunction.connectionId] ?? [];
+		const tables = Object.values(connectionTables[activeFunction.connectionId] ?? {}).flat();
 		const tableInfo = tables.find((t) => t.name === activeFunction.tableName);
 		return (
 			tableInfo?.schema ??
@@ -197,7 +197,7 @@ const FunctionOutput = () => {
 						.replace(/\(.*$/, "")
 				: "";
 			return (
-				<div className="h-full flex items-center justify-center bg-background">
+				<div className="h-full flex items-center justify-center bg-surface-2">
 					<div className="text-center space-y-3">
 						<Loader2 size={24} className="animate-spin text-primary mx-auto" />
 						{label && (
@@ -315,7 +315,7 @@ const FunctionOutput = () => {
 						onSqlChange={setPendingSql}
 						onExecute={handleExecuteSql}
 						onExplain={handleExplainSql}
-						tables={connectionTables[activeFunction.connectionId] ?? []}
+						tables={Object.values(connectionTables[activeFunction.connectionId] ?? {}).flat()}
 						askAiFixError={askAiFixError}
 						onAskAiFixConsumed={() => setAskAiFixError(null)}
 					/>

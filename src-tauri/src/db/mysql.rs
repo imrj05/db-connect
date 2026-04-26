@@ -73,6 +73,14 @@ impl DatabaseDriver for MySqlDriver {
         Ok(rows.iter().map(|r| r.get::<String, _>(0)).collect())
     }
 
+    async fn create_database(&self, name: &str) -> Result<()> {
+        let pool_lock = self.pool.read().await;
+        let pool = pool_lock.as_ref().ok_or_else(|| anyhow!("Not connected"))?;
+        let sql = format!("CREATE DATABASE `{}`", name.replace('`', ""));
+        sqlx::query(&sql).execute(pool).await?;
+        Ok(())
+    }
+
     async fn get_schemas(&self, _database: &str) -> Result<Vec<String>> {
         Ok(vec!["default".to_string()])
     }

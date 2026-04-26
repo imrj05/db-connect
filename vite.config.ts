@@ -15,6 +15,14 @@ export default defineConfig(async () => ({
       "@": resolve(__dirname, "./src"),
     },
   },
+  test: {
+    environment: "jsdom",
+    globals: true,
+    setupFiles: "./tests/setup.tsx",
+    css: true,
+    restoreMocks: true,
+    clearMocks: true,
+  },
 
   // Vite options tailored for Tauri development and only applied in `tauri dev` or `tauri build`
   //

@@ -79,7 +79,7 @@ export function QueryHistoryPanel({
 						value={search}
 						onChange={(e) => setSearch(e.target.value)}
 						placeholder="Filter by SQL..."
-						className="h-6 text-[11px] pl-6 bg-muted/30 border-border/40 focus-visible:ring-0"
+						className="h-6 text-[11px] pl-6 bg-muted/30 border-border/40 focus-visible:ring-2 focus-visible:ring-ring/50"
 					/>
 				</div>
 				{/* Filters row */}
@@ -88,7 +88,7 @@ export function QueryHistoryPanel({
 					<div className="relative">
 						<button
 							onClick={() => setConnDropOpen((v) => !v)}
-							className="flex items-center gap-1 text-[9px] font-mono text-muted-foreground/60 hover:text-foreground transition-colors"
+							className="flex items-center gap-1 text-[9px] font-mono text-muted-foreground/60 hover:text-foreground transition-colors focus-visible:ring-2 focus-visible:ring-ring/50 focus-visible:outline-none"
 						>
 							<span className="truncate max-w-[120px]">{activeConnName}</span>
 							<ChevronDown size={9} />
@@ -96,14 +96,14 @@ export function QueryHistoryPanel({
 						{connDropOpen && (
 							<div className="absolute top-full left-0 mt-1 z-50 bg-popover border border-border rounded-md shadow-lg min-w-[160px] py-1">
 								{[{ id: "all", name: "All connections" }, ...connections].map((c) => (
-									<button
-										key={c.id}
-										onClick={() => { setConnFilter(c.id); setConnDropOpen(false); }}
-										className={cn(
-											"w-full text-left px-3 py-1 text-[10px] font-mono hover:bg-muted/60 transition-colors",
-											connFilter === c.id && "text-primary font-semibold"
-										)}
-									>
+								<button
+									key={c.id}
+									onClick={() => { setConnFilter(c.id); setConnDropOpen(false); }}
+									className={cn(
+										"w-full text-left px-3 py-1 text-[10px] font-mono hover:bg-muted/60 transition-colors focus-visible:ring-2 focus-visible:ring-ring/50 focus-visible:outline-none",
+										connFilter === c.id && "text-primary font-semibold"
+									)}
+								>
 										{c.name}
 									</button>
 								))}
@@ -113,11 +113,11 @@ export function QueryHistoryPanel({
 					{/* Status filter */}
 					<div className="flex items-center gap-1">
 						{(["all", "success", "error"] as const).map((s) => (
-							<button
-								key={s}
-								onClick={() => setStatusFilter(s)}
-								className={cn(
-									"text-[8px] uppercase tracking-widest font-bold px-1.5 py-0.5 rounded transition-colors",
+						<button
+							key={s}
+							onClick={() => setStatusFilter(s)}
+							className={cn(
+								"text-[8px] uppercase tracking-widest font-bold px-1.5 py-0.5 rounded transition-colors focus-visible:ring-2 focus-visible:ring-ring/50 focus-visible:outline-none",
 									statusFilter === s
 										? s === "error" ? "bg-destructive/20 text-destructive"
 											: s === "success" ? "bg-green-500/20 text-green-400"
@@ -210,35 +210,35 @@ export function QueryHistoryPanel({
 
 								{/* Hover action bar */}
 								<div className="absolute right-2 top-2 flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity bg-card border border-border rounded px-1 py-0.5 shadow-sm">
-									<button
-										title="Re-run"
-										onClick={() => onSelectQuery(entry.sql)}
-										className="p-0.5 text-muted-foreground/50 hover:text-primary transition-colors"
-									>
+								<button
+									title="Re-run"
+									onClick={() => onSelectQuery(entry.sql)}
+									className="p-0.5 text-muted-foreground/50 hover:text-primary transition-colors focus-visible:ring-2 focus-visible:ring-ring/50 focus-visible:outline-none"
+								>
 										<RotateCcw size={9} />
 									</button>
-									<button
-										title={isCopied ? "Copied!" : "Copy SQL"}
-										onClick={() => handleCopy(entry.id, entry.sql)}
-										className={cn("p-0.5 transition-colors", isCopied ? "text-green-400" : "text-muted-foreground/50 hover:text-primary")}
-									>
+								<button
+									title={isCopied ? "Copied!" : "Copy SQL"}
+									onClick={() => handleCopy(entry.id, entry.sql)}
+									className={cn("p-0.5 transition-colors focus-visible:ring-2 focus-visible:ring-ring/50 focus-visible:outline-none", isCopied ? "text-green-400" : "text-muted-foreground/50 hover:text-primary")}
+								>
 										<Copy size={9} />
 									</button>
 									{onSaveQuery && (
-										<button
-											title="Save query"
-											onClick={() => onSaveQuery(entry.sql)}
-											className="p-0.5 text-muted-foreground/50 hover:text-primary transition-colors"
-										>
+								<button
+									title="Save query"
+									onClick={() => onSaveQuery(entry.sql)}
+									className="p-0.5 text-muted-foreground/50 hover:text-primary transition-colors focus-visible:ring-2 focus-visible:ring-ring/50 focus-visible:outline-none"
+								>
 											<Bookmark size={9} />
 										</button>
 									)}
 									{onDeleteEntry && (
-										<button
-											title="Delete"
-											onClick={() => onDeleteEntry(entry.id)}
-											className="p-0.5 text-muted-foreground/50 hover:text-destructive transition-colors"
-										>
+								<button
+									title="Delete"
+									onClick={() => onDeleteEntry(entry.id)}
+									className="p-0.5 text-muted-foreground/50 hover:text-destructive transition-colors focus-visible:ring-2 focus-visible:ring-ring/50 focus-visible:outline-none"
+								>
 											<Trash2 size={9} />
 										</button>
 									)}

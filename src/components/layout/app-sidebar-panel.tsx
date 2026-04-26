@@ -27,17 +27,18 @@ import {
     TriangleAlert,
     ArrowUpDown,
     Download,
-    PanelLeftClose,
-    PanelLeftOpen,
     Pin,
     PinOff,
     Activity,
     ShieldAlert,
+    PanelLeftOpen,
+    PanelLeftClose,
 } from "lucide-react";
 import { useAppStore } from "@/store/useAppStore";
 import { DB_LOGO, DB_COLOR } from "@/lib/db-ui";
 import { GROUP_PRESETS } from "@/components/layout/connection-dialog-modal";
 import { ImportExportDialog } from "@/components/layout/import-export-dialog";
+import { ConnectionHealthPanel } from "@/components/layout/connection-health-panel";
 import { DumpDatabaseDialog, type DumpOptions } from "@/components/layout/function-output/table-grid/dump-database-dialog";
 import { AddTableDialog } from "@/components/layout/sidebar/add-table-dialog";
 import { toast } from "@/components/ui/sonner";
@@ -65,7 +66,6 @@ import {
     DialogHeader,
     DialogTitle,
 } from "@/components/ui/dialog";
-import { ConnectionHealthPanel } from "@/components/layout/connection-health-panel";
 // ── Column type → icon ─────────────────────────────────────────────────────────
 function ColumnIcon({ col }: { col: ColumnInfo }) {
     const t = col.dataType?.toLowerCase() ?? "";
@@ -143,7 +143,7 @@ function TableRow({
                     <button
                         onClick={() => onInvoke(fn)}
                         className={cn(
-                            "group flex h-7 w-full items-center gap-2.5 overflow-hidden rounded-[4px] pl-1.5 pr-2.5 transition-colors",
+                            "group flex h-7 w-full items-center gap-2.5 overflow-hidden rounded-[4px] pl-1.5 pr-2.5 transition-colors focus-visible:ring-2 focus-visible:ring-ring/50 focus-visible:outline-none",
                             isActive
                                 ? "bg-surface-selected/82 text-foreground shadow-xs ring-1 ring-border-subtle"
                                 : "text-foreground/72 hover:bg-surface-2 hover:text-foreground",
@@ -248,7 +248,7 @@ function SchemaGroup({
             {showLabel && (
                 <button
                     onClick={() => setOpen((v) => !v)}
-                    className="flex h-[26px] w-full items-center gap-2 rounded-[4px] pl-1.5 pr-2.5 text-foreground/60 transition-colors hover:bg-surface-2/72 hover:text-foreground"
+                    className="flex h-[26px] w-full items-center gap-2 rounded-[4px] pl-1.5 pr-2.5 text-foreground/60 transition-colors hover:bg-surface-2/72 hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring/50 focus-visible:outline-none"
                 >
                     <span className="flex items-center justify-center w-4 shrink-0 text-foreground/35">
                         {open ? <ChevronDown size={10} /> : <ChevronRight size={10} />}
@@ -298,6 +298,7 @@ function DatabaseNode({
     onLoadColumns,
     pinnedTableNames,
     onPinToggle,
+    onAfterTruncate,
     latencyMs,
 }: {
     connection: ConnectionConfig;
@@ -315,6 +316,7 @@ function DatabaseNode({
     onLoadColumns: (tableName: string) => Promise<void>;
     pinnedTableNames?: Set<string>;
     onPinToggle?: (tableName: string) => void;
+    onAfterTruncate?: () => Promise<void>;
     latencyMs?: number | null;
 }) {
     const [open, setOpen] = useState(true);
@@ -329,6 +331,8 @@ function DatabaseNode({
     const [renameTarget, setRenameTarget] = useState<string | null>(null);
     const [renameValue, setRenameValue] = useState("");
     const [renameLoading, setRenameLoading] = useState(false);
+    const [truncateTarget, setTruncateTarget] = useState<string | null>(null);
+    const [truncateLoading, setTruncateLoading] = useState(false);
     const [dropTarget, setDropTarget] = useState<string | null>(null);
     const [dropLoading, setDropLoading] = useState(false);
     const qi = (name: string) =>
@@ -336,15 +340,25 @@ function DatabaseNode({
     const handleTableAction = async (action: "rename" | "truncate" | "drop", tableName: string) => {
         if (action === "rename") { setRenameTarget(tableName); setRenameValue(tableName); return; }
         if (action === "drop") { setDropTarget(tableName); return; }
-        // truncate
+        if (action === "truncate") { setTruncateTarget(tableName); return; }
+    };
+    const executeTruncate = async () => {
+        if (!truncateTarget) return;
+        setTruncateLoading(true);
         try {
             const sql = connection.type === "sqlite"
-                ? `DELETE FROM ${qi(tableName)}`
-                : `TRUNCATE TABLE ${qi(tableName)}`;
+                ? `DELETE FROM ${qi(truncateTarget)}`
+                : `TRUNCATE TABLE ${qi(truncateTarget)}`;
             const res = await tauriApi.executeQuery(connection.id, sql);
             if (res.error) toast.error(`Truncate failed: ${res.error}`);
-            else toast.success(`Truncated ${tableName}`);
+            else {
+                toast.success(`Truncated ${truncateTarget}`);
+                setTruncateTarget(null);
+                await onRefreshTables();
+                await onAfterTruncate?.();
+            }
         } catch (e) { toast.error(`Truncate failed: ${e}`); }
+        finally { setTruncateLoading(false); }
     };
     const executeRename = async () => {
         if (!renameTarget || !renameValue.trim()) return;
@@ -443,8 +457,7 @@ function DatabaseNode({
             <button
                 onClick={() => isConnected ? setOpen((v) => !v) : onConnect()}
                 className={cn(
-                    "group flex h-9 w-full items-center gap-2.5 px-3 text-foreground transition-colors select-none",
-                    "hover:bg-surface-3",
+                    "group flex h-9 w-full items-center gap-2.5 px-3 text-foreground transition-colors select-none hover:bg-surface-3 focus-visible:ring-2 focus-visible:ring-ring/50 focus-visible:outline-none",
                 )}
             >
                 <span className="text-foreground/38 shrink-0 w-3">
@@ -608,6 +621,22 @@ function DatabaseNode({
                     </DialogFooter>
                 </DialogContent>
             </Dialog>
+            {/* Truncate table confirm dialog */}
+            <Dialog open={!!truncateTarget} onOpenChange={(o) => { if (!o) setTruncateTarget(null); }}>
+                <DialogContent className="max-w-sm">
+                    <DialogHeader><DialogTitle>Truncate table?</DialogTitle></DialogHeader>
+                    <p className="text-sm text-muted-foreground">
+                        All rows in <span className="font-mono font-semibold text-foreground">{truncateTarget}</span> will be permanently deleted. The table structure will remain. This action cannot be undone.
+                    </p>
+                    <DialogFooter>
+                        <Button variant="outline" size="sm" onClick={() => setTruncateTarget(null)}>Cancel</Button>
+                        <Button variant="destructive" size="sm" onClick={executeTruncate} disabled={truncateLoading}
+                            className="bg-orange-500 hover:bg-orange-600 text-white border-orange-500">
+                            {truncateLoading ? "Truncating…" : "Truncate"}
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
             {/* Drop table confirm dialog */}
             <Dialog open={!!dropTarget} onOpenChange={(o) => { if (!o) setDropTarget(null); }}>
                 <DialogContent className="max-w-sm">
@@ -743,6 +772,273 @@ function SavedConnectionsList({
         </div>
     );
 }
+// ── Database section (one per open database in Panel 2) ───────────────────────
+function DatabaseSection({
+    db,
+    isSelected,
+    conn,
+    tableFns,
+    tableInfoMap,
+    activeFunctionId,
+    filter,
+    connPinnedNames,
+    onSelect,
+    onRefresh,
+    onClose,
+    onDrop,
+    onInvoke,
+    onLoadColumns,
+    onPinToggle,
+    onAddTable,
+    onRefreshTables,
+    onAfterTruncate,
+    // latencyMs
+}: {
+    db: string;
+    isSelected: boolean;
+    conn: ConnectionConfig;
+    tableFns: ConnectionFunction[];
+    tableInfoMap: Record<string, ColumnInfo[]>;
+    activeFunctionId?: string;
+    filter: string;
+    connPinnedNames: Set<string>;
+    onSelect: () => void;
+    onRefresh: () => void;
+    onClose: () => void;
+    onDrop: () => void;
+    onInvoke: (fn: ConnectionFunction) => void;
+    onLoadColumns: (tableName: string) => Promise<void>;
+    onPinToggle: (tableName: string) => void;
+    onAddTable: (sql: string) => Promise<void>;
+    onRefreshTables: () => Promise<void>;
+    onAfterTruncate?: () => Promise<void>;
+    latencyMs?: number | null;
+}) {
+    const [expanded, setExpanded] = useState(true);
+    const [addTableOpen, setAddTableOpen] = useState(false);
+    const [renameTarget, setRenameTarget] = useState<string | null>(null);
+    const [renameValue, setRenameValue] = useState("");
+    const [renameLoading, setRenameLoading] = useState(false);
+    const [truncateTarget, setTruncateTarget] = useState<string | null>(null);
+    const [truncateLoading, setTruncateLoading] = useState(false);
+    const [dropTarget, setDropTarget] = useState<string | null>(null);
+    const [dropLoading, setDropLoading] = useState(false);
+
+    const qi = (name: string) =>
+        conn.type === "mysql" ? `\`${name}\`` : `"${name}"`;
+
+    const handleTableAction = async (action: "rename" | "truncate" | "drop", tableName: string) => {
+        if (action === "rename") { setRenameTarget(tableName); setRenameValue(tableName); return; }
+        if (action === "drop") { setDropTarget(tableName); return; }
+        if (action === "truncate") { setTruncateTarget(tableName); return; }
+    };
+    const executeTruncate = async () => {
+        if (!truncateTarget) return;
+        setTruncateLoading(true);
+        try {
+            const sql = conn.type === "sqlite"
+                ? `DELETE FROM ${qi(truncateTarget)}`
+                : `TRUNCATE TABLE ${qi(truncateTarget)}`;
+            const res = await tauriApi.executeQuery(conn.id, sql);
+            if (res.error) toast.error(`Truncate failed: ${res.error}`);
+            else {
+                toast.success(`Truncated ${truncateTarget}`);
+                setTruncateTarget(null);
+                await onRefreshTables();
+                await onAfterTruncate?.();
+            }
+        } catch (e) { toast.error(`Truncate failed: ${e}`); }
+        finally { setTruncateLoading(false); }
+    };
+
+    const executeRename = async () => {
+        if (!renameTarget || !renameValue.trim()) return;
+        setRenameLoading(true);
+        try {
+            const sql = `ALTER TABLE ${qi(renameTarget)} RENAME TO ${qi(renameValue.trim())}`;
+            const res = await tauriApi.executeQuery(conn.id, sql);
+            if (res.error) { toast.error(`Rename failed: ${res.error}`); }
+            else { toast.success(`Renamed to ${renameValue.trim()}`); setRenameTarget(null); await onRefreshTables(); }
+        } catch (e) { toast.error(`Rename failed: ${e}`); }
+        finally { setRenameLoading(false); }
+    };
+
+    const executeDrop = async () => {
+        if (!dropTarget) return;
+        setDropLoading(true);
+        try {
+            const res = await tauriApi.executeQuery(conn.id, `DROP TABLE ${qi(dropTarget)}`);
+            if (res.error) { toast.error(`Drop failed: ${res.error}`); }
+            else { toast.success(`Dropped ${dropTarget}`); setDropTarget(null); await onRefreshTables(); }
+        } catch (e) { toast.error(`Drop failed: ${e}`); }
+        finally { setDropLoading(false); }
+    };
+
+    // Tables whose schema matches this db (for multi-db connections the schema prefix matches)
+    // For single-db connections all tableFns belong here
+    const dbTableFns = tableFns; // all fns belong to the connection; db is shown as a section header
+
+    const filtered = filter
+        ? dbTableFns.filter((f) => f.tableName?.toLowerCase().includes(filter.toLowerCase()))
+        : dbTableFns;
+
+    return (
+        <div className="mb-1">
+            {/* Section header */}
+            <ContextMenu>
+                <ContextMenuTrigger asChild>
+                    <button
+                        onClick={() => {
+                            onSelect();
+                            setExpanded((v) => !v);
+                        }}
+                        className={cn(
+                            "group flex w-full items-center gap-1.5 rounded-md px-2 py-1.5 text-left transition-colors",
+                            isSelected
+                                ? "bg-surface-elevated text-foreground"
+                                : "text-foreground/62 hover:bg-surface-2 hover:text-foreground",
+                        )}
+                    >
+                        {expanded
+                            ? <ChevronDown size={11} className="shrink-0 text-foreground/40" />
+                            : <ChevronRight size={11} className="shrink-0 text-foreground/40" />
+                        }
+                        <Database size={11} className={cn("shrink-0", isSelected ? "text-primary/70" : "text-foreground/40")} />
+                        <span className="flex-1 truncate font-mono text-[12px] font-semibold">{db}</span>
+                        {isSelected && (
+                            <span className="shrink-0 rounded-full bg-primary/20 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wide text-primary/80">
+                                active
+                            </span>
+                        )}
+                    </button>
+                </ContextMenuTrigger>
+                <ContextMenuContent className="w-44">
+                    <ContextMenuLabel className="truncate font-mono text-[10px] uppercase tracking-widest text-muted-foreground/50">
+                        {db}
+                    </ContextMenuLabel>
+                    <ContextMenuSeparator />
+                    <ContextMenuItem onSelect={onRefresh}>
+                        <RefreshCw size={11} className="shrink-0 text-muted-foreground/60" />
+                        Refresh
+                    </ContextMenuItem>
+                    <ContextMenuItem onSelect={() => setAddTableOpen(true)}>
+                        <Plus size={11} className="shrink-0 text-muted-foreground/60" />
+                        New Table
+                    </ContextMenuItem>
+                    <ContextMenuItem onSelect={onClose}>
+                        <XCircle size={11} className="shrink-0 text-muted-foreground/60" />
+                        Close
+                    </ContextMenuItem>
+                    <ContextMenuSeparator />
+                    <ContextMenuItem variant="destructive" onSelect={onDrop}>
+                        <Trash2 size={11} className="shrink-0" />
+                        Drop Database
+                    </ContextMenuItem>
+                </ContextMenuContent>
+            </ContextMenu>
+
+            {/* Tables list */}
+            {expanded && (
+                <div className="pl-2 pt-0.5">
+                    {filtered.length === 0 ? (
+                        <p className="px-2 py-2 text-[11px] text-foreground/36 font-mono">
+                            {filter ? "No matches" : "No tables"}
+                        </p>
+                    ) : (() => {
+                        // Group by schema
+                        const schemaMap = new Map<string, ConnectionFunction[]>();
+                        for (const fn of filtered) {
+                            const schema = (fn as any).schema ?? "public";
+                            if (!schemaMap.has(schema)) schemaMap.set(schema, []);
+                            schemaMap.get(schema)!.push(fn);
+                        }
+                        const schemas = [...schemaMap.entries()];
+                        const hasMultipleSchemas = schemas.length > 1;
+                        return schemas.map(([schema, fns]) => (
+                             <SchemaGroup
+                                key={schema || "__default__"}
+                                schema={schema}
+                                fns={fns}
+                                tableInfoMap={tableInfoMap}
+                                activeFunctionId={activeFunctionId}
+                                onInvoke={onInvoke}
+                                showLabel={hasMultipleSchemas}
+                                onLoadColumns={onLoadColumns}
+                                pinnedTableNames={connPinnedNames}
+                                onPinToggle={onPinToggle}
+                                onTableAction={handleTableAction}
+                             />
+                        ));
+                    })()}
+                </div>
+            )}
+
+            {addTableOpen && (
+                <AddTableDialog
+                    open={addTableOpen}
+                    onOpenChange={(open) => setAddTableOpen(open)}
+                    connectionType={conn.type}
+                    connectionName={conn.name}
+                    selectedDb={db}
+                    onAddTable={onAddTable}
+                />
+            )}
+
+            {/* Rename table dialog */}
+            <Dialog open={!!renameTarget} onOpenChange={(o) => { if (!o) setRenameTarget(null); }}>
+                <DialogContent className="max-w-sm">
+                    <DialogHeader><DialogTitle>Rename table</DialogTitle></DialogHeader>
+                    <Input
+                        value={renameValue}
+                        onChange={(e) => setRenameValue(e.target.value)}
+                        onKeyDown={(e) => { if (e.key === "Enter") executeRename(); }}
+                        className="mt-2"
+                        autoFocus
+                    />
+                    <DialogFooter>
+                        <Button variant="outline" size="sm" onClick={() => setRenameTarget(null)}>Cancel</Button>
+                        <Button size="sm" onClick={executeRename} disabled={renameLoading || !renameValue.trim()}>
+                            {renameLoading ? "Renaming…" : "Rename"}
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
+
+            {/* Truncate table confirm dialog */}
+            <Dialog open={!!truncateTarget} onOpenChange={(o) => { if (!o) setTruncateTarget(null); }}>
+                <DialogContent className="max-w-sm">
+                    <DialogHeader><DialogTitle>Truncate table?</DialogTitle></DialogHeader>
+                    <p className="text-sm text-muted-foreground">
+                        All rows in <span className="font-mono font-semibold text-foreground">{truncateTarget}</span> will be permanently deleted. The table structure will remain. This action cannot be undone.
+                    </p>
+                    <DialogFooter>
+                        <Button variant="outline" size="sm" onClick={() => setTruncateTarget(null)}>Cancel</Button>
+                        <Button variant="destructive" size="sm" onClick={executeTruncate} disabled={truncateLoading}
+                            className="bg-orange-500 hover:bg-orange-600 text-white border-orange-500">
+                            {truncateLoading ? "Truncating…" : "Truncate"}
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
+
+            {/* Drop table confirm dialog */}
+            <Dialog open={!!dropTarget} onOpenChange={(o) => { if (!o) setDropTarget(null); }}>
+                <DialogContent className="max-w-sm">
+                    <DialogHeader><DialogTitle>Drop table?</DialogTitle></DialogHeader>
+                    <p className="text-sm text-muted-foreground">
+                        This will permanently delete <span className="font-mono font-semibold text-foreground">{dropTarget}</span> and all its data. This action cannot be undone.
+                    </p>
+                    <DialogFooter>
+                        <Button variant="outline" size="sm" onClick={() => setDropTarget(null)}>Cancel</Button>
+                        <Button variant="destructive" size="sm" onClick={executeDrop} disabled={dropLoading}>
+                            {dropLoading ? "Dropping…" : "Drop table"}
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
+        </div>
+    );
+}
 // ── Main Sidebar Panel ─────────────────────────────────────────────────────────
 const Sidebar = () => {
     const {
@@ -754,6 +1050,7 @@ const Sidebar = () => {
         openDatabases,
         activeFunction,
         connectAndInit,
+        disconnectConnection,
         selectDatabase,
         closeOpenDatabase,
         refreshTables,
@@ -761,39 +1058,46 @@ const Sidebar = () => {
         loadTableColumns,
         invokeFunction,
         setActiveFunctionOnly,
-        setActiveView,
         setEditingConnection,
         setConnectionDialogOpen,
         addConnection,
         activeView,
-        dbTabsCollapsed,
-        toggleDbTabs,
         pinnedTables,
         pinTable,
         unpinTable,
         connectionLatency,
         pingConnectionHealth,
+        activeConnectionId,
+        setActiveConnectionId,
+        dbTabsCollapsed,
+        toggleDbTabs,
     } = useAppStore();
-    const [filter, setFilter] = useState("");
-    const [loadingIds, setLoadingIds] = useState<Set<string>>(new Set());
-    const [importExportOpen, setImportExportOpen] = useState(false);
-    const [healthOpen, setHealthOpen] = useState(false);
+
+     const [filter, setFilter] = useState("");
+     const [loadingIds, setLoadingIds] = useState<Set<string>>(new Set());
+     const [importExportOpen, setImportExportOpen] = useState(false);
+     const [createDbOpen, setCreateDbOpen] = useState(false);
+     const [createDbName, setCreateDbName] = useState("");
+     const [createDbLoading, setCreateDbLoading] = useState(false);
+     const [healthOpen, setHealthOpen] = useState(false);
     const [dropDbConfirm, setDropDbConfirm] = useState<string | null>(null);
     const [dropConfirmInput, setDropConfirmInput] = useState("");
     const [droppingDb, setDroppingDb] = useState(false);
 
-    // Ping connected connections every 30 seconds for health monitoring
+    // Ping connected connections every 30 seconds
     useEffect(() => {
         if (connectedIds.length === 0) return;
         const run = () => connectedIds.forEach((id) => pingConnectionHealth(id));
-        run(); // immediate ping on mount/change
+        run();
         const interval = setInterval(run, 30_000);
         return () => clearInterval(interval);
     }, [connectedIds, pingConnectionHealth]);
+
     const handleConnect = async (connId: string) => {
         setLoadingIds((prev) => new Set(prev).add(connId));
         try {
             await connectAndInit(connId);
+            setActiveConnectionId(connId);
         } finally {
             setLoadingIds((prev) => {
                 const next = new Set(prev);
@@ -802,23 +1106,33 @@ const Sidebar = () => {
             });
         }
     };
-    // active connection: prefer activeFunction's connection, then first connected
+
+    // Resolve the active connection for panel 2
     const activeConn = useMemo(() => {
+        if (activeConnectionId) {
+            const found = connections.find((c) => c.id === activeConnectionId);
+            if (found) return found;
+        }
+        // Fallback: prefer connection of activeFunction, then first connected
         return (activeFunction
             ? connections.find((c) => c.id === activeFunction.connectionId)
             : null) ?? connections.find((c) => connectedIds.includes(c.id)) ?? null;
-    }, [activeFunction, connections, connectedIds]);
+    }, [activeConnectionId, connections, activeFunction, connectedIds]);
+
     const currentDb = useMemo(() => {
         if (!activeConn) return null;
         return selectedDatabases[activeConn.id] ?? activeConn.database ?? null;
     }, [activeConn, selectedDatabases]);
+
     const handleInvoke = (fn: ConnectionFunction) => {
+        setActiveConnectionId(fn.connectionId);
         if (fn.type === "query" || fn.type === "execute") {
             setActiveFunctionOnly(fn);
         } else {
             invokeFunction(fn);
         }
     };
+
     const handleDrop = async () => {
         if (droppingDb || dropConfirmInput !== dropDbConfirm || !dropDbConfirm || !activeConn) return;
         setDroppingDb(true);
@@ -839,10 +1153,8 @@ const Sidebar = () => {
             setDropConfirmInput("");
         }
     };
-    const activeDatabases = activeConn ? (openDatabases[activeConn.id] ?? []) : [];
-    const selectedDb = activeConn ? (selectedDatabases[activeConn.id] ?? null) : null;
 
-    // ── New-connection mode: show saved connections list in sidebar ──
+    // ── New-connection mode: show saved connections list inline in sidebar ──
     if (activeView === "new-connection") {
         return (
             <div className="flex h-full min-h-0 overflow-hidden bg-surface-1">
@@ -858,110 +1170,100 @@ const Sidebar = () => {
         );
     }
 
+    const activeDatabases = activeConn ? (openDatabases[activeConn.id] ?? []) : [];
+    const selectedDb = activeConn ? (selectedDatabases[activeConn.id] ?? null) : null;
+
     return (
         <div className="flex h-full min-h-0 overflow-hidden bg-surface-1">
-            {/* ── Left: open database tabs ── */}
-            {activeDatabases.length > 0 && activeConn && (
+
+            {/* ══ PANEL 1 — Connected connections (square tabs) ══ */}
+            {connectedIds.length > 0 && (
                 <div
                     style={{ width: dbTabsCollapsed ? 0 : 88 }}
                     className="shrink-0 overflow-hidden transition-[width] duration-200 ease-in-out"
                 >
                     <div className="flex h-full w-[88px] flex-col gap-1.5 overflow-y-auto border-r border-border-subtle bg-surface-1 px-2 py-2">
-                    {activeDatabases.map((db) => {
-                        const isActive = db === selectedDb;
-                        const DbLogo = DB_LOGO[activeConn.type] ?? DB_LOGO.postgresql;
-                        const logoColor = DB_COLOR[activeConn.type] ?? "text-muted-foreground";
-                        return (
-                            <div key={db} className="flex flex-col">
-                                <ContextMenu>
-                                    <Tooltip delayDuration={600}>
-                                        <ContextMenuTrigger asChild>
-                                            <TooltipTrigger asChild>
-                                                <button
-                                                    aria-label={`Select database ${db}`}
-                                                    onClick={() => selectDatabase(activeConn.id, db)}
-                                                    className={cn(
-                                                        "group relative flex w-full shrink-0 flex-col items-center gap-1.5 border px-2 py-3 transition-[color,background-color,border-color]",
-                                                        isActive
-                                                            ? "border-border-subtle bg-surface-elevated text-foreground"
-                                                            : "border-transparent bg-surface-2 text-foreground/50 hover:border-border/55 hover:bg-surface-3 hover:text-foreground/72"
-                                                    )}
-                                                >
-                                                    {/* Icon container */}
-                                                    <div className={cn(
-                                                        "flex h-8 w-8 items-center justify-center border border-transparent transition-colors",
-                                                        isActive
-                                                            ? "border-border-subtle bg-surface-2"
-                                                            : "bg-transparent group-hover:bg-surface-3"
-                                                    )}>
-                                                        <DbLogo className={cn(
-                                                            "text-[18px] shrink-0 transition-colors",
-                                                            isActive ? logoColor : "text-foreground/36 group-hover:text-foreground/56"
-                                                        )} />
-                                                    </div>
-                                                    {/* DB label */}
-                                                    <span className={cn(
-                                                        "w-full truncate px-1 text-center text-[11px] font-mono leading-tight transition-colors",
-                                                        isActive
-                                                            ? "text-foreground/82"
-                                                            : "text-foreground/42 group-hover:text-foreground/62"
-                                                    )}>
-                                                        {db}
-                                                    </span>
-                                                </button>
-                                            </TooltipTrigger>
-                                        </ContextMenuTrigger>
-                                        <TooltipContent side="right" sideOffset={6} className="font-mono text-[11px]">
-                                            {db}
-                                        </TooltipContent>
-                                    </Tooltip>
-                                    <ContextMenuContent className="w-44">
-                                        <ContextMenuLabel className="font-mono text-[10px] uppercase tracking-widest text-muted-foreground/50 truncate">
-                                            {db}
-                                        </ContextMenuLabel>
-                                        <ContextMenuSeparator />
-                                        <ContextMenuItem onSelect={() => {
-                                            refreshTables(activeConn.id, db);
-                                            if (selectedDb !== db) selectDatabase(activeConn.id, db);
-                                        }}>
-                                            <RefreshCw size={11} className="shrink-0 text-muted-foreground/60" />
-                                            Refresh DB
-                                        </ContextMenuItem>
-                                        <ContextMenuItem onSelect={() => closeOpenDatabase(activeConn.id, db)}>
-                                            <XCircle size={11} className="shrink-0 text-muted-foreground/60" />
-                                            Close DB
-                                        </ContextMenuItem>
-                                        <ContextMenuSeparator />
-                                        <ContextMenuItem
-                                            variant="destructive"
-                                            onSelect={() => {
-                                                setDropConfirmInput("");
-                                                setDropDbConfirm(db);
-                                            }}
-                                        >
-                                            <Trash2 size={11} className="shrink-0" />
-                                            Drop Database
-                                        </ContextMenuItem>
-                                    </ContextMenuContent>
-                                </ContextMenu>
-                            </div>
-                        );
-                    })}
-                </div>
+                        {connectedIds.map((connId) => {
+                            const conn = connections.find((c) => c.id === connId);
+                            if (!conn) return null;
+                            const isActive = activeConn?.id === connId;
+                            const DbLogo = DB_LOGO[conn.type] ?? DB_LOGO.postgresql;
+                            const logoColor = DB_COLOR[conn.type] ?? "text-muted-foreground";
+                            return (
+                                <div key={connId} className="flex flex-col">
+                                    <ContextMenu>
+                                        <Tooltip delayDuration={600}>
+                                            <ContextMenuTrigger asChild>
+                                                <TooltipTrigger asChild>
+                                                    <button
+                                                        aria-label={`Select ${conn.name}`}
+                                                        onClick={() => setActiveConnectionId(connId)}
+                                                        className={cn(
+                                                            "group relative flex w-full shrink-0 flex-col items-center gap-1.5 border px-2 py-3 transition-[color,background-color,border-color]",
+                                                            isActive
+                                                                ? "border-border-subtle bg-surface-elevated text-foreground"
+                                                                : "border-transparent bg-surface-2 text-foreground/50 hover:border-border/55 hover:bg-surface-3 hover:text-foreground/72"
+                                                        )}
+                                                    >
+                                                        <div className={cn(
+                                                            "flex h-8 w-8 items-center justify-center border border-transparent transition-colors",
+                                                            isActive
+                                                                ? "border-border-subtle bg-surface-2"
+                                                                : "bg-transparent group-hover:bg-surface-3"
+                                                        )}>
+                                                            <DbLogo className={cn(
+                                                                "text-[18px] shrink-0 transition-colors",
+                                                                isActive ? logoColor : "text-foreground/36 group-hover:text-foreground/56"
+                                                            )} />
+                                                        </div>
+                                                        <span className={cn(
+                                                            "w-full truncate px-1 text-center text-[11px] font-mono leading-tight transition-colors",
+                                                            isActive
+                                                                ? "text-foreground/82"
+                                                                : "text-foreground/42 group-hover:text-foreground/62"
+                                                        )}>
+                                                            {conn.name}
+                                                        </span>
+                                                    </button>
+                                                </TooltipTrigger>
+                                            </ContextMenuTrigger>
+                                            <TooltipContent side="right" sideOffset={6} className="font-mono text-[11px]">
+                                                {conn.name}
+                                            </TooltipContent>
+                                        </Tooltip>
+                                        <ContextMenuContent className="w-44">
+                                            <ContextMenuLabel className="font-mono text-[10px] uppercase tracking-widest text-muted-foreground/50 truncate">
+                                                {conn.name}
+                                            </ContextMenuLabel>
+                                            <ContextMenuSeparator />
+                                            <ContextMenuItem onSelect={() => setActiveConnectionId(connId)}>
+                                                <Database size={11} className="shrink-0 text-muted-foreground/60" />
+                                                Select
+                                            </ContextMenuItem>
+                                            <ContextMenuSeparator />
+                                            <ContextMenuItem variant="destructive" onSelect={() => disconnectConnection(connId)}>
+                                                <XCircle size={11} className="shrink-0" />
+                                                Disconnect
+                                            </ContextMenuItem>
+                                        </ContextMenuContent>
+                                    </ContextMenu>
+                                </div>
+                            );
+                        })}
+                    </div>
                 </div>
             )}
-            {/* ── Right: main content ── */}
-            <div className="flex-1 flex flex-col overflow-hidden min-w-0">
-                {/* ── Header ── */}
-                    <div className="shell-toolbar flex h-10 shrink-0 items-center justify-between border-b px-4">
-                    <span className="shell-section-label text-foreground/58">
-                         Explorer
-                     </span>
+
+            {/* ══ PANEL 2 — Databases & Tables for the active connection ══ */}
+            <div className="flex flex-1 flex-col overflow-hidden min-w-0">
+                {/* Header */}
+                <div className="shell-toolbar flex h-10 shrink-0 items-center justify-between border-b px-4">
+                    <span className="shell-section-label text-foreground/58">Explorer</span>
                     <div className="flex items-center gap-1">
                         {loadingIds.size > 0 && (
                             <Loader2 size={10} className="animate-spin text-foreground/40" />
                         )}
-                        {activeDatabases.length > 0 && activeConn && (
+                        {connectedIds.length > 0 && (
                             <Tooltip>
                                 <TooltipTrigger asChild>
                                     <Button
@@ -996,27 +1298,27 @@ const Sidebar = () => {
                             </TooltipTrigger>
                             <TooltipContent side="bottom" sideOffset={4}>Import / Export</TooltipContent>
                         </Tooltip>
-                        <Tooltip>
-                            <TooltipTrigger asChild>
-                                <Button
-                                    variant="outline"
-                                    size="sm"
-                                    onClick={() => {
-                                        setEditingConnection(null);
-                                        setActiveView("new-connection");
-                                    }}
-                                    className="h-7 gap-1.5 rounded-sm border-border-subtle bg-surface-2 px-2.5 text-[10px] font-semibold uppercase tracking-[0.12em] text-foreground/72 hover:bg-surface-3 hover:text-foreground"
-                                >
-                                    <Plus size={12} />
-                                    Add
-                                </Button>
-                            </TooltipTrigger>
-                            <TooltipContent side="bottom" sideOffset={4}>New connection</TooltipContent>
-                        </Tooltip>
+                        {activeConn && connectedIds.includes(activeConn.id) && (
+                            <Tooltip>
+                                <TooltipTrigger asChild>
+                                    <Button
+                                        variant="ghost"
+                                        size="icon-xs"
+                                        aria-label="Create database"
+                                        onClick={() => { setCreateDbName(""); setCreateDbOpen(true); }}
+                                        className="text-foreground/48 hover:text-foreground"
+                                    >
+                                        <Plus size={14} />
+                                    </Button>
+                                </TooltipTrigger>
+                                <TooltipContent side="bottom" sideOffset={4}>Create Database</TooltipContent>
+                            </Tooltip>
+                        )}
                     </div>
                 </div>
-                {/* ── Filter ── */}
-                {connections.length > 0 && (
+
+                {/* Filter */}
+                {activeConn && connectedIds.includes(activeConn.id) && (
                     <div className="shrink-0 border-b border-border-subtle bg-surface-1 px-3 py-2">
                         <div className="relative">
                             <Search size={11} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-foreground/36 pointer-events-none" />
@@ -1024,128 +1326,188 @@ const Sidebar = () => {
                                 value={filter}
                                 onChange={(e) => setFilter(e.target.value)}
                                 placeholder="Filter tables…"
-                                className="h-8 border-border-subtle bg-surface-2 pl-8 pr-3 text-[12px] font-mono placeholder:text-foreground/38 focus-visible:border-primary/35 focus-visible:ring-0"
+                                className="h-8 border-border-subtle bg-surface-2 pl-8 pr-3 text-[12px] font-mono placeholder:text-foreground/38 focus-visible:border-primary/35 focus-visible:ring-2 focus-visible:ring-ring/50"
                             />
                         </div>
                     </div>
                 )}
-                {/* ── Tree ── */}
-                {connections.length === 0 ? (
-                    <div className="flex-1 min-h-0 flex flex-col items-center justify-center gap-4 px-4 pb-10">
-                        <div className="size-10 border border-border flex items-center justify-center">
-                            <Database size={18} className="text-muted-foreground/70" />
-                        </div>
-                        <div className="text-center space-y-1">
-                            <p className="text-[11px] font-bold text-foreground/50 uppercase tracking-[0.16em]">
-                                No connections
-                            </p>
-                            <p className="text-[11px] text-foreground/62">
-                                Add a database to get started
-                            </p>
-                        </div>
+
+                {/* Tree content */}
+                {!activeConn ? (
+                    <div className="flex flex-1 flex-col items-center justify-center gap-2 px-4 pb-10 text-center">
+                        <Database size={18} className="text-foreground/24" />
+                        <p className="text-[11px] text-foreground/42">
+                            Select a connection
+                        </p>
+                    </div>
+                ) : !connectedIds.includes(activeConn.id) ? (
+                    <div className="flex flex-1 flex-col items-center justify-center gap-3 px-4 pb-10 text-center">
+                        <Plug size={16} className="text-foreground/24" />
+                        <p className="text-[11px] text-foreground/42">Not connected</p>
                         <Button
                             size="sm"
-                            onClick={() => { setEditingConnection(null); setActiveView("new-connection"); }}
-                            className="h-7 text-[11px] font-semibold uppercase tracking-[0.12em] gap-1.5"
+                            onClick={() => handleConnect(activeConn.id)}
+                            disabled={loadingIds.has(activeConn.id)}
+                            className="h-7 gap-1.5 text-[11px]"
                         >
-                            <Plus size={11} />
-                            Add Connection
+                            {loadingIds.has(activeConn.id) ? (
+                                <><Loader2 size={11} className="animate-spin" /> Connecting…</>
+                            ) : (
+                                <><Plug size={11} /> Connect</>
+                            )}
                         </Button>
                     </div>
                 ) : (
                     <ScrollArea className="flex-1 min-h-0">
                         <div className="px-3 py-3">
-                            {activeConn ? (() => {
+                            {(() => {
                                 const conn = activeConn;
-                                const fns = connectionFunctions[conn.id] ?? [];
-                                const tableFns = fns.filter((f) => f.type === "table");
-                                const tables = connectionTables[conn.id] ?? [];
+                                // Merge all databases' fns/tables for pinned section & DatabaseNode fallback
+                                const allFns = Object.values(connectionFunctions[conn.id] ?? {}).flat();
+                                const tableFns = allFns.filter((f) => f.type === "table");
+                                const allTables = Object.values(connectionTables[conn.id] ?? {}).flat();
                                 const tableInfoMap: Record<string, ColumnInfo[]> =
-                                    Object.fromEntries(tables.map((t) => [t.name, t.columns ?? []]));
+                                    Object.fromEntries(allTables.map((t) => [t.name, t.columns ?? []]));
                                 const connPinnedNames = new Set(
                                     pinnedTables
                                         .filter((p) => p.connectionId === conn.id)
                                         .map((p) => p.tableName)
                                 );
+
                                 return (
                                     <>
-                                    {/* Pinned tables section */}
-                                    {connPinnedNames.size > 0 && (
-                                        <div className="mb-2">
-                                            <div className="flex items-center gap-1.5 px-1 pb-1">
-                                                <Pin size={9} className="text-primary/50 shrink-0" />
-                                                <span className="text-[9px] font-bold uppercase tracking-widest text-foreground/40">Pinned</span>
+                                        {/* Pinned tables */}
+                                        {connPinnedNames.size > 0 && (
+                                            <div className="mb-2">
+                                                <div className="flex items-center gap-1.5 px-1 pb-1">
+                                                    <Pin size={9} className="text-primary/50 shrink-0" />
+                                                    <span className="text-[9px] font-bold uppercase tracking-widest text-foreground/40">Pinned</span>
+                                                </div>
+                                                <div className="w-full min-w-0 overflow-hidden px-1">
+                                                    {tableFns
+                                                        .filter((f) => connPinnedNames.has(f.tableName ?? ""))
+                                                        .map((fn) => (
+                                                            <TableRow
+                                                                key={`pinned-${fn.id}`}
+                                                                fn={fn}
+                                                                columns={tableInfoMap[fn.tableName ?? ""] ?? []}
+                                                                isActive={activeFunction?.id === fn.id}
+                                                                onInvoke={handleInvoke}
+                                                                onLoadColumns={() => loadTableColumns(conn.id, fn.tableName ?? "")}
+                                                                isPinned={true}
+                                                                onPinToggle={() => unpinTable(conn.id, fn.tableName ?? "")}
+                                                            />
+                                                        ))}
+                                                </div>
                                             </div>
-                                            <div className="w-full min-w-0 overflow-hidden px-1">
-                                                {tableFns
-                                                    .filter((f) => connPinnedNames.has(f.tableName ?? ""))
-                                                    .map((fn) => (
-                                                        <TableRow
-                                                            key={`pinned-${fn.id}`}
-                                                            fn={fn}
-                                                            columns={tableInfoMap[fn.tableName ?? ""] ?? []}
-                                                            isActive={activeFunction?.id === fn.id}
-                                                            onInvoke={handleInvoke}
-                                                            onLoadColumns={() => loadTableColumns(conn.id, fn.tableName ?? "")}
-                                                            isPinned={true}
-                                                            onPinToggle={() => unpinTable(conn.id, fn.tableName ?? "")}
-                                                        />
-                                                    ))}
-                                            </div>
-                                        </div>
-                                    )}
-                                    <DatabaseNode
-                                        key={conn.id}
-                                        connection={conn}
-                                        isConnected={connectedIds.includes(conn.id)}
-                                        isLoading={loadingIds.has(conn.id)}
-                                        tableFns={tableFns}
-                                        tableInfoMap={tableInfoMap}
-                                        activeFunctionId={activeFunction?.id}
-                                        filter={filter}
-                                        selectedDb={selectedDatabases[conn.id]}
-                                        onConnect={() => handleConnect(conn.id)}
-                                        onInvoke={handleInvoke}
-                                        onRefreshTables={() => refreshTables(conn.id)}
-                                        onAddTable={async (sql) => {
-                                            const result = await tauriApi.executeQuery(conn.id, sql);
-                                            if (result.error) throw new Error(result.error);
-                                            await refreshTables(conn.id);
-                                        }}
-                                        onLoadColumns={(tableName) => loadTableColumns(conn.id, tableName)}
-                                        pinnedTableNames={connPinnedNames}
-                                        onPinToggle={(tableName) => {
-                                            if (connPinnedNames.has(tableName)) unpinTable(conn.id, tableName);
-                                            else pinTable(conn.id, tableName);
-                                        }}
-                                        latencyMs={connectionLatency[conn.id]}
-                                    />
+                                        )}
+
+                                        {/* Open databases as expandable sections */}
+                                        {activeDatabases.length > 0 ? (
+                                            activeDatabases.map((db) => {
+                                                // Per-db tables and fns — only show this db's data
+                                                const dbFns = (connectionFunctions[conn.id]?.[db] ?? []).filter((f) => f.type === "table");
+                                                const dbTables = connectionTables[conn.id]?.[db] ?? [];
+                                                const dbTableInfoMap: Record<string, ColumnInfo[]> =
+                                                    Object.fromEntries(dbTables.map((t) => [t.name, t.columns ?? []]));
+                                                return (
+                                                <DatabaseSection
+                                                    key={db}
+                                                    db={db}
+                                                    isSelected={db === selectedDb}
+                                                    conn={conn}
+                                                    tableFns={dbFns}
+                                                    tableInfoMap={dbTableInfoMap}
+                                                    activeFunctionId={activeFunction?.id}
+                                                    filter={filter}
+                                                    connPinnedNames={connPinnedNames}
+                                                    onSelect={() => selectDatabase(conn.id, db)}
+                                                    onRefresh={() => {
+                                                        refreshTables(conn.id, db);
+                                                        if (selectedDb !== db) selectDatabase(conn.id, db);
+                                                    }}
+                                                    onClose={() => closeOpenDatabase(conn.id, db)}
+                                                    onDrop={() => {
+                                                        setDropConfirmInput("");
+                                                        setDropDbConfirm(db);
+                                                    }}
+                                                    onInvoke={handleInvoke}
+                                                    onLoadColumns={(tableName) => loadTableColumns(conn.id, tableName)}
+                                                    onPinToggle={(tableName) => {
+                                                        if (connPinnedNames.has(tableName)) unpinTable(conn.id, tableName);
+                                                        else pinTable(conn.id, tableName);
+                                                    }}
+                                                     onAddTable={async (sql) => {
+                                                         const result = await tauriApi.executeQuery(conn.id, sql);
+                                                         if (result.error) throw new Error(result.error);
+                                                         await refreshTables(conn.id);
+                                                     }}
+                                                     onRefreshTables={() => refreshTables(conn.id, db)}
+                                                     onAfterTruncate={async () => {
+                                                         if (activeFunction?.connectionId === conn.id) {
+                                                             await invokeFunction(activeFunction);
+                                                         }
+                                                     }}
+                                                     latencyMs={connectionLatency[conn.id]}
+                                                />
+                                                );
+                                            })
+                                        ) : (
+                                            /* No open databases yet — show the main DatabaseNode */
+                                            <DatabaseNode
+                                                key={conn.id}
+                                                connection={conn}
+                                                isConnected={connectedIds.includes(conn.id)}
+                                                isLoading={loadingIds.has(conn.id)}
+                                                tableFns={tableFns}
+                                                tableInfoMap={tableInfoMap}
+                                                activeFunctionId={activeFunction?.id}
+                                                filter={filter}
+                                                selectedDb={selectedDatabases[conn.id]}
+                                                onConnect={() => handleConnect(conn.id)}
+                                                onInvoke={handleInvoke}
+                                                onRefreshTables={() => refreshTables(conn.id)}
+                                                onAddTable={async (sql) => {
+                                                    const result = await tauriApi.executeQuery(conn.id, sql);
+                                                    if (result.error) throw new Error(result.error);
+                                                    await refreshTables(conn.id);
+                                                }}
+                                                onLoadColumns={(tableName) => loadTableColumns(conn.id, tableName)}
+                                                 pinnedTableNames={connPinnedNames}
+                                                 onPinToggle={(tableName) => {
+                                                     if (connPinnedNames.has(tableName)) unpinTable(conn.id, tableName);
+                                                     else pinTable(conn.id, tableName);
+                                                 }}
+                                                 onAfterTruncate={async () => {
+                                                     if (activeFunction?.connectionId === conn.id) {
+                                                         await invokeFunction(activeFunction);
+                                                     }
+                                                 }}
+                                                 latencyMs={connectionLatency[conn.id]}
+                                            />
+                                        )}
                                     </>
                                 );
-                            })() : (
-                                <div className="flex flex-col items-center justify-center gap-3 py-8 px-4 text-center">
-                                    <p className="text-[11px] font-mono text-foreground/44">No active connection</p>
-                                </div>
-                            )}
+                            })()}
                         </div>
                     </ScrollArea>
                 )}
-                {/* ── Status Footer ── always pinned to bottom */}
+
+                {/* Footer — status bar */}
                 <div className="relative">
                     {healthOpen && <ConnectionHealthPanel onClose={() => setHealthOpen(false)} />}
-                    <div className="shell-toolbar flex h-9 shrink-0 items-center gap-2 overflow-hidden border-t px-4">
+                    <div className="shell-toolbar flex h-9 shrink-0 items-center gap-2 overflow-hidden border-t px-3">
                         <CircleDot
                             size={8}
                             className={cn("shrink-0", connectedIds.length > 0 ? "text-primary" : "text-foreground/42")}
                         />
                         <span className="text-[11px] font-mono shrink-0 whitespace-nowrap">
                             <span className={connectedIds.length > 0 ? "text-primary" : "text-foreground/58"}>{connectedIds.length}</span>
-                            <span className="text-foreground/52">/{connections.length} conn</span>
+                            <span className="text-foreground/52">/{connections.length}</span>
                         </span>
-                        <span className="text-foreground/36 shrink-0">·</span>
-                        <HardDrive size={8} className="shrink-0 text-foreground/42" />
-                        <span className="text-[11px] font-mono truncate text-foreground/62 min-w-0">
-                            {currentDb ?? <span className="text-foreground/38">no db</span>}
+                        <HardDrive size={8} className="shrink-0 text-foreground/36 ml-1" />
+                        <span className="min-w-0 flex-1 truncate font-mono text-[11px] text-foreground/52">
+                            {currentDb ?? <span className="text-foreground/30">no db</span>}
                         </span>
                         <button
                             onClick={() => setHealthOpen((v) => !v)}
@@ -1161,15 +1523,95 @@ const Sidebar = () => {
                         </button>
                     </div>
                 </div>
-            </div>{/* end right content */}
+            </div>
+
+            {/* Dialogs */}
             {importExportOpen && (
                 <ImportExportDialog
                     onClose={() => setImportExportOpen(false)}
                     onImportComplete={(newConns) => {
                         newConns.forEach((c) => addConnection(c));
                     }}
-                />
+                 />
             )}
+
+            {/* Create Database Dialog */}
+            {activeConn && (
+                <Dialog open={createDbOpen} onOpenChange={(open) => { if (!open) setCreateDbOpen(false); }}>
+                    <DialogContent className="max-w-sm">
+                        <DialogHeader>
+                            <DialogTitle className="flex items-center gap-2">
+                                <Database size={15} className="shrink-0 text-primary" />
+                                Create Database
+                            </DialogTitle>
+                            <DialogDescription>
+                                Create a new database on <span className="font-semibold text-foreground/80">{activeConn.name}</span>.
+                                {activeConn.type === "sqlite" && (
+                                    <span className="mt-1 block text-[11px]">A new <code>.db</code> file will be created in the same folder as the current database.</span>
+                                )}
+                                {activeConn.type === "mongodb" && (
+                                    <span className="mt-1 block text-[11px]">MongoDB will create the database with an <code>_init</code> collection to persist it.</span>
+                                )}
+                            </DialogDescription>
+                        </DialogHeader>
+                        <div className="space-y-3">
+                            <div className="space-y-1.5">
+                                <Label className="text-[11px] text-muted-foreground">Database name</Label>
+                                <Input
+                                    autoFocus
+                                    value={createDbName}
+                                    placeholder={activeConn.type === "sqlite" ? "my_database" : "new_database"}
+                                    className="h-8 text-[12px] font-mono"
+                                    onChange={(e) => setCreateDbName(e.target.value)}
+                                    onKeyDown={(e) => {
+                                        if (e.key === "Enter" && createDbName.trim()) e.currentTarget.form?.requestSubmit();
+                                    }}
+                                />
+                            </div>
+                            <pre className="rounded-md bg-muted px-3 py-2 text-[11px] font-mono text-muted-foreground whitespace-pre-wrap break-all">
+                                {activeConn.type === "mysql"
+                                    ? `CREATE DATABASE \`${createDbName || "<name>"}\``
+                                    : activeConn.type === "sqlite"
+                                    ? `// Creates ${createDbName || "<name>"}.db`
+                                    : activeConn.type === "mongodb"
+                                    ? `db.createCollection("_init") // on ${createDbName || "<name>"}`
+                                    : `CREATE DATABASE "${createDbName || "<name>"}"`}
+                            </pre>
+                        </div>
+                        <DialogFooter>
+                            <Button variant="outline" size="sm" onClick={() => setCreateDbOpen(false)}>
+                                Cancel
+                            </Button>
+                            <Button
+                                size="sm"
+                                disabled={!createDbName.trim() || createDbLoading}
+                                onClick={async () => {
+                                    setCreateDbLoading(true);
+                                    try {
+                                        const newDb = createDbName.trim();
+                                        await tauriApi.createDatabase(activeConn.id, newDb);
+                                        toast.success(`Database "${newDb}" created`);
+                                        setCreateDbOpen(false);
+                                        setCreateDbName("");
+                                        // Refresh database list so new db appears in sidebar
+                                        await refreshDatabases(activeConn.id);
+                                        // Open and load tables for the new database immediately
+                                        await selectDatabase(activeConn.id, newDb);
+                                    } catch (err) {
+                                        toast.error(String(err));
+                                    } finally {
+                                        setCreateDbLoading(false);
+                                    }
+                                }}
+                            >
+                                {createDbLoading ? <Loader2 size={12} className="animate-spin" /> : null}
+                                Create
+                            </Button>
+                        </DialogFooter>
+                    </DialogContent>
+                </Dialog>
+            )}
+
             {dropDbConfirm && activeConn && (
                 <Dialog open={!!dropDbConfirm} onOpenChange={(open) => { if (!open) { setDropDbConfirm(null); setDropConfirmInput(""); } }}>
                     <DialogContent className="max-w-sm">
@@ -1212,7 +1654,7 @@ const Sidebar = () => {
                                 disabled={droppingDb || dropConfirmInput !== dropDbConfirm}
                                 onClick={handleDrop}
                             >
-                                {droppingDb ? "Dropping\u2026" : "Drop Database"}
+                                {droppingDb ? "Dropping…" : "Drop Database"}
                             </Button>
                         </DialogFooter>
                     </DialogContent>
