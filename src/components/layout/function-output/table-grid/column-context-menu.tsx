@@ -23,6 +23,11 @@ export function ColumnContextMenu({
 	onResetLayout,
 	onOpenFilter,
 	getColSize,
+	onPinLeft,
+	onPinRight,
+	onUnpin,
+	isPinned,
+	onShowStats,
 }: {
 	colCtxMenu: { x: number; y: number; colId: string } | null;
 	hasTableName: boolean;
@@ -45,6 +50,11 @@ export function ColumnContextMenu({
 	onResetLayout: () => void;
 	onOpenFilter: (colId: string) => void;
 	getColSize: (colId: string) => number;
+	onPinLeft?: (colId: string) => void;
+	onPinRight?: (colId: string) => void;
+	onUnpin?: (colId: string) => void;
+	isPinned?: (colId: string) => "left" | "right" | false;
+	onShowStats?: (colId: string) => void;
 }) {
 	if (!colCtxMenu) return null;
 
@@ -100,6 +110,7 @@ export function ColumnContextMenu({
 					const sep = (k: string) => (
 						<div key={k} className="-mx-1 my-1 h-px bg-border" />
 					);
+					const pinState = isPinned?.(colId) ?? false;
 					return [
 						hasTableName &&
 							item(
@@ -121,6 +132,10 @@ export function ColumnContextMenu({
 						item("Sort ascending", () => onSortAsc(colId)),
 						item("Sort descending", () => onSortDesc(colId)),
 						sep("s2"),
+						onPinLeft && pinState !== "left" && item("Pin to left", () => onPinLeft!(colId)),
+						onPinRight && pinState !== "right" && item("Pin to right", () => onPinRight!(colId)),
+						onUnpin && pinState !== false && item("Unpin column", () => onUnpin!(colId)),
+						(onPinLeft || onPinRight) && sep("s2b"),
 						item("Resize all columns to match", () =>
 							onResizeAllToMatch(colSize),
 						),
@@ -134,6 +149,8 @@ export function ColumnContextMenu({
 						item(`Hide ${colId}`, () => onHideColumn(colId)),
 						item("Reset layout", () => onResetLayout()),
 						item("Open column filter", () => onOpenFilter(colId)),
+						onShowStats && sep("s4"),
+						onShowStats && item("Column stats", () => onShowStats!(colId)),
 					];
 				})()}
 			</div>

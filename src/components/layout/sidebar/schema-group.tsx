@@ -30,16 +30,16 @@ export function SchemaGroup({
             {showLabel && (
                 <button
                     onClick={() => setOpen((v) => !v)}
-                    className="group w-full flex items-center gap-1.5 h-[28px] pl-1 pr-2 text-muted-foreground/50 hover:text-muted-foreground hover:bg-muted/30 transition-colors"
+                    className="group w-full flex items-center gap-1.5 h-[28px] pl-1 pr-2 text-foreground/55 dark:text-muted-foreground/80 hover:text-foreground/80 dark:hover:text-muted-foreground hover:bg-muted/40 transition-colors"
                 >
-                    <span className="flex items-center justify-center w-4 shrink-0 text-muted-foreground/25 group-hover:text-muted-foreground/50 transition-colors">
+                    <span className="flex items-center justify-center w-4 shrink-0 text-foreground/38 dark:text-muted-foreground/55 group-hover:text-foreground/60 dark:group-hover:text-muted-foreground/80 transition-colors">
                         {open ? <ChevronDown size={10} /> : <ChevronRight size={10} />}
                     </span>
                     {open
-                        ? <FolderOpen size={11} className="shrink-0 text-muted-foreground/45 group-hover:text-muted-foreground/70 transition-colors" />
-                        : <Folder size={11} className="shrink-0 text-muted-foreground/30 group-hover:text-muted-foreground/60 transition-colors" />}
+                        ? <FolderOpen size={11} className="shrink-0 text-foreground/45 dark:text-muted-foreground/65 group-hover:text-foreground/70 dark:group-hover:text-muted-foreground/90 transition-colors" />
+                        : <Folder size={11} className="shrink-0 text-foreground/40 dark:text-muted-foreground/60 group-hover:text-foreground/65 dark:group-hover:text-muted-foreground/85 transition-colors" />}
                     <span className="text-[10px] font-mono flex-1 text-left tracking-wide">{schema}</span>
-                    <span className="text-[8.5px] font-mono tabular-nums px-1.5 h-[14px] flex items-center rounded-full bg-muted/60 text-muted-foreground/50 border border-border/40">
+                    <span className="text-[8.5px] font-mono tabular-nums px-1.5 h-[14px] flex items-center rounded-full bg-muted/80 dark:bg-muted/60 text-foreground/50 dark:text-muted-foreground/70 border border-border/70 dark:border-border/60">
                         {fns.length}
                     </span>
                 </button>

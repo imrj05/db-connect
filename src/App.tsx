@@ -10,6 +10,7 @@ import {
     shouldShowOnboarding,
 } from "./components/layout/app-onboarding-screen";
 import { SettingsPage } from "./components/layout/function-output/settings-page";
+import { SchemaDiffView } from "./components/layout/function-output/schema-diff-view";
 import { TooltipProvider } from "./components/ui/tooltip";
 import { Toaster } from "@/components/ui/sonner";
 import { getCurrentWindow } from "@tauri-apps/api/window";
@@ -58,7 +59,16 @@ function App() {
     const [onboardingDone, setOnboardingDone] = useState(false);
     const [updateInfo, setUpdateInfo] = useState<UpdateInfo | null>(null);
     const [showUpdateDialog, setShowUpdateDialog] = useState(false);
-    const [sidebarWidth, setSidebarWidth] = useState(SIDEBAR_DEFAULT);
+    const [sidebarWidth, setSidebarWidth] = useState(() => {
+        try {
+            const saved = localStorage.getItem("db_connect_sidebar_width");
+            if (saved) {
+                const n = Number(saved);
+                if (n >= 180 && n <= 480) return n;
+            }
+        } catch { /* ignore */ }
+        return SIDEBAR_DEFAULT;
+    });
     const [showCloseApp, setShowCloseApp] = useState(false);
     const [isClosing, setIsClosing] = useState(false);
     const isDragging = useRef(false);
@@ -201,6 +211,10 @@ function App() {
                 e.preventDefault();
                 openNewTab();
             }
+            if ((e.metaKey || e.ctrlKey) && e.key === ",") {
+                e.preventDefault();
+                setActiveView("settings");
+            }
         };
         window.addEventListener("keydown", handler);
         return () => window.removeEventListener("keydown", handler);
@@ -248,6 +262,7 @@ function App() {
                 sidebarRef.current.style.transition = "";
             }
             setSidebarWidth(currentDragWidth.current);
+            try { localStorage.setItem("db_connect_sidebar_width", String(currentDragWidth.current)); } catch { /* ignore */ }
             document.body.style.cursor = "";
             document.body.style.userSelect = "";
         };
@@ -325,6 +340,8 @@ function App() {
                                     mode="page"
                                     onClose={() => setActiveView("main")}
                                 />
+                            ) : activeView === "schema-diff" ? (
+                                <SchemaDiffView />
                             ) : (
                                 <FunctionOutput />
                             )}

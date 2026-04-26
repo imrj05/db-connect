@@ -1,5 +1,5 @@
 import { invoke } from "@tauri-apps/api/core";
-import { ConnectionConfig, ExportOptions, ImportOptions, ImportResult, QueryHistoryEntry, QueryResult, SavedQuery, SchemaGraph, TableInfo, TableStructure } from "@/types";
+import { ConnectionConfig, ExportOptions, ImportOptions, ImportResult, QueryHistoryEntry, QueryResult, SavedQuery, SchemaGraph, TableInfo, TableStructure, UserSnippet } from "@/types";
 
 // ── SQL dump import types & helpers ───────────────────────────────────────────
 
@@ -100,8 +100,12 @@ export const tauriApi = {
     return await invoke("get_tables", { id, database, schema });
   },
 
-  async executeQuery(id: string, query: string): Promise<QueryResult> {
-    return await invoke("execute_query", { id, query });
+  async executeQuery(id: string, query: string, timeoutSecs?: number): Promise<QueryResult> {
+    return await invoke("execute_query", { id, query, timeoutSecs });
+  },
+
+  async pingConnection(id: string): Promise<number> {
+    return await invoke("ping_connection", { id });
   },
 
   async getTableData(id: string, database: string, table: string, page: number = 0, pageSize: number = 50): Promise<QueryResult> {
@@ -196,6 +200,26 @@ export const tauriApi = {
     await invoke("storage_delete_query", { id });
   },
 
+  async storageLoadSnippets(): Promise<UserSnippet[]> {
+    return await invoke("storage_load_snippets");
+  },
+
+  async storageSaveSnippet(snippet: UserSnippet): Promise<void> {
+    await invoke("storage_save_snippet", { snippet });
+  },
+
+  async storageDeleteSnippet(id: string): Promise<void> {
+    await invoke("storage_delete_snippet", { id });
+  },
+
+  async storageSaveWorkspace(snapshotJson: string): Promise<void> {
+    await invoke("storage_save_workspace", { snapshotJson });
+  },
+
+  async storageLoadWorkspace(): Promise<string | null> {
+    return await invoke("storage_load_workspace");
+  },
+
   async storageLoadHistory(): Promise<QueryHistoryEntry[]> {
     return await invoke("storage_load_history");
   },
@@ -210,6 +234,10 @@ export const tauriApi = {
 
   async storageClearAllHistory(): Promise<void> {
     await invoke("storage_clear_all_history");
+  },
+
+  async storageDeleteHistoryEntry(id: string): Promise<void> {
+    await invoke("storage_delete_history_entry", { id });
   },
 
   // ── AI / OpenRouter ───────────────────────────────────────────────────────

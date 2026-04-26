@@ -4,13 +4,17 @@ import {
   ConnectionFunction,
   FunctionInvocationResult,
   PendingCellEdit,
+  CellEditHistoryEntry,
   TableInfo,
   ConnectionSourceInfo,
-  QueryHistoryEntry,
-  SavedQuery,
+   QueryHistoryEntry,
+   SavedQuery,
+   UserSnippet,
   ResultTab,
   FilterCondition,
   QueryResult,
+  PinnedTable,
+  WorkspaceSnapshot,
 } from "@/types";
 import { EncryptionUtils } from "@/lib/encryption";
 import { buildConnectionFunctions, suggestPrefix } from "@/lib/db-functions";
@@ -29,10 +33,34 @@ function createDefaultFilter(): FilterCondition {
   };
 }
 
+// ── Workspace persistence ──────────────────────────────────────────────────────
+let _workspaceSaveTimer: ReturnType<typeof setTimeout> | null = null;
+function scheduleWorkspaceSave(getState: () => AppState) {
+  if (_workspaceSaveTimer) clearTimeout(_workspaceSaveTimer);
+  _workspaceSaveTimer = setTimeout(() => {
+    const s = getState();
+    const snapshot: WorkspaceSnapshot = {
+      activeConnectionId: s.activeFunction?.connectionId ?? null,
+      activeTabId: s.activeTabId,
+      selectedDatabases: s.selectedDatabases,
+      tabs: s.tabs.map((t) => ({
+        id: t.id,
+        fnId: t.fn.id,
+        label: t.label,
+        pendingSql: t.id === s.activeTabId ? s.pendingSqlValue : t.pendingSql,
+      })),
+      savedAt: Date.now(),
+    };
+    tauriApi.storageSaveWorkspace(JSON.stringify(snapshot)).catch(console.error);
+  }, 500);
+}
+
 // Legacy localStorage keys — kept only for one-time migration
 const LEGACY_CONNECTIONS_KEY = "db_connections_v3";
 const LEGACY_QUERIES_KEY = "db_saved_queries_v1";
 const SETTINGS_KEY = "db_connect_settings_v1";
+const LAYOUT_KEY = "db_connect_layout_v1";
+const PINNED_TABLES_KEY = "db_connect_pinned_tables_v1";
 
 // ── App settings (non-sensitive — persisted in localStorage) ──────────────────
 export type EditorThemeOption =
@@ -85,6 +113,8 @@ export type UiLightThemeOption =
 
 export interface AppSettings {
   editorFontSize: 12 | 13 | 14 | 16;
+  editorWordWrap: boolean;
+  editorTabSize: 2 | 4;
   tablePageSize: 25 | 50 | 100 | 200;
   uiZoom: 100 | 110 | 125 | 140 | 150;
   editorDarkTheme: EditorThemeOption;
@@ -94,6 +124,7 @@ export interface AppSettings {
   uiFontFamily: string;
   monoFontFamily: string;
   aiEnabled: boolean;
+  rowDensity: "compact" | "default" | "comfortable";
   aiProvider:
     | "openrouter"
     | "opencode"
@@ -105,10 +136,13 @@ export interface AppSettings {
     | "gemini";
   aiAuthMode: "api_key" | "oauth";
   aiDefaultModel: string;
+  queryTimeoutSecs: number;
 }
 
 const DEFAULT_SETTINGS: AppSettings = {
   editorFontSize: 13,
+  editorWordWrap: false,
+  editorTabSize: 2,
   tablePageSize: 50,
   uiZoom: 125,
   editorDarkTheme: "dark-one-dark",
@@ -118,9 +152,11 @@ const DEFAULT_SETTINGS: AppSettings = {
   uiFontFamily: DB_FONT_SANS,
   monoFontFamily: DB_FONT_MONO,
   aiEnabled: false,
+  rowDensity: "default",
   aiProvider: "openrouter",
   aiAuthMode: "oauth",
   aiDefaultModel: "openrouter/free",
+  queryTimeoutSecs: 30,
 };
 
 function loadSettings(): AppSettings {
@@ -145,6 +181,29 @@ function saveSettings(s: AppSettings) {
   localStorage.setItem(SETTINGS_KEY, JSON.stringify(s));
 }
 
+interface LayoutState { sidebarCollapsed: boolean; dbTabsCollapsed: boolean; queryLogOpen: boolean; }
+function loadLayout(): LayoutState {
+  try {
+    const raw = localStorage.getItem(LAYOUT_KEY);
+    if (raw) return { ...{ sidebarCollapsed: false, dbTabsCollapsed: false, queryLogOpen: false }, ...JSON.parse(raw) };
+  } catch { /* ignore */ }
+  return { sidebarCollapsed: false, dbTabsCollapsed: false, queryLogOpen: false };
+}
+function saveLayout(l: LayoutState) {
+  localStorage.setItem(LAYOUT_KEY, JSON.stringify(l));
+}
+
+function loadPinnedTables(): PinnedTable[] {
+  try {
+    const raw = localStorage.getItem(PINNED_TABLES_KEY);
+    if (raw) return JSON.parse(raw) as PinnedTable[];
+  } catch { /* ignore */ }
+  return [];
+}
+function savePinnedTables(tables: PinnedTable[]) {
+  localStorage.setItem(PINNED_TABLES_KEY, JSON.stringify(tables));
+}
+
 function getTabLabel(fn: ConnectionFunction): string {
   if (fn.type === "table") return fn.tableName ?? fn.name;
   return fn.name.slice(fn.prefix.length + 1).replace(/\(.*\)$/, "");
@@ -161,6 +220,8 @@ interface AppState {
   connectionDatabases: Record<string, string[]>; // connectionId → available user databases
   selectedDatabases: Record<string, string>; // connectionId → currently selected database
   openDatabases: Record<string, string[]>; // connectionId → explicitly opened databases (shown as tabs)
+  connectionLatency: Record<string, number | null>; // connectionId → last ping ms (null = unknown)
+  connectionConnectedAt: Record<string, number>; // connectionId → timestamp (ms) when connected
 
   // ---- Active function invocation ----
   activeFunction: ConnectionFunction | null;
@@ -200,11 +261,17 @@ interface AppState {
   openNewTab: () => void;
   openFnInNewTab: (fn: ConnectionFunction) => Promise<void>;
   closeTab: (tabId: string) => void;
+  closeOtherTabs: (tabId: string) => void;
+  closeTabsToRight: (tabId: string) => void;
+  duplicateTab: (tabId: string) => void;
+  reorderTabs: (fromId: string, toId: string) => void;
   switchToTab: (tabId: string) => void;
   queuePendingCellEdit: (tabId: string, edit: PendingCellEdit) => void;
   clearPendingCellEdits: (tabId: string) => void;
   removePendingCellEdits: (tabId: string, editIds: string[]) => void;
   tabHasPendingCellEdits: (tabId: string) => boolean;
+  pushUndoEntry: (tabId: string, entry: CellEditHistoryEntry) => void;
+  undoLastCellEdit: (tabId: string) => Promise<void>;
 
   // ---- Tab filter state ----
   updateTabFilters: (tabId: string, filters: FilterCondition[]) => void;
@@ -221,6 +288,9 @@ interface AppState {
   setActiveConnection: (connectionId: string) => void;
   setPendingSql: (sql: string) => void;
 
+  runMultiStatementSql: (fn: ConnectionFunction, sql: string) => Promise<void>;
+  pingConnectionHealth: (connectionId: string) => Promise<void>;
+
   // ---- Query history (persisted, all connections) ----
   queryHistory: QueryHistoryEntry[];
   addToHistory: (entry: QueryHistoryEntry) => void;
@@ -228,13 +298,22 @@ interface AppState {
 
   // ---- Saved queries (persisted) ----
   savedQueries: SavedQuery[];
-  saveQuery: (name: string, sql: string, connectionId?: string) => void;
+  saveQuery: (name: string, sql: string, connectionId?: string, folder?: string) => void;
+  moveSavedQueryFolder: (id: string, folder: string | undefined) => void;
   deleteSavedQuery: (id: string) => void;
+
+  // ---- User snippets (persisted) ----
+  userSnippets: UserSnippet[];
+  saveUserSnippet: (snippet: Omit<UserSnippet, "id" | "createdAt">) => Promise<void>;
+  deleteUserSnippet: (id: string) => Promise<void>;
+
+  // ---- Internal ----
+  _pendingWorkspaceSnapshot: WorkspaceSnapshot | null;
 
   // ---- Actions: UI ----
   // ---- UI ----
-  activeView: "main" | "settings" | "new-connection";
-  setActiveView: (view: "main" | "settings" | "new-connection") => void;
+  activeView: "main" | "settings" | "new-connection" | "schema-diff";
+  setActiveView: (view: "main" | "settings" | "new-connection" | "schema-diff") => void;
 
   toggleConnectionExpanded: (connectionId: string) => void;
   toggleSidebar: () => void;
@@ -255,6 +334,13 @@ interface AppState {
   // ---- Extended history ----
   clearAllHistory: () => void;
   clearAllSavedQueries: () => void;
+  deleteHistoryEntry: (id: string) => void;
+
+  // ---- Pinned tables ----
+  pinnedTables: PinnedTable[];
+  pinTable: (connectionId: string, tableName: string, schemaName?: string) => void;
+  unpinTable: (connectionId: string, tableName: string) => void;
+  isTablePinned: (connectionId: string, tableName: string) => boolean;
 }
 
 export const useAppStore = create<AppState>((set, get) => ({
@@ -265,13 +351,13 @@ export const useAppStore = create<AppState>((set, get) => ({
   connectionDatabases: {},
   selectedDatabases: {},
   openDatabases: {},
+  connectionLatency: {},
+  connectionConnectedAt: {},
   activeFunction: null,
   invocationResult: null,
   pendingSqlValue: "",
   expandedConnections: [],
-  sidebarCollapsed: false,
-  dbTabsCollapsed: false,
-  queryLogOpen: false,
+  ...loadLayout(),
   commandPaletteOpen: false,
   connectionDialogOpen: false,
   editingConnection: null,
@@ -283,7 +369,10 @@ export const useAppStore = create<AppState>((set, get) => ({
   activeTabId: null,
   queryHistory: [],
   savedQueries: [],
+  userSnippets: [],
+  pinnedTables: loadPinnedTables(),
   appSettings: loadSettings(),
+  _pendingWorkspaceSnapshot: null,
 
   // ---- Persistence ----
 
@@ -333,8 +422,16 @@ export const useAppStore = create<AppState>((set, get) => ({
       }
 
       const queryHistory = await tauriApi.storageLoadHistory();
+      const userSnippets = await tauriApi.storageLoadSnippets();
 
-      set({ connections, savedQueries, queryHistory });
+      // Load workspace snapshot — will be applied after connections are established
+      let pendingWorkspaceSnapshot: WorkspaceSnapshot | null = null;
+      try {
+        const raw = await tauriApi.storageLoadWorkspace();
+        if (raw) pendingWorkspaceSnapshot = JSON.parse(raw) as WorkspaceSnapshot;
+      } catch { /* ignore parse errors */ }
+
+      set({ connections, savedQueries, queryHistory, userSnippets, _pendingWorkspaceSnapshot: pendingWorkspaceSnapshot });
     } catch (e) {
       console.error("Failed to load from storage:", e);
     }
@@ -420,6 +517,9 @@ export const useAppStore = create<AppState>((set, get) => ({
         connectedIds: state.connectedIds.includes(connectionId)
           ? state.connectedIds
           : [...state.connectedIds, connectionId],
+        connectionConnectedAt: state.connectionConnectedAt[connectionId]
+          ? state.connectionConnectedAt
+          : { ...state.connectionConnectedAt, [connectionId]: Date.now() },
         connectionTables: { ...state.connectionTables, [connectionId]: tables },
         connectionFunctions: {
           ...state.connectionFunctions,
@@ -438,6 +538,35 @@ export const useAppStore = create<AppState>((set, get) => ({
       }));
 
       toast.success(`Connected: ${config.prefix}_list() and ${tables.length} table functions ready`);
+
+      // Restore workspace snapshot for this connection (if any)
+      const { _pendingWorkspaceSnapshot } = get();
+      if (_pendingWorkspaceSnapshot && _pendingWorkspaceSnapshot.activeConnectionId === connectionId) {
+        const snapshot = _pendingWorkspaceSnapshot;
+        const allFns = fns; // already built above
+        const restoredTabs: ResultTab[] = snapshot.tabs
+          .map((t) => {
+            const fn = allFns.find((f) => f.id === t.fnId);
+            if (!fn) return null;
+            const result: FunctionInvocationResult = { fn, outputType: fn.type === "query" || fn.type === "execute" ? "sql-editor" : "idle", isLoading: false, invokedAt: Date.now() };
+            return { id: t.id, fn, result, pendingSql: t.pendingSql, pendingEdits: [], undoHistory: [], label: t.label, filters: [createDefaultFilter()], filteredResult: null, filtersActive: false } as ResultTab;
+          })
+          .filter((t): t is ResultTab => t !== null);
+        if (restoredTabs.length > 0) {
+          const activeTab = restoredTabs.find((t) => t.id === snapshot.activeTabId) ?? restoredTabs[restoredTabs.length - 1];
+          set((s) => ({
+            tabs: [...s.tabs, ...restoredTabs],
+            activeTabId: activeTab.id,
+            activeFunction: activeTab.fn,
+            invocationResult: activeTab.result,
+            pendingSqlValue: activeTab.pendingSql,
+            _pendingWorkspaceSnapshot: null,
+            selectedDatabases: { ...s.selectedDatabases, ...snapshot.selectedDatabases },
+          }));
+        } else {
+          set({ _pendingWorkspaceSnapshot: null });
+        }
+      }
 
       // If the user triggered connect while on the new-connection page (either
       // from the page-mode dialog or from the edit modal opened via the sidebar),
@@ -467,6 +596,8 @@ export const useAppStore = create<AppState>((set, get) => ({
       const { [connectionId]: _dbs, ...restDbs } = state.connectionDatabases;
       const { [connectionId]: _sel, ...restSel } = state.selectedDatabases;
       const { [connectionId]: _open, ...restOpen } = state.openDatabases;
+      const { [connectionId]: _lat, ...restLat } = state.connectionLatency;
+      const { [connectionId]: _cat, ...restCat } = state.connectionConnectedAt;
       const newTabs = state.tabs.filter((t) => t.fn.connectionId !== connectionId);
       const activeBelongsToConn = state.activeFunction?.connectionId === connectionId;
       const newActiveTab = activeBelongsToConn ? newTabs[newTabs.length - 1] ?? null : null;
@@ -477,6 +608,8 @@ export const useAppStore = create<AppState>((set, get) => ({
         connectionDatabases: restDbs,
         selectedDatabases: restSel,
         openDatabases: restOpen,
+        connectionLatency: restLat,
+        connectionConnectedAt: restCat,
         tabs: newTabs,
         activeTabId: activeBelongsToConn ? (newActiveTab?.id ?? null) : state.activeTabId,
         activeFunction: activeBelongsToConn ? (newActiveTab?.fn ?? null) : state.activeFunction,
@@ -604,13 +737,13 @@ export const useAppStore = create<AppState>((set, get) => ({
     } else if (!activeTabId || tabs.length === 0) {
       const newId = `tab-${Date.now()}`;
       activeTabId = newId;
-      set({ activeTabId: newId, tabs: [{ id: newId, fn, result: null, pendingSql: get().pendingSqlValue, pendingEdits: [], label: getTabLabel(fn), filters: [createDefaultFilter()], filteredResult: null, filtersActive: false }], showConnectionsManager: false, activeView: "main" });
+      set({ activeTabId: newId, tabs: [{ id: newId, fn, result: null, pendingSql: get().pendingSqlValue, pendingEdits: [], undoHistory: [], label: getTabLabel(fn), filters: [createDefaultFilter()], filteredResult: null, filtersActive: false }], showConnectionsManager: false, activeView: "main" });
     } else {
       // No existing tab for this fn — open a new tab instead of overwriting
       const newId = `tab-${Date.now()}`;
       activeTabId = newId;
       set((s) => ({
-        tabs: [...s.tabs, { id: newId, fn, result: null, pendingSql: "", pendingEdits: [], label: getTabLabel(fn), filters: [createDefaultFilter()], filteredResult: null, filtersActive: false }],
+        tabs: [...s.tabs, { id: newId, fn, result: null, pendingSql: "", pendingEdits: [], undoHistory: [], label: getTabLabel(fn), filters: [createDefaultFilter()], filteredResult: null, filtersActive: false }],
         activeTabId: newId,
         showConnectionsManager: false,
         activeView: "main",
@@ -660,7 +793,24 @@ export const useAppStore = create<AppState>((set, get) => ({
             setResult({ fn, outputType: "sql-editor", isLoading: false, invokedAt: Date.now() });
             break;
           }
-          const result = await tauriApi.executeQuery(fn.connectionId, args.sql);
+          // Safety mode enforcement
+          const conn = get().connections.find((c) => c.id === fn.connectionId);
+          const safetyMode = conn?.safetyMode ?? "none";
+          const isWriteSql = /^\s*(insert|update|delete|drop|truncate|alter|create|replace|merge|call|exec)\b/i.test(args.sql);
+          if (safetyMode !== "none" && isWriteSql) {
+            if (safetyMode === "read-only") {
+              toast.error("Read-only connection — write queries are blocked.");
+              setResult({ fn, outputType: "sql-editor", isLoading: false, invokedAt: Date.now() });
+              break;
+            } else if (safetyMode === "warn") {
+              const confirmed = window.confirm(`⚠️ Safety warning\n\nThis connection is marked as "Warn on write".\n\nAre you sure you want to run this query?\n\n${args.sql.slice(0, 300)}`);
+              if (!confirmed) {
+                setResult({ fn, outputType: "sql-editor", isLoading: false, invokedAt: Date.now() });
+                break;
+              }
+            }
+          }
+          const result = await tauriApi.executeQuery(fn.connectionId, args.sql, get().appSettings.queryTimeoutSecs);
           const sqlResult: FunctionInvocationResult = {
             fn, outputType: "sql-editor", queryResult: result, isLoading: false, invokedAt: Date.now(),
           };
@@ -669,6 +819,7 @@ export const useAppStore = create<AppState>((set, get) => ({
             id: `${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
             sql: args.sql!, executedAt: Date.now(),
             executionTimeMs: result.executionTimeMs, rowCount: result.rows.length, connectionId: fn.connectionId,
+            status: 'success',
           };
           tauriApi.storageSaveHistoryEntry(historyEntry).catch(console.error);
           set((s) => ({
@@ -736,16 +887,46 @@ export const useAppStore = create<AppState>((set, get) => ({
         }
       }
     } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      const fallbackOutputType =
+        fn.type === "table" || fn.type === "tbl"
+          ? "table-grid"
+          : fn.type === "src"
+            ? "connection-src"
+            : fn.type === "list"
+              ? "table-list"
+              : "sql-editor";
+
+      // Record failed query in history if we had SQL
+      if (fn.type === 'query' || fn.type === 'execute') {
+        const sql = args.sql;
+        if (sql) {
+          const errEntry: QueryHistoryEntry = {
+            id: `${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+            sql, executedAt: Date.now(),
+            executionTimeMs: 0, rowCount: 0, connectionId: fn.connectionId,
+            status: 'error', errorMessage,
+          };
+          tauriApi.storageSaveHistoryEntry(errEntry).catch(console.error);
+          set((s) => ({ queryHistory: [errEntry, ...s.queryHistory] }));
+        }
+      }
       set((s) => {
-        const errResult = s.invocationResult
-          ? { ...s.invocationResult, isLoading: false, error: String(error) }
-          : null;
+        const errResult: FunctionInvocationResult = s.invocationResult
+          ? { ...s.invocationResult, fn, isLoading: false, error: errorMessage }
+          : {
+              fn,
+              outputType: fallbackOutputType,
+              isLoading: false,
+              error: errorMessage,
+              invokedAt: Date.now(),
+            };
         return {
           invocationResult: errResult,
           tabs: s.tabs.map((t) => (t.id === s.activeTabId ? { ...t, result: errResult } : t)),
         };
       });
-      toast.error(String(error));
+      toast.error(errorMessage);
     }
   },
 
@@ -767,11 +948,105 @@ export const useAppStore = create<AppState>((set, get) => ({
       activeFunction: s.connectionFunctions[connectionId]?.[0] ?? null,
     })),
 
-  setPendingSql: (pendingSqlValue) =>
+  setPendingSql: (pendingSqlValue) => {
     set((s) => ({
       pendingSqlValue,
       tabs: s.tabs.map((t) => (t.id === s.activeTabId ? { ...t, pendingSql: pendingSqlValue } : t)),
-    })),
+    }));
+    scheduleWorkspaceSave(get);
+  },
+
+  runMultiStatementSql: async (fn, sql) => {
+    // Split on semicolons, strip comments, filter blanks
+    const stmts = sql
+      .split(/;/)
+      .map((s) => s.replace(/--[^\n]*/g, "").trim())
+      .filter(Boolean);
+
+    if (stmts.length === 0) return;
+    if (stmts.length === 1) {
+      // Single statement — use normal invoke path
+      await get().invokeFunction(fn, { sql: stmts[0] });
+      return;
+    }
+
+    // Multi-statement: run first in current tab, rest in new tabs
+    const now = Date.now();
+    const currentTabId = get().activeTabId;
+
+    // Create placeholder tabs for statements 2..N upfront so UI updates immediately
+    const extraTabIds: string[] = [];
+    set((s) => {
+      const newTabs = stmts.slice(1).map((stmt, i) => {
+        const id = `tab-${now + i + 1}`;
+        extraTabIds.push(id);
+        const loadingResult: FunctionInvocationResult = {
+          fn, outputType: "sql-editor", isLoading: true, invokedAt: now + i + 1,
+        };
+        return {
+          id,
+          fn,
+          result: loadingResult,
+          pendingSql: stmt,
+          pendingEdits: [] as import("../types").PendingCellEdit[],
+          undoHistory: [],
+          label: `stmt ${i + 2}`,
+          filters: [createDefaultFilter()],
+          filteredResult: null,
+          filtersActive: false,
+        };
+      });
+      return { tabs: [...s.tabs, ...newTabs] };
+    });
+
+    // Run all statements concurrently
+    const runStmt = async (stmt: string, tabId: string) => {
+      try {
+        const result = await tauriApi.executeQuery(fn.connectionId, stmt, get().appSettings.queryTimeoutSecs);
+        const sqlResult: FunctionInvocationResult = {
+          fn, outputType: "sql-editor", queryResult: result, isLoading: false, invokedAt: Date.now(),
+        };
+        const historyEntry: import("../types").QueryHistoryEntry = {
+          id: `${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+          sql: stmt, executedAt: Date.now(),
+          executionTimeMs: result.executionTimeMs,
+          rowCount: result.rows.length,
+          connectionId: fn.connectionId,
+          status: "success",
+        };
+        tauriApi.storageSaveHistoryEntry(historyEntry).catch(console.error);
+        set((s) => ({
+          queryHistory: [historyEntry, ...s.queryHistory],
+          invocationResult: s.activeTabId === tabId ? sqlResult : s.invocationResult,
+          tabs: s.tabs.map((t) => t.id === tabId ? { ...t, result: sqlResult } : t),
+        }));
+      } catch (err) {
+        const errResult: FunctionInvocationResult = {
+          fn, outputType: "sql-editor", isLoading: false, invokedAt: Date.now(),
+          error: err instanceof Error ? err.message : String(err),
+        };
+        set((s) => ({
+          invocationResult: s.activeTabId === tabId ? errResult : s.invocationResult,
+          tabs: s.tabs.map((t) => t.id === tabId ? { ...t, result: errResult } : t),
+        }));
+      }
+    };
+
+    // First statement in the current tab
+    const firstPromise = runStmt(stmts[0], currentTabId!);
+    // Remaining statements in their new tabs
+    const restPromises = stmts.slice(1).map((stmt, i) => runStmt(stmt, extraTabIds[i]));
+    await Promise.all([firstPromise, ...restPromises]);
+  },
+
+  pingConnectionHealth: async (connectionId) => {
+    try {
+      const latencyMs = await tauriApi.pingConnection(connectionId);
+      set((s) => ({ connectionLatency: { ...s.connectionLatency, [connectionId]: latencyMs } }));
+    } catch {
+      set((s) => ({ connectionLatency: { ...s.connectionLatency, [connectionId]: null } }));
+    }
+  },
 
   // ---- Tab management ----
 
@@ -784,7 +1059,7 @@ export const useAppStore = create<AppState>((set, get) => ({
     const id = `tab-${Date.now()}`;
     const result: FunctionInvocationResult = { fn: queryFn, outputType: "sql-editor", isLoading: false, invokedAt: Date.now() };
     set((s) => ({
-      tabs: [...s.tabs, { id, fn: queryFn, result, pendingSql: "", pendingEdits: [], label: "query", filters: [createDefaultFilter()], filteredResult: null, filtersActive: false }],
+      tabs: [...s.tabs, { id, fn: queryFn, result, pendingSql: "", pendingEdits: [], undoHistory: [], label: "query", filters: [createDefaultFilter()], filteredResult: null, filtersActive: false }],
       activeTabId: id,
       activeFunction: queryFn,
       invocationResult: result,
@@ -792,13 +1067,14 @@ export const useAppStore = create<AppState>((set, get) => ({
       showConnectionsManager: false,
       activeView: "main",
     }));
+    scheduleWorkspaceSave(get);
   },
 
   openFnInNewTab: async (fn) => {
     const id = `tab-${Date.now()}`;
     const loadingResult: FunctionInvocationResult = { fn, outputType: "idle", isLoading: true, invokedAt: Date.now() };
     set((s) => ({
-      tabs: [...s.tabs, { id, fn, result: loadingResult, pendingSql: "", pendingEdits: [], label: getTabLabel(fn), filters: [createDefaultFilter()], filteredResult: null, filtersActive: false }],
+      tabs: [...s.tabs, { id, fn, result: loadingResult, pendingSql: "", pendingEdits: [], undoHistory: [], label: getTabLabel(fn), filters: [createDefaultFilter()], filteredResult: null, filtersActive: false }],
       activeTabId: id,
       activeFunction: fn,
       invocationResult: loadingResult,
@@ -807,6 +1083,7 @@ export const useAppStore = create<AppState>((set, get) => ({
       activeView: "main",
     }));
     await get().invokeFunction(fn);
+    scheduleWorkspaceSave(get);
   },
 
   closeTab: (tabId) => {
@@ -814,6 +1091,7 @@ export const useAppStore = create<AppState>((set, get) => ({
     const newTabs = tabs.filter((t) => t.id !== tabId);
     if (newTabs.length === 0) {
       set({ tabs: [], activeTabId: null, activeFunction: null, invocationResult: null, pendingSqlValue: "" });
+      scheduleWorkspaceSave(get);
       return;
     }
     if (tabId === activeTabId) {
@@ -826,6 +1104,58 @@ export const useAppStore = create<AppState>((set, get) => ({
     } else {
       set({ tabs: newTabs });
     }
+    scheduleWorkspaceSave(get);
+  },
+
+  closeOtherTabs: (tabId) => {
+    const { tabs, activeTabId, pendingSqlValue } = get();
+    const keep = tabs.find((t) => t.id === tabId);
+    if (!keep) return;
+    const savedTabs = tabs.map((t) => t.id === activeTabId ? { ...t, pendingSql: pendingSqlValue } : t);
+    const target = savedTabs.find((t) => t.id === tabId)!;
+    set({ tabs: [target], activeTabId: tabId, activeFunction: target.fn, invocationResult: target.result, pendingSqlValue: target.pendingSql });
+    scheduleWorkspaceSave(get);
+  },
+
+  closeTabsToRight: (tabId) => {
+    const { tabs, activeTabId, pendingSqlValue } = get();
+    const idx = tabs.findIndex((t) => t.id === tabId);
+    if (idx < 0) return;
+    const savedTabs = tabs.map((t) => t.id === activeTabId ? { ...t, pendingSql: pendingSqlValue } : t);
+    const newTabs = savedTabs.slice(0, idx + 1);
+    const activeStillExists = newTabs.some((t) => t.id === activeTabId);
+    if (activeStillExists) {
+      set({ tabs: newTabs });
+    } else {
+      const target = newTabs[newTabs.length - 1];
+      set({ tabs: newTabs, activeTabId: target.id, activeFunction: target.fn, invocationResult: target.result, pendingSqlValue: target.pendingSql });
+    }
+    scheduleWorkspaceSave(get);
+  },
+
+  duplicateTab: (tabId) => {
+    const { tabs, pendingSqlValue, activeTabId } = get();
+    const src = tabs.find((t) => t.id === tabId);
+    if (!src) return;
+    const sql = tabId === activeTabId ? pendingSqlValue : src.pendingSql;
+    const newId = `tab-${Date.now()}`;
+    const newTab: ResultTab = { ...src, id: newId, pendingSql: sql, pendingEdits: [], undoHistory: [], filters: [createDefaultFilter()], filteredResult: null, filtersActive: false };
+    const idx = tabs.findIndex((t) => t.id === tabId);
+    const newTabs = [...tabs.slice(0, idx + 1), newTab, ...tabs.slice(idx + 1)];
+    set({ tabs: newTabs, activeTabId: newId, activeFunction: newTab.fn, invocationResult: newTab.result, pendingSqlValue: sql });
+    scheduleWorkspaceSave(get);
+  },
+
+  reorderTabs: (fromId, toId) => {
+    const { tabs } = get();
+    const fromIdx = tabs.findIndex((t) => t.id === fromId);
+    const toIdx = tabs.findIndex((t) => t.id === toId);
+    if (fromIdx < 0 || toIdx < 0 || fromIdx === toIdx) return;
+    const newTabs = [...tabs];
+    const [moved] = newTabs.splice(fromIdx, 1);
+    newTabs.splice(toIdx, 0, moved);
+    set({ tabs: newTabs });
+    scheduleWorkspaceSave(get);
   },
 
   switchToTab: (tabId) => {
@@ -839,6 +1169,7 @@ export const useAppStore = create<AppState>((set, get) => ({
       tabs: savedTabs, activeTabId: tabId,
       activeFunction: target.fn, invocationResult: target.result, pendingSqlValue: target.pendingSql,
     });
+    scheduleWorkspaceSave(get);
   },
 
   queuePendingCellEdit: (tabId, edit) =>
@@ -882,6 +1213,37 @@ export const useAppStore = create<AppState>((set, get) => ({
 
   tabHasPendingCellEdits: (tabId) =>
     (get().tabs.find((tab) => tab.id === tabId)?.pendingEdits.length ?? 0) > 0,
+
+  pushUndoEntry: (tabId, entry) =>
+    set((state) => ({
+      tabs: state.tabs.map((tab) =>
+        tab.id === tabId
+          ? { ...tab, undoHistory: [...(tab.undoHistory ?? []), entry] }
+          : tab,
+      ),
+    })),
+
+  undoLastCellEdit: async (tabId) => {
+    const tab = get().tabs.find((t) => t.id === tabId);
+    if (!tab || !tab.undoHistory?.length) {
+      toast.info("Nothing to undo");
+      return;
+    }
+    const entry = tab.undoHistory[tab.undoHistory.length - 1];
+    try {
+      await tauriApi.executeQuery(entry.connectionId, entry.reverseSql);
+      set((state) => ({
+        tabs: state.tabs.map((t) =>
+          t.id === tabId
+            ? { ...t, undoHistory: t.undoHistory.slice(0, -1) }
+            : t,
+        ),
+      }));
+      toast.success(`Undid: ${entry.tableName}.${entry.columnId}`);
+    } catch (e) {
+      toast.error(`Undo failed: ${String(e)}`);
+    }
+  },
 
   // ---- Tab filter state ----
 
@@ -931,16 +1293,27 @@ export const useAppStore = create<AppState>((set, get) => ({
 
   // ---- Saved queries ----
 
-  saveQuery: (name, sql, connectionId) => {
+   saveQuery: (name, sql, connectionId, folder) => {
     const entry: SavedQuery = {
       id: `sq-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
       name,
       sql,
       connectionId,
+      folder,
       createdAt: Date.now(),
     };
     set((state) => ({ savedQueries: [...state.savedQueries, entry] }));
     tauriApi.storageSaveQuery(entry).catch(console.error);
+  },
+  moveSavedQueryFolder: (id, folder) => {
+    set((state) => {
+      const updated = state.savedQueries.map((q) =>
+        q.id === id ? { ...q, folder } : q
+      );
+      const target = updated.find((q) => q.id === id);
+      if (target) tauriApi.storageSaveQuery(target).catch(console.error);
+      return { savedQueries: updated };
+    });
   },
 
   deleteSavedQuery: (id) => {
@@ -948,6 +1321,23 @@ export const useAppStore = create<AppState>((set, get) => ({
       savedQueries: state.savedQueries.filter((q) => q.id !== id),
     }));
     tauriApi.storageDeleteQuery(id).catch(console.error);
+  },
+
+  // ---- User snippets ----
+
+  saveUserSnippet: async (snippetData) => {
+    const snippet: UserSnippet = {
+      ...snippetData,
+      id: `snip-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+      createdAt: Date.now(),
+    };
+    await tauriApi.storageSaveSnippet(snippet);
+    set((state) => ({ userSnippets: [...state.userSnippets, snippet] }));
+  },
+
+  deleteUserSnippet: async (id) => {
+    await tauriApi.storageDeleteSnippet(id);
+    set((state) => ({ userSnippets: state.userSnippets.filter((s) => s.id !== id) }));
   },
 
   // ---- Settings ----
@@ -966,11 +1356,37 @@ export const useAppStore = create<AppState>((set, get) => ({
     set({ queryHistory: [] });
   },
 
-  clearAllSavedQueries: () => {
-    set({ savedQueries: [] });
-    // Fire-and-forget: remove all from SQLite (reload to get IDs, then delete)
-    // Simplest: just clear from state; SQLite orphans will be overwritten on next save
+  deleteHistoryEntry: (id) => {
+    tauriApi.storageDeleteHistoryEntry(id).catch(console.error);
+    set((state) => ({ queryHistory: state.queryHistory.filter((e) => e.id !== id) }));
   },
+
+  clearAllSavedQueries: () => {
+    const { savedQueries } = get();
+    set({ savedQueries: [] });
+    // Delete every query from SQLite
+    savedQueries.forEach((q) => tauriApi.storageDeleteQuery(q.id).catch(console.error));
+  },
+
+  // ---- Pinned tables ----
+
+  pinTable: (connectionId, tableName, schemaName) =>
+    set((state) => {
+      if (state.pinnedTables.some((p) => p.connectionId === connectionId && p.tableName === tableName)) return {};
+      const updated = [...state.pinnedTables, { connectionId, tableName, schemaName, pinnedAt: Date.now() }];
+      savePinnedTables(updated);
+      return { pinnedTables: updated };
+    }),
+
+  unpinTable: (connectionId, tableName) =>
+    set((state) => {
+      const updated = state.pinnedTables.filter((p) => !(p.connectionId === connectionId && p.tableName === tableName));
+      savePinnedTables(updated);
+      return { pinnedTables: updated };
+    }),
+
+  isTablePinned: (connectionId, tableName) =>
+    get().pinnedTables.some((p) => p.connectionId === connectionId && p.tableName === tableName),
 
   // ---- UI ----
 
@@ -982,11 +1398,23 @@ export const useAppStore = create<AppState>((set, get) => ({
     })),
 
   toggleSidebar: () =>
-    set((state) => ({ sidebarCollapsed: !state.sidebarCollapsed })),
+    set((state) => {
+      const updated = { sidebarCollapsed: !state.sidebarCollapsed };
+      saveLayout({ sidebarCollapsed: updated.sidebarCollapsed, dbTabsCollapsed: state.dbTabsCollapsed, queryLogOpen: state.queryLogOpen });
+      return updated;
+    }),
   toggleDbTabs: () =>
-    set((state) => ({ dbTabsCollapsed: !state.dbTabsCollapsed })),
+    set((state) => {
+      const updated = { dbTabsCollapsed: !state.dbTabsCollapsed };
+      saveLayout({ sidebarCollapsed: state.sidebarCollapsed, dbTabsCollapsed: updated.dbTabsCollapsed, queryLogOpen: state.queryLogOpen });
+      return updated;
+    }),
   toggleQueryLog: () =>
-    set((state) => ({ queryLogOpen: !state.queryLogOpen })),
+    set((state) => {
+      const updated = { queryLogOpen: !state.queryLogOpen };
+      saveLayout({ sidebarCollapsed: state.sidebarCollapsed, dbTabsCollapsed: state.dbTabsCollapsed, queryLogOpen: updated.queryLogOpen });
+      return updated;
+    }),
 
   setCommandPaletteOpen: (commandPaletteOpen) => set({ commandPaletteOpen }),
   setConnectionDialogOpen: (connectionDialogOpen) =>

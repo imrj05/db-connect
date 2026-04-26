@@ -7,10 +7,12 @@ import React, {
 } from "react";
 import CodeMirror from "@uiw/react-codemirror";
 import { sql } from "@codemirror/lang-sql";
+import { indentUnit } from "@codemirror/language";
 import { oneDark } from "@codemirror/theme-one-dark";
 import { EditorView } from "@codemirror/view";
 import type { Extension } from "@codemirror/state";
-import { Clock, Bookmark, Pencil } from "lucide-react";
+import { format as formatSql } from "sql-formatter";
+import { Clock, Bookmark, Pencil, Zap, Sparkles, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
@@ -37,6 +39,7 @@ import {
 import { QueryLog } from "@/components/layout/function-output/query-log";
 import { QueryHistoryPanel } from "@/components/layout/function-output/sql-editor/query-history-panel";
 import { SavedQueriesPanel } from "@/components/layout/function-output/sql-editor/saved-queries-panel";
+import { SnippetsPanel } from "@/components/layout/function-output/sql-editor/snippets-panel";
 import { SqlEditorToolbar } from "@/components/layout/function-output/sql-editor/sql-editor-toolbar";
 import { ResultsGrid } from "@/components/layout/function-output/sql-editor/results-grid";
 
@@ -126,15 +129,19 @@ export function SqlEditorView({
 	onExecute,
 	onExplain,
 	tables,
+	askAiFixError,
+	onAskAiFixConsumed,
 }: {
 	fn: ConnectionFunction;
-	queryResult?: { columns: string[]; rows: any[]; executionTimeMs: number };
+	queryResult?: { columns: string[]; rows: any[]; executionTimeMs: number; error?: string };
 	isLoading: boolean;
 	pendingSql: string;
 	onSqlChange: (sql: string) => void;
-	onExecute: () => void;
+	onExecute: (sql?: string) => void;
 	onExplain: () => void;
 	tables: TableInfo[];
+	askAiFixError?: string | null;
+	onAskAiFixConsumed?: () => void;
 }) {
 	const {
 		theme,
@@ -142,13 +149,14 @@ export function SqlEditorView({
 		connections,
 		savedQueries,
 		clearHistory,
+		deleteHistoryEntry,
 		saveQuery,
 		deleteSavedQuery,
 		appSettings,
 	} = useAppStore();
 	const editorFontSize = appSettings.editorFontSize;
 	// Sub-panel tab: which panel is currently shown
-	const [panel, setPanel] = useState<"editor" | "history" | "saved">(
+	const [panel, setPanel] = useState<"editor" | "history" | "saved" | "snippets" | "ai">(
 		"editor",
 	);
 	// Save-query UI state
@@ -170,8 +178,17 @@ export function SqlEditorView({
 	const connectionSaved: SavedQuery[] = savedQueries.filter(
 		(q) => !q.connectionId || q.connectionId === fn.connectionId,
 	);
+	const editorViewRef = useRef<EditorView | null>(null);
 	const hasSql = !!pendingSql.trim();
 	const destructivePreview = isDestructive(pendingSql);
+	// Feature 5: count distinct non-empty statements for "Run All (N)" button
+	const statementCount = useMemo(() => {
+		const stmts = pendingSql
+			.split(/;/)
+			.map((s) => s.replace(/--[^\n]*/g, "").trim())
+			.filter(Boolean);
+		return stmts.length;
+	}, [pendingSql]);
 	useEffect(() => {
 		const down = (e: KeyboardEvent) => {
 			if (
@@ -180,12 +197,34 @@ export function SqlEditorView({
 				panel === "editor"
 			) {
 				e.preventDefault();
-				onExecute();
+				const view = editorViewRef.current;
+				if (view) {
+					const sel = view.state.selection.main;
+					const selected = sel.empty ? undefined : view.state.sliceDoc(sel.from, sel.to).trim();
+					onExecute(selected || undefined);
+				} else {
+					onExecute();
+				}
 			}
 		};
 		document.addEventListener("keydown", down);
 		return () => document.removeEventListener("keydown", down);
 	}, [onExecute, panel]);
+
+	// Load SQL dispatched by the command palette (palette-load-sql event)
+	useEffect(() => {
+		const handler = (e: Event) => {
+			const detail = (e as CustomEvent<{ sql: string; connectionId?: string }>).detail;
+			if (!detail?.sql) return;
+			// Only load if the event targets this editor's connection (or is unscoped)
+			if (!detail.connectionId || detail.connectionId === fn.connectionId) {
+				onSqlChange(detail.sql);
+				setPanel("editor");
+			}
+		};
+		window.addEventListener("palette-load-sql", handler);
+		return () => window.removeEventListener("palette-load-sql", handler);
+	}, [fn.connectionId, onSqlChange]);
 	const fontSizeTheme = EditorView.theme({
 		"&": { fontSize: `${editorFontSize}px` },
 		".cm-content": { fontSize: `${editorFontSize}px` },
@@ -272,29 +311,46 @@ export function SqlEditorView({
 		};
 	}, [aiOpen, appSettings.aiProvider]);
 
+	// External "Ask AI to fix" trigger (from error panel)
+	useEffect(() => {
+		if (!askAiFixError) return;
+		const prompt = `Fix the following SQL error and return only corrected SQL:\n\nError: ${askAiFixError}`;
+		setAiPrompt(prompt);
+		setAiIncludeSql(true);
+		setAiIncludeSchema(true);
+		setAiReplaceEditor(true);
+		setAiOpen(true);
+		setPanel("ai");
+		onAskAiFixConsumed?.();
+	}, [askAiFixError]); // eslint-disable-line react-hooks/exhaustive-deps
+
 	const runAiQuickAction = (mode: "generate" | "explain" | "fix") => {
 		if (mode === "explain") {
 			setAiPrompt("Explain what this SQL does and potential performance issues.");
 			setAiIncludeSql(true);
 			setAiIncludeSchema(false);
 			setAiReplaceEditor(false);
+			setAiOpen(true);
 			return;
 		}
 		if (mode === "fix") {
-			const last = history[0];
-			const errorHint = last
-				? "Use the last failed query context if relevant and provide a corrected query."
+			const lastError = queryResult?.error;
+			const errorHint = lastError
+				? `Fix the following SQL error and return only corrected SQL:\n\nError: ${lastError}`
 				: "Fix syntax and logical issues in current SQL and return corrected SQL.";
 			setAiPrompt(errorHint);
 			setAiIncludeSql(true);
 			setAiIncludeSchema(true);
 			setAiReplaceEditor(true);
+			setAiOpen(true);
 			return;
 		}
+		// generate
 		setAiPrompt("");
 		setAiIncludeSql(true);
 		setAiIncludeSchema(true);
 		setAiReplaceEditor(true);
+		setAiOpen(true);
 	};
 	const handleAiGenerate = async () => {
 		if (!appSettings.aiEnabled) {
@@ -418,6 +474,8 @@ export function SqlEditorView({
 					"Saved",
 					connectionSaved.length,
 				)}
+				{tabBtn("snippets", <Zap size={9} />, "Snippets")}
+			{tabBtn("ai", <Sparkles size={9} />, "AI")}
 			</div>
 			{/* ── History panel ── */}
 			{panel === "history" && (
@@ -426,17 +484,90 @@ export function SqlEditorView({
 					connections={connections}
 					onSelectQuery={(sql) => { onSqlChange(sql); setPanel("editor"); }}
 					onClearHistory={() => clearHistory(fn.connectionId)}
+					onDeleteEntry={(id) => deleteHistoryEntry(id)}
+					onSaveQuery={(sql) => { saveQuery(`Query ${new Date().toLocaleTimeString()}`, sql, fn.connectionId); }}
 				/>
 			)}
 			{/* ── Saved queries panel ── */}
-			{panel === "saved" && (
-				<SavedQueriesPanel
-					savedQueries={connectionSaved}
-					onLoadQuery={(sql) => { onSqlChange(sql); setPanel("editor"); }}
-					onDeleteQuery={deleteSavedQuery}
-				/>
-			)}
-			{/* ── Editor panel ── */}
+		{panel === "saved" && (
+			<SavedQueriesPanel
+				savedQueries={connectionSaved}
+				onLoadQuery={(sql) => { onSqlChange(sql); setPanel("editor"); }}
+				onDeleteQuery={deleteSavedQuery}
+			/>
+		)}
+		{/* ── Snippets panel ── */}
+		{panel === "snippets" && (
+			<SnippetsPanel
+				onInsert={(snippet) => {
+					// Append snippet to editor (or replace if editor is empty)
+					const newSql = pendingSql.trim()
+						? `${pendingSql.trim()}\n\n${snippet}`
+						: snippet;
+					onSqlChange(newSql);
+					setPanel("editor");
+				}}
+		/>
+		)}
+		{/* ── AI generate panel ── */}
+		{panel === "ai" && (
+			<div className="flex flex-col h-full overflow-hidden bg-background">
+				<div className="px-3 py-2 border-b border-border shrink-0">
+					<p className="text-[11px] font-semibold text-foreground/70 mb-1">Generate SQL with AI</p>
+					<p className="text-[10px] text-muted-foreground/50">Describe what you want in plain English.</p>
+				</div>
+				{!appSettings.aiEnabled ? (
+					<div className="flex-1 flex items-center justify-center px-4">
+						<p className="text-[11px] text-center text-muted-foreground/50">
+							AI is disabled.<br />
+							<span className="text-primary/70 cursor-pointer underline" onClick={() => useAppStore.getState().setActiveView("settings")}>
+								Enable in Settings › AI
+							</span>
+						</p>
+					</div>
+				) : (
+					<div className="flex-1 flex flex-col gap-2 p-3 min-h-0">
+						<textarea
+							value={aiPrompt}
+							onChange={(e) => setAiPrompt(e.target.value)}
+							placeholder="e.g. Find the top 10 customers by total order value in 2024"
+							rows={4}
+							className="resize-none rounded-md border border-border/60 bg-surface-3 px-2 py-1.5 text-[11px] text-foreground placeholder:text-muted-foreground/40 focus:outline-none focus:ring-1 focus:ring-primary/50 shrink-0"
+							onKeyDown={(e) => {
+								if ((e.metaKey || e.ctrlKey) && e.key === "Enter") {
+									e.preventDefault();
+									handleAiGenerate();
+								}
+							}}
+						/>
+						<div className="flex items-center gap-3 text-[10px] text-muted-foreground/60">
+							<label className="flex items-center gap-1 cursor-pointer select-none">
+								<input type="checkbox" checked={aiIncludeSchema} onChange={(e) => setAiIncludeSchema(e.target.checked)} className="w-3 h-3 rounded" />
+								Schema context
+							</label>
+							<label className="flex items-center gap-1 cursor-pointer select-none">
+								<input type="checkbox" checked={aiIncludeSql} onChange={(e) => setAiIncludeSql(e.target.checked)} className="w-3 h-3 rounded" />
+								Current SQL
+							</label>
+							<label className="flex items-center gap-1 cursor-pointer select-none">
+								<input type="checkbox" checked={aiReplaceEditor} onChange={(e) => setAiReplaceEditor(e.target.checked)} className="w-3 h-3 rounded" />
+								Replace editor
+							</label>
+						</div>
+						<Button
+							size="sm"
+							className="h-7 text-[11px] gap-1.5 w-full"
+							onClick={() => { handleAiGenerate().then(() => setPanel("editor")); }}
+							disabled={aiLoading || !aiPrompt.trim()}
+						>
+							{aiLoading ? <><Loader2 size={11} className="animate-spin" />Generating…</> : <><Sparkles size={11} />Generate SQL</>}
+						</Button>
+						<p className="text-[9px] text-muted-foreground/35 text-center">⌘↵ to generate</p>
+					</div>
+				)}
+			</div>
+		)}
+		{/* ── Editor panel ── */}
 			{panel === "editor" && (
 				<>
 				{/* Editor area — fixed height when results visible, flex-1 otherwise */}
@@ -457,8 +588,11 @@ export function SqlEditorView({
 								extensions={[
 									sql({ schema: sqlSchema }),
 									fontSizeTheme,
+									indentUnit.of(" ".repeat(appSettings.editorTabSize)),
+									...(appSettings.editorWordWrap ? [EditorView.lineWrapping] : []),
 								]}
 								onChange={onSqlChange}
+								onCreateEditor={(view) => { editorViewRef.current = view; }}
 								className="text-[13px] h-full selection:bg-primary/30"
 								basicSetup={{
 									lineNumbers: true,
@@ -488,25 +622,25 @@ export function SqlEditorView({
 						hasSql={hasSql}
 						saveOpen={saveOpen}
 						saveName={saveName}
+						statementCount={statementCount}
 						onPreview={() => setPreviewOpen(true)}
 						onExecute={onExecute}
+						onRunAll={() => onExecute()}
 						onExplain={onExplain}
 						aiEnabled={appSettings.aiEnabled}
 						aiConfigured={aiConfigured}
 						onFormat={() => {
-							const keywords = [
-								"SELECT", "FROM", "WHERE", "JOIN", "LEFT JOIN",
-								"RIGHT JOIN", "INNER JOIN", "OUTER JOIN", "GROUP BY",
-								"ORDER BY", "HAVING", "LIMIT", "OFFSET", "ON",
-								"AND", "OR", "AS", "INSERT INTO", "UPDATE", "SET",
-								"DELETE FROM", "CREATE", "DROP", "ALTER", "VALUES",
-								"UNION", "WITH",
-							];
-							let fmt = pendingSql.trim();
-							keywords.forEach((kw) => {
-								fmt = fmt.replace(new RegExp(`\\b${kw}\\b`, "gi"), `\n${kw}`);
-							});
-							onSqlChange(fmt.replace(/^\n/, "").replace(/\n{2,}/g, "\n"));
+							try {
+								const formatted = formatSql(pendingSql, {
+									language: "sql",
+									tabWidth: 2,
+									keywordCase: "upper",
+									linesBetweenQueries: 2,
+								});
+								onSqlChange(formatted);
+							} catch {
+								// If sql-formatter can't parse (e.g. Redis/Mongo commands), fall back silently
+							}
 						}}
 						onAiOpen={() => setAiOpen(true)}
 						onSaveOpen={() => setSaveOpen(true)}

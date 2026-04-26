@@ -29,6 +29,10 @@ import {
     Download,
     PanelLeftClose,
     PanelLeftOpen,
+    Pin,
+    PinOff,
+    Activity,
+    ShieldAlert,
 } from "lucide-react";
 import { useAppStore } from "@/store/useAppStore";
 import { DB_LOGO, DB_COLOR } from "@/lib/db-ui";
@@ -61,6 +65,7 @@ import {
     DialogHeader,
     DialogTitle,
 } from "@/components/ui/dialog";
+import { ConnectionHealthPanel } from "@/components/layout/connection-health-panel";
 // ── Column type → icon ─────────────────────────────────────────────────────────
 function ColumnIcon({ col }: { col: ColumnInfo }) {
     const t = col.dataType?.toLowerCase() ?? "";
@@ -103,6 +108,9 @@ function TableRow({
     onInvoke,
     forceOpen,
     onLoadColumns,
+    isPinned,
+    onPinToggle,
+    onTableAction,
 }: {
     fn: ConnectionFunction;
     columns: ColumnInfo[];
@@ -110,6 +118,9 @@ function TableRow({
     onInvoke: (fn: ConnectionFunction) => void;
     forceOpen?: boolean | null;
     onLoadColumns: () => Promise<void>;
+    isPinned?: boolean;
+    onPinToggle?: () => void;
+    onTableAction?: (action: "rename" | "truncate" | "drop") => void;
 }) {
     const [open, setOpen] = useState(false);
     const [loadingCols, setLoadingCols] = useState(false);
@@ -124,6 +135,8 @@ function TableRow({
         if (forceOpen != null) expandTo(forceOpen);
     }, [forceOpen]);
     return (
+        <ContextMenu>
+        <ContextMenuTrigger asChild>
         <div className="w-full min-w-0 overflow-hidden">
             <Tooltip>
                 <TooltipTrigger asChild>
@@ -162,6 +175,18 @@ function TableRow({
                         >
                             {midTruncate(fn.tableName ?? "")}
                         </span>
+                        {onPinToggle && (
+                            <span
+                                onClick={(e) => { e.stopPropagation(); onPinToggle(); }}
+                                className={cn(
+                                    "opacity-0 group-hover:opacity-100 transition-opacity p-0.5 rounded",
+                                    isPinned ? "opacity-100 text-primary/70" : "text-foreground/30 hover:text-primary/70"
+                                )}
+                                title={isPinned ? "Unpin table" : "Pin table"}
+                            >
+                                {isPinned ? <PinOff size={9} /> : <Pin size={9} />}
+                            </span>
+                        )}
                     </button>
                 </TooltipTrigger>
                 <TooltipContent side="right" sideOffset={6} className="font-mono text-[11px]">
@@ -177,6 +202,18 @@ function TableRow({
                 </div>
             )}
         </div>
+        </ContextMenuTrigger>
+        {onTableAction && (
+            <ContextMenuContent className="w-44">
+                <ContextMenuLabel className="text-[10px] font-mono text-muted-foreground/60 truncate">{fn.tableName}</ContextMenuLabel>
+                <ContextMenuSeparator />
+                <ContextMenuItem onClick={() => onTableAction("rename")}>Rename table…</ContextMenuItem>
+                <ContextMenuItem onClick={() => onTableAction("truncate")} className="text-orange-400 focus:text-orange-300">Truncate table</ContextMenuItem>
+                <ContextMenuSeparator />
+                <ContextMenuItem onClick={() => onTableAction("drop")} className="text-destructive focus:text-destructive">Drop table</ContextMenuItem>
+            </ContextMenuContent>
+        )}
+        </ContextMenu>
     );
 }
 // ── Schema group ───────────────────────────────────────────────────────────────
@@ -189,6 +226,9 @@ function SchemaGroup({
     showLabel,
     forceOpen,
     onLoadColumns,
+    pinnedTableNames,
+    onPinToggle,
+    onTableAction,
 }: {
     schema: string;
     fns: ConnectionFunction[];
@@ -198,6 +238,9 @@ function SchemaGroup({
     showLabel: boolean;
     forceOpen?: boolean | null;
     onLoadColumns: (tableName: string) => Promise<void>;
+    pinnedTableNames?: Set<string>;
+    onPinToggle?: (tableName: string) => void;
+    onTableAction?: (action: "rename" | "truncate" | "drop", tableName: string) => void;
 }) {
     const [open, setOpen] = useState(true);
     return (
@@ -228,6 +271,9 @@ function SchemaGroup({
                             onInvoke={onInvoke}
                             forceOpen={forceOpen}
                             onLoadColumns={() => onLoadColumns(fn.tableName ?? "")}
+                            isPinned={pinnedTableNames?.has(fn.tableName ?? "")}
+                            onPinToggle={onPinToggle ? () => onPinToggle(fn.tableName ?? "") : undefined}
+                            onTableAction={onTableAction ? (action) => onTableAction(action, fn.tableName ?? "") : undefined}
                         />
                     ))}
                 </div>
@@ -250,6 +296,9 @@ function DatabaseNode({
     onRefreshTables,
     onAddTable,
     onLoadColumns,
+    pinnedTableNames,
+    onPinToggle,
+    latencyMs,
 }: {
     connection: ConnectionConfig;
     isConnected: boolean;
@@ -264,6 +313,9 @@ function DatabaseNode({
     onRefreshTables: () => Promise<void>;
     onAddTable: (sql: string) => Promise<void>;
     onLoadColumns: (tableName: string) => Promise<void>;
+    pinnedTableNames?: Set<string>;
+    onPinToggle?: (tableName: string) => void;
+    latencyMs?: number | null;
 }) {
     const [open, setOpen] = useState(true);
     // Tables section state
@@ -273,6 +325,48 @@ function DatabaseNode({
     // Dump state
     const [showDumpDialog, setShowDumpDialog] = useState(false);
     const [dumpDbLoading, setDumpDbLoading] = useState(false);
+    // Table context menu actions
+    const [renameTarget, setRenameTarget] = useState<string | null>(null);
+    const [renameValue, setRenameValue] = useState("");
+    const [renameLoading, setRenameLoading] = useState(false);
+    const [dropTarget, setDropTarget] = useState<string | null>(null);
+    const [dropLoading, setDropLoading] = useState(false);
+    const qi = (name: string) =>
+        connection.type === "mysql" ? `\`${name}\`` : `"${name}"`;
+    const handleTableAction = async (action: "rename" | "truncate" | "drop", tableName: string) => {
+        if (action === "rename") { setRenameTarget(tableName); setRenameValue(tableName); return; }
+        if (action === "drop") { setDropTarget(tableName); return; }
+        // truncate
+        try {
+            const sql = connection.type === "sqlite"
+                ? `DELETE FROM ${qi(tableName)}`
+                : `TRUNCATE TABLE ${qi(tableName)}`;
+            const res = await tauriApi.executeQuery(connection.id, sql);
+            if (res.error) toast.error(`Truncate failed: ${res.error}`);
+            else toast.success(`Truncated ${tableName}`);
+        } catch (e) { toast.error(`Truncate failed: ${e}`); }
+    };
+    const executeRename = async () => {
+        if (!renameTarget || !renameValue.trim()) return;
+        setRenameLoading(true);
+        try {
+            const sql = `ALTER TABLE ${qi(renameTarget)} RENAME TO ${qi(renameValue.trim())}`;
+            const res = await tauriApi.executeQuery(connection.id, sql);
+            if (res.error) { toast.error(`Rename failed: ${res.error}`); }
+            else { toast.success(`Renamed to ${renameValue.trim()}`); setRenameTarget(null); await onRefreshTables(); }
+        } catch (e) { toast.error(`Rename failed: ${e}`); }
+        finally { setRenameLoading(false); }
+    };
+    const executeDrop = async () => {
+        if (!dropTarget) return;
+        setDropLoading(true);
+        try {
+            const res = await tauriApi.executeQuery(connection.id, `DROP TABLE ${qi(dropTarget)}`);
+            if (res.error) { toast.error(`Drop failed: ${res.error}`); }
+            else { toast.success(`Dropped ${dropTarget}`); setDropTarget(null); await onRefreshTables(); }
+        } catch (e) { toast.error(`Drop failed: ${e}`); }
+        finally { setDropLoading(false); }
+    };
     const isRelationalDb =
         connection.type === "mysql" ||
         connection.type === "postgresql" ||
@@ -321,10 +415,13 @@ function DatabaseNode({
     const filtered = useMemo(() => {
         const q = filter.trim().toLowerCase();
         if (!q) return tableFns;
-        return tableFns.filter((f) =>
-            (f.tableName ?? "").toLowerCase().includes(q),
-        );
-    }, [tableFns, filter]);
+        return tableFns.filter((f) => {
+            if ((f.tableName ?? "").toLowerCase().includes(q)) return true;
+            // Also match against any already-loaded column names
+            const cols = tableInfoMap[f.tableName ?? ""] ?? [];
+            return cols.some((c) => c.name.toLowerCase().includes(q));
+        });
+    }, [tableFns, filter, tableInfoMap]);
     // group by schema
     const bySchema = useMemo(() => {
         const groups: Record<string, ConnectionFunction[]> = {};
@@ -372,9 +469,34 @@ function DatabaseNode({
                         </span>
                     );
                 })()}
+                {connection.safetyMode && connection.safetyMode !== "none" && (
+                    <span className={cn(
+                        "shell-badge shrink-0 px-1.5 flex items-center gap-0.5",
+                        connection.safetyMode === "read-only"
+                            ? "bg-destructive/12 border-destructive/30 text-destructive"
+                            : "bg-accent-orange/12 border-accent-orange/30 text-accent-orange"
+                    )}>
+                        <ShieldAlert size={9} />
+                        {connection.safetyMode === "read-only" ? "RO" : "WARN"}
+                    </span>
+                )}
                 {isLoading && <Loader2 size={10} className="animate-spin text-foreground/40 shrink-0" />}
                 {!isConnected && !isLoading && (
                     <Plug size={10} className="text-foreground/56 shrink-0 group-hover:text-primary/70 transition-colors" />
+                )}
+                {isConnected && !isLoading && latencyMs !== undefined && (
+                    <span className={cn(
+                        "shrink-0 text-[9px] font-mono tabular-nums px-1 rounded",
+                        latencyMs === null
+                            ? "text-destructive/70 bg-destructive/10"
+                            : latencyMs < 50
+                                ? "text-success/80 bg-success/10"
+                                : latencyMs < 200
+                                    ? "text-warning/80 bg-warning/10"
+                                    : "text-destructive/70 bg-destructive/10",
+                    )}>
+                        {latencyMs === null ? "⚠" : `${latencyMs}ms`}
+                    </span>
                 )}
             </button>
             {/* Tables header */}
@@ -467,6 +589,40 @@ function DatabaseNode({
                 onCancel={() => setShowDumpDialog(false)}
                 onConfirm={executeDump}
             />
+            {/* Rename table dialog */}
+            <Dialog open={!!renameTarget} onOpenChange={(o) => { if (!o) setRenameTarget(null); }}>
+                <DialogContent className="max-w-sm">
+                    <DialogHeader><DialogTitle>Rename table</DialogTitle></DialogHeader>
+                    <Input
+                        value={renameValue}
+                        onChange={(e) => setRenameValue(e.target.value)}
+                        onKeyDown={(e) => { if (e.key === "Enter") executeRename(); }}
+                        className="mt-2"
+                        autoFocus
+                    />
+                    <DialogFooter>
+                        <Button variant="outline" size="sm" onClick={() => setRenameTarget(null)}>Cancel</Button>
+                        <Button size="sm" onClick={executeRename} disabled={renameLoading || !renameValue.trim()}>
+                            {renameLoading ? "Renaming…" : "Rename"}
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
+            {/* Drop table confirm dialog */}
+            <Dialog open={!!dropTarget} onOpenChange={(o) => { if (!o) setDropTarget(null); }}>
+                <DialogContent className="max-w-sm">
+                    <DialogHeader><DialogTitle>Drop table?</DialogTitle></DialogHeader>
+                    <p className="text-sm text-muted-foreground">
+                        This will permanently delete <span className="font-mono font-semibold text-foreground">{dropTarget}</span> and all its data. This action cannot be undone.
+                    </p>
+                    <DialogFooter>
+                        <Button variant="outline" size="sm" onClick={() => setDropTarget(null)}>Cancel</Button>
+                        <Button variant="destructive" size="sm" onClick={executeDrop} disabled={dropLoading}>
+                            {dropLoading ? "Dropping…" : "Drop table"}
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
             {/* Tree */}
             {isConnected && open && (
                 <div className="px-1.5 pb-1.5 pt-1">
@@ -496,6 +652,9 @@ function DatabaseNode({
                                     showLabel={showSchemaLabels}
                                     forceOpen={expandAll}
                                     onLoadColumns={onLoadColumns}
+                                    pinnedTableNames={pinnedTableNames}
+                                    onPinToggle={onPinToggle}
+                                    onTableAction={handleTableAction}
                                 />
                             ))}
                         </div>
@@ -609,13 +768,28 @@ const Sidebar = () => {
         activeView,
         dbTabsCollapsed,
         toggleDbTabs,
+        pinnedTables,
+        pinTable,
+        unpinTable,
+        connectionLatency,
+        pingConnectionHealth,
     } = useAppStore();
     const [filter, setFilter] = useState("");
     const [loadingIds, setLoadingIds] = useState<Set<string>>(new Set());
     const [importExportOpen, setImportExportOpen] = useState(false);
+    const [healthOpen, setHealthOpen] = useState(false);
     const [dropDbConfirm, setDropDbConfirm] = useState<string | null>(null);
     const [dropConfirmInput, setDropConfirmInput] = useState("");
     const [droppingDb, setDroppingDb] = useState(false);
+
+    // Ping connected connections every 30 seconds for health monitoring
+    useEffect(() => {
+        if (connectedIds.length === 0) return;
+        const run = () => connectedIds.forEach((id) => pingConnectionHealth(id));
+        run(); // immediate ping on mount/change
+        const interval = setInterval(run, 30_000);
+        return () => clearInterval(interval);
+    }, [connectedIds, pingConnectionHealth]);
     const handleConnect = async (connId: string) => {
         setLoadingIds((prev) => new Set(prev).add(connId));
         try {
@@ -888,7 +1062,38 @@ const Sidebar = () => {
                                 const tables = connectionTables[conn.id] ?? [];
                                 const tableInfoMap: Record<string, ColumnInfo[]> =
                                     Object.fromEntries(tables.map((t) => [t.name, t.columns ?? []]));
+                                const connPinnedNames = new Set(
+                                    pinnedTables
+                                        .filter((p) => p.connectionId === conn.id)
+                                        .map((p) => p.tableName)
+                                );
                                 return (
+                                    <>
+                                    {/* Pinned tables section */}
+                                    {connPinnedNames.size > 0 && (
+                                        <div className="mb-2">
+                                            <div className="flex items-center gap-1.5 px-1 pb-1">
+                                                <Pin size={9} className="text-primary/50 shrink-0" />
+                                                <span className="text-[9px] font-bold uppercase tracking-widest text-foreground/40">Pinned</span>
+                                            </div>
+                                            <div className="w-full min-w-0 overflow-hidden px-1">
+                                                {tableFns
+                                                    .filter((f) => connPinnedNames.has(f.tableName ?? ""))
+                                                    .map((fn) => (
+                                                        <TableRow
+                                                            key={`pinned-${fn.id}`}
+                                                            fn={fn}
+                                                            columns={tableInfoMap[fn.tableName ?? ""] ?? []}
+                                                            isActive={activeFunction?.id === fn.id}
+                                                            onInvoke={handleInvoke}
+                                                            onLoadColumns={() => loadTableColumns(conn.id, fn.tableName ?? "")}
+                                                            isPinned={true}
+                                                            onPinToggle={() => unpinTable(conn.id, fn.tableName ?? "")}
+                                                        />
+                                                    ))}
+                                            </div>
+                                        </div>
+                                    )}
                                     <DatabaseNode
                                         key={conn.id}
                                         connection={conn}
@@ -908,7 +1113,14 @@ const Sidebar = () => {
                                             await refreshTables(conn.id);
                                         }}
                                         onLoadColumns={(tableName) => loadTableColumns(conn.id, tableName)}
+                                        pinnedTableNames={connPinnedNames}
+                                        onPinToggle={(tableName) => {
+                                            if (connPinnedNames.has(tableName)) unpinTable(conn.id, tableName);
+                                            else pinTable(conn.id, tableName);
+                                        }}
+                                        latencyMs={connectionLatency[conn.id]}
                                     />
+                                    </>
                                 );
                             })() : (
                                 <div className="flex flex-col items-center justify-center gap-3 py-8 px-4 text-center">
@@ -919,20 +1131,35 @@ const Sidebar = () => {
                     </ScrollArea>
                 )}
                 {/* ── Status Footer ── always pinned to bottom */}
-                <div className="shell-toolbar flex h-9 shrink-0 items-center gap-2 overflow-hidden border-t px-4">
-                    <CircleDot
-                        size={8}
-                        className={cn("shrink-0", connectedIds.length > 0 ? "text-primary" : "text-foreground/42")}
-                    />
-                    <span className="text-[11px] font-mono shrink-0 whitespace-nowrap">
-                        <span className={connectedIds.length > 0 ? "text-primary" : "text-foreground/58"}>{connectedIds.length}</span>
-                        <span className="text-foreground/52">/{connections.length} conn</span>
-                    </span>
-                    <span className="text-foreground/36 shrink-0">·</span>
-                    <HardDrive size={8} className="shrink-0 text-foreground/42" />
-                    <span className="text-[11px] font-mono truncate text-foreground/62 min-w-0">
-                        {currentDb ?? <span className="text-foreground/38">no db</span>}
-                    </span>
+                <div className="relative">
+                    {healthOpen && <ConnectionHealthPanel onClose={() => setHealthOpen(false)} />}
+                    <div className="shell-toolbar flex h-9 shrink-0 items-center gap-2 overflow-hidden border-t px-4">
+                        <CircleDot
+                            size={8}
+                            className={cn("shrink-0", connectedIds.length > 0 ? "text-primary" : "text-foreground/42")}
+                        />
+                        <span className="text-[11px] font-mono shrink-0 whitespace-nowrap">
+                            <span className={connectedIds.length > 0 ? "text-primary" : "text-foreground/58"}>{connectedIds.length}</span>
+                            <span className="text-foreground/52">/{connections.length} conn</span>
+                        </span>
+                        <span className="text-foreground/36 shrink-0">·</span>
+                        <HardDrive size={8} className="shrink-0 text-foreground/42" />
+                        <span className="text-[11px] font-mono truncate text-foreground/62 min-w-0">
+                            {currentDb ?? <span className="text-foreground/38">no db</span>}
+                        </span>
+                        <button
+                            onClick={() => setHealthOpen((v) => !v)}
+                            className={cn(
+                                "ml-auto shrink-0 rounded p-1 transition-colors",
+                                healthOpen
+                                    ? "text-primary bg-primary/10"
+                                    : "text-foreground/36 hover:text-foreground/70 hover:bg-surface-3",
+                            )}
+                            title="Connection health"
+                        >
+                            <Activity size={10} />
+                        </button>
+                    </div>
                 </div>
             </div>{/* end right content */}
             {importExportOpen && (

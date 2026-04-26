@@ -1,5 +1,5 @@
 import { useRef } from "react";
-import { Play, Loader2, Search, AlignLeft, BookmarkPlus, Check, X, Eye, Bot } from "lucide-react";
+import { Play, Loader2, Search, AlignLeft, BookmarkPlus, Check, X, Eye, Bot, ListOrdered } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
@@ -11,8 +11,10 @@ export function SqlEditorToolbar({
 	saveName,
 	aiEnabled,
 	aiConfigured,
+	statementCount,
 	onPreview,
 	onExecute,
+	onRunAll,
 	onExplain,
 	onFormat,
 	onSaveOpen,
@@ -27,8 +29,10 @@ export function SqlEditorToolbar({
 	saveName: string;
 	aiEnabled: boolean;
 	aiConfigured: boolean;
+	statementCount?: number;
 	onPreview: () => void;
-	onExecute: () => void | Promise<void>;
+	onExecute: (sql?: string) => void | Promise<void>;
+	onRunAll?: () => void | Promise<void>;
 	onExplain: () => void | Promise<void>;
 	onFormat: () => void;
 	onSaveOpen: () => void;
@@ -72,7 +76,7 @@ export function SqlEditorToolbar({
 					Preview
 				</Button>
 				<Button
-					onClick={onExecute}
+					onClick={() => onExecute()}
 					disabled={isLoading || !hasSql}
 					variant="outline"
 					size="sm"
@@ -91,6 +95,24 @@ export function SqlEditorToolbar({
 					Run
 					<span className="text-[10px] font-mono text-muted-foreground/60">Cmd+Enter</span>
 				</Button>
+				{/* Feature 5: Run All button for multi-statement SQL */}
+				{(statementCount ?? 0) > 1 && onRunAll && (
+					<Button
+						onClick={() => void onRunAll()}
+						disabled={isLoading || !hasSql}
+						variant="outline"
+						size="sm"
+						className={cn(
+							"h-7 text-[11px] font-semibold gap-2 border-border/60 bg-surface-elevated/90",
+							!isLoading && hasSql
+								? "text-accent-blue border-accent-blue/40 hover:border-accent-blue/70 hover:bg-surface-3"
+								: "text-muted-foreground/40",
+						)}
+					>
+						<ListOrdered size={11} />
+						Run All ({statementCount})
+					</Button>
+				)}
 				<Button
 					variant="ghost"
 					size="sm"

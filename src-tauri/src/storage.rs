@@ -20,7 +20,7 @@ use base64::{engine::general_purpose::STANDARD, Engine};
 use rand::RngCore;
 use sqlx::{sqlite::SqliteConnectOptions, Pool, Row, Sqlite};
 
-use crate::types::{ConnectionConfig, DatabaseType, QueryHistoryEntry, SavedQuery};
+use crate::types::{ConnectionConfig, DatabaseType, QueryHistoryEntry, SavedQuery, UserSnippet};
 
 // ── Global singleton ───────────────────────────────────────────────────────────
 
@@ -163,11 +163,20 @@ impl AppStorage {
                 executed_at       INTEGER NOT NULL,
                 execution_time_ms INTEGER NOT NULL,
                 row_count         INTEGER NOT NULL,
-                connection_id     TEXT NOT NULL
+                connection_id     TEXT NOT NULL,
+                status            TEXT,
+                error_message     TEXT
             )",
         )
         .execute(&pool)
         .await?;
+        // Migrations: add status/error_message if missing (existing installs)
+        let _ = sqlx::query("ALTER TABLE query_history ADD COLUMN status TEXT")
+            .execute(&pool)
+            .await;
+        let _ = sqlx::query("ALTER TABLE query_history ADD COLUMN error_message TEXT")
+            .execute(&pool)
+            .await;
 
         sqlx::query(
             "CREATE TABLE IF NOT EXISTS ai_credentials (
@@ -176,6 +185,29 @@ impl AppStorage {
                 encrypted_api_key TEXT NOT NULL,
                 created_at        TEXT DEFAULT (datetime('now')),
                 updated_at        TEXT DEFAULT (datetime('now'))
+            )",
+        )
+        .execute(&pool)
+        .await?;
+
+        sqlx::query(
+            "CREATE TABLE IF NOT EXISTS user_snippets (
+                id          TEXT PRIMARY KEY,
+                label       TEXT NOT NULL,
+                description TEXT NOT NULL,
+                category    TEXT NOT NULL,
+                sql_text    TEXT NOT NULL,
+                created_at  INTEGER NOT NULL
+            )",
+        )
+        .execute(&pool)
+        .await?;
+
+        sqlx::query(
+            "CREATE TABLE IF NOT EXISTS workspace_snapshot (
+                id          INTEGER PRIMARY KEY DEFAULT 1,
+                snapshot    TEXT NOT NULL,
+                updated_at  TEXT DEFAULT (datetime('now'))
             )",
         )
         .execute(&pool)
@@ -433,8 +465,9 @@ impl AppStorage {
     pub async fn save_history_entry(&self, entry: &QueryHistoryEntry) -> Result<()> {
         sqlx::query(
             "INSERT OR IGNORE INTO query_history
-                (id, sql_text, executed_at, execution_time_ms, row_count, connection_id)
-             VALUES (?, ?, ?, ?, ?, ?)",
+                (id, sql_text, executed_at, execution_time_ms, row_count, connection_id,
+                 status, error_message)
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
         )
         .bind(&entry.id)
         .bind(&entry.sql)
@@ -442,6 +475,8 @@ impl AppStorage {
         .bind(entry.execution_time_ms)
         .bind(entry.row_count)
         .bind(&entry.connection_id)
+        .bind(&entry.status)
+        .bind(&entry.error_message)
         .execute(&self.pool)
         .await?;
         Ok(())
@@ -449,7 +484,8 @@ impl AppStorage {
 
     pub async fn load_history(&self) -> Result<Vec<QueryHistoryEntry>> {
         let rows = sqlx::query(
-            "SELECT id, sql_text, executed_at, execution_time_ms, row_count, connection_id
+            "SELECT id, sql_text, executed_at, execution_time_ms, row_count, connection_id,
+                    status, error_message
              FROM query_history ORDER BY executed_at DESC",
         )
         .fetch_all(&self.pool)
@@ -464,6 +500,8 @@ impl AppStorage {
                 execution_time_ms: row.get("execution_time_ms"),
                 row_count: row.get("row_count"),
                 connection_id: row.get("connection_id"),
+                status: row.try_get("status").unwrap_or(None),
+                error_message: row.try_get("error_message").unwrap_or(None),
             })
             .collect())
     }
@@ -478,6 +516,14 @@ impl AppStorage {
 
     pub async fn clear_all_history(&self) -> Result<()> {
         sqlx::query("DELETE FROM query_history")
+            .execute(&self.pool)
+            .await?;
+        Ok(())
+    }
+
+    pub async fn delete_history_entry(&self, id: &str) -> Result<()> {
+        sqlx::query("DELETE FROM query_history WHERE id = ?")
+            .bind(id)
             .execute(&self.pool)
             .await?;
         Ok(())
@@ -535,6 +581,81 @@ impl AppStorage {
             .execute(&self.pool)
             .await?;
         Ok(())
+    }
+
+    // ── User snippets CRUD ─────────────────────────────────────────────────────
+
+    pub async fn save_snippet(&self, snippet: &UserSnippet) -> Result<()> {
+        sqlx::query(
+            "INSERT INTO user_snippets (id, label, description, category, sql_text, created_at)
+             VALUES (?, ?, ?, ?, ?, ?)
+             ON CONFLICT(id) DO UPDATE SET
+                label       = excluded.label,
+                description = excluded.description,
+                category    = excluded.category,
+                sql_text    = excluded.sql_text",
+        )
+        .bind(&snippet.id)
+        .bind(&snippet.label)
+        .bind(&snippet.description)
+        .bind(&snippet.category)
+        .bind(&snippet.sql)
+        .bind(snippet.created_at)
+        .execute(&self.pool)
+        .await?;
+        Ok(())
+    }
+
+    pub async fn load_snippets(&self) -> Result<Vec<UserSnippet>> {
+        let rows = sqlx::query(
+            "SELECT id, label, description, category, sql_text, created_at
+             FROM user_snippets ORDER BY created_at ASC",
+        )
+        .fetch_all(&self.pool)
+        .await?;
+
+        Ok(rows
+            .iter()
+            .map(|row| UserSnippet {
+                id: row.get("id"),
+                label: row.get("label"),
+                description: row.get("description"),
+                category: row.get("category"),
+                sql: row.get("sql_text"),
+                created_at: row.get("created_at"),
+            })
+            .collect())
+    }
+
+    pub async fn delete_snippet(&self, id: &str) -> Result<()> {
+        sqlx::query("DELETE FROM user_snippets WHERE id = ?")
+            .bind(id)
+            .execute(&self.pool)
+            .await?;
+        Ok(())
+    }
+
+    // ── Workspace snapshot ────────────────────────────────────────────────────
+
+    pub async fn save_workspace_snapshot(&self, snapshot_json: &str) -> Result<()> {
+        sqlx::query(
+            "INSERT INTO workspace_snapshot (id, snapshot, updated_at)
+             VALUES (1, ?, datetime('now'))
+             ON CONFLICT(id) DO UPDATE SET
+                snapshot   = excluded.snapshot,
+                updated_at = excluded.updated_at",
+        )
+        .bind(snapshot_json)
+        .execute(&self.pool)
+        .await?;
+        Ok(())
+    }
+
+    pub async fn load_workspace_snapshot(&self) -> Result<Option<String>> {
+        let row = sqlx::query("SELECT snapshot FROM workspace_snapshot WHERE id = 1")
+            .fetch_optional(&self.pool)
+            .await?;
+        Ok(row.map(|r| r.get::<String, _>("snapshot")))
     }
 }
 

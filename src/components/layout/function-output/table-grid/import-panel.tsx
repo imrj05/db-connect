@@ -1,9 +1,10 @@
-import { useRef } from "react";
-import { Loader2, X } from "lucide-react";
+import { useRef, useState, useCallback } from "react";
+import { Loader2, X, Upload } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { Textarea } from "@/components/ui/textarea";
+import { cn } from "@/lib/utils";
 
 export function ImportPanel({
 	show,
@@ -37,10 +38,48 @@ export function ImportPanel({
 	onClose: () => void;
 }) {
 	const fileRef = useRef<HTMLInputElement>(null);
+	const [isDragging, setIsDragging] = useState(false);
+
+	const handleDragOver = useCallback((e: React.DragEvent) => {
+		e.preventDefault();
+		e.stopPropagation();
+		setIsDragging(true);
+	}, []);
+
+	const handleDragLeave = useCallback((e: React.DragEvent) => {
+		e.preventDefault();
+		setIsDragging(false);
+	}, []);
+
+	const handleDrop = useCallback((e: React.DragEvent) => {
+		e.preventDefault();
+		e.stopPropagation();
+		setIsDragging(false);
+		const file = e.dataTransfer.files?.[0];
+		if (!file) return;
+		// Detect format from extension
+		const ext = file.name.split(".").pop()?.toLowerCase();
+		const fmt: "csv" | "json" = ext === "json" ? "json" : "csv";
+		if (fmt !== importFormat) onFormatChange(fmt);
+		const reader = new FileReader();
+		reader.onload = (ev) => {
+			const text = ev.target?.result as string ?? "";
+			onTextChange(text, fmt);
+		};
+		reader.readAsText(file);
+	}, [importFormat, onFormatChange, onTextChange]);
 
 	if (!show || viewMode !== "data" || !tableName) return null;
 	return (
-		<div className="shrink-0 border-b border-border bg-card px-3 py-3 flex flex-col gap-2">
+		<div
+			className={cn(
+				"shrink-0 border-b border-border bg-card px-3 py-3 flex flex-col gap-2 transition-colors",
+				isDragging && "bg-primary/5 border-primary/40",
+			)}
+			onDragOver={handleDragOver}
+			onDragLeave={handleDragLeave}
+			onDrop={handleDrop}
+		>
 			<div className="flex items-center justify-between">
 				<span className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground/50">
 					Import data into {tableName}
@@ -54,6 +93,28 @@ export function ImportPanel({
 					<X size={10} />
 				</Button>
 			</div>
+
+			{/* Drag-and-drop zone */}
+			{!importText && (
+				<div
+					className={cn(
+						"flex flex-col items-center justify-center gap-1.5 rounded-md border-2 border-dashed py-4 transition-colors cursor-pointer",
+						isDragging
+							? "border-primary/50 bg-primary/5 text-primary"
+							: "border-border/60 text-muted-foreground/40 hover:border-border hover:text-muted-foreground/60",
+					)}
+					onClick={() => fileRef.current?.click()}
+				>
+					<Upload size={14} />
+					<span className="text-[10px] font-medium">
+						Drop CSV / JSON here or <span className="underline underline-offset-2">browse</span>
+					</span>
+					<span className="text-[9px] opacity-70">
+						.csv or .json
+					</span>
+				</div>
+			)}
+
 			<div className="flex items-center gap-2">
 				<span className="text-[10px] font-mono text-muted-foreground/60">
 					Format:

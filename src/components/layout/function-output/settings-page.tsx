@@ -748,6 +748,87 @@ function EditorSection() {
                     </FieldGroup>
                 </CardContent>
             </Card>
+
+            <Card>
+                <CardHeader>
+                    <CardTitle>Editing behaviour</CardTitle>
+                    <CardDescription>Word wrap and indentation settings for the SQL editor.</CardDescription>
+                </CardHeader>
+                <CardContent>
+                    <FieldGroup>
+                        <Field orientation="responsive" className={SETTINGS_FIELD_CLASS}>
+                            <FieldContent>
+                                <FieldTitle>Word wrap</FieldTitle>
+                                <FieldDescription>Wrap long lines instead of scrolling horizontally.</FieldDescription>
+                            </FieldContent>
+                            <div className={SETTINGS_CONTROL_CLASS}>
+                                <Switch
+                                    checked={appSettings.editorWordWrap}
+                                    onCheckedChange={(v) => updateAppSetting("editorWordWrap", v)}
+                                />
+                            </div>
+                        </Field>
+                        <Field orientation="responsive" className={SETTINGS_FIELD_CLASS}>
+                            <FieldContent>
+                                <FieldTitle>Tab size</FieldTitle>
+                                <FieldDescription>Number of spaces inserted when pressing Tab.</FieldDescription>
+                            </FieldContent>
+                            <div className={SETTINGS_CONTROL_CLASS}>
+                                <ToggleGroup
+                                    type="single"
+                                    variant="outline"
+                                    size="sm"
+                                    spacing={1}
+                                    value={String(appSettings.editorTabSize)}
+                                    onValueChange={(value) => {
+                                        if (!value) return;
+                                        updateAppSetting("editorTabSize", Number(value) as AppSettings["editorTabSize"]);
+                                    }}
+                                >
+                                    <ToggleGroupItem value="2">2</ToggleGroupItem>
+                                    <ToggleGroupItem value="4">4</ToggleGroupItem>
+                                </ToggleGroup>
+                            </div>
+                        </Field>
+                    </FieldGroup>
+                </CardContent>
+            </Card>
+            <Card>
+                <CardHeader>
+                    <CardTitle>Query execution</CardTitle>
+                    <CardDescription>Timeout applied to every query. Long-running queries are cancelled after this threshold.</CardDescription>
+                    <CardAction>
+                        <Badge variant="secondary">{appSettings.queryTimeoutSecs}s</Badge>
+                    </CardAction>
+                </CardHeader>
+                <CardContent>
+                    <FieldGroup>
+                        <Field orientation="responsive" className={SETTINGS_FIELD_CLASS}>
+                            <FieldContent>
+                                <FieldTitle>Query timeout</FieldTitle>
+                                <FieldDescription>Maximum seconds a single query may run before being cancelled.</FieldDescription>
+                            </FieldContent>
+                            <div className={SETTINGS_CONTROL_CLASS}>
+                                <ToggleGroup
+                                    type="single"
+                                    variant="outline"
+                                    size="sm"
+                                    spacing={1}
+                                    value={String(appSettings.queryTimeoutSecs)}
+                                    onValueChange={(value) => {
+                                        if (!value) return;
+                                        updateAppSetting("queryTimeoutSecs", Number(value));
+                                    }}
+                                >
+                                    {[10, 30, 60, 120, 300].map((s) => (
+                                        <ToggleGroupItem key={s} value={String(s)}>{s}s</ToggleGroupItem>
+                                    ))}
+                                </ToggleGroup>
+                            </div>
+                        </Field>
+                    </FieldGroup>
+                </CardContent>
+            </Card>
         </div>
     );
 }
@@ -790,6 +871,44 @@ function TableSection() {
                                     {[25, 50, 100, 200].map((size) => (
                                         <ToggleGroupItem key={size} value={String(size)}>
                                             {size}
+                                        </ToggleGroupItem>
+                                    ))}
+                                </ToggleGroup>
+                            </div>
+                        </Field>
+                    </FieldGroup>
+                </CardContent>
+            </Card>
+            <Card>
+                <CardHeader>
+                    <CardTitle>Row density</CardTitle>
+                    <CardDescription>Controls the height of rows in table and query result views.</CardDescription>
+                    <CardAction>
+                        <Badge variant="secondary" className="capitalize">{appSettings.rowDensity}</Badge>
+                    </CardAction>
+                </CardHeader>
+                <CardContent>
+                    <FieldGroup>
+                        <Field orientation="responsive" className={SETTINGS_FIELD_CLASS}>
+                            <FieldContent>
+                                <FieldTitle>Density</FieldTitle>
+                                <FieldDescription>Compact saves vertical space; comfortable gives more breathing room.</FieldDescription>
+                            </FieldContent>
+                            <div className={SETTINGS_CONTROL_CLASS}>
+                                <ToggleGroup
+                                    type="single"
+                                    variant="outline"
+                                    size="sm"
+                                    spacing={1}
+                                    value={appSettings.rowDensity}
+                                    onValueChange={(value) => {
+                                        if (!value) return;
+                                        updateAppSetting("rowDensity", value as AppSettings["rowDensity"]);
+                                    }}
+                                >
+                                    {(["compact", "default", "comfortable"] as const).map((d) => (
+                                        <ToggleGroupItem key={d} value={d} className="capitalize">
+                                            {d}
                                         </ToggleGroupItem>
                                     ))}
                                 </ToggleGroup>

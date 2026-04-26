@@ -7,34 +7,34 @@
 
 :root {
     /* ========================================
-   * CORE COLORS — LIGHT
+   * CORE COLORS — LIGHT (ZED ONE LIGHT)
    * ====================================== */
-    --background: oklch(0.985 0 0);
-    --foreground: oklch(0.145 0 0);
-    --card: oklch(0.97 0 0);
-    --card-foreground: oklch(0.145 0 0);
-    --popover: oklch(0.985 0 0);
-    --popover-foreground: oklch(0.145 0 0);
-    --primary: oklch(0.205 0 0);
-    --primary-foreground: oklch(0.985 0 0);
-    --secondary: oklch(0.97 0 0);
-    --secondary-foreground: oklch(0.205 0 0);
-    --muted: oklch(0.97 0 0);
-    --muted-foreground: oklch(0.55 0 0);
-    --accent: oklch(0.97 0 0);
-    --accent-foreground: oklch(0.205 0 0);
+    --background: oklch(0.985 0.002 255);
+    --foreground: oklch(0.18 0.016 254);
+    --card: oklch(0.965 0.003 255);
+    --card-foreground: oklch(0.18 0.016 254);
+    --popover: oklch(0.985 0.002 255);
+    --popover-foreground: oklch(0.18 0.016 254);
+    --primary: oklch(0.52 0.145 255);
+    --primary-foreground: #ffffff;
+    --secondary: oklch(0.945 0.004 255);
+    --secondary-foreground: oklch(0.18 0.016 254);
+    --muted: oklch(0.955 0.003 255);
+    --muted-foreground: oklch(0.575 0.010 255);
+    --accent: oklch(0.54 0.145 255);
+    --accent-foreground: #ffffff;
     --destructive: oklch(0.577 0.245 27.325);
     --destructive-foreground: white;
     --warning: oklch(0.75 0.18 70);
     --warning-foreground: oklch(0.18 0.01 260);
     --success: oklch(0.72 0.18 145);
-    --border: oklch(0.906 0 0);
-    --input: oklch(0.906 0 0);
-    --ring: oklch(0.708 0 0);
+    --border: oklch(0.875 0.008 254);
+    --input: oklch(0.875 0.008 254);
+    --ring: oklch(0.54 0.145 255);
     /* ========================================
-   * CHART COLORS — EMBER ENV PALETTE (LIGHT)
+   * CHART COLORS — LIGHT
    * ====================================== */
-    --chart-1: oklch(0.72 0.16 84.6);
+    --chart-1: oklch(0.54 0.145 255);
     --chart-2: oklch(0.65 0.15 162);
     --chart-3: oklch(0.62 0.21 26);
     --chart-4: oklch(0.70 0.15 70);
@@ -42,23 +42,23 @@
     /* ========================================
    * SIDEBAR
    * ====================================== */
-    --sidebar: oklch(0.97 0 0);
-    --sidebar-foreground: oklch(0.145 0 0);
-    --sidebar-primary: oklch(0.205 0 0);
-    --sidebar-primary-foreground: oklch(0.985 0 0);
-    --sidebar-accent: oklch(0.906 0 0);
-    --sidebar-accent-foreground: oklch(0.205 0 0);
-    --sidebar-border: oklch(0.906 0 0);
-    --sidebar-ring: oklch(0.708 0 0);
+    --sidebar: oklch(0.960 0.004 255);
+    --sidebar-foreground: oklch(0.18 0.016 254);
+    --sidebar-primary: oklch(0.52 0.145 255);
+    --sidebar-primary-foreground: #ffffff;
+    --sidebar-accent: oklch(0.930 0.005 255);
+    --sidebar-accent-foreground: oklch(0.18 0.016 254);
+    --sidebar-border: oklch(0.875 0.008 254);
+    --sidebar-ring: oklch(0.54 0.145 255);
     --surface-0: var(--background);
-    --surface-1: oklch(0.973 0 0);
-    --surface-2: oklch(0.982 0 0);
-    --surface-3: oklch(0.988 0 0);
-    --surface-elevated: oklch(0.996 0 0);
-    --surface-hover: oklch(0.947 0 0);
-    --surface-selected: oklch(0.925 0 0);
-    --surface-selected-hover: oklch(0.914 0 0);
-    --border-subtle: oklch(0.89 0 0 / 0.45);
+    --surface-1: oklch(0.960 0.004 255);
+    --surface-2: oklch(0.950 0.004 255);
+    --surface-3: oklch(0.937 0.005 255);
+    --surface-elevated: oklch(1 0 0);
+    --surface-hover: oklch(0.918 0.006 255);
+    --surface-selected: oklch(0.906 0.006 255);
+    --surface-selected-hover: oklch(0.894 0.007 255);
+    --border-subtle: oklch(0.875 0.008 254 / 0.55);
     /* ========================================
 /* ========================================
  * TYPOGRAPHY — MODERN DATABASE CLIENT
@@ -71,7 +71,7 @@
     /* ========================================
    * SHAPE / SPACING
    * ====================================== */
-    --radius: 0.125rem;
+    --radius: 0.25rem;
     --spacing: 0.25rem;
     --tracking-normal: 0em;
     --letter-spacing: 0em;
@@ -160,54 +160,54 @@
 }
 
 /* ========================================
- * DARK MODE
+ * DARK MODE (ZED ONE DARK)
  * ====================================== */
 .dark {
-    --background: oklch(0.145 0 0);
-    --foreground: oklch(0.985 0 0);
-    --card: oklch(0.205 0 0);
-    --card-foreground: oklch(0.985 0 0);
-    --popover: oklch(0.205 0 0);
-    --popover-foreground: oklch(0.985 0 0);
-    --primary: oklch(0.922 0 0);
-    --primary-foreground: oklch(0.205 0 0);
-    --secondary: oklch(0.269 0 0);
-    --secondary-foreground: oklch(0.985 0 0);
-    --muted: oklch(0.269 0 0);
-    --muted-foreground: oklch(0.708 0 0);
-    --accent: oklch(0.269 0 0);
-    --accent-foreground: oklch(0.985 0 0);
-    --destructive: oklch(0.704 0.191 22.216);
+    --background: oklch(0.15 0.014 254);
+    --foreground: oklch(0.895 0.009 255);
+    --card: oklch(0.21 0.016 254);
+    --card-foreground: oklch(0.895 0.009 255);
+    --popover: oklch(0.21 0.016 254);
+    --popover-foreground: oklch(0.895 0.009 255);
+    --primary: oklch(0.55 0.15 255);
+    --primary-foreground: #ffffff;
+    --secondary: oklch(0.27 0.018 254);
+    --secondary-foreground: oklch(0.895 0.009 255);
+    --muted: oklch(0.23 0.017 254);
+    --muted-foreground: oklch(0.68 0.012 255);
+    --accent: oklch(0.70 0.12 257);
+    --accent-foreground: oklch(0.15 0.01 255);
+    --destructive: oklch(0.65 0.20 25);
     --destructive-foreground: white;
     --warning: oklch(0.78 0.16 70);
     --warning-foreground: oklch(0.15 0.01 260);
-    --success: oklch(0.75 0.18 145);
-    --border: oklch(1 0 0 / 10%);
-    --input: oklch(1 0 0 / 15%);
-    --ring: oklch(0.836 0.17 84.6);
-    --sidebar: oklch(0.205 0 0);
-    --sidebar-foreground: oklch(0.985 0 0);
-    --sidebar-primary: oklch(0.836 0.17 84.6);
-    --sidebar-primary-foreground: oklch(0.145 0 0);
-    --sidebar-accent: oklch(0.269 0 0);
-    --sidebar-accent-foreground: oklch(0.985 0 0);
-    --sidebar-border: oklch(1 0 0 / 10%);
-    --sidebar-ring: oklch(0.836 0.17 84.6);
+    --success: oklch(0.72 0.18 145);
+    --border: oklch(0.37 0.016 254 / 0.65);
+    --input: oklch(0.32 0.016 254);
+    --ring: oklch(0.68 0.13 257);
+    --sidebar: oklch(0.20 0.016 254);
+    --sidebar-foreground: oklch(0.895 0.009 255);
+    --sidebar-primary: oklch(0.70 0.12 257);
+    --sidebar-primary-foreground: oklch(0.15 0.01 255);
+    --sidebar-accent: oklch(0.25 0.017 254);
+    --sidebar-accent-foreground: oklch(0.895 0.009 255);
+    --sidebar-border: oklch(0.37 0.016 254 / 0.45);
+    --sidebar-ring: oklch(0.68 0.13 257);
     --surface-0: var(--background);
-    --surface-1: oklch(0.225 0.01 36);
-    --surface-2: oklch(0.245 0.01 36);
-    --surface-3: oklch(0.27 0.01 36);
-    --surface-elevated: oklch(0.29 0.011 36);
-    --surface-hover: oklch(0.285 0.012 36);
-    --surface-selected: oklch(0.315 0.013 36);
-    --surface-selected-hover: oklch(0.335 0.013 36);
-    --border-subtle: oklch(0.41 0.009 36 / 0.5);
-    --chart-1: oklch(0.836 0.17 84.6);
-    --chart-2: oklch(0.735 0.149 162);
-    --chart-3: oklch(0.704 0.191 22.216);
+    --surface-1: oklch(0.20 0.016 254);
+    --surface-2: oklch(0.23 0.017 254);
+    --surface-3: oklch(0.27 0.018 254);
+    --surface-elevated: oklch(0.30 0.018 254);
+    --surface-hover: oklch(0.285 0.018 254);
+    --surface-selected: oklch(0.32 0.018 254);
+    --surface-selected-hover: oklch(0.34 0.019 254);
+    --border-subtle: oklch(0.37 0.016 254 / 0.30);
+    --chart-1: oklch(0.70 0.12 257);
+    --chart-2: oklch(0.72 0.18 145);
+    --chart-3: oklch(0.65 0.20 25);
     --chart-4: oklch(0.78 0.16 70);
     --chart-5: oklch(0.87 0.12 185);
-    --overlay: rgb(10 10 10 / 0.54);
+    --overlay: rgb(10 14 22 / 0.60);
     --shadow-2xs: 0 0 0 0 transparent;
     --shadow-xs: 0 0 0 0 transparent;
     --shadow-sm: 0 0 0 0 transparent;
@@ -240,9 +240,9 @@
     --color-accent-purple: var(--chart-4);
     --color-accent-red: var(--destructive);
     /* Code Preview */
-    --color-code-preview-bg: oklch(0.14 0.005 260);
-    --color-code-preview-header-bg: oklch(0.12 0.005 260);
-    --color-code-preview-text: oklch(0.88 0.003 260);
+    --color-code-preview-bg: oklch(0.13 0.013 254);
+    --color-code-preview-header-bg: oklch(0.11 0.012 254);
+    --color-code-preview-text: oklch(0.88 0.008 255);
     /* ========================================
    * EMBER ENV SAFETY TOKENS (DARK)
    * ====================================== */
@@ -257,10 +257,10 @@
     --sql-destructive: #EF4444;
     --sql-modifying:   #F59E0B;
     --sql-read:        #FACC15;
-    --sql-keyword:     #FAFAFA;
+    --sql-keyword:     #dce0e5;
     --sql-string:      #5EEAD4;
-    --sql-type:        #A1A1AA;
-    --sql-identifier:  #FAFAFA;
+    --sql-type:        #a9afbc;
+    --sql-identifier:  #dce0e5;
 }
 
 /* ========================================
@@ -2039,10 +2039,10 @@
 
     .shell-section-label {
         font-size: 11px;
-        font-weight: 700;
-        letter-spacing: 0.16em;
+        font-weight: 600;
+        letter-spacing: 0.06em;
         text-transform: uppercase;
-        color: color-mix(in oklch, var(--muted-foreground) 68%, transparent);
+        color: color-mix(in oklch, var(--muted-foreground) 72%, transparent);
     }
 
     .shell-meta {

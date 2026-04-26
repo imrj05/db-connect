@@ -2,7 +2,7 @@ import * as React from "react";
 import {
     Moon, Sun, Plus,
     List, Info, Code2, Zap, Table2, LayoutGrid,
-    Database, Settings,
+    Database, Settings, Pin, Bookmark, Search, Columns3,
 } from "lucide-react";
 import {
     Command,
@@ -38,12 +38,19 @@ export function CommandPalette() {
         connectionFunctions,
         connections,
         connectedIds,
+        connectionTables,
         invokeFunction,
         setActiveFunctionOnly,
         setActiveView,
         setEditingConnection,
+        pinnedTables,
+        savedQueries,
     } = useAppStore();
     const [query, setQuery] = React.useState("");
+
+    // Schema search mode: triggered by leading "@"
+    const isSchemaSearch = query.startsWith("@");
+    const schemaQuery = isSchemaSearch ? query.slice(1).toLowerCase().trim() : "";
     React.useEffect(() => {
         const down = (e: KeyboardEvent) => {
             if (e.key === "k" && (e.metaKey || e.ctrlKey)) {
@@ -73,6 +80,50 @@ export function CommandPalette() {
         }
         return map;
     }, [filteredFunctions]);
+
+    // Pinned tables: find their table functions
+    const filteredPinnedFunctions = React.useMemo(() => {
+        if (!query) return allFunctions.filter((fn) =>
+            pinnedTables.some((p) =>
+                p.connectionId === fn.connectionId && p.tableName === fn.tableName
+            )
+        );
+        return allFunctions.filter((fn) =>
+            pinnedTables.some((p) =>
+                p.connectionId === fn.connectionId && p.tableName === fn.tableName
+            ) && fn.tableName?.toLowerCase().includes(query.toLowerCase())
+        );
+    }, [allFunctions, pinnedTables, query]);
+
+    // Saved queries: filter by name
+    const filteredSavedQueries = React.useMemo(() => {
+        if (!query) return savedQueries.slice(0, 8);
+        return savedQueries.filter((sq) =>
+            sq.name.toLowerCase().includes(query.toLowerCase()) ||
+            sq.sql.toLowerCase().includes(query.toLowerCase())
+        ).slice(0, 8);
+    }, [savedQueries, query]);
+
+    // Schema search results (when query starts with "@")
+    type SchemaHit = { type: "table" | "column"; connId: string; tableName: string; columnName?: string; dataType?: string; };
+    const schemaHits = React.useMemo<SchemaHit[]>(() => {
+        if (!isSchemaSearch || !schemaQuery) return [];
+        const hits: SchemaHit[] = [];
+        for (const [connId, tables] of Object.entries(connectionTables)) {
+            for (const table of tables) {
+                if (table.name.toLowerCase().includes(schemaQuery)) {
+                    hits.push({ type: "table", connId, tableName: table.name });
+                }
+                for (const col of table.columns ?? []) {
+                    if (col.name.toLowerCase().includes(schemaQuery) || col.dataType?.toLowerCase().includes(schemaQuery)) {
+                        hits.push({ type: "column", connId, tableName: table.name, columnName: col.name, dataType: col.dataType });
+                    }
+                }
+            }
+        }
+        return hits.slice(0, 30);
+    }, [isSchemaSearch, schemaQuery, connectionTables]);
+
     const handleSelect = (fn: ConnectionFunction) => {
         setCommandPaletteOpen(false);
         if (fn.type === "query" || fn.type === "execute") {
@@ -85,19 +136,172 @@ export function CommandPalette() {
         setTheme(theme === "dark" ? "light" : "dark");
         setCommandPaletteOpen(false);
     };
+
+    const showPinned = filteredPinnedFunctions.length > 0 && (!query || filteredPinnedFunctions.length > 0);
+    const showSaved = filteredSavedQueries.length > 0;
+
     return (
         <CommandDialog open={commandPaletteOpen} onOpenChange={setCommandPaletteOpen}>
             <Command shouldFilter={false}>
                 <CommandInput
-                    placeholder="Search functions, tables, commands…"
+                    placeholder={isSchemaSearch ? "Search tables and columns across all databases…" : "Search functions, tables, queries, commands…"}
                     value={query}
                     onValueChange={setQuery}
                 />
                 <CommandList>
                     <CommandEmpty>
-                        {query ? `No results for "${query}"` : "No results found."}
+                        {isSchemaSearch
+                            ? schemaQuery
+                                ? `No schema matches for "${schemaQuery}"`
+                                : "Type to search tables and columns…"
+                            : query ? `No results for "${query}"` : "No results found."}
                     </CommandEmpty>
-                    {Array.from(grouped.entries()).map(([prefix, fns], groupIdx) => {
+
+                    {/* ── Schema Search Mode ── */}
+                    {isSchemaSearch && schemaHits.length > 0 && (
+                        <>
+                            <CommandGroup heading={
+                                <span className="flex items-center gap-1.5">
+                                    <Search size={11} className="text-foreground/42" />
+                                    Schema ({schemaHits.length} matches)
+                                </span>
+                            }>
+                                {schemaHits.map((hit, i) => {
+                                    const conn = connections.find((c) => c.id === hit.connId);
+                                    const tableFn = Object.values(connectionFunctions).flat().find(
+                                        (fn) => fn.connectionId === hit.connId && fn.tableName === hit.tableName && fn.type === "table"
+                                    );
+                                    return (
+                                        <CommandItem
+                                            key={`schema-${i}`}
+                                            value={`schema-${hit.connId}-${hit.tableName}-${hit.columnName ?? ""}`}
+                                            onSelect={() => {
+                                                if (tableFn) { setCommandPaletteOpen(false); invokeFunction(tableFn); }
+                                            }}
+                                        >
+                                            {hit.type === "table"
+                                                ? <Table2 size={13} className="shrink-0 text-accent-blue/70" />
+                                                : <Columns3 size={13} className="shrink-0 text-foreground/40" />
+                                            }
+                                            <div className="flex flex-col flex-1 min-w-0">
+                                                <span className="text-[13px] font-medium leading-tight">
+                                                    {hit.type === "column"
+                                                        ? <><span className="text-foreground/50">{hit.tableName}.</span>{hit.columnName}</>
+                                                        : hit.tableName
+                                                    }
+                                                </span>
+                                                <span className="text-[11px] text-foreground/42 leading-tight">
+                                                    {hit.type === "column" ? hit.dataType : conn?.name}
+                                                </span>
+                                            </div>
+                                        </CommandItem>
+                                    );
+                                })}
+                            </CommandGroup>
+                            <CommandSeparator />
+                        </>
+                    )}
+
+                    {/* ── Pinned Tables ── */}
+                    {!isSchemaSearch && showPinned && (
+                        <>
+                            <CommandGroup heading={
+                                <span className="flex items-center gap-1.5">
+                                    <Pin size={11} className="text-foreground/42" />
+                                    Pinned Tables
+                                </span>
+                            }>
+                                {filteredPinnedFunctions.map((fn) => {
+                                    const conn = connections.find((c) => c.id === fn.connectionId);
+                                    const Icon = conn ? DB_ICON[conn.type] : undefined;
+                                    const iconColor = conn ? DB_COLOR[conn.type] : "";
+                                    return (
+                                        <CommandItem
+                                            key={fn.id}
+                                            value={`pinned-${fn.id}`}
+                                            onSelect={() => handleSelect(fn)}
+                                        >
+                                            {Icon ? (
+                                                <Icon className={`shrink-0 w-[13px] h-[13px] ${iconColor}`} />
+                                            ) : (
+                                                <Table2 size={13} className="shrink-0 text-accent-blue/60" />
+                                            )}
+                                            <div className="flex flex-col flex-1 min-w-0">
+                                                <span className="text-[14px] font-semibold leading-tight tracking-tight">
+                                                    {fn.tableName}
+                                                </span>
+                                                {conn && (
+                                                    <span className="text-[12px] text-foreground/52 mt-0.5 leading-tight truncate">
+                                                        {conn.name}
+                                                    </span>
+                                                )}
+                                            </div>
+                                        </CommandItem>
+                                    );
+                                })}
+                            </CommandGroup>
+                            <CommandSeparator />
+                        </>
+                    )}
+
+                    {/* ── Saved Queries ── */}
+                    {!isSchemaSearch && showSaved && (
+                        <>
+                            <CommandGroup heading={
+                                <span className="flex items-center gap-1.5">
+                                    <Bookmark size={11} className="text-foreground/42" />
+                                    Saved Queries
+                                </span>
+                            }>
+                                {filteredSavedQueries.map((sq) => {
+                                    // Find a matching query function to load the query into
+                                    const queryFn = sq.connectionId
+                                        ? allFunctions.find(
+                                            (f) => f.connectionId === sq.connectionId && f.type === "query"
+                                        )
+                                        : allFunctions.find((f) => f.type === "query");
+
+                                    return (
+                                        <CommandItem
+                                            key={sq.id}
+                                            value={`saved-${sq.id}`}
+                                            onSelect={() => {
+                                                setCommandPaletteOpen(false);
+                                                if (queryFn) {
+                                                    setActiveFunctionOnly(queryFn);
+                                                    // Dispatch a custom event to load SQL into editor
+                                                    window.dispatchEvent(
+                                                        new CustomEvent("palette-load-sql", {
+                                                            detail: { sql: sq.sql, connectionId: sq.connectionId },
+                                                        })
+                                                    );
+                                                }
+                                            }}
+                                        >
+                                            <Bookmark size={13} className="shrink-0 text-foreground/42" />
+                                            <div className="flex flex-col flex-1 min-w-0">
+                                                <span className="text-[14px] font-semibold leading-tight tracking-tight">
+                                                    {sq.name}
+                                                </span>
+                                                <span className="text-[12px] text-foreground/52 mt-0.5 leading-tight truncate font-mono">
+                                                    {sq.sql.slice(0, 60)}
+                                                </span>
+                                            </div>
+                                            {sq.folder && (
+                                                <span className="shrink-0 text-[10px] text-muted-foreground/40 font-medium">
+                                                    {sq.folder}
+                                                </span>
+                                            )}
+                                        </CommandItem>
+                                    );
+                                })}
+                            </CommandGroup>
+                            <CommandSeparator />
+                        </>
+                    )}
+
+                    {/* ── Connection functions ── */}
+                    {!isSchemaSearch && Array.from(grouped.entries()).map(([prefix, fns], groupIdx) => {
                         const conn = connections.find((c) => c.prefix === prefix);
                         const Icon = conn ? DB_ICON[conn.type] : undefined;
                         const iconColor = conn ? DB_COLOR[conn.type] : "";
@@ -174,10 +378,11 @@ export function CommandPalette() {
                         </>
                     )}
                     <CommandSeparator />
+                    {!isSchemaSearch && (
                     <CommandGroup heading={
                         <span className="flex items-center gap-1.5">
                             <Settings size={11} className="text-foreground/42" />
-                            General
+                            Actions
                         </span>
                     }>
                         <CommandItem
@@ -197,6 +402,22 @@ export function CommandPalette() {
                                 <Kbd>N</Kbd>
                             </KbdGroup>
                         </CommandItem>
+                        <CommandItem
+                            onSelect={() => {
+                                setActiveView("settings");
+                                setCommandPaletteOpen(false);
+                            }}
+                        >
+                            <Settings size={13} className="text-foreground/42 shrink-0" />
+                            <div className="flex flex-col flex-1">
+                                <span className="text-[14px] font-semibold">Open Settings</span>
+                                <span className="text-[12px] text-foreground/52">App preferences and configuration</span>
+                            </div>
+                            <KbdGroup>
+                                <Kbd>⌘</Kbd>
+                                <Kbd>,</Kbd>
+                            </KbdGroup>
+                        </CommandItem>
                         <CommandItem onSelect={toggleTheme}>
                             {theme === "dark"
                                 ? <Sun size={13} className="text-foreground/42 shrink-0" />
@@ -210,8 +431,19 @@ export function CommandPalette() {
                             </div>
                         </CommandItem>
                     </CommandGroup>
+                    )}
                 </CommandList>
                 <CommandFooter>
+                    {isSchemaSearch ? (
+                        <span className="flex items-center gap-1.5 text-foreground/52 text-[12px]">
+                            <Search size={11} />
+                            Searching tables &amp; columns — type after <Kbd>@</Kbd>
+                        </span>
+                    ) : (
+                        <span className="text-foreground/42 text-[12px]">
+                            Tip: type <Kbd>@</Kbd> to search schema
+                        </span>
+                    )}
                     <span className="flex items-center gap-1.5">
                         <KbdGroup>
                             <Kbd>↑</Kbd>

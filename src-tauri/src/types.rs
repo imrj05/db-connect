@@ -128,6 +128,12 @@ pub struct QueryHistoryEntry {
     pub execution_time_ms: i64,
     pub row_count: i64,
     pub connection_id: String,
+    /// "success" or "error" — None for legacy entries loaded without this column
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub status: Option<String>,
+    /// Error message when status == "error"
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub error_message: Option<String>,
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
@@ -138,6 +144,17 @@ pub struct SavedQuery {
     pub sql: String,
     pub connection_id: Option<String>,
     pub created_at: i64, // Unix ms
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+#[serde(rename_all = "camelCase")]
+pub struct UserSnippet {
+    pub id: String,
+    pub label: String,
+    pub description: String,
+    pub category: String,
+    pub sql: String,
+    pub created_at: i64,
 }
 
 // ── Import / Export types ────────────────────────────────────────────────────

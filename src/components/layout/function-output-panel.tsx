@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { Loader2 } from "lucide-react";
+import { Loader2, Copy, Check, ChevronDown, ChevronRight, Sparkles } from "lucide-react";
 import {
 	AlertDialog,
 	AlertDialogAction,
@@ -20,7 +20,10 @@ import { TableGridView } from "@/components/layout/function-output/table-grid-vi
 import { SqlEditorView } from "@/components/layout/function-output/sql-editor-view";
 
 function isDestructive(sql: string): boolean {
-	return /\b(DELETE|DROP|TRUNCATE)\b/i.test(sql.trim());
+	if (/\b(DELETE|DROP|TRUNCATE)\b/i.test(sql.trim())) return true;
+	// UPDATE without WHERE is also destructive
+	if (/\bUPDATE\b/i.test(sql) && !/\bWHERE\b/i.test(sql)) return true;
+	return false;
 }
 
 function buildExplainSql(sql: string): string {
@@ -44,6 +47,7 @@ const FunctionOutput = () => {
 		pendingSqlValue,
 		setPendingSql,
 		invokeFunction,
+		runMultiStatementSql,
 		connectionFunctions,
 		connectionTables,
 		connections,
@@ -56,6 +60,10 @@ const FunctionOutput = () => {
 		activeTabId,
 		openNewTab,
 		closeTab,
+		closeOtherTabs,
+		closeTabsToRight,
+		duplicateTab,
+		reorderTabs,
 		switchToTab,
 		clearPendingCellEdits,
 		connectedIds,
@@ -64,9 +72,14 @@ const FunctionOutput = () => {
 		setShowConnectionsManager,
 		setActiveView,
 	} = useAppStore();
+	const activeConnObj = useMemo(() => { const connId = activeFunction?.connectionId; return connId ? connections.find((c) => c.id === connId) ?? null : null; }, [activeFunction, connections]);
+	const isProductionConn = useMemo(() => !!(activeConnObj?.group?.toLowerCase().includes("prod")), [activeConnObj]);
 	const [page, setPage] = useState(0);
 	const [pendingDangerSql, setPendingDangerSql] = useState<string | null>(null);
 	const [pendingTabCloseId, setPendingTabCloseId] = useState<string | null>(null);
+	const [askAiFixError, setAskAiFixError] = useState<string | null>(null);
+	const [errorCopied, setErrorCopied] = useState(false);
+	const [errorExpanded, setErrorExpanded] = useState(false);
 	useEffect(() => {
 		setPage(0);
 	}, [activeFunction?.id]);
@@ -89,14 +102,20 @@ const FunctionOutput = () => {
 		window.addEventListener("keydown", handleTabShortcut);
 		return () => window.removeEventListener("keydown", handleTabShortcut);
 	}, [switchToTab, tabs]);
-	const handleExecuteSql = useCallback(async () => {
-		if (!activeFunction || !pendingSqlValue.trim()) return;
-		if (isDestructive(pendingSqlValue)) {
-			setPendingDangerSql(pendingSqlValue.trim());
-			return;
+	const handleExecuteSql = useCallback(async (sqlOverride?: string) => {
+		if (!activeFunction) return;
+		const sql = (sqlOverride ?? pendingSqlValue).trim();
+		if (!sql) return;
+		const isProdWrite = isProductionConn && /\b(INSERT|UPDATE|DELETE|DROP|TRUNCATE|ALTER|CREATE|REPLACE)\b/i.test(sql);
+		if (isDestructive(sql) || isProdWrite) { setPendingDangerSql(sql); return; }
+		// Detect multiple statements
+		const stmts = sql.split(/;/).map((s) => s.replace(/--[^\n]*/g, "").trim()).filter(Boolean);
+		if (stmts.length > 1) {
+			await runMultiStatementSql(activeFunction, sql);
+		} else {
+			await invokeFunction(activeFunction, { sql });
 		}
-		await invokeFunction(activeFunction, { sql: pendingSqlValue });
-	}, [activeFunction, pendingSqlValue, invokeFunction]);
+	}, [activeFunction, pendingSqlValue, invokeFunction, runMultiStatementSql, isProductionConn]);
 	const confirmDangerSql = useCallback(async () => {
 		if (!pendingDangerSql || !activeFunction) return;
 		const sql = pendingDangerSql;
@@ -219,15 +238,56 @@ const FunctionOutput = () => {
 			);
 		}
 		if (invocationResult.error) {
+			const errorText = invocationResult.error;
+			const lines = errorText.split("\n");
+			const isMultiLine = lines.length > 3;
+			const preview = lines.slice(0, 3).join("\n");
+			const handleCopyError = () => {
+				navigator.clipboard.writeText(errorText).then(() => {
+					setErrorCopied(true);
+					setTimeout(() => setErrorCopied(false), 2000);
+				});
+			};
+			const handleAskAi = () => {
+				setAskAiFixError(errorText);
+			};
 			return (
 				<div className="h-full flex items-center justify-center bg-background p-8">
-					<div className="max-w-lg w-full bg-destructive/5 border border-destructive/20 rounded-lg p-6">
-						<p className="text-[10px] font-bold uppercase tracking-widest text-destructive mb-2">
-							Error
-						</p>
-						<p className="text-xs font-mono text-destructive/80">
-							{invocationResult.error}
-						</p>
+					<div className="max-w-lg w-full bg-destructive/5 border border-destructive/20 rounded-lg overflow-hidden">
+						<div className="flex items-center justify-between px-4 pt-4 pb-2">
+							<p className="text-[10px] font-bold uppercase tracking-widest text-destructive">Error</p>
+							<div className="flex items-center gap-1.5">
+								<button
+									onClick={handleCopyError}
+									className="flex items-center gap-1 rounded px-2 py-1 text-[10px] font-medium text-destructive/70 hover:bg-destructive/10 hover:text-destructive transition-colors"
+								>
+									{errorCopied ? <Check size={10} /> : <Copy size={10} />}
+									{errorCopied ? "Copied" : "Copy"}
+								</button>
+								{(activeFunction?.type === "query" || activeFunction?.type === "execute") && (
+									<button
+										onClick={handleAskAi}
+										className="flex items-center gap-1 rounded px-2 py-1 text-[10px] font-medium text-accent-blue/80 hover:bg-accent-blue/10 hover:text-accent-blue transition-colors"
+									>
+										<Sparkles size={10} />Ask AI to fix
+									</button>
+								)}
+							</div>
+						</div>
+						<div className="px-4 pb-4">
+							<pre className="whitespace-pre-wrap text-xs font-mono text-destructive/80 leading-relaxed">
+								{isMultiLine && !errorExpanded ? preview + "\n…" : errorText}
+							</pre>
+							{isMultiLine && (
+								<button
+									onClick={() => setErrorExpanded((v) => !v)}
+									className="mt-2 flex items-center gap-1 text-[10px] text-foreground/40 hover:text-foreground/70 transition-colors"
+								>
+									{errorExpanded ? <ChevronDown size={10} /> : <ChevronRight size={10} />}
+									{errorExpanded ? "Show less" : `Show ${lines.length - 3} more lines`}
+								</button>
+							)}
+						</div>
 					</div>
 				</div>
 			);
@@ -256,6 +316,8 @@ const FunctionOutput = () => {
 						onExecute={handleExecuteSql}
 						onExplain={handleExplainSql}
 						tables={connectionTables[activeFunction.connectionId] ?? []}
+						askAiFixError={askAiFixError}
+						onAskAiFixConsumed={() => setAskAiFixError(null)}
 					/>
 				);
 			case "table-list":
@@ -288,6 +350,10 @@ const FunctionOutput = () => {
 				onSwitchTab={switchToTab}
 				onCloseTab={handleCloseTab}
 				onNewTab={openNewTab}
+				onCloseOthers={closeOtherTabs}
+				onCloseRight={closeTabsToRight}
+				onDuplicateTab={duplicateTab}
+				onReorderTabs={reorderTabs}
 			/>
 			<div className="flex-1 min-h-0 overflow-hidden bg-surface-2">{renderContent()}</div>
 			{/* Destructive query confirmation dialog */}
@@ -297,13 +363,17 @@ const FunctionOutput = () => {
 			>
 				<AlertDialogContent className="max-w-md">
 					<AlertDialogHeader>
-						<AlertDialogTitle>Destructive query detected</AlertDialogTitle>
-						<AlertDialogDescription>
-							This query contains a destructive operation (DELETE / DROP /
-							TRUNCATE). Review carefully before running.
-							<pre className="mt-2 rounded bg-muted p-2 text-xs font-mono overflow-x-auto whitespace-pre-wrap break-all max-h-40">
-								{pendingDangerSql}
-							</pre>
+						<AlertDialogTitle>{isProductionConn ? "⚠️ Production database — confirm operation" : "Destructive query detected"}</AlertDialogTitle>
+						<AlertDialogDescription asChild>
+							<div>
+								{isProductionConn && (
+									<div className="mb-2 flex items-center gap-2 rounded border border-red-500/40 bg-red-500/10 px-3 py-2 text-red-400 text-xs font-semibold">
+										⚠️ You are connected to a PRODUCTION database. This cannot be undone.
+									</div>
+								)}
+								<span className="text-sm text-muted-foreground">{isProductionConn ? "This write operation will affect your production data. Double-check before running." : "This query contains DELETE / DROP / TRUNCATE or an UPDATE without a WHERE clause."}</span>
+								<pre className="mt-2 rounded bg-muted p-2 text-xs font-mono overflow-x-auto whitespace-pre-wrap break-all max-h-40">{pendingDangerSql}</pre>
+							</div>
 						</AlertDialogDescription>
 					</AlertDialogHeader>
 					<AlertDialogFooter>

@@ -18,6 +18,7 @@ import {
 import { cn } from "@/lib/utils";
 import { TableInfo } from "@/types";
 import { StatusBar } from "@/components/layout/function-output/status-bar";
+import { ExplainPlanView, isExplainResult } from "@/components/layout/function-output/sql-editor/explain-plan-view";
 
 export function ResultsGrid({
 	queryResult,
@@ -31,6 +32,9 @@ export function ResultsGrid({
 	onResizeStart: (e: React.MouseEvent) => void;
 }) {
 	const [sorting, setSorting] = useState<SortingState>([]);
+
+	const isExplain = isExplainResult(queryResult.columns);
+
 	const table = useReactTable({
 		data: queryResult.rows,
 		columns: (queryResult.columns && queryResult.columns.length > 0
@@ -65,7 +69,7 @@ export function ResultsGrid({
 				className="h-1.5 bg-border-table hover:bg-primary/40 active:bg-primary/60 cursor-row-resize transition-colors shrink-0 select-none"
 				title="Drag to resize"
 			/>
-			{/* Results grid */}
+			{/* Results grid or explain plan */}
 			<div className="flex-1 border-t border-border overflow-auto scrollbar-thin min-h-0">
 				{queryResult.rows.length === 0 && queryResult.columns.length === 0 ? (
 					<div className="flex flex-col items-center justify-center h-full text-accent-green p-8 text-center">
@@ -74,6 +78,8 @@ export function ResultsGrid({
 							Executed successfully · {queryResult.executionTimeMs}ms
 						</p>
 					</div>
+				) : isExplain ? (
+					<ExplainPlanView columns={queryResult.columns} rows={queryResult.rows} />
 				) : (
 					<Table className="w-full text-[12px] font-mono border-collapse">
 						<TableHeader className="sticky top-0 z-10 bg-card">

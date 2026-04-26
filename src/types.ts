@@ -22,6 +22,7 @@ export interface ConnectionConfig {
   sshPassword?: string;
   sshKeyPath?: string;
   sshKeyPassphrase?: string;
+  safetyMode?: "none" | "warn" | "read-only"; // Production safety mode
 }
 
 export interface TableInfo {
@@ -71,6 +72,37 @@ export interface SchemaGraphTable {
 export interface SchemaGraph {
   tables: SchemaGraphTable[];
   relationships: ForeignKeyRelation[];
+}
+
+// ── Schema Diff ────────────────────────────────────────────────────────────────
+export type DiffStatus = "added" | "removed" | "changed" | "unchanged";
+
+export interface ColumnDiff {
+  name: string;
+  status: DiffStatus;
+  before?: ColumnInfo;
+  after?: ColumnInfo;
+}
+
+export interface TableDiff {
+  name: string;
+  status: DiffStatus;
+  columnDiffs: ColumnDiff[];
+}
+
+export interface RelationshipDiff {
+  name: string;
+  status: DiffStatus;
+  before?: ForeignKeyRelation;
+  after?: ForeignKeyRelation;
+}
+
+export interface SchemaDiff {
+  tableDiffs: TableDiff[];
+  relationshipDiffs: RelationshipDiff[];
+  addedCount: number;
+  removedCount: number;
+  changedCount: number;
 }
 
 export interface QueryResult {
@@ -147,12 +179,27 @@ export interface PendingCellEdit {
   updatedAt: number;
 }
 
+export interface CellEditHistoryEntry {
+  id: string;
+  tabId: string;
+  connectionId: string;
+  tableName: string;
+  rowKey: string;
+  primaryKeyValues: Record<string, unknown>;
+  columnId: string;
+  oldValue: unknown;
+  newValue: unknown;
+  committedAt: number;
+  reverseSql: string; // pre-computed reverse UPDATE
+}
+
 export interface ResultTab {
   id: string;
   fn: ConnectionFunction;
   result: FunctionInvocationResult | null;
   pendingSql: string;
   pendingEdits: PendingCellEdit[];
+  undoHistory: CellEditHistoryEntry[];
   label: string;      // display name, e.g. "users", "query", "list"
   // Per-tab filter state
   filters: FilterCondition[];
@@ -184,6 +231,15 @@ export interface QueryHistoryEntry {
   executionTimeMs: number;
   rowCount: number;
   connectionId: string;
+  status?: 'success' | 'error';
+  errorMessage?: string;
+}
+
+export interface PinnedTable {
+  connectionId: string;
+  tableName: string;
+  schemaName?: string;
+  pinnedAt: number; // Date.now()
 }
 
 // ---------- Saved queries ----------
@@ -193,8 +249,38 @@ export interface SavedQuery {
   name: string;
   sql: string;
   connectionId?: string;    // optional: pin to a specific connection
+  folder?: string;          // optional: folder/group name
   createdAt: number;        // Date.now()
 }
+
+export interface UserSnippet {
+  id: string;
+  label: string;
+  description: string;
+  category: string;
+  sql: string;
+  createdAt: number;
+}
+
+// ---------- Cell color rules (conditional cell formatting) ----------
+
+export type CellColorRuleOp =
+	| "=" | "!=" | ">" | "<" | ">=" | "<="
+	| "contains" | "IS NULL" | "IS NOT NULL";
+
+export type CellColorRuleColor =
+	| "red" | "yellow" | "green" | "blue" | "purple";
+
+export interface CellColorRule {
+	id: string;
+	col: string; // "" means all columns
+	op: CellColorRuleOp;
+	value: string;
+	color: CellColorRuleColor;
+}
+
+// ---------- Aggregation footer metrics ----------
+export type AggMetric = "sum" | "avg" | "min" | "max" | "count" | null;
 
 // ---------- NoSQL types (unchanged) ----------
 
@@ -239,4 +325,21 @@ export interface ConnectionExport {
   exportedAt: string;
   passwordProtected: boolean;
   connections: ConnectionConfig[];
+}
+
+// ---------- Workspace snapshot ----------
+
+export interface WorkspaceTabSnapshot {
+  id: string;
+  fnId: string;           // ConnectionFunction.id
+  label: string;
+  pendingSql: string;
+}
+
+export interface WorkspaceSnapshot {
+  activeConnectionId: string | null;
+  activeTabId: string | null;
+  selectedDatabases: Record<string, string>; // connectionId → database name
+  tabs: WorkspaceTabSnapshot[];
+  savedAt: number;
 }

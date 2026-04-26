@@ -20,6 +20,7 @@ use std::time::{Duration, Instant};
 use tauri_plugin_updater::UpdaterExt;
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::net::TcpListener;
+use tokio::time::timeout as tokio_timeout;
 
 use crate::db::mongodb::MongoDriver;
 use crate::db::redis_driver::RedisDriver;
@@ -876,13 +877,41 @@ pub async fn get_tables(
 }
 
 #[tauri::command]
-pub async fn execute_query(id: String, query: String) -> Result<QueryResult, String> {
+pub async fn execute_query(id: String, query: String, timeout_secs: Option<u64>) -> Result<QueryResult, String> {
     let driver = REGISTRY
         .connections
         .get(&id)
         .ok_or_else(|| "Not connected".to_string())?;
 
-    driver.run_query(&query).await.map_err(|e| e.to_string())
+    let secs = timeout_secs.unwrap_or(30);
+    let duration = std::time::Duration::from_secs(secs);
+    tokio_timeout(duration, driver.run_query(&query))
+        .await
+        .map_err(|_| format!("Query timed out after {}s", secs))?
+        .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub async fn ping_connection(id: String) -> Result<u64, String> {
+    let driver = REGISTRY
+        .connections
+        .get(&id)
+        .ok_or_else(|| "Not connected".to_string())?;
+
+    // Choose ping query based on DB type to avoid sending SQL to non-relational DBs
+    let ping_query = if let Some(cfg) = REGISTRY.configs.get(&id) {
+        match cfg.db_type {
+            DatabaseType::Redis => "PING",
+            DatabaseType::Mongodb => r#"{"ping": 1}"#,
+            _ => "SELECT 1",
+        }
+    } else {
+        "SELECT 1"
+    };
+
+    let start = std::time::Instant::now();
+    driver.run_query(ping_query).await.map_err(|e| e.to_string())?;
+    Ok(start.elapsed().as_millis() as u64)
 }
 
 #[tauri::command]
@@ -1308,6 +1337,50 @@ pub async fn storage_delete_query(id: String) -> Result<(), String> {
         .map_err(|e| e.to_string())
 }
 
+// ── User snippet commands ───────────────────────────────────────────────────────
+
+#[tauri::command]
+pub async fn storage_load_snippets() -> Result<Vec<UserSnippet>, String> {
+    AppStorage::get()
+        .load_snippets()
+        .await
+        .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub async fn storage_save_snippet(snippet: UserSnippet) -> Result<(), String> {
+    AppStorage::get()
+        .save_snippet(&snippet)
+        .await
+        .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub async fn storage_delete_snippet(id: String) -> Result<(), String> {
+    AppStorage::get()
+        .delete_snippet(&id)
+        .await
+        .map_err(|e| e.to_string())
+}
+
+// ── Workspace snapshot commands ─────────────────────────────────────────────────
+
+#[tauri::command]
+pub async fn storage_save_workspace(snapshot_json: String) -> Result<(), String> {
+    AppStorage::get()
+        .save_workspace_snapshot(&snapshot_json)
+        .await
+        .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub async fn storage_load_workspace() -> Result<Option<String>, String> {
+    AppStorage::get()
+        .load_workspace_snapshot()
+        .await
+        .map_err(|e| e.to_string())
+}
+
 // ── Query history commands ──────────────────────────────────────────────────────
 
 #[tauri::command]
@@ -1340,6 +1413,14 @@ pub async fn storage_clear_history(connection_id: String) -> Result<(), String> 
 pub async fn storage_clear_all_history() -> Result<(), String> {
     AppStorage::get()
         .clear_all_history()
+        .await
+        .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub async fn storage_delete_history_entry(id: String) -> Result<(), String> {
+    AppStorage::get()
+        .delete_history_entry(&id)
         .await
         .map_err(|e| e.to_string())
 }
@@ -1472,17 +1553,15 @@ pub async fn openrouter_oauth_begin() -> Result<OpenRouterOAuthBeginResult, Stri
         URL_SAFE_NO_PAD.encode(hasher.finalize())
     };
 
-    // OpenRouter OAuth app creation currently expects localhost callback usage.
-    // Use a fixed localhost:3000 callback so grant/app creation succeeds.
-    let listener = TcpListener::bind("127.0.0.1:3000")
+    // Bind to port 0 so the OS assigns a free port automatically.
+    let listener = TcpListener::bind("127.0.0.1:0")
         .await
-        .map_err(|e| {
-            format!(
-                "Failed to start OAuth callback server on localhost:3000 ({e}). \
-                 Please stop any app using port 3000 and try again."
-            )
-        })?;
-    let callback_url = "http://localhost:3000/openrouter/callback".to_string();
+        .map_err(|e| format!("Failed to start OAuth callback server ({e})."))?;
+    let local_port = listener
+        .local_addr()
+        .map_err(|e| format!("Failed to read OAuth callback port ({e})."))?
+        .port();
+    let callback_url = format!("http://localhost:{local_port}/openrouter/callback");
 
     OPENROUTER_OAUTH_FLOWS.insert(
         flow_id.clone(),

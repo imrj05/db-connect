@@ -19,6 +19,7 @@ import {
     ArrowRight,
     ChevronDown,
     Settings2,
+    ShieldAlert,
 } from "lucide-react";
 import { ConnectionConfig } from "@/types";
 import { useAppStore } from "@/store/useAppStore";
@@ -526,6 +527,41 @@ const ConnectionDialog = ({ onClose, initialData, mode = "modal" }: ConnectionDi
                                                             {formData.type !== "sqlite" && (
                                                                 <SshTunnelSection formData={formData} onPatch={patch} />
                                                             )}
+
+                                                            {/* Safety Mode */}
+                                                            <div className="flex items-start gap-3 pt-1">
+                                                                <ShieldAlert size={14} className="mt-0.5 shrink-0 text-foreground/42" />
+                                                                <div className="flex flex-col gap-1.5 flex-1 min-w-0">
+                                                                    <span className="text-[13px] font-medium text-foreground/80">Safety Mode</span>
+                                                                    <div className="flex gap-2">
+                                                                        {(["none", "warn", "read-only"] as const).map((mode) => (
+                                                                            <button
+                                                                                key={mode}
+                                                                                type="button"
+                                                                                onClick={() => patch({ safetyMode: mode })}
+                                                                                className={`px-3 py-1 rounded text-[12px] font-medium border transition-colors ${
+                                                                                    (formData.safetyMode ?? "none") === mode
+                                                                                        ? mode === "read-only"
+                                                                                            ? "bg-destructive/15 border-destructive/40 text-destructive"
+                                                                                            : mode === "warn"
+                                                                                                ? "bg-accent-orange/15 border-accent-orange/40 text-accent-orange"
+                                                                                                : "bg-surface-3 border-border text-foreground"
+                                                                                        : "bg-transparent border-border-subtle text-foreground/50 hover:border-border hover:text-foreground/70"
+                                                                                }`}
+                                                                            >
+                                                                                {mode === "none" ? "None" : mode === "warn" ? "Warn on write" : "Read-only"}
+                                                                            </button>
+                                                                        ))}
+                                                                    </div>
+                                                                    <span className="text-[11px] text-foreground/42 leading-snug">
+                                                                        {(formData.safetyMode ?? "none") === "warn"
+                                                                            ? "Shows a confirmation dialog before any INSERT, UPDATE, or DELETE."
+                                                                            : (formData.safetyMode ?? "none") === "read-only"
+                                                                                ? "Blocks all write queries on this connection."
+                                                                                : "No restrictions. Queries run without extra prompts."}
+                                                                    </span>
+                                                                </div>
+                                                            </div>
 
                                                             <ConnectionUrlPreview formData={formData} />
                                                         </div>

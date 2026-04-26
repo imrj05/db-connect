@@ -21,10 +21,10 @@ Rules:
 
 ## Color Semantics
 
-- Green: success, connected, active health
-- Amber: warning, pending changes
-- Red: destructive actions, errors
-- Blue / primary accent: current selection, active state
+- Green: success, connected, active health, local environment
+- Amber: warning, pending changes, staging environment
+- Red: destructive actions, errors, production environment
+- Blue / primary accent: current selection, active state, primary CTAs, focus rings
 - Purple / orange: category/type accents only, not primary state colors
 
 ## Buttons

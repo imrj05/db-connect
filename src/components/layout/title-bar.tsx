@@ -8,12 +8,15 @@ import {
     Pencil,
     ChevronDown,
     ExternalLink,
-    PanelLeft,
+    PanelLeftOpen,
+    PanelLeftClose,
     ScrollText,
     Database,
     KeyRound,
     RefreshCw,
     CheckIcon,
+    TriangleAlert,
+    ArrowRightLeft,
 } from "lucide-react";
 import { useAppStore } from "@/store/useAppStore";
 import { DB_LOGO, DB_COLOR } from "@/lib/db-ui";
@@ -193,7 +196,15 @@ const TitleBar = ({ isLicensed, onActivate }: TitleBarProps) => {
                                 const preset = GROUP_PRESETS.find(
                                     (p) => p.id === activeConn.group,
                                 );
+                                const isProd = activeConn.group.toLowerCase().includes("prod");
                                 return (
+                                    <>
+                                    {isProd && (
+                                        <span className="flex items-center gap-1 shell-badge shrink-0 px-2 border-red-500/40 bg-red-500/15 text-red-400 font-bold animate-pulse">
+                                            <TriangleAlert size={9} />
+                                            PROD
+                                        </span>
+                                    )}
                                     <span
                                         className={cn(
                                             "shell-badge shrink-0 px-2",
@@ -204,6 +215,7 @@ const TitleBar = ({ isLicensed, onActivate }: TitleBarProps) => {
                                     >
                                         {activeConn.group}
                                     </span>
+                                    </>
                                 );
                             })()}
                         <Tooltip>
@@ -251,7 +263,10 @@ const TitleBar = ({ isLicensed, onActivate }: TitleBarProps) => {
                                     : "text-foreground/66 hover:text-foreground hover:bg-surface-2",
                             )}
                         >
-                            <PanelLeft size={10} className="shrink-0" />
+                            {sidebarCollapsed
+                                    ? <PanelLeftOpen size={10} className="shrink-0" />
+                                    : <PanelLeftClose size={10} className="shrink-0" />
+                                }
                         </Button>
                     </TooltipTrigger>
                     <TooltipContent side="bottom" sideOffset={4}>
@@ -503,6 +518,23 @@ const TitleBar = ({ isLicensed, onActivate }: TitleBarProps) => {
                         </TooltipContent>
                     </Tooltip>
                 )}
+                <Tooltip>
+                    <TooltipTrigger asChild>
+                        <Button
+                            style={noDragStyle}
+                            variant="outline"
+                            size="sm"
+                            aria-label="Schema Diff"
+                            onClick={() => setActiveView(activeView === "schema-diff" ? "main" : "schema-diff")}
+                            className={cn("h-7 rounded-sm border-transparent bg-transparent px-2.5 text-foreground/48 hover:bg-surface-2 hover:text-foreground", activeView === "schema-diff" && "bg-surface-2 text-foreground")}
+                        >
+                            <ArrowRightLeft size={11} className="shrink-0" />
+                        </Button>
+                    </TooltipTrigger>
+                    <TooltipContent side="bottom" sideOffset={4}>
+                        {activeView === "schema-diff" ? "Close schema diff" : "Schema diff"}
+                    </TooltipContent>
+                </Tooltip>
                 <Tooltip>
                     <TooltipTrigger asChild>
                         <Button

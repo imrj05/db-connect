@@ -4,12 +4,26 @@ import {
 	RefreshCw,
 	Search,
 	Upload,
+	Download,
 	Pencil,
 	Check,
 	RotateCcw,
 	X,
 	Trash2,
+	Info,
+	PanelRightOpen,
+	PanelRightClose,
+	Columns3,
+	Sigma,
+	Paintbrush,
 } from "lucide-react";
+import {
+	DropdownMenu,
+	DropdownMenuContent,
+	DropdownMenuItem,
+	DropdownMenuSeparator,
+	DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -41,8 +55,26 @@ export function GridToolbar({
 	onSearchChange,
 	onClearSearch,
 	onToggleImport,
+	onExport,
+	hasSelectedRows,
 	onRenameTable,
 	onDropTable,
+	showInfo,
+	onToggleInfo,
+	showRowDetail,
+	onToggleRowDetail,
+	columnIds,
+	hiddenColumns,
+	onToggleColumn,
+	undoCount = 0,
+	onUndo,
+	selectedRowCount = 0,
+	onBulkDelete,
+	bulkDeleteLoading = false,
+	showAggFooter,
+	onToggleAggFooter,
+	showColorRules,
+	onToggleColorRules,
 }: {
 	fn: ConnectionFunction;
 	executionTimeMs: number;
@@ -64,8 +96,26 @@ export function GridToolbar({
 	onSearchChange: (value: string) => void;
 	onClearSearch: () => void;
 	onToggleImport: () => void;
+	onExport?: (preset: import("@/lib/export-utils").ExportPreset, selectedOnly: boolean) => void;
+	hasSelectedRows?: boolean;
 	onRenameTable: () => void;
 	onDropTable: () => void;
+	showInfo?: boolean;
+	onToggleInfo?: () => void;
+	showRowDetail?: boolean;
+	onToggleRowDetail?: () => void;
+	columnIds?: string[];
+	hiddenColumns?: Record<string, boolean>;
+	onToggleColumn?: (colId: string, visible: boolean) => void;
+	undoCount?: number;
+	onUndo?: () => void;
+	selectedRowCount?: number;
+	onBulkDelete?: () => void;
+	bulkDeleteLoading?: boolean;
+	showAggFooter?: boolean;
+	onToggleAggFooter?: () => void;
+	showColorRules?: boolean;
+	onToggleColorRules?: () => void;
 }) {
 	return (
 		<>
@@ -119,6 +169,39 @@ export function GridToolbar({
 								<RotateCcw size={11} className="mr-1" />
 								Reset
 							</Button>
+						{undoCount > 0 && onUndo && (
+							<Tooltip>
+								<TooltipTrigger asChild>
+									<Button
+										variant="outline"
+										size="sm"
+										onClick={onUndo}
+										className="h-7 px-3 text-[11px] font-medium border-border-subtle bg-surface-elevated text-foreground/60 hover:bg-surface-2 shadow-xs"
+									>
+										<RotateCcw size={11} className="mr-1" />
+										Undo ({undoCount})
+									</Button>
+								</TooltipTrigger>
+								<TooltipContent>Undo last committed edit (⌘Z)</TooltipContent>
+							</Tooltip>
+						)}
+						{selectedRowCount > 1 && onBulkDelete && (
+							<Tooltip>
+								<TooltipTrigger asChild>
+									<Button
+										variant="outline"
+										size="sm"
+										onClick={onBulkDelete}
+										disabled={bulkDeleteLoading}
+										className="h-7 px-3 text-[11px] font-medium border-destructive/40 bg-destructive/10 text-destructive hover:bg-destructive/20 shadow-xs"
+									>
+										<Trash2 size={11} className="mr-1" />
+										{bulkDeleteLoading ? "Deleting…" : `Delete ${selectedRowCount} rows`}
+									</Button>
+								</TooltipTrigger>
+								<TooltipContent>Delete all selected rows</TooltipContent>
+							</Tooltip>
+						)}
 						</>
 					)}
 					{viewMode === "data" && (
@@ -219,8 +302,172 @@ export function GridToolbar({
 						<TooltipContent>Import data</TooltipContent>
 						</Tooltip>
 					)}
+					{viewMode === "data" && onExport && (
+						<DropdownMenu>
+							<DropdownMenuTrigger asChild>
+								<Button
+									variant="outline"
+									size="sm"
+									className="h-7 rounded-md border-border-subtle bg-surface-elevated px-3 text-[11px] font-medium text-foreground/68 shadow-xs hover:bg-surface-2"
+								>
+									<Download size={11} />
+									Export
+								</Button>
+							</DropdownMenuTrigger>
+							<DropdownMenuContent align="end" className="min-w-[180px]">
+								<DropdownMenuItem onClick={() => onExport("csv", false)}>
+									Export as CSV
+								</DropdownMenuItem>
+								<DropdownMenuItem onClick={() => onExport("tsv", false)}>
+									Export as TSV
+								</DropdownMenuItem>
+								<DropdownMenuItem onClick={() => onExport("json", false)}>
+									Export as JSON
+								</DropdownMenuItem>
+								<DropdownMenuItem onClick={() => onExport("sql-inserts", false)}>
+									Export as SQL INSERTs
+								</DropdownMenuItem>
+								<DropdownMenuItem onClick={() => onExport("markdown", false)}>
+									Export as Markdown Table
+								</DropdownMenuItem>
+								<DropdownMenuSeparator />
+								<DropdownMenuItem onClick={() => onExport("clipboard-tsv", false)}>
+									Copy to Clipboard (TSV)
+								</DropdownMenuItem>
+								{hasSelectedRows && (
+									<>
+										<DropdownMenuSeparator />
+										<DropdownMenuItem onClick={() => onExport("csv", true)}>
+											Export Selected Rows (CSV)
+										</DropdownMenuItem>
+										<DropdownMenuItem onClick={() => onExport("clipboard-tsv", true)}>
+											Copy Selected Rows
+										</DropdownMenuItem>
+									</>
+								)}
+							</DropdownMenuContent>
+						</DropdownMenu>
+					)}
+					{viewMode === "data" && columnIds && columnIds.length > 0 && onToggleColumn && (
+						<DropdownMenu>
+							<Tooltip>
+								<TooltipTrigger asChild>
+									<DropdownMenuTrigger asChild>
+										<Button
+											variant="outline"
+											size="sm"
+											className="h-7 rounded-md border-border-subtle bg-surface-elevated px-2 text-[11px] font-medium text-foreground/68 shadow-xs hover:bg-surface-2"
+										>
+											<Columns3 size={11} />
+										</Button>
+									</DropdownMenuTrigger>
+								</TooltipTrigger>
+								<TooltipContent>Toggle columns</TooltipContent>
+							</Tooltip>
+							<DropdownMenuContent align="end" className="min-w-[180px] max-h-72 overflow-y-auto">
+								{columnIds.map((colId) => {
+									const visible = hiddenColumns?.[colId] !== false;
+									return (
+										<DropdownMenuItem
+											key={colId}
+											onSelect={(e) => e.preventDefault()}
+											onClick={() => onToggleColumn(colId, !visible)}
+											className="flex items-center gap-2"
+										>
+											<span className={cn("w-3.5 h-3.5 flex items-center justify-center rounded border border-border-subtle shrink-0", visible ? "bg-primary border-primary" : "bg-transparent")}>
+												{visible && <Check size={9} className="text-primary-foreground" />}
+											</span>
+											<span className="font-mono text-[11px] truncate">{colId}</span>
+										</DropdownMenuItem>
+									);
+								})}
+							</DropdownMenuContent>
+						</DropdownMenu>
+					)}
+					{/* Aggregation footer toggle */}
+					{viewMode === "data" && onToggleAggFooter && (
+						<Tooltip>
+							<TooltipTrigger asChild>
+								<Button
+									variant="outline"
+									size="sm"
+									onClick={onToggleAggFooter}
+									className={cn(
+										"h-7 rounded-md border-border-subtle px-2 text-[11px] font-medium shadow-xs",
+										showAggFooter
+											? "bg-accent-blue/12 text-accent-blue border-accent-blue/22 hover:bg-accent-blue/16"
+											: "bg-surface-elevated text-foreground/68 hover:bg-surface-2",
+									)}
+								>
+									<Sigma size={11} />
+								</Button>
+							</TooltipTrigger>
+							<TooltipContent>Aggregation footer (Σ)</TooltipContent>
+						</Tooltip>
+					)}
+					{/* Color rules toggle */}
+					{viewMode === "data" && onToggleColorRules && (
+						<Tooltip>
+							<TooltipTrigger asChild>
+								<Button
+									variant="outline"
+									size="sm"
+									onClick={onToggleColorRules}
+									className={cn(
+										"h-7 rounded-md border-border-subtle px-2 text-[11px] font-medium shadow-xs",
+										showColorRules
+											? "bg-accent-purple/12 text-accent-purple border-accent-purple/22 hover:bg-accent-purple/16"
+											: "bg-surface-elevated text-foreground/68 hover:bg-surface-2",
+									)}
+								>
+									<Paintbrush size={11} />
+								</Button>
+							</TooltipTrigger>
+							<TooltipContent>Conditional cell color rules</TooltipContent>
+						</Tooltip>
+					)}
 					{fn.tableName && (
 						<>
+						{/* Info panel toggle */}
+						{onToggleInfo && (
+							<Tooltip>
+								<TooltipTrigger asChild>
+									<Button
+										variant="ghost"
+										size="icon-xs"
+										aria-label="Table info"
+										onClick={onToggleInfo}
+										className={cn(
+											"text-foreground/48 hover:bg-surface-3",
+											showInfo && "bg-accent-blue/10 text-accent-blue",
+										)}
+									>
+										<Info size={11} />
+									</Button>
+								</TooltipTrigger>
+								<TooltipContent>Table info</TooltipContent>
+							</Tooltip>
+						)}
+						{/* Row detail panel toggle */}
+						{onToggleRowDetail && (
+							<Tooltip>
+								<TooltipTrigger asChild>
+									<Button
+										variant="ghost"
+										size="icon-xs"
+										aria-label="Row detail"
+										onClick={onToggleRowDetail}
+										className={cn(
+											"text-foreground/48 hover:bg-surface-3",
+											showRowDetail && "bg-accent-blue/10 text-accent-blue",
+										)}
+									>
+										{showRowDetail ? <PanelRightClose size={11} /> : <PanelRightOpen size={11} />}
+									</Button>
+								</TooltipTrigger>
+								<TooltipContent>Row detail (double-click row)</TooltipContent>
+							</Tooltip>
+						)}
 							{/* Rename table */}
 							<Tooltip>
 								<TooltipTrigger asChild>

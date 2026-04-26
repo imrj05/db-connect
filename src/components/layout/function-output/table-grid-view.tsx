@@ -13,6 +13,7 @@ import {
     SortingState,
     ColumnSizingState,
     VisibilityState,
+    ColumnPinningState,
 } from "@tanstack/react-table";
 import {
     Loader2,
@@ -26,9 +27,10 @@ import {
     Trash2,
     X,
     Plus,
-    AlignLeft,
-    ChevronLeft,
-    ChevronRight,
+     AlignLeft,
+     ChevronDown,
+     ChevronLeft,
+     ChevronRight,
     ExternalLink,
     Database as DatabaseIcon,
 } from "lucide-react";
@@ -75,6 +77,7 @@ import {
 import { tauriApi } from "@/lib/tauri-api";
 import { toast } from "@/components/ui/sonner";
 import { GridToolbar } from "@/components/layout/function-output/table-grid/grid-toolbar";
+import { TableInfoPanel } from "@/components/layout/function-output/table-grid/table-info-panel";
 import { FilterBar } from "@/components/layout/function-output/table-grid/filter-bar";
 import { ImportPanel } from "@/components/layout/function-output/table-grid/import-panel";
 import { RowContextMenu } from "@/components/layout/function-output/table-grid/row-context-menu";
@@ -91,6 +94,11 @@ import { DropIndexDialog } from "@/components/layout/function-output/table-grid/
 import { DumpDatabaseDialog, type DumpOptions } from "@/components/layout/function-output/table-grid/dump-database-dialog";
 import { ImportSqlDialog } from "@/components/layout/function-output/table-grid/import-sql-dialog";
 import { ERDiagramView } from "@/components/layout/function-output/table-grid/er-diagram-view";
+import { RowDetailPanel } from "@/components/layout/function-output/table-grid/row-detail-panel";
+import { runExport, type ExportPreset } from "@/lib/export-utils";
+import { ColumnStatsPanel } from "@/components/layout/function-output/table-grid/column-stats-panel";
+import { ColorRulesPanel, evaluateColorRule, COLOR_STYLE_MAP } from "@/components/layout/function-output/table-grid/color-rules-panel";
+import { CellColorRule, AggMetric } from "@/types";
 
 type ViewMode = "data" | "form" | "structure" | "er";
 
@@ -175,7 +183,10 @@ export function TableGridView({
     pageSize?: number;
 }) {
     const [viewMode, setViewMode] = useState<ViewMode>("data");
+    const [showInfo, setShowInfo] = useState(false);
+    const [showRowDetail, setShowRowDetail] = useState(false);
     const [selectedRowIdx, setSelectedRowIdx] = useState(-1);
+    const [selectedRowIdxSet, setSelectedRowIdxSet] = useState<Set<number>>(new Set());
     const [contextMenuCell, setContextMenuCell] = useState<{
         x: number;
         y: number;
@@ -197,6 +208,19 @@ export function TableGridView({
     >(null);
     const [sorting, setSorting] = useState<SortingState>([]);
     const [columnSizing, setColumnSizing] = useState<ColumnSizingState>({});
+    const [columnPinning, setColumnPinning] = useState<ColumnPinningState>({ left: [], right: [] });
+    // Feature 1: Column stats panel
+    const [statsCol, setStatsCol] = useState<string | null>(null);
+    // Feature 3: Aggregation footer
+    const [showAggFooter, setShowAggFooter] = useState(false);
+    const [footerMetrics, setFooterMetrics] = useState<Record<string, AggMetric>>({});
+    // Feature 4: Color rules
+    const [showColorRules, setShowColorRules] = useState(false);
+    const [colorRules, setColorRules] = useState<CellColorRule[]>([]);
+    // Feature 6: Per-tab page size
+    const [localPageSize, setLocalPageSize] = useState<number | null>(null);
+    // effective page size (local override wins over global setting)
+    const effectivePageSize = localPageSize ?? pageSize;
     const [structure, setStructure] = useState<TableStructure | null>(null);
     const [structureLoading, setStructureLoading] = useState(false);
     const [schemaGraph, setSchemaGraph] = useState<SchemaGraph | null>(null);
@@ -223,6 +247,7 @@ export function TableGridView({
     // Delete row state
     const [deleteRowSql, setDeleteRowSql] = useState<string | null>(null);
     const [deleteRowLoading, setDeleteRowLoading] = useState(false);
+    const [bulkDeleteLoading, setBulkDeleteLoading] = useState(false);
     // Drop table state
     const [showDropTable, setShowDropTable] = useState(false);
     const [dropTableLoading, setDropTableLoading] = useState(false);
@@ -269,6 +294,8 @@ export function TableGridView({
         queuePendingCellEdit,
         clearPendingCellEdits,
         removePendingCellEdits,
+        pushUndoEntry,
+        undoLastCellEdit,
         refreshTables,
         invokeFunction,
         queryLogOpen,
@@ -276,7 +303,11 @@ export function TableGridView({
         updateTabFilteredResult,
         updateTabFiltersActive,
         clearTabFilters,
+        appSettings,
     } = useAppStore();
+    const rowHeightClass =
+        appSettings.rowDensity === "compact" ? "h-6" :
+        appSettings.rowDensity === "comfortable" ? "h-11" : "h-8";
     const dbType =
         connections.find((c) => c.id === fn.connectionId)?.type ?? "postgresql";
     const isRelationalDb =
@@ -326,7 +357,7 @@ export function TableGridView({
                     const qi = (name: string) => (isMysql ? `\`${name}\`` : `"${name}"`);
                     const isNum = displayValue !== "" && !isNaN(Number(displayValue));
                     const sqlVal = isNum ? displayValue : `'${displayValue.replace(/'/g, "''")}'`;
-                    const sql = `SELECT * FROM ${qi(relation.targetTable)} WHERE ${qi(targetCol)} = ${sqlVal} LIMIT ${pageSize}`;
+                    const sql = `SELECT * FROM ${qi(relation.targetTable)} WHERE ${qi(targetCol)} = ${sqlVal} LIMIT ${effectivePageSize}`;
                     const result = await tauriApi.executeQuery(fn.connectionId, sql);
                     useAppStore.getState().updateTabFilteredResult(newActiveTabId, result);
                 } catch {
@@ -334,7 +365,7 @@ export function TableGridView({
                 }
             }
         },
-        [connectionFunctions, fn.connectionId, invokeFunction, pageSize, connections],
+        [connectionFunctions, fn.connectionId, invokeFunction, effectivePageSize, connections],
     );
     const exportData = useCallback(
         (format: "csv" | "json" | "sql") => {
@@ -516,7 +547,7 @@ export function TableGridView({
                 if (i === 0) return part;
                 return `${acc} ${filters[i].join} ${part}`;
             }, "");
-            const sql = `SELECT * FROM ${qi(fn.tableName)} WHERE ${whereClause} LIMIT ${pageSize} OFFSET ${page * pageSize}`;
+            const sql = `SELECT * FROM ${qi(fn.tableName)} WHERE ${whereClause} LIMIT ${effectivePageSize} OFFSET ${page * effectivePageSize}`;
             const result = await tauriApi.executeQuery(fn.connectionId, sql);
             setFilteredResult(result);
         } catch {
@@ -606,6 +637,26 @@ export function TableGridView({
             ),
         );
     }, [cellSearch, optimisticRows]);
+    // Feature 3: Aggregation footer — compute per-column aggregates from searched rows
+    const aggValues = useMemo(() => {
+        if (!showAggFooter) return {} as Record<string, Record<string, number | null>>;
+        const result: Record<string, Record<string, number | null>> = {};
+        for (const col of resultColumns) {
+            const nums = searchedRows
+                .map((row) => row[col])
+                .filter((v) => v !== null && v !== undefined && !isNaN(Number(v)))
+                .map((v) => Number(v));
+            const vals = searchedRows.map((r) => r[col]).filter((v) => v !== null && v !== undefined);
+            result[col] = {
+                count: vals.length,
+                sum: nums.length > 0 ? nums.reduce((a, b) => a + b, 0) : null,
+                avg: nums.length > 0 ? nums.reduce((a, b) => a + b, 0) / nums.length : null,
+                min: nums.length > 0 ? Math.min(...nums) : null,
+                max: nums.length > 0 ? Math.max(...nums) : null,
+            };
+        }
+        return result;
+    }, [showAggFooter, resultColumns, searchedRows]);
     const autoColumnSizing = useMemo(() => {
         const sizing: ColumnSizingState = {};
         for (const col of resultColumns) {
@@ -1059,6 +1110,23 @@ export function TableGridView({
                 );
                 const updateSql = `UPDATE ${qi(fn.tableName)} SET ${qi(edit.columnId)} = ${valueToSqlLiteral(edit.pendingValue)} WHERE ${whereParts.join(" AND ")}`;
                 await tauriApi.executeQuery(fn.connectionId, updateSql);
+                // Build reverse UPDATE for undo
+                const reverseSql = `UPDATE ${qi(fn.tableName)} SET ${qi(edit.columnId)} = ${valueToSqlLiteral(edit.originalValue)} WHERE ${whereParts.join(" AND ")}`;
+                if (activeTabId) {
+                    pushUndoEntry(activeTabId, {
+                        id: `undo-${Date.now()}-${edit.id}`,
+                        tabId: activeTabId,
+                        connectionId: fn.connectionId,
+                        tableName: fn.tableName,
+                        rowKey: edit.rowKey,
+                        primaryKeyValues: whereKeys,
+                        columnId: edit.columnId,
+                        oldValue: edit.originalValue,
+                        newValue: edit.pendingValue,
+                        committedAt: Date.now(),
+                        reverseSql,
+                    });
+                }
                 appliedIds.push(edit.id);
                 if (Object.prototype.hasOwnProperty.call(whereKeys, edit.columnId)) {
                     whereKeys[edit.columnId] = edit.pendingValue;
@@ -1088,6 +1156,7 @@ export function TableGridView({
         page,
         pendingEdits,
         removePendingCellEdits,
+        pushUndoEntry,
         valueToSqlLiteral,
     ]);
     useEffect(() => {
@@ -1171,6 +1240,19 @@ export function TableGridView({
         window.addEventListener("keydown", handler);
         return () => window.removeEventListener("keydown", handler);
     }, [viewMode]);
+    // ⌘Z / Ctrl+Z — undo last committed cell edit
+    useEffect(() => {
+        const handler = (e: KeyboardEvent) => {
+            if (!(e.metaKey || e.ctrlKey) || e.key !== "z") return;
+            const tag = (document.activeElement as HTMLElement)?.tagName;
+            if (tag === "INPUT" || tag === "TEXTAREA") return;
+            if (!activeTabId) return;
+            e.preventDefault();
+            undoLastCellEdit(activeTabId);
+        };
+        window.addEventListener("keydown", handler);
+        return () => window.removeEventListener("keydown", handler);
+    }, [activeTabId, undoLastCellEdit]);
     useEffect(() => {
         const handler = (e: KeyboardEvent) => {
             if (e.key !== "Enter") return;
@@ -1276,6 +1358,45 @@ export function TableGridView({
             setDeleteRowLoading(false);
         }
     }, [deleteRowSql, fn, page, onPageChange]);
+
+    const buildWhereForRow = useCallback((rowData: Record<string, unknown>) => {
+        const pks = structure?.columns.filter((c) => c.isPrimary).map((c) => c.name) ?? [];
+        if (pks.length > 0) {
+            return pks.map((pk) => {
+                const v = rowData[pk];
+                if (v === null || v === undefined) return `${qi(pk)} IS NULL`;
+                return `${qi(pk)} = '${String(v).replace(/'/g, "''")}'`;
+            }).join(" AND ");
+        }
+        return Object.entries(rowData).map(([col, v]) => {
+            if (v === null || v === undefined) return `${qi(col)} IS NULL`;
+            return `${qi(col)} = '${String(v).replace(/'/g, "''")}'`;
+        }).join(" AND ");
+    }, [structure, qi]);
+
+    const executeBulkDelete = useCallback(async () => {
+        if (!fn.tableName || selectedRowIdxSet.size === 0 || !searchedRows) return;
+        const confirmed = window.confirm(`Delete ${selectedRowIdxSet.size} selected rows from ${fn.tableName}?`);
+        if (!confirmed) return;
+        setBulkDeleteLoading(true);
+        try {
+            const stmts = Array.from(selectedRowIdxSet).map((idx) => {
+                const rowData = searchedRows[idx] as Record<string, unknown>;
+                return `DELETE FROM ${qi(fn.tableName!)} WHERE ${buildWhereForRow(rowData)}`;
+            });
+            for (const stmt of stmts) {
+                await tauriApi.executeQuery(fn.connectionId, stmt);
+            }
+            setSelectedRowIdxSet(new Set());
+            setSelectedRowIdx(-1);
+            await onPageChange(page);
+        } catch (e) {
+            setCellEditError(String(e));
+        } finally {
+            setBulkDeleteLoading(false);
+        }
+    }, [fn, selectedRowIdxSet, searchedRows, qi, buildWhereForRow, page, onPageChange]);
+
     // ── Row context menu helpers ────────────────────────────────────────────────
     const copyToClipboard = (text: string) =>
         navigator.clipboard.writeText(text);
@@ -1739,17 +1860,26 @@ export function TableGridView({
                                 >
                                     <ExternalLink size={11} />
                                 </button>
-                            )}
-                        </div>
+                 )}
+                 {/* Feature 1: Column Stats Panel */}
+                 {statsCol && effectiveResult && (
+                     <ColumnStatsPanel
+                         colId={statsCol}
+                         rows={effectiveResult.rows}
+                         onClose={() => setStatsCol(null)}
+                     />
+                 )}
+              </div>
                     );
                 },
             })),
         ],
         columnResizeMode: "onChange",
-        state: { sorting, columnSizing, columnVisibility },
+        state: { sorting, columnSizing, columnVisibility, columnPinning },
         onSortingChange: setSorting,
         onColumnSizingChange: setColumnSizing,
         onColumnVisibilityChange: setColumnVisibility,
+        onColumnPinningChange: setColumnPinning,
         getCoreRowModel: getCoreRowModel(),
         getSortedRowModel: getSortedRowModel(),
     });
@@ -1825,6 +1955,43 @@ export function TableGridView({
                 onToggleImport={() => { setShowImport((v) => !v); setImportDone(null); }}
                 onRenameTable={() => { setRenameTableName(fn.tableName ?? ""); setShowRenameTable(true); }}
                 onDropTable={() => setShowDropTable(true)}
+                showInfo={showInfo}
+                onToggleInfo={() => setShowInfo((v) => !v)}
+                showRowDetail={showRowDetail}
+                onToggleRowDetail={() => {
+                    setShowRowDetail((v) => !v);
+                    if (!showRowDetail && selectedRowIdx < 0 && (effectiveResult?.rows.length ?? 0) > 0) {
+                        setSelectedRowIdx(0);
+                    }
+                }}
+                hasSelectedRows={selectedRowIdx >= 0}
+                 columnIds={resultColumns}
+                 hiddenColumns={columnVisibility as Record<string, boolean>}
+                 onToggleColumn={(colId, visible) => setColumnVisibility((v) => ({ ...v, [colId]: visible }))}
+                 undoCount={activeTab?.undoHistory?.length ?? 0}
+                 onUndo={() => activeTabId && undoLastCellEdit(activeTabId)}
+                 selectedRowCount={selectedRowIdxSet.size}
+                 onBulkDelete={executeBulkDelete}
+                 bulkDeleteLoading={bulkDeleteLoading}
+                 showAggFooter={showAggFooter}
+                 onToggleAggFooter={() => setShowAggFooter((v) => !v)}
+                 showColorRules={showColorRules}
+                 onToggleColorRules={() => setShowColorRules((v) => !v)}
+                onExport={async (preset: ExportPreset, selectedOnly: boolean) => {
+                    const result = effectiveResult;
+                    if (!result) return;
+                    try {
+                        const rows =
+                            selectedOnly && selectedRowIdx >= 0
+                                ? [result.rows[selectedRowIdx]]
+                                : result.rows;
+                        await runExport(preset, result.columns, rows, fn.tableName ?? "export");
+                        if (preset !== "clipboard-tsv") toast.success(selectedOnly && selectedRowIdx >= 0 ? "Exported selected row" : "Exported");
+                        else toast.success("Copied to clipboard");
+                    } catch {
+                        toast.error("Export failed");
+                    }
+                }}
             />
             <FilterBar
                 viewMode={viewMode}
@@ -1838,6 +2005,30 @@ export function TableGridView({
                 onAddFilter={addFilter}
                 onApply={applyFilters}
             />
+            {/* Feature 4: Color rules panel */}
+            {showColorRules && viewMode === "data" && (
+                <ColorRulesPanel
+                    rules={colorRules}
+                    columns={resultColumns}
+                    onAdd={() => setColorRules((prev) => [
+                        ...prev,
+                        {
+                            id: `cr-${Date.now()}`,
+                            col: "",
+                            op: "=",
+                            value: "",
+                            color: "blue",
+                        },
+                    ])}
+                    onRemove={(id) => setColorRules((prev) => prev.filter((r) => r.id !== id))}
+                    onUpdate={(id, patch) =>
+                        setColorRules((prev) =>
+                            prev.map((r) => (r.id === id ? { ...r, ...patch } : r)),
+                        )
+                    }
+                    onClose={() => setShowColorRules(false)}
+                />
+            )}
             <ImportPanel
                 show={showImport}
                 viewMode={viewMode}
@@ -1856,6 +2047,7 @@ export function TableGridView({
             />
             {/* Content: Data view */}
             {viewMode === "data" && (
+                <div className="flex flex-1 min-h-0 overflow-hidden">
                 <div className="flex-1 overflow-auto scrollbar-thin bg-surface-3">
                     <div className="min-w-full block align-middle">
                         <Table
@@ -1937,6 +2129,32 @@ export function TableGridView({
                                                                         : "↓"}
                                                                 </span>
                                                             )}
+                                                        {/* Column type badges */}
+                                                        {(() => {
+                                                            const col = structure?.columns.find((c) => c.name === colId);
+                                                            if (!col) return null;
+                                                            const fkNames = new Set(
+                                                                (schemaGraph?.relationships ?? [])
+                                                                    .filter((r) => r.sourceTable === fn.tableName)
+                                                                    .flatMap((r) => r.sourceColumns)
+                                                            );
+                                                            return (
+                                                                <span className="flex items-center gap-0.5 ml-auto opacity-60 group-hover/th:opacity-100 transition-opacity">
+                                                                    {col.isPrimary && (
+                                                                        <span className="rounded-[2px] border border-accent-yellow/40 bg-accent-yellow/10 px-0.5 text-[7px] font-bold text-accent-yellow leading-none">PK</span>
+                                                                    )}
+                                                                    {fkNames.has(col.name) && (
+                                                                        <span className="rounded-[2px] border border-accent-blue/40 bg-accent-blue/10 px-0.5 text-[7px] font-bold text-accent-blue leading-none">FK</span>
+                                                                    )}
+                                                                    {col.isUnique && !col.isPrimary && (
+                                                                        <span className="rounded-[2px] border border-accent-purple/40 bg-accent-purple/10 px-0.5 text-[7px] font-bold text-accent-purple leading-none">UQ</span>
+                                                                    )}
+                                                                    <span className="rounded-[2px] border border-border/50 bg-muted/30 px-0.5 text-[7px] font-mono text-muted-foreground/50 leading-none">
+                                                                        {col.dataType.replace(/\(.*\)/, "").toUpperCase().slice(0, 7)}
+                                                                    </span>
+                                                                </span>
+                                                            );
+                                                        })()}
                                                     </div>
                                                     {header.column.getCanResize() && (
                                                         <div
@@ -1993,34 +2211,49 @@ export function TableGridView({
                                                 key={row.id}
                                                 className={cn(
                                                     "hover:bg-row-hover transition-colors group cursor-default",
-                                                    isSelected
+                                                    rowHeightClass,
+                                                    isSelected || selectedRowIdxSet.has(idx)
                                                         ? "bg-surface-selected/82 border-l-2 border-primary/70"
                                                         : idx % 2 === 0
                                                             ? "bg-table-bg"
                                                             : "bg-row-alt",
                                                 )}
+                                                onDoubleClick={() => {
+                                                    setSelectedRowIdx(idx);
+                                                    setShowRowDetail(true);
+                                                }}
                                             >
                                                 <TableCell
                                                     className={cn(
-                                                        "w-11 h-8 px-2.5 text-center border-r border-border-subtle cursor-pointer select-none transition-colors sticky left-0 z-20 bg-surface-2",
+                                                        "w-11 px-2.5 text-center border-r border-border-subtle cursor-pointer select-none transition-colors sticky left-0 z-20 bg-surface-2",
+                                                        rowHeightClass,
                                                         isSelected
                                                             ? "bg-surface-selected/82 text-foreground font-bold"
                                                             : "text-foreground/38 bg-surface-2/92 hover:bg-surface-selected/82 hover:text-foreground",
                                                     )}
-                                                    onClick={() =>
-                                                        setSelectedRowIdx(
-                                                            isSelected
-                                                                ? -1
-                                                                : idx,
-                                                        )
-                                                    }
-                                                    onContextMenu={(e) => {
-                                                        e.preventDefault();
-                                                        setContextMenuCell({ x: e.clientX, y: e.clientY, rowIdx: idx, col: null, rowData });
-                                                    }}
-                                                >
-                                                    {page * pageSize + idx + 1}
-                                                </TableCell>
+                                                     onClick={(e) => {
+                                                        if (e.shiftKey || e.metaKey || e.ctrlKey) {
+                                                            // Multi-select toggle
+                                                            setSelectedRowIdxSet((prev) => {
+                                                                const next = new Set(prev);
+                                                                if (next.has(idx)) next.delete(idx);
+                                                                else next.add(idx);
+                                                                return next;
+                                                            });
+                                                        } else {
+                                                            setSelectedRowIdxSet(new Set());
+                                                            setSelectedRowIdx(isSelected ? -1 : idx);
+                                                        }
+                                                     }}
+                                                     onContextMenu={(e) => {
+                                                         e.preventDefault();
+                                                         setContextMenuCell({ x: e.clientX, y: e.clientY, rowIdx: idx, col: null, rowData });
+                                                     }}
+                                                 >
+                                                     {selectedRowIdxSet.has(idx)
+                                                         ? <span className="text-primary font-bold">✓</span>
+                                                         : page * effectivePageSize + idx + 1}
+                                                 </TableCell>
                                                 {row
                                                     .getVisibleCells()
                                                     .map((cell) => {
@@ -2034,6 +2267,15 @@ export function TableGridView({
                                                             idx &&
                                                             selectedCell?.colId ===
                                                             cell.column.id;
+                                                        // Feature 4: color rules — find first matching rule for this cell
+                                                        const matchingRule = colorRules.length > 0
+                                                            ? colorRules.find((r) =>
+                                                                evaluateColorRule(r, cell.column.id, rowData[cell.column.id])
+                                                            ) ?? null
+                                                            : null;
+                                                        const colorStyle = matchingRule
+                                                            ? COLOR_STYLE_MAP[matchingRule.color]
+                                                            : undefined;
                                                         return (
                                                             <TableCell
                                                                 key={cell.id}
@@ -2042,6 +2284,8 @@ export function TableGridView({
                                                                 }}
                                                                 className={cn(
                                                                     "relative h-8 overflow-hidden border-r border-border-subtle px-4 text-foreground/92 whitespace-nowrap text-ellipsis last:border-r-0",
+                                                                    colorStyle && colorStyle.bg,
+                                                                    colorStyle && colorStyle.text,
                                                                     pendingEdit && "bg-warning/10 ring-1 ring-inset ring-warning/40",
                                                                     cell.column.id === selectedColId && "bg-surface-selected/58",
                                                                     isCellSelected && "bg-surface-selected/82 ring-1 ring-inset ring-primary/45",
@@ -2144,9 +2388,98 @@ export function TableGridView({
                                     })
                                 )}
                             </TableBody>
+                            {/* Feature 3: Aggregation footer row */}
+                            {showAggFooter && (
+                                <tfoot className="sticky bottom-0 z-10 bg-surface-2/96 backdrop-blur-sm">
+                                    <tr className="border-t border-border-subtle shadow-[0_-1px_0_var(--color-border-subtle)]">
+                                        {/* Row number cell */}
+                                        <td className="w-11 px-2.5 text-center border-r border-border-subtle sticky left-0 z-20 bg-surface-2/98">
+                                            <span className="text-[8.5px] font-bold uppercase tracking-widest text-foreground/30">Σ</span>
+                                        </td>
+                                        {table.getVisibleLeafColumns().map((col) => {
+                                            const metric = footerMetrics[col.id] ?? null;
+                                            const agg = aggValues[col.id] ?? {};
+                                            const CYCLE: AggMetric[] = ["sum", "avg", "min", "max", "count", null];
+                                            const next = CYCLE[(CYCLE.indexOf(metric) + 1) % CYCLE.length];
+                                            const displayVal = metric && agg[metric] !== null && agg[metric] !== undefined
+                                                ? (() => {
+                                                    const v = agg[metric]!;
+                                                    return Math.abs(v) >= 10000
+                                                        ? v.toLocaleString(undefined, { maximumFractionDigits: 2 })
+                                                        : Number.isInteger(v)
+                                                            ? v.toLocaleString()
+                                                            : v.toPrecision(5).replace(/\.?0+$/, "");
+                                                })()
+                                                : null;
+                                            return (
+                                                <td
+                                                    key={col.id}
+                                                    style={{ width: col.getSize() }}
+                                                    className="h-7 px-3 border-r border-border-subtle last:border-r-0 cursor-pointer select-none group/agg"
+                                                    onClick={() =>
+                                                        setFooterMetrics((prev) => ({
+                                                            ...prev,
+                                                            [col.id]: next,
+                                                        }))
+                                                    }
+                                                    title={`Click to cycle: ${CYCLE.map((m) => m ?? "off").join(" → ")}`}
+                                                >
+                                                    <div className="flex items-center justify-end gap-1">
+                                                        {metric && (
+                                                            <span className="text-[8px] font-bold uppercase text-foreground/36 group-hover/agg:text-foreground/55">
+                                                                {metric}
+                                                            </span>
+                                                        )}
+                                                        <span className={cn(
+                                                            "text-[11px] font-mono tabular-nums",
+                                                            displayVal
+                                                                ? "text-accent-blue"
+                                                                : "text-foreground/20 group-hover/agg:text-foreground/40",
+                                                        )}>
+                                                            {displayVal ?? "—"}
+                                                        </span>
+                                                    </div>
+                                                </td>
+                                            );
+                                        })}
+                                    </tr>
+                                </tfoot>
+                            )}
                         </Table>
                     </div>
                 </div>
+                {/* Table Info Panel */}
+                {showInfo && fn.tableName && (
+                    <div className="w-[260px] shrink-0 border-l border-border overflow-hidden flex flex-col">
+                        <div className="h-8 px-3 flex items-center justify-between border-b border-border shrink-0">
+                            <span className="text-[9px] font-bold uppercase tracking-[0.12em] text-muted-foreground/50">
+                                Table Info
+                            </span>
+                        </div>
+                        <TableInfoPanel
+                            structure={structure}
+                            fkRelations={schemaGraph?.relationships ?? []}
+                            tableName={fn.tableName}
+                             rowCount={effectiveResult?.rows.length ?? 0}
+                         />
+                     </div>
+                 )}
+                {/* Row Detail Panel */}
+                {showRowDetail && selectedRowIdx >= 0 && effectiveResult && (
+                    <RowDetailPanel
+                        row={effectiveResult.rows[selectedRowIdx] ?? {}}
+                        rowIndex={page * effectivePageSize + selectedRowIdx}
+                        totalRows={effectiveResult.rows.length}
+                        tableName={fn.tableName}
+                        structure={structure}
+                        onClose={() => setShowRowDetail(false)}
+                        onPrev={() => setSelectedRowIdx((i) => Math.max(0, i - 1))}
+                        onNext={() => setSelectedRowIdx((i) => Math.min(effectiveResult.rows.length - 1, i + 1))}
+                        hasPrev={selectedRowIdx > 0}
+                        hasNext={selectedRowIdx < effectiveResult.rows.length - 1}
+                    />
+                )}
+             </div>
             )}
             <RowContextMenu
                 contextMenu={contextMenuCell}
@@ -2197,11 +2530,25 @@ export function TableGridView({
                 onResizeAllToMatch={resizeAllToMatch}
                 onResizeAllToFitContent={resizeAllToFitContent}
                 onResizeAllFixed={() => resizeAllToMatch(DEFAULT_FIXED_COLUMN_WIDTH)}
-                onHideColumn={(colId) => setColumnVisibility((v) => ({ ...v, [colId]: false }))}
-                onResetLayout={resetLayout}
-                onOpenFilter={openFilterForCol}
-                getColSize={(colId) => table.getColumn(colId)?.getSize() ?? DEFAULT_FIXED_COLUMN_WIDTH}
-            />
+                 onHideColumn={(colId) => setColumnVisibility((v) => ({ ...v, [colId]: false }))}
+                 onResetLayout={resetLayout}
+                 onOpenFilter={openFilterForCol}
+                 getColSize={(colId) => table.getColumn(colId)?.getSize() ?? DEFAULT_FIXED_COLUMN_WIDTH}
+                 onPinLeft={(colId) => setColumnPinning((prev) => ({
+                     left: [...(prev.left ?? []).filter((c) => c !== colId), colId],
+                     right: (prev.right ?? []).filter((c) => c !== colId),
+                 }))}
+                 onPinRight={(colId) => setColumnPinning((prev) => ({
+                     left: (prev.left ?? []).filter((c) => c !== colId),
+                     right: [...(prev.right ?? []).filter((c) => c !== colId), colId],
+                 }))}
+                 onUnpin={(colId) => setColumnPinning((prev) => ({
+                     left: (prev.left ?? []).filter((c) => c !== colId),
+                     right: (prev.right ?? []).filter((c) => c !== colId),
+                 }))}
+                 isPinned={(colId) => table.getColumn(colId)?.getIsPinned() ?? false}
+                 onShowStats={(colId) => setStatsCol((prev) => (prev === colId ? null : colId))}
+             />
             <DeleteRowDialog
                 sql={deleteRowSql}
                 loading={deleteRowLoading}
@@ -2337,7 +2684,7 @@ export function TableGridView({
                                                 </div>
                                                 <div className="flex flex-wrap items-center gap-2 text-[11px] font-mono text-foreground/64">
                                                     <Badge variant="outline" className="h-5 rounded-md border-border/60 bg-muted/40 px-1.5 text-[10px] font-medium text-muted-foreground/72">
-                                                        Row {page * pageSize + formRowIdx + 1}
+                                                        Row {page * effectivePageSize + formRowIdx + 1}
                                                     </Badge>
                                                     <Badge variant="outline" className="h-5 rounded-md border-border/60 bg-muted/40 px-1.5 text-[10px] font-medium text-muted-foreground/72">
                                                         {cols.length} fields
@@ -2436,7 +2783,7 @@ export function TableGridView({
                                                     Current row
                                                 </div>
                                                 <div className="mt-1 font-mono text-foreground">
-                                                    {page * pageSize + formRowIdx + 1} / {effectiveResult.rows.length}
+                                                    {page * effectivePageSize + formRowIdx + 1} / {effectiveResult.rows.length}
                                                 </div>
                                             </div>
                                             <div className="rounded-lg border border-border-subtle bg-surface-3 px-3 py-2">
@@ -3056,22 +3403,54 @@ export function TableGridView({
                             <span className="tabular-nums text-foreground/56">
                                 {effectiveResult.rows.length === 0
                                     ? "0 rows"
-                                    : `${page * pageSize + 1}–${page * pageSize + effectiveResult.rows.length}`}
+                                    : `${page * effectivePageSize + 1}–${page * effectivePageSize + effectiveResult.rows.length}`}
                             </span>
                             <Button
                                 variant="ghost"
                                 size="xs"
-                                disabled={
-                                    effectiveResult.rows.length < 50 ||
-                                    filtersActive
-                                }
+                                 disabled={
+                                     effectiveResult.rows.length < effectivePageSize ||
+                                     filtersActive
+                                 }
                                 onClick={() => onPageChange(page + 1)}
                                 className="h-6 px-2 text-[11px] text-foreground/58"
                             >
                                 Next →
                             </Button>
-                        </div>
-                        <DropdownMenu>
+                         </div>
+                         {/* Feature 6: Per-tab page size selector */}
+                         <DropdownMenu>
+                             <DropdownMenuTrigger asChild>
+                                 <Button size="xs" variant="ghost" className="h-6 gap-1 px-2 text-[11px] text-foreground/55">
+                                     {effectivePageSize} / page
+                                     <ChevronDown size={9} />
+                                 </Button>
+                             </DropdownMenuTrigger>
+                             <DropdownMenuContent align="end" side="top" className="text-[11px] w-[110px]">
+                                 {[25, 50, 100, 250, 500].map((n) => (
+                                     <DropdownMenuItem
+                                         key={n}
+                                         onClick={() => { setLocalPageSize(n); onPageChange(0); }}
+                                         className={cn("gap-2 cursor-pointer", effectivePageSize === n && "font-semibold text-primary")}
+                                     >
+                                         {n} rows
+                                         {effectivePageSize === n && <span className="ml-auto text-primary">✓</span>}
+                                     </DropdownMenuItem>
+                                 ))}
+                                 {localPageSize !== null && (
+                                     <>
+                                         <DropdownMenuSeparator />
+                                         <DropdownMenuItem
+                                             onClick={() => { setLocalPageSize(null); onPageChange(0); }}
+                                             className="gap-2 cursor-pointer text-foreground/55"
+                                         >
+                                             Reset to default
+                                         </DropdownMenuItem>
+                                     </>
+                                 )}
+                             </DropdownMenuContent>
+                         </DropdownMenu>
+                         <DropdownMenu>
                             <DropdownMenuTrigger asChild>
                                 <Button size="xs" variant="outline" className="h-6 gap-1.5 px-2 text-[11px]">
                                     <Download size={10} />
