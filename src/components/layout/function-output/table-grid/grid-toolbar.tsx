@@ -36,6 +36,7 @@ import {
 } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
 import { ConnectionFunction } from "@/types";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 
 export function GridToolbar({
 	fn,
@@ -129,6 +130,7 @@ export function GridToolbar({
 	onSetAutoRefresh?: (n: number | null) => void;
 }) {
 	const [colSearch, setColSearch] = useState("");
+	const [colVisOpen, setColVisOpen] = useState(false);
 	return (
 		<>
 			{/* Header */}
@@ -360,60 +362,59 @@ export function GridToolbar({
 							</DropdownMenuContent>
 						</DropdownMenu>
 					)}
-				{viewMode === "data" && columnIds && columnIds.length > 0 && onToggleColumn && (
-					<DropdownMenu onOpenChange={(open) => { if (open) setColSearch(""); }}>
-						<Tooltip>
-							<TooltipTrigger asChild>
-								<DropdownMenuTrigger asChild>
-									<Button
-										variant="outline"
-										size="sm"
-										className="h-7 rounded-md border-border-subtle bg-surface-elevated px-2 text-[11px] font-medium text-foreground/68 shadow-xs hover:bg-surface-2"
-									>
-										<Columns3 size={11} />
-									</Button>
-								</DropdownMenuTrigger>
-							</TooltipTrigger>
-							<TooltipContent>Toggle columns</TooltipContent>
-						</Tooltip>
-						<DropdownMenuContent align="end" className="min-w-[180px] p-0">
-							<div className="px-2.5 py-1.5 border-b border-border-subtle">
-								<input
-									autoFocus
-									value={colSearch}
-									onChange={(e) => setColSearch(e.target.value)}
-									placeholder="Search columns…"
-									onKeyDown={(e) => e.stopPropagation()}
-									className="w-full bg-transparent text-[11px] font-mono outline-none text-foreground placeholder:text-foreground/38"
-								/>
-							</div>
-							<div className="max-h-60 overflow-y-auto">
-								{columnIds
-									.filter(
-										(colId) =>
-											!colSearch ||
-											colId.toLowerCase().includes(colSearch.toLowerCase()),
-									)
-									.map((colId) => {
-										const visible = hiddenColumns?.[colId] !== false;
-										return (
-											<DropdownMenuItem
-												key={colId}
-												onSelect={(e) => e.preventDefault()}
-												onClick={() => onToggleColumn(colId, !visible)}
-												className="flex items-center gap-2"
-											>
-												<span className={cn("w-3.5 h-3.5 flex items-center justify-center rounded border border-border-subtle shrink-0", visible ? "bg-primary border-primary" : "bg-transparent")}>
-													{visible && <Check size={9} className="text-primary-foreground" />}
-												</span>
-												<span className="font-mono text-[11px] truncate">{colId}</span>
-											</DropdownMenuItem>
-										);
-									})}
-							</div>
-						</DropdownMenuContent>
-					</DropdownMenu>
-				)}
+			{viewMode === "data" && columnIds && columnIds.length > 0 && onToggleColumn && (
+				<Popover open={colVisOpen} onOpenChange={(open) => { setColVisOpen(open); if (open) setColSearch(""); }}>
+					<Tooltip>
+						<TooltipTrigger asChild>
+							<PopoverTrigger asChild>
+								<Button
+									variant="outline"
+									size="sm"
+									className="h-7 rounded-md border-border-subtle bg-surface-elevated px-2 text-[11px] font-medium text-foreground/68 shadow-xs hover:bg-surface-2"
+								>
+									<Columns3 size={11} />
+								</Button>
+							</PopoverTrigger>
+						</TooltipTrigger>
+						<TooltipContent>Toggle columns</TooltipContent>
+					</Tooltip>
+					<PopoverContent align="end" className="min-w-[180px] w-auto p-0">
+						<div className="px-2.5 py-1.5 border-b border-border-subtle">
+							<input
+								autoFocus
+								value={colSearch}
+								onChange={(e) => setColSearch(e.target.value)}
+								placeholder="Search columns…"
+								className="w-full bg-transparent text-[11px] font-mono outline-none text-foreground placeholder:text-foreground/38"
+							/>
+						</div>
+						<div className="max-h-60 overflow-y-auto">
+							{columnIds
+								.filter(
+									(colId) =>
+										!colSearch ||
+										colId.toLowerCase().includes(colSearch.toLowerCase()),
+								)
+								.map((colId) => {
+									const visible = hiddenColumns?.[colId] !== false;
+									return (
+										<button
+											key={colId}
+											type="button"
+											onClick={() => onToggleColumn(colId, !visible)}
+											className="flex items-center gap-2 w-full px-2 py-1.5 hover:bg-surface-2 cursor-pointer"
+										>
+											<span className={cn("w-3.5 h-3.5 flex items-center justify-center rounded border border-border-subtle shrink-0", visible ? "bg-primary border-primary" : "bg-transparent")}>
+												{visible && <Check size={9} className="text-primary-foreground" />}
+											</span>
+											<span className="font-mono text-[11px] truncate">{colId}</span>
+										</button>
+									);
+								})}
+						</div>
+					</PopoverContent>
+				</Popover>
+			)}
 					{/* Aggregation footer toggle */}
 					{viewMode === "data" && onToggleAggFooter && (
 						<Tooltip>

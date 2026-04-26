@@ -226,6 +226,11 @@ export function TableGridView({
     const [insertRowValues, setInsertRowValues] = useState<Record<string, string>>({});
     // Batch 9: Auto-refresh
     const [autoRefreshInterval, setAutoRefreshInterval] = useState<number | null>(null);
+    // Stable refs so the auto-refresh interval doesn't restart when page/onPageChange change
+    const onPageChangeRef = useRef(onPageChange);
+    onPageChangeRef.current = onPageChange;
+    const pageRef = useRef(page);
+    pageRef.current = page;
     // Batch 9: Jump to page
     const [jumpingToPage, setJumpingToPage] = useState(false);
     const [jumpPageInput, setJumpPageInput] = useState("");
@@ -1261,14 +1266,14 @@ export function TableGridView({
         window.addEventListener("keydown", handler);
         return () => window.removeEventListener("keydown", handler);
     }, [activeTabId, undoLastCellEdit]);
-    // Batch 9: Auto-refresh interval
+    // Batch 9: Auto-refresh interval — only depends on interval value; page/onPageChange are read via refs
     useEffect(() => {
         if (!autoRefreshInterval) return;
         const id = setInterval(() => {
-            onPageChange(page);
+            onPageChangeRef.current(pageRef.current);
         }, autoRefreshInterval * 1000);
         return () => clearInterval(id);
-    }, [autoRefreshInterval, page, onPageChange]);
+    }, [autoRefreshInterval]);
     useEffect(() => {
         const handler = (e: KeyboardEvent) => {
             if (e.key !== "Enter") return;
@@ -3535,7 +3540,7 @@ export function TableGridView({
                                 )}
                             </span>
                             {!filtersActive && effectiveResult.rows.length === effectivePageSize && (
-                                <span className="text-[10px] text-amber-500/80 bg-amber-500/10 border border-amber-500/20 rounded-md px-2 py-0.5 font-medium select-none" title="The result may be truncated — try increasing the page size or applying a filter">
+                                <span className="text-[10px] text-warning/80 bg-warning/10 border border-warning/20 rounded-md px-2 py-0.5 font-medium select-none" title="The result may be truncated — try increasing the page size or applying a filter">
                                     truncated
                                 </span>
                             )}
