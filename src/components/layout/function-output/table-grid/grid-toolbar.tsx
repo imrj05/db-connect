@@ -1,3 +1,4 @@
+import { useState } from "react";
 import {
 	Filter,
 	FilterX,
@@ -16,6 +17,8 @@ import {
 	Columns3,
 	Sigma,
 	Paintbrush,
+	Plus,
+	Timer,
 } from "lucide-react";
 import {
 	DropdownMenu,
@@ -75,6 +78,10 @@ export function GridToolbar({
 	onToggleAggFooter,
 	showColorRules,
 	onToggleColorRules,
+	showInsertRow,
+	onInsertRow,
+	autoRefreshInterval,
+	onSetAutoRefresh,
 }: {
 	fn: ConnectionFunction;
 	executionTimeMs: number;
@@ -116,7 +123,12 @@ export function GridToolbar({
 	onToggleAggFooter?: () => void;
 	showColorRules?: boolean;
 	onToggleColorRules?: () => void;
+	showInsertRow?: boolean;
+	onInsertRow?: () => void;
+	autoRefreshInterval?: number | null;
+	onSetAutoRefresh?: (n: number | null) => void;
 }) {
+	const [colSearch, setColSearch] = useState("");
 	return (
 		<>
 			{/* Header */}
@@ -348,42 +360,60 @@ export function GridToolbar({
 							</DropdownMenuContent>
 						</DropdownMenu>
 					)}
-					{viewMode === "data" && columnIds && columnIds.length > 0 && onToggleColumn && (
-						<DropdownMenu>
-							<Tooltip>
-								<TooltipTrigger asChild>
-									<DropdownMenuTrigger asChild>
-										<Button
-											variant="outline"
-											size="sm"
-											className="h-7 rounded-md border-border-subtle bg-surface-elevated px-2 text-[11px] font-medium text-foreground/68 shadow-xs hover:bg-surface-2"
-										>
-											<Columns3 size={11} />
-										</Button>
-									</DropdownMenuTrigger>
-								</TooltipTrigger>
-								<TooltipContent>Toggle columns</TooltipContent>
-							</Tooltip>
-							<DropdownMenuContent align="end" className="min-w-[180px] max-h-72 overflow-y-auto">
-								{columnIds.map((colId) => {
-									const visible = hiddenColumns?.[colId] !== false;
-									return (
-										<DropdownMenuItem
-											key={colId}
-											onSelect={(e) => e.preventDefault()}
-											onClick={() => onToggleColumn(colId, !visible)}
-											className="flex items-center gap-2"
-										>
-											<span className={cn("w-3.5 h-3.5 flex items-center justify-center rounded border border-border-subtle shrink-0", visible ? "bg-primary border-primary" : "bg-transparent")}>
-												{visible && <Check size={9} className="text-primary-foreground" />}
-											</span>
-											<span className="font-mono text-[11px] truncate">{colId}</span>
-										</DropdownMenuItem>
-									);
-								})}
-							</DropdownMenuContent>
-						</DropdownMenu>
-					)}
+				{viewMode === "data" && columnIds && columnIds.length > 0 && onToggleColumn && (
+					<DropdownMenu onOpenChange={(open) => { if (open) setColSearch(""); }}>
+						<Tooltip>
+							<TooltipTrigger asChild>
+								<DropdownMenuTrigger asChild>
+									<Button
+										variant="outline"
+										size="sm"
+										className="h-7 rounded-md border-border-subtle bg-surface-elevated px-2 text-[11px] font-medium text-foreground/68 shadow-xs hover:bg-surface-2"
+									>
+										<Columns3 size={11} />
+									</Button>
+								</DropdownMenuTrigger>
+							</TooltipTrigger>
+							<TooltipContent>Toggle columns</TooltipContent>
+						</Tooltip>
+						<DropdownMenuContent align="end" className="min-w-[180px] p-0">
+							<div className="px-2.5 py-1.5 border-b border-border-subtle">
+								<input
+									autoFocus
+									value={colSearch}
+									onChange={(e) => setColSearch(e.target.value)}
+									placeholder="Search columns…"
+									onKeyDown={(e) => e.stopPropagation()}
+									className="w-full bg-transparent text-[11px] font-mono outline-none text-foreground placeholder:text-foreground/38"
+								/>
+							</div>
+							<div className="max-h-60 overflow-y-auto">
+								{columnIds
+									.filter(
+										(colId) =>
+											!colSearch ||
+											colId.toLowerCase().includes(colSearch.toLowerCase()),
+									)
+									.map((colId) => {
+										const visible = hiddenColumns?.[colId] !== false;
+										return (
+											<DropdownMenuItem
+												key={colId}
+												onSelect={(e) => e.preventDefault()}
+												onClick={() => onToggleColumn(colId, !visible)}
+												className="flex items-center gap-2"
+											>
+												<span className={cn("w-3.5 h-3.5 flex items-center justify-center rounded border border-border-subtle shrink-0", visible ? "bg-primary border-primary" : "bg-transparent")}>
+													{visible && <Check size={9} className="text-primary-foreground" />}
+												</span>
+												<span className="font-mono text-[11px] truncate">{colId}</span>
+											</DropdownMenuItem>
+										);
+									})}
+							</div>
+						</DropdownMenuContent>
+					</DropdownMenu>
+				)}
 					{/* Aggregation footer toggle */}
 					{viewMode === "data" && onToggleAggFooter && (
 						<Tooltip>
@@ -405,27 +435,101 @@ export function GridToolbar({
 							<TooltipContent>Aggregation footer (Σ)</TooltipContent>
 						</Tooltip>
 					)}
-					{/* Color rules toggle */}
-					{viewMode === "data" && onToggleColorRules && (
+				{/* Color rules toggle */}
+				{viewMode === "data" && onToggleColorRules && (
+					<Tooltip>
+						<TooltipTrigger asChild>
+							<Button
+								variant="outline"
+								size="sm"
+								onClick={onToggleColorRules}
+								className={cn(
+									"h-7 rounded-md border-border-subtle px-2 text-[11px] font-medium shadow-xs",
+									showColorRules
+										? "bg-accent-purple/12 text-accent-purple border-accent-purple/22 hover:bg-accent-purple/16"
+										: "bg-surface-elevated text-foreground/68 hover:bg-surface-2",
+								)}
+							>
+								<Paintbrush size={11} />
+							</Button>
+						</TooltipTrigger>
+						<TooltipContent>Conditional cell color rules</TooltipContent>
+					</Tooltip>
+				)}
+				{/* Insert new row button */}
+				{fn.tableName && viewMode === "data" && onInsertRow && (
+					<Tooltip>
+						<TooltipTrigger asChild>
+							<Button
+								variant="outline"
+								size="sm"
+								onClick={onInsertRow}
+								className={cn(
+									"h-7 rounded-md border-border-subtle px-2 text-[11px] font-medium shadow-xs",
+									showInsertRow
+										? "bg-accent-green/12 text-accent-green border-accent-green/22 hover:bg-accent-green/16"
+										: "bg-surface-elevated text-foreground/68 hover:bg-surface-2",
+								)}
+							>
+								<Plus size={11} />
+							</Button>
+						</TooltipTrigger>
+						<TooltipContent>Insert new row</TooltipContent>
+					</Tooltip>
+				)}
+				{/* Auto-refresh dropdown */}
+				{viewMode === "data" && onSetAutoRefresh && (
+					<DropdownMenu>
 						<Tooltip>
 							<TooltipTrigger asChild>
-								<Button
-									variant="outline"
-									size="sm"
-									onClick={onToggleColorRules}
+								<DropdownMenuTrigger asChild>
+									<Button
+										variant="outline"
+										size="sm"
+										className={cn(
+											"h-7 rounded-md border-border-subtle px-2 text-[11px] font-medium shadow-xs",
+											autoRefreshInterval
+												? "bg-accent-green/12 text-accent-green border-accent-green/22 hover:bg-accent-green/16"
+												: "bg-surface-elevated text-foreground/68 hover:bg-surface-2",
+										)}
+									>
+										<span className="relative">
+											<Timer size={11} />
+											{autoRefreshInterval && (
+												<span className="absolute -top-1 -right-1 w-1.5 h-1.5 rounded-full bg-accent-green animate-pulse" />
+											)}
+										</span>
+									</Button>
+								</DropdownMenuTrigger>
+							</TooltipTrigger>
+							<TooltipContent>Auto-refresh interval</TooltipContent>
+						</Tooltip>
+						<DropdownMenuContent align="end" className="text-[11px] w-[130px]">
+							{(
+								[
+									{ label: "Off", value: null },
+									{ label: "30 seconds", value: 30 },
+									{ label: "1 minute", value: 60 },
+									{ label: "5 minutes", value: 300 },
+								] as { label: string; value: number | null }[]
+							).map(({ label, value }) => (
+								<DropdownMenuItem
+									key={label}
+									onClick={() => onSetAutoRefresh(value)}
 									className={cn(
-										"h-7 rounded-md border-border-subtle px-2 text-[11px] font-medium shadow-xs",
-										showColorRules
-											? "bg-accent-purple/12 text-accent-purple border-accent-purple/22 hover:bg-accent-purple/16"
-											: "bg-surface-elevated text-foreground/68 hover:bg-surface-2",
+										"gap-2 cursor-pointer",
+										autoRefreshInterval === value && "font-semibold text-primary",
 									)}
 								>
-									<Paintbrush size={11} />
-								</Button>
-							</TooltipTrigger>
-							<TooltipContent>Conditional cell color rules</TooltipContent>
-						</Tooltip>
-					)}
+									{label}
+									{autoRefreshInterval === value && (
+										<span className="ml-auto text-primary">✓</span>
+									)}
+								</DropdownMenuItem>
+							))}
+						</DropdownMenuContent>
+					</DropdownMenu>
+				)}
 					{fn.tableName && (
 						<>
 						{/* Info panel toggle */}

@@ -48,7 +48,7 @@ export function evaluateColorRule(
 	colId: string,
 	value: unknown,
 ): boolean {
-	// Column filter: "" = all columns
+	// rule.col === "" means "all columns"
 	if (rule.col !== "" && rule.col !== colId) return false;
 	if (rule.op === "IS NULL") return value === null || value === undefined;
 	if (rule.op === "IS NOT NULL") return value !== null && value !== undefined;
@@ -102,45 +102,45 @@ export function ColorRulesPanel({
 			</div>
 			<div className="space-y-1.5">
 				{rules.map((rule) => (
-					<div key={rule.id} className="flex items-center gap-1.5 flex-wrap">
-						{/* Column */}
-						<Select
-							value={rule.col}
-							onValueChange={(v) => onUpdate(rule.id, { col: v })}
-						>
-							<SelectTrigger className="h-6 text-[11px] font-mono w-32 border-border-subtle bg-surface-3">
-								<SelectValue placeholder="Column" />
-							</SelectTrigger>
-							<SelectContent className="text-[11px] font-mono">
-								<SelectItem value="">All columns</SelectItem>
-								{columns.map((c) => (
-									<SelectItem key={c} value={c}>{c}</SelectItem>
-								))}
-							</SelectContent>
-						</Select>
-						{/* Op */}
-						<Select
-							value={rule.op}
-							onValueChange={(v) => onUpdate(rule.id, { op: v as CellColorRuleOp })}
-						>
-							<SelectTrigger className="h-6 text-[11px] w-28 border-border-subtle bg-surface-3">
-								<SelectValue />
-							</SelectTrigger>
-							<SelectContent className="text-[11px]">
-								{OPS.map((o) => (
-									<SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>
-								))}
-							</SelectContent>
-						</Select>
-						{/* Value */}
-						{!noValueOp(rule.op) && (
-							<Input
-								value={rule.value}
-								onChange={(e) => onUpdate(rule.id, { value: e.target.value })}
-								placeholder="value"
-								className="h-6 text-[11px] font-mono w-24 border-border-subtle bg-surface-3"
-							/>
-						)}
+					<div key={rule.id} className="flex items-center gap-1.5 min-w-0">
+					{/* Column — use "__all__" sentinel because Radix Select forbids empty string values */}
+					<Select
+						value={rule.col === "" ? "__all__" : rule.col}
+						onValueChange={(v) => onUpdate(rule.id, { col: v === "__all__" ? "" : v })}
+					>
+						<SelectTrigger size="xs" className="text-[11px] font-mono w-32 border-border-subtle bg-surface-3">
+							<SelectValue placeholder="Column" />
+						</SelectTrigger>
+						<SelectContent className="text-[11px] font-mono">
+							<SelectItem value="__all__">All columns</SelectItem>
+							{columns.map((c) => (
+								<SelectItem key={c} value={c}>{c}</SelectItem>
+							))}
+						</SelectContent>
+					</Select>
+					{/* Op */}
+					<Select
+						value={rule.op}
+						onValueChange={(v) => onUpdate(rule.id, { op: v as CellColorRuleOp })}
+					>
+						<SelectTrigger size="xs" className="text-[11px] font-mono w-20 border-border-subtle bg-surface-3">
+							<SelectValue />
+						</SelectTrigger>
+						<SelectContent className="text-[11px] font-mono">
+							{OPS.map((o) => (
+								<SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>
+							))}
+						</SelectContent>
+					</Select>
+					{/* Value */}
+					{!noValueOp(rule.op) && (
+						<Input
+							value={rule.value}
+							onChange={(e) => onUpdate(rule.id, { value: e.target.value })}
+							placeholder="value"
+							className="h-6 py-0 px-2 text-[11px] font-mono w-28 border-border-subtle bg-surface-3 shadow-none"
+						/>
+					)}
 						{/* Color swatches */}
 						<div className="flex items-center gap-0.5">
 							{COLORS.map((c) => (

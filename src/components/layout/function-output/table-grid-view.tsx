@@ -221,6 +221,14 @@ export function TableGridView({
     const [localPageSize, setLocalPageSize] = useState<number | null>(null);
     // effective page size (local override wins over global setting)
     const effectivePageSize = localPageSize ?? pageSize;
+    // Batch 9: Insert new row
+    const [showInsertRow, setShowInsertRow] = useState(false);
+    const [insertRowValues, setInsertRowValues] = useState<Record<string, string>>({});
+    // Batch 9: Auto-refresh
+    const [autoRefreshInterval, setAutoRefreshInterval] = useState<number | null>(null);
+    // Batch 9: Jump to page
+    const [jumpingToPage, setJumpingToPage] = useState(false);
+    const [jumpPageInput, setJumpPageInput] = useState("");
     const [structure, setStructure] = useState<TableStructure | null>(null);
     const [structureLoading, setStructureLoading] = useState(false);
     const [schemaGraph, setSchemaGraph] = useState<SchemaGraph | null>(null);
@@ -1253,6 +1261,14 @@ export function TableGridView({
         window.addEventListener("keydown", handler);
         return () => window.removeEventListener("keydown", handler);
     }, [activeTabId, undoLastCellEdit]);
+    // Batch 9: Auto-refresh interval
+    useEffect(() => {
+        if (!autoRefreshInterval) return;
+        const id = setInterval(() => {
+            onPageChange(page);
+        }, autoRefreshInterval * 1000);
+        return () => clearInterval(id);
+    }, [autoRefreshInterval, page, onPageChange]);
     useEffect(() => {
         const handler = (e: KeyboardEvent) => {
             if (e.key !== "Enter") return;
@@ -1875,6 +1891,30 @@ export function TableGridView({
         getCoreRowModel: getCoreRowModel(),
         getSortedRowModel: getSortedRowModel(),
     });
+    // Batch 9: commit insert row
+    const commitInsert = useCallback(async () => {
+        if (!fn.tableName) return;
+        const cols = table.getVisibleLeafColumns().map((c) => c.id);
+        const colList = cols.map((c) => qi(c)).join(", ");
+        const valList = cols
+            .map((c) => {
+                const v = (insertRowValues[c] ?? "").trim();
+                if (v === "") return "NULL";
+                const isNum = v !== "" && !isNaN(Number(v));
+                return isNum ? v : `'${v.replace(/'/g, "''")}'`;
+            })
+            .join(", ");
+        const sql = `INSERT INTO ${qi(fn.tableName)} (${colList}) VALUES (${valList})`;
+        try {
+            await tauriApi.executeQuery(fn.connectionId, sql);
+            setShowInsertRow(false);
+            setInsertRowValues({});
+            await onPageChange(page);
+            toast.success(`Row inserted into ${fn.tableName}`);
+        } catch (e) {
+            setCellEditError(String(e));
+        }
+    }, [fn, insertRowValues, table, qi, page, onPageChange]);
     if (isLoading) {
         return (
             <div className="flex h-full items-center justify-center bg-background p-6">
@@ -1969,6 +2009,10 @@ export function TableGridView({
                  onToggleAggFooter={() => setShowAggFooter((v) => !v)}
                  showColorRules={showColorRules}
                  onToggleColorRules={() => setShowColorRules((v) => !v)}
+                 showInsertRow={showInsertRow}
+                 onInsertRow={() => { setShowInsertRow((v) => !v); if (showInsertRow) setInsertRowValues({}); }}
+                 autoRefreshInterval={autoRefreshInterval}
+                 onSetAutoRefresh={setAutoRefreshInterval}
                 onExport={async (preset: ExportPreset, selectedOnly: boolean) => {
                     const result = effectiveResult;
                     if (!result) return;
@@ -2182,6 +2226,60 @@ export function TableGridView({
                                 ))}
                             </TableHeader>
                             <TableBody>
+                                {/* Batch 9: Insert new row */}
+                                {showInsertRow && fn.tableName && (
+                                    <TableRow className="bg-accent-green/6 hover:bg-accent-green/10 border-l-2 border-accent-green/50">
+                                        <TableCell className="w-11 px-2 text-center border-r border-border-subtle sticky left-0 z-20 bg-accent-green/8">
+                                            <div className="flex items-center justify-center gap-1">
+                                                <button
+                                                    onClick={() => void commitInsert()}
+                                                    title="Save row (Enter)"
+                                                    className="text-accent-green hover:opacity-80 text-[14px] font-bold leading-none"
+                                                >
+                                                    ✓
+                                                </button>
+                                                <button
+                                                    onClick={() => { setShowInsertRow(false); setInsertRowValues({}); }}
+                                                    title="Cancel (Esc)"
+                                                    className="text-foreground/40 hover:text-foreground/60 text-[12px] leading-none"
+                                                >
+                                                    ✗
+                                                </button>
+                                            </div>
+                                        </TableCell>
+                                        {table.getVisibleLeafColumns().map((col, ci) => (
+                                            <TableCell
+                                                key={col.id}
+                                                style={{ width: col.getSize() }}
+                                                className="relative h-8 p-0 border-r border-border-subtle last:border-r-0"
+                                            >
+                                                <input
+                                                    {...(ci === 0 ? { autoFocus: true } : {})}
+                                                    value={insertRowValues[col.id] ?? ""}
+                                                    onChange={(e) =>
+                                                        setInsertRowValues((prev) => ({
+                                                            ...prev,
+                                                            [col.id]: e.target.value,
+                                                        }))
+                                                    }
+                                                    onKeyDown={(e) => {
+                                                        if (e.key === "Enter") {
+                                                            e.preventDefault();
+                                                            void commitInsert();
+                                                        }
+                                                        if (e.key === "Escape") {
+                                                            e.preventDefault();
+                                                            setShowInsertRow(false);
+                                                            setInsertRowValues({});
+                                                        }
+                                                    }}
+                                                    placeholder="NULL"
+                                                    className="absolute inset-0 w-full h-full px-3 bg-transparent text-[12px] font-mono text-foreground/90 border-0 outline-none focus:bg-accent-green/8 placeholder:text-foreground/28"
+                                                />
+                                            </TableCell>
+                                        ))}
+                                    </TableRow>
+                                )}
                                 {table.getRowModel().rows.length === 0 ? (
                                     <TableRow className="hover:bg-transparent">
                                         <TableCell
@@ -3403,10 +3501,44 @@ export function TableGridView({
                                 ← Prev
                             </Button>
                             <span className="tabular-nums text-foreground/56">
-                                {effectiveResult.rows.length === 0
-                                    ? "0 rows"
-                                    : `${page * effectivePageSize + 1}–${page * effectivePageSize + effectiveResult.rows.length}`}
+                                {jumpingToPage ? (
+                                    <input
+                                        autoFocus
+                                        value={jumpPageInput}
+                                        onChange={(e) => setJumpPageInput(e.target.value)}
+                                        onKeyDown={(e) => {
+                                            if (e.key === "Enter") {
+                                                const n = parseInt(jumpPageInput, 10);
+                                                if (!isNaN(n) && n >= 1) onPageChange(n - 1);
+                                                setJumpingToPage(false);
+                                                setJumpPageInput("");
+                                            }
+                                            if (e.key === "Escape") {
+                                                setJumpingToPage(false);
+                                                setJumpPageInput("");
+                                            }
+                                        }}
+                                        onBlur={() => { setJumpingToPage(false); setJumpPageInput(""); }}
+                                        placeholder="page #"
+                                        className="w-16 h-5 bg-transparent border-b border-primary text-center text-[11px] font-mono text-foreground/80 outline-none"
+                                    />
+                                ) : (
+                                    <span
+                                        className="cursor-pointer hover:text-foreground/80 transition-colors"
+                                        title="Click to jump to page"
+                                        onClick={() => { setJumpingToPage(true); setJumpPageInput(""); }}
+                                    >
+                                        {effectiveResult.rows.length === 0
+                                            ? "0 rows"
+                                            : `${page * effectivePageSize + 1}–${page * effectivePageSize + effectiveResult.rows.length}`}
+                                    </span>
+                                )}
                             </span>
+                            {!filtersActive && effectiveResult.rows.length === effectivePageSize && (
+                                <span className="text-[10px] text-amber-500/80 bg-amber-500/10 border border-amber-500/20 rounded-md px-2 py-0.5 font-medium select-none" title="The result may be truncated — try increasing the page size or applying a filter">
+                                    truncated
+                                </span>
+                            )}
                             <Button
                                 variant="ghost"
                                 size="xs"
