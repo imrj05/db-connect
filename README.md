@@ -1,5 +1,7 @@
 # DB Connect
 
+[![GitHub Card](https://github-card.rajeshwarkashyap.in/api/card/imrj05/db-connect?theme=dark)](https://github.com/imrj05/db-connect)
+
 A fast, native desktop database client built with **Tauri 2 · React 19 · TypeScript · Rust** — no Electron, no browser overhead.
 
 Supports PostgreSQL, MySQL, SQLite, MongoDB, and Redis from a single window. Every connection auto-generates a typed function registry (`prefix_list()`, `prefix_query()`, `prefix_tableName()`, …) inspired by the [dbcooper](https://github.com/pipeline-tools/dbcooper) R package, so you navigate databases the same way you'd use code.
@@ -9,6 +11,7 @@ Supports PostgreSQL, MySQL, SQLite, MongoDB, and Redis from a single window. Eve
 ## Features
 
 ### Connections
+
 - Connect to **PostgreSQL, MySQL, SQLite, MongoDB, and Redis** simultaneously
 - SSH tunneling through a bastion host (password or private-key auth)
 - SSL/TLS on PostgreSQL and MySQL connections
@@ -20,6 +23,7 @@ Supports PostgreSQL, MySQL, SQLite, MongoDB, and Redis from a single window. Eve
 - **Connection health panel** — per-connection latency badge (green / amber / red), live uptime counter, ping and ping-all actions; accessible from the status bar
 
 ### SQL Editor
+
 - CodeMirror 6 with SQL syntax highlighting and multiple editor themes (One Dark, Monokai, GitHub Light, and more)
 - **Schema-aware autocomplete** — table and column names from the active connection
 - `⌘↵` to run · `⌘T` new tab · `⌘W` close tab · `⌘1–9` switch tabs
@@ -31,6 +35,7 @@ Supports PostgreSQL, MySQL, SQLite, MongoDB, and Redis from a single window. Eve
 - **Query log** — live append-only log of every executed statement with timestamps; syntax highlighting toggle; auto-scrolls to the latest entry
 
 ### Data Viewer
+
 - TanStack React Table v8 — sortable columns, row numbers, null highlighting
 - **Pagination** — 25 / 50 / 100 / 200 rows per page
 - **Inline cell editing** — double-click or press Enter; generates `UPDATE` with primary-key `WHERE` clause
@@ -48,6 +53,7 @@ Supports PostgreSQL, MySQL, SQLite, MongoDB, and Redis from a single window. Eve
 - **Column statistics panel** — per-column breakdown: total rows, null count, fill percentage, distinct count, min / max / avg / sum (numeric), and top-value frequency bar chart
 
 ### Table & Schema Management
+
 - **Create table** — column builder dialog with live SQL preview
 - **Alter table** — add / drop columns with type select + NULL toggle + live SQL preview
 - **Drop / Rename table** — confirmation dialogs with generated SQL
@@ -58,11 +64,13 @@ Supports PostgreSQL, MySQL, SQLite, MongoDB, and Redis from a single window. Eve
 - **Schema diff** — side-by-side diff between any two connected databases; shows added / removed / changed tables and columns with a copyable migration SQL summary
 
 ### Filtering & Search
+
 - **Visual WHERE builder** — column / operator / value rows with per-row AND / OR toggle
 - **Multi-condition filters** — click the join badge to switch AND ↔ OR
 - **Full-text cell search** — `⌘F` or the search icon; filters all visible rows client-side with an N-of-M match count; Escape closes
 
 ### Query History & Saved Queries
+
 - Per-connection query history (up to 100 entries) with timestamps, row counts, duration, and success / error status badges
 - Searchable and filterable by connection and status; rerun, copy SQL, save to saved queries, or delete individual entries
 - Persisted to SQLite on the Tauri side; survives app restarts
@@ -70,29 +78,35 @@ Supports PostgreSQL, MySQL, SQLite, MongoDB, and Redis from a single window. Eve
 - **Saved query folders** — organise saved queries into named folders (e.g. Reports, Debugging, Migrations); create, rename, and move queries between folders from a context menu
 
 ### Import & Export
+
 - Import CSV or JSON into a table (batched INSERT, 200 rows/batch) with drag-and-drop file support and a live column/row preview before import
 - Export grid data as CSV, JSON, or SQL (`INSERT INTO … VALUES (…);` for all rows in the current view)
 - **SQL dump import** — import a full `.sql` dump file with auto-detection of PostgreSQL / MySQL / SQLite format and configurable options (drop-if-exists, transaction wrapping)
 - **Database dump** — export an entire database as a `.sql` dump with options for data, indexes, foreign keys, and CREATE DATABASE statement
 
 ### Command Palette (`⌘K`)
+
 - Prefix-anchored fuzzy search across all connected databases
 - Grouped by connection name with DB-type badge
 - **Pinned tables** surfaced at the top of results with a pin indicator
 - Opens SQL editor, table browser, or connection info directly
 
 ### Sidebar
+
 - **Pinned tables** — hover any table and click the pin icon to pin it; pinned tables appear in a dedicated "Pinned" section at the top of the sidebar for the active connection, persisted across restarts
 - Expandable table rows with lazy-loaded column list (name and type)
 
 ### Status Bar
+
 - Shows active connection status, current database, last query execution time, and row count for every result view
 
 ### AI Assistant
+
 - Configurable AI provider: OpenRouter (OAuth or API key), OpenAI, or Anthropic
 - Selectable default model; credentials stored via the OS keychain
 
 ### UI & Settings
+
 - macOS-native title bar with traffic-light controls and draggable region
 - Dark and light mode with a full CSS token system; toggle via Command Palette
 - **Split view** — resizable sidebar / main and editor / results panels
