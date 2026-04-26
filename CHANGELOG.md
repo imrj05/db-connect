@@ -2,6 +2,14 @@
 
 All notable changes to DB Connect are documented here.
 
+## [0.0.16] — 2026-04-26
+
+- chore: update version to 0.0.16 and remove obsolete tests
+- feat: enhance README.md with new features including connection health panel, SQL snippets library, and schema diff
+- chore: update CHANGELOG.md for v0.0.15
+
+All notable changes to DB Connect are documented here.
+
 ## [0.0.15] — 2026-04-26
 
 - feat: update popover, select, sheet, and tooltip components to use new state attributes for animations
