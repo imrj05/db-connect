@@ -147,6 +147,7 @@ export function SqlEditorView({
 		theme,
 		queryHistory,
 		connections,
+		selectedDatabases,
 		savedQueries,
 		clearHistory,
 		deleteHistoryEntry,
@@ -450,11 +451,18 @@ export function SqlEditorView({
 		<div className="h-full flex flex-col bg-background overflow-hidden">
 			{/* Header */}
 			<div className="h-9 flex items-center justify-between bg-background border-b border-border px-4 shrink-0">
-				<span className="font-mono text-[11px] text-accent-blue font-bold">
-					{fn.callSignature
-						.slice(fn.prefix.length + 1)
-						.replace(/\(.*$/, "")}
-				</span>
+				<div className="flex items-center gap-2 min-w-0">
+					<span className="font-mono text-[11px] text-accent-blue font-bold shrink-0">
+						{fn.callSignature
+							.slice(fn.prefix.length + 1)
+							.replace(/\(.*$/, "")}
+					</span>
+					{selectedDatabases[fn.connectionId] && (
+						<span className="inline-flex items-center gap-1 px-1.5 h-4 rounded text-[9px] font-mono font-bold uppercase tracking-wider border border-accent-green/30 bg-accent-green/8 text-accent-green shrink-0">
+							{selectedDatabases[fn.connectionId]}
+						</span>
+					)}
+				</div>
 				<span className="text-[10px] font-mono text-muted-foreground/30 uppercase tracking-widest">
 					{fn.type === "execute" ? "DDL / DML" : "SELECT"}
 				</span>

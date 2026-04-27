@@ -504,7 +504,7 @@ const ConnectionDialog = ({ onClose, initialData, mode = "modal" }: ConnectionDi
 
                                                     <CollapsibleContent className="pt-5">
                                                         <div className="flex flex-col gap-5 border-t border-border-subtle pt-5">
-                                                            {formData.type !== "redis" && formData.type !== "sqlite" && (
+                                                            {formData.type !== "sqlite" && (
                                                                 <div
                                                                     className="flex cursor-pointer items-center justify-between gap-3"
                                                                     onClick={() => patch({ ssl: !formData.ssl })}

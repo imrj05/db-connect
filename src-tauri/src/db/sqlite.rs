@@ -288,7 +288,7 @@ impl DatabaseDriver for SqliteDriver {
         page_size: u32,
     ) -> Result<QueryResult> {
         let query = format!(
-            "SELECT * FROM `{}` LIMIT {} OFFSET {}",
+            "SELECT * FROM \"{}\" LIMIT {} OFFSET {}",
             table, page_size, page * page_size
         );
         self.run_query(&query).await

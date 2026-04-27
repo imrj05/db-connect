@@ -68,6 +68,20 @@ fn sql_unquote_value(s: &str) -> Option<String> {
     }
 }
 
+fn extract_where_term_value(where_str: &str, term: &str) -> Option<Option<String>> {
+    let upper_where = where_str.to_ascii_uppercase();
+    let upper_term = term.to_ascii_uppercase();
+    let kpos = upper_where.find(&upper_term)?;
+    let after = &where_str[kpos + term.len()..];
+    let eq = after.find('=')?;
+    let after_eq = after[eq + 1..].trim();
+    let end = after_eq
+        .to_ascii_uppercase()
+        .find(" AND ")
+        .unwrap_or(after_eq.len());
+    Some(sql_unquote_value(after_eq[..end].trim()))
+}
+
 /// Parse `UPDATE "collection" SET "field" = 'value' WHERE "_id" = 'oid'`
 /// Returns `(collection, field, new_value, id_value)`.
 fn parse_mongo_update(query: &str) -> Option<(String, String, Option<String>, String)> {
@@ -114,19 +128,12 @@ fn parse_mongo_delete(query: &str) -> Option<(String, String)> {
 
 /// Find `"_id" = 'value'` within a WHERE clause and return the value string.
 fn extract_id_from_where(where_str: &str) -> Option<String> {
-    let upper = where_str.to_ascii_uppercase();
-    for term in &[r#""_ID""#, "`_ID`", "_ID "] {
-        if let Some(kpos) = upper.find(term) {
-            let after = &where_str[kpos + term.len()..];
-            let eq = after.find('=')?;
-            let after_eq = after[eq + 1..].trim();
-            let end = after_eq
-                .to_ascii_uppercase()
-                .find(" AND ")
-                .unwrap_or(after_eq.len());
-            return sql_unquote_value(after_eq[..end].trim());
+    for term in &[r#""_id""#, "`_id`", r#""._id""#, "`._id`", "_id "] {
+        if let Some(value) = extract_where_term_value(where_str, term) {
+            return value;
         }
     }
+
     None
 }
 
@@ -346,8 +353,8 @@ impl DatabaseDriver for MongoDriver {
         }
 
         // ── Existing JSON query format ────────────────────────────────────────
-        let query_json: serde_json::Value =
-            serde_json::from_str(trimmed).map_err(|e| anyhow!("Invalid query JSON: {}", e))?;
+        let query_json: serde_json::Value = serde_json::from_str(trimmed)
+            .map_err(|e| anyhow!("Unrecognized MongoDB query format: {}", e))?;
 
         let database = query_json["db"]
             .as_str()

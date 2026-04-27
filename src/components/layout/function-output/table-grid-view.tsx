@@ -847,6 +847,7 @@ export function TableGridView({
                     fn.connectionId,
                     database,
                     fn.tableName,
+                    dbType === "postgresql" ? database : undefined,
                 );
                 setStructure(s);
                 return s;
@@ -864,6 +865,7 @@ export function TableGridView({
                 fn.connectionId,
                 database,
                 fn.tableName,
+                dbType === "postgresql" ? database : undefined,
             );
             setStructure(s);
         } catch {
@@ -871,7 +873,7 @@ export function TableGridView({
         } finally {
             setStructureLoading(false);
         }
-    }, [fn, database]);
+    }, [dbType, fn, database]);
     const valueToSqlLiteral = useCallback((value: unknown) => {
         if (value === null || value === undefined) return "NULL";
         if (typeof value === "number" || typeof value === "boolean")

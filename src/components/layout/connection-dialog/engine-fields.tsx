@@ -116,24 +116,23 @@ className="h-12 border-border-subtle bg-background font-mono text-sm"
 						</div>
 
 						{/* User + Password */}
-						{formData.type !== "redis" && (
-							<div className="grid grid-cols-2 gap-4">
-								<div>
-									<FormLabel>Username</FormLabel>
+						<div className="grid grid-cols-2 gap-4">
+							<div>
+								<FormLabel>{formData.type === "redis" ? "Username (optional)" : "Username"}</FormLabel>
+								<Input
+									value={formData.user || ""}
+									onChange={(e) => onPatch({ user: e.target.value })}
+									placeholder={formData.type === "redis" ? "default" : "database_user"}
+								className="h-12 border-border-subtle bg-background font-mono text-sm"
+								name="db-username"
+									autoComplete="username"
+								/>
+							</div>
+							<div>
+								<FormLabel>{formData.type === "redis" ? "Password (optional)" : "Password"}</FormLabel>
+								<div className="relative">
 									<Input
-										value={formData.user || ""}
-										onChange={(e) => onPatch({ user: e.target.value })}
-										placeholder="database_user"
-									className="h-12 border-border-subtle bg-background font-mono text-sm"
-									name="db-username"
-										autoComplete="username"
-									/>
-								</div>
-								<div>
-									<FormLabel>Password</FormLabel>
-									<div className="relative">
-										<Input
-											type={showPassword ? "text" : "password"}
+										type={showPassword ? "text" : "password"}
 										value={formData.password || ""}
 										onChange={(e) => onPatch({ password: e.target.value })}
 										placeholder="••••••••"
@@ -141,34 +140,31 @@ className="h-12 border-border-subtle bg-background font-mono text-sm"
 									name="db-password"
 										autoComplete="current-password"
 									/>
-										<Button
-											type="button"
-											variant="ghost"
-											size="icon-xs"
-											onClick={onTogglePassword}
-										className="absolute right-1.5 top-1/2 -translate-y-1/2 rounded-sm text-muted-foreground/40 hover:text-muted-foreground"
-									>
-											{showPassword ? <EyeOff size={13} /> : <Eye size={13} />}
-										</Button>
-									</div>
+									<Button
+										type="button"
+										variant="ghost"
+										size="icon-xs"
+										onClick={onTogglePassword}
+									className="absolute right-1.5 top-1/2 -translate-y-1/2 rounded-sm text-muted-foreground/40 hover:text-muted-foreground"
+								>
+										{showPassword ? <EyeOff size={13} /> : <Eye size={13} />}
+									</Button>
 								</div>
 							</div>
-						)}
+						</div>
 
 						{/* Default database */}
-						{formData.type !== "redis" && (
-							<div>
-								<FormLabel>Database Name</FormLabel>
-								<Input
-									value={formData.database || ""}
-									onChange={(e) => onPatch({ database: e.target.value })}
-									placeholder="e.g. postgres"
-								className="h-12 border-border-subtle bg-background font-mono text-sm"
-								name="db-database"
-									autoComplete="off"
-								/>
-							</div>
-						)}
+						<div>
+							<FormLabel>{formData.type === "redis" ? "DB Index" : "Database Name"}</FormLabel>
+							<Input
+								value={formData.database || ""}
+								onChange={(e) => onPatch({ database: e.target.value })}
+								placeholder={formData.type === "redis" ? "0" : "e.g. postgres"}
+							className="h-12 border-border-subtle bg-background font-mono text-sm"
+							name="db-database"
+								autoComplete="off"
+							/>
+						</div>
 					</div>
 				)}
 			</motion.div>

@@ -121,18 +121,45 @@ impl DatabaseDriver for MySqlDriver {
             .fetch_all(format!("SHOW FULL COLUMNS FROM `{}`.`{}`", database, table).as_str())
             .await?;
 
+        let index_rows = pool
+            .fetch_all(format!("SHOW INDEX FROM `{}`.`{}`", database, table).as_str())
+            .await?;
+
+        use std::collections::{BTreeMap, HashSet};
+        let mut unique_index_columns: HashSet<String> = HashSet::new();
+        let mut index_map: BTreeMap<String, (bool, Vec<(u32, String)>)> = BTreeMap::new();
+
+        for row in &index_rows {
+            let non_unique: i8 = row.try_get::<i8, _>(1).unwrap_or(1);
+            let key_name: String = row.try_get(2).unwrap_or_default();
+            let seq: u32 = row.try_get::<u32, _>(3).unwrap_or(0);
+            let col_name: String = row.try_get(4).unwrap_or_default();
+
+            let entry = index_map.entry(key_name).or_insert((non_unique == 0, vec![]));
+            entry.1.push((seq, col_name));
+        }
+
+        for (_name, (unique, cols)) in index_map {
+            if unique {
+                for (_, col_name) in cols {
+                    unique_index_columns.insert(col_name);
+                }
+            }
+        }
+
         // SHOW FULL COLUMNS: Field, Type, Collation, Null, Key, Default, Extra, ...
         Ok(rows
             .iter()
             .map(|r| {
                 let key: String = r.try_get::<String, _>(4).unwrap_or_default();
                 let extra: String = r.try_get::<String, _>(6).unwrap_or_default();
+                let name: String = r.get(0);
                 ColumnInfo {
-                    name: r.get(0),
+                    name: name.clone(),
                     data_type: r.get(1),
                     nullable: r.try_get::<String, _>(3).unwrap_or_default() == "YES",
                     is_primary: key == "PRI",
-                    is_unique: key == "UNI",
+                    is_unique: key == "UNI" || unique_index_columns.contains(&name),
                     default_value: r.try_get::<Option<String>, _>(5).unwrap_or(None),
                     extra: if extra.is_empty() { None } else { Some(extra) },
                 }

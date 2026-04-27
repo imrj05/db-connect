@@ -335,8 +335,11 @@ function DatabaseNode({
     const [truncateLoading, setTruncateLoading] = useState(false);
     const [dropTarget, setDropTarget] = useState<string | null>(null);
     const [dropLoading, setDropLoading] = useState(false);
-    const qi = (name: string) =>
-        connection.type === "mysql" ? `\`${name}\`` : `"${name}"`;
+    const qi = (name: string, db?: string) => {
+        const quoted = connection.type === "mysql" ? `\`${name}\`` : `"${name}"`;
+        const dbPrefix = db ? (connection.type === "mysql" ? `\`${db}\`.` : `"${db}".`) : "";
+        return `${dbPrefix}${quoted}`;
+    };
     const handleTableAction = async (action: "rename" | "truncate" | "drop", tableName: string) => {
         if (action === "rename") { setRenameTarget(tableName); setRenameValue(tableName); return; }
         if (action === "drop") { setDropTarget(tableName); return; }
@@ -346,10 +349,11 @@ function DatabaseNode({
         if (!truncateTarget) return;
         setTruncateLoading(true);
         try {
+            const targetDb = selectedDb ?? connection.database;
             const sql = connection.type === "sqlite"
-                ? `DELETE FROM ${qi(truncateTarget)}`
-                : `TRUNCATE TABLE ${qi(truncateTarget)}`;
-            const res = await tauriApi.executeQuery(connection.id, sql);
+                ? `DELETE FROM ${qi(truncateTarget, targetDb)}`
+                : `TRUNCATE TABLE ${qi(truncateTarget, targetDb)}`;
+            const res = await tauriApi.executeQuery(connection.id, sql, undefined, targetDb);
             if (res.error) toast.error(`Truncate failed: ${res.error}`);
             else {
                 toast.success(`Truncated ${truncateTarget}`);
@@ -364,8 +368,9 @@ function DatabaseNode({
         if (!renameTarget || !renameValue.trim()) return;
         setRenameLoading(true);
         try {
-            const sql = `ALTER TABLE ${qi(renameTarget)} RENAME TO ${qi(renameValue.trim())}`;
-            const res = await tauriApi.executeQuery(connection.id, sql);
+            const targetDb = selectedDb ?? connection.database;
+            const sql = `ALTER TABLE ${qi(renameTarget, targetDb)} RENAME TO ${qi(renameValue.trim(), targetDb)}`;
+            const res = await tauriApi.executeQuery(connection.id, sql, undefined, targetDb);
             if (res.error) { toast.error(`Rename failed: ${res.error}`); }
             else { toast.success(`Renamed to ${renameValue.trim()}`); setRenameTarget(null); await onRefreshTables(); }
         } catch (e) { toast.error(`Rename failed: ${e}`); }
@@ -375,7 +380,8 @@ function DatabaseNode({
         if (!dropTarget) return;
         setDropLoading(true);
         try {
-            const res = await tauriApi.executeQuery(connection.id, `DROP TABLE ${qi(dropTarget)}`);
+            const targetDb = selectedDb ?? connection.database;
+            const res = await tauriApi.executeQuery(connection.id, `DROP TABLE ${qi(dropTarget, targetDb)}`, undefined, targetDb);
             if (res.error) { toast.error(`Drop failed: ${res.error}`); }
             else { toast.success(`Dropped ${dropTarget}`); setDropTarget(null); await onRefreshTables(); }
         } catch (e) { toast.error(`Drop failed: ${e}`); }
@@ -824,8 +830,11 @@ function DatabaseSection({
     const [dropTarget, setDropTarget] = useState<string | null>(null);
     const [dropLoading, setDropLoading] = useState(false);
 
-    const qi = (name: string) =>
-        conn.type === "mysql" ? `\`${name}\`` : `"${name}"`;
+    const qi = (name: string, db?: string) => {
+        const quoted = conn.type === "mysql" ? `\`${name}\`` : `"${name}"`;
+        const dbPrefix = db ? (conn.type === "mysql" ? `\`${db}\`.` : `"${db}".`) : "";
+        return `${dbPrefix}${quoted}`;
+    };
 
     const handleTableAction = async (action: "rename" | "truncate" | "drop", tableName: string) => {
         if (action === "rename") { setRenameTarget(tableName); setRenameValue(tableName); return; }
@@ -836,10 +845,11 @@ function DatabaseSection({
         if (!truncateTarget) return;
         setTruncateLoading(true);
         try {
+            const targetDb = db ?? conn.database;
             const sql = conn.type === "sqlite"
-                ? `DELETE FROM ${qi(truncateTarget)}`
-                : `TRUNCATE TABLE ${qi(truncateTarget)}`;
-            const res = await tauriApi.executeQuery(conn.id, sql);
+                ? `DELETE FROM ${qi(truncateTarget, targetDb)}`
+                : `TRUNCATE TABLE ${qi(truncateTarget, targetDb)}`;
+            const res = await tauriApi.executeQuery(conn.id, sql, undefined, targetDb);
             if (res.error) toast.error(`Truncate failed: ${res.error}`);
             else {
                 toast.success(`Truncated ${truncateTarget}`);
@@ -855,8 +865,9 @@ function DatabaseSection({
         if (!renameTarget || !renameValue.trim()) return;
         setRenameLoading(true);
         try {
-            const sql = `ALTER TABLE ${qi(renameTarget)} RENAME TO ${qi(renameValue.trim())}`;
-            const res = await tauriApi.executeQuery(conn.id, sql);
+            const targetDb = db ?? conn.database;
+            const sql = `ALTER TABLE ${qi(renameTarget, targetDb)} RENAME TO ${qi(renameValue.trim(), targetDb)}`;
+            const res = await tauriApi.executeQuery(conn.id, sql, undefined, targetDb);
             if (res.error) { toast.error(`Rename failed: ${res.error}`); }
             else { toast.success(`Renamed to ${renameValue.trim()}`); setRenameTarget(null); await onRefreshTables(); }
         } catch (e) { toast.error(`Rename failed: ${e}`); }
@@ -867,7 +878,8 @@ function DatabaseSection({
         if (!dropTarget) return;
         setDropLoading(true);
         try {
-            const res = await tauriApi.executeQuery(conn.id, `DROP TABLE ${qi(dropTarget)}`);
+            const targetDb = db ?? conn.database;
+            const res = await tauriApi.executeQuery(conn.id, `DROP TABLE ${qi(dropTarget, targetDb)}`, undefined, targetDb);
             if (res.error) { toast.error(`Drop failed: ${res.error}`); }
             else { toast.success(`Dropped ${dropTarget}`); setDropTarget(null); await onRefreshTables(); }
         } catch (e) { toast.error(`Drop failed: ${e}`); }
@@ -1140,7 +1152,7 @@ const Sidebar = () => {
             const dropSql = activeConn.type === "mysql"
                 ? `DROP DATABASE \`${dropDbConfirm}\``
                 : `DROP DATABASE "${dropDbConfirm}"`;
-            await tauriApi.executeQuery(activeConn.id, dropSql);
+            await tauriApi.executeQuery(activeConn.id, dropSql, undefined, undefined);
             closeOpenDatabase(activeConn.id, dropDbConfirm);
             await refreshDatabases(activeConn.id);
             await refreshTables(activeConn.id);
@@ -1438,7 +1450,8 @@ const Sidebar = () => {
                                                         else pinTable(conn.id, tableName);
                                                     }}
                                                      onAddTable={async (sql) => {
-                                                         const result = await tauriApi.executeQuery(conn.id, sql);
+                                                         const addDb = selectedDatabases[conn.id] ?? conn.database;
+                                                         const result = await tauriApi.executeQuery(conn.id, sql, undefined, addDb);
                                                          if (result.error) throw new Error(result.error);
                                                          await refreshTables(conn.id);
                                                      }}
@@ -1468,7 +1481,8 @@ const Sidebar = () => {
                                                 onInvoke={handleInvoke}
                                                 onRefreshTables={() => refreshTables(conn.id)}
                                                 onAddTable={async (sql) => {
-                                                    const result = await tauriApi.executeQuery(conn.id, sql);
+                                                    const addDb = selectedDatabases[conn.id] ?? conn.database;
+                                                    const result = await tauriApi.executeQuery(conn.id, sql, undefined, addDb);
                                                     if (result.error) throw new Error(result.error);
                                                     await refreshTables(conn.id);
                                                 }}

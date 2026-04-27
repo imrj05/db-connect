@@ -304,7 +304,7 @@ async fn ai_provider_models_ping(provider: &str, api_key: &str) -> Result<(), St
                 .get("https://models.github.ai/catalog/models")
                 .header("Authorization", format!("Bearer {api_key}"))
                 .header("Accept", "application/vnd.github+json")
-                .header("X-GitHub-Api-Version", "2026-03-10")
+                .header("X-GitHub-Api-Version", "2022-11-28")
                 .send()
                 .await
                 .map_err(|e| format!("GitHub Copilot request failed: {e}"))?;
@@ -596,7 +596,7 @@ async fn ai_chat_completion_with_provider(
                 .post("https://models.github.ai/inference/chat/completions")
                 .header("Authorization", format!("Bearer {api_key}"))
                 .header("Accept", "application/vnd.github+json")
-                .header("X-GitHub-Api-Version", "2026-03-10")
+                .header("X-GitHub-Api-Version", "2022-11-28")
                 .header("Content-Type", "application/json")
                 .json(&payload)
                 .send()
@@ -887,7 +887,33 @@ pub async fn get_tables(
 }
 
 #[tauri::command]
-pub async fn execute_query(id: String, query: String, timeout_secs: Option<u64>) -> Result<QueryResult, String> {
+pub async fn execute_query(id: String, query: String, timeout_secs: Option<u64>, database: Option<String>) -> Result<QueryResult, String> {
+    // Ensure the driver context is set to the correct database before executing
+    if let Some(ref db) = database {
+        let registries = REGISTRY.configs.get(&id);
+        if let Some(cfg) = registries {
+            let current_db = cfg.database.as_deref().unwrap_or("");
+            if current_db != db.as_str() {
+                // Database context mismatch — switch before executing
+                let driver = REGISTRY
+                    .connections
+                    .get(&id)
+                    .ok_or_else(|| "Not connected".to_string())?
+                    .clone();
+                let mut new_config = cfg.clone();
+                new_config.database = Some(db.clone());
+                driver
+                    .connect(&new_config)
+                    .await
+                    .map_err(|e| format!("Failed to switch to database \"{}\": {}", db, e))?;
+                REGISTRY
+                    .configs
+                    .entry(id.clone())
+                    .and_modify(|c| c.database = Some(db.clone()));
+            }
+        }
+    }
+
     let driver = REGISTRY
         .connections
         .get(&id)

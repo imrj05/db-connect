@@ -104,8 +104,8 @@ export const tauriApi = {
     return await invoke("get_tables", { id, database, schema });
   },
 
-  async executeQuery(id: string, query: string, timeoutSecs?: number): Promise<QueryResult> {
-    return await invoke("execute_query", { id, query, timeoutSecs });
+  async executeQuery(id: string, query: string, timeoutSecs?: number, database?: string): Promise<QueryResult> {
+    return await invoke("execute_query", { id, query, timeoutSecs, database: database ?? null });
   },
 
   async pingConnection(id: string): Promise<number> {

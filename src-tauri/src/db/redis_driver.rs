@@ -3,6 +3,7 @@ use crate::types::*;
 use anyhow::{anyhow, Result};
 use async_trait::async_trait;
 use redis::Client;
+use std::collections::HashSet;
 use std::time::Instant;
 
 pub struct RedisDriver {
@@ -18,6 +19,48 @@ impl RedisDriver {
             current_db: tokio::sync::RwLock::new(0),
         }
     }
+}
+
+fn redis_value_to_json(value: &redis::Value) -> serde_json::Value {
+    match value {
+        redis::Value::Nil => serde_json::Value::Null,
+        redis::Value::Int(n) => serde_json::json!(n),
+        redis::Value::Data(bytes) => String::from_utf8_lossy(bytes).to_string().into(),
+        redis::Value::Bulk(items) => {
+            serde_json::Value::Array(items.iter().map(redis_value_to_json).collect())
+        }
+        redis::Value::Status(status) => status.clone().into(),
+        redis::Value::Okay => "OK".into(),
+    }
+}
+
+async fn scan_all_keys(
+    conn: &mut redis::aio::MultiplexedConnection,
+) -> Result<Vec<String>> {
+    let mut cursor: u64 = 0;
+    let mut seen = HashSet::new();
+    let mut keys = Vec::new();
+
+    loop {
+        let (next_cursor, batch): (u64, Vec<String>) = redis::cmd("SCAN")
+            .arg(cursor)
+            .query_async(conn)
+            .await?;
+
+        for key in batch {
+            if seen.insert(key.clone()) {
+                keys.push(key);
+            }
+        }
+
+        if next_cursor == 0 {
+            break;
+        }
+
+        cursor = next_cursor;
+    }
+
+    Ok(keys)
 }
 
 // ── SQL → Redis translators ────────────────────────────────────────────────────
@@ -222,7 +265,7 @@ impl DatabaseDriver for RedisDriver {
             .query_async(&mut conn)
             .await?;
 
-        let mut keys: Vec<String> = redis::cmd("KEYS").arg("*").query_async(&mut conn).await?;
+        let mut keys = scan_all_keys(&mut conn).await?;
         keys.sort();
         Ok(keys
             .into_iter()
@@ -334,7 +377,7 @@ impl DatabaseDriver for RedisDriver {
 
         Ok(QueryResult {
             columns: vec!["value".to_string()],
-            rows: vec![serde_json::to_value(format!("{:?}", val))?],
+            rows: vec![serde_json::json!({ "value": redis_value_to_json(&val) })],
             execution_time_ms: duration,
         })
     }
@@ -363,8 +406,8 @@ impl DatabaseDriver for RedisDriver {
             .query_async(&mut conn)
             .await?;
 
-        // Get all keys sorted, then paginate
-        let mut all_keys: Vec<String> = redis::cmd("KEYS").arg("*").query_async(&mut conn).await?;
+        // Scan keys incrementally to avoid blocking Redis instances with large keyspaces.
+        let mut all_keys = scan_all_keys(&mut conn).await?;
         all_keys.sort();
 
         let offset = (page * page_size) as usize;

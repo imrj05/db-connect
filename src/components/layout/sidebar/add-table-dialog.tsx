@@ -134,13 +134,14 @@ const COL_TYPES: Record<DatabaseType, string[]> = {
     mongodb: [],
     redis: [],
 };
-function qi(n: string, dbType: string): string {
-    return dbType === "mysql" ? `\`${n}\`` : `"${n}"`;
+function qi(n: string, dbType: string, dbPrefix?: string): string {
+    const quoted = dbType === "mysql" ? `\`${n}\`` : `"${n}"`;
+    return dbPrefix ? `${dbType === "mysql" ? `\`${dbPrefix}\`` : `"${dbPrefix}"`}.${quoted}` : quoted;
 }
-function buildCreateTableSql(tableName: string, cols: ColDef[], dbType: string): string {
+function buildCreateTableSql(tableName: string, cols: ColDef[], dbType: string, database?: string): string {
     const pkCols = cols.filter((c) => c.isPrimary);
     const colLines = cols.map((c) => {
-        const parts = [qi(c.name, dbType), c.type];
+        const parts = [qi(c.name, dbType, database), c.type];
         if (!c.nullable && !c.isPrimary) parts.push("NOT NULL");
         if (c.isPrimary && pkCols.length === 1) parts.push("PRIMARY KEY");
         if (c.defaultValue.trim()) parts.push(`DEFAULT ${c.defaultValue.trim()}`);
@@ -148,12 +149,12 @@ function buildCreateTableSql(tableName: string, cols: ColDef[], dbType: string):
         return "  " + parts.join(" ");
     });
     if (pkCols.length > 1)
-        colLines.push(`  PRIMARY KEY (${pkCols.map((c) => qi(c.name, dbType)).join(", ")})`);
-    const create = `CREATE TABLE ${qi(tableName, dbType)} (\n${colLines.join(",\n")}\n)`;
+        colLines.push(`  PRIMARY KEY (${pkCols.map((c) => qi(c.name, dbType, database)).join(", ")})`);
+    const create = `CREATE TABLE ${qi(tableName, dbType, database)} (\n${colLines.join(",\n")}\n)`;
     if (dbType !== "mysql") {
         const comments = cols
             .filter((c) => c.comment.trim())
-            .map((c) => `COMMENT ON COLUMN ${qi(tableName, dbType)}.${qi(c.name, dbType)} IS '${c.comment.trim().replace(/'/g, "''")}';`);
+            .map((c) => `COMMENT ON COLUMN ${qi(tableName, dbType, database)}.${qi(c.name, dbType, database)} IS '${c.comment.trim().replace(/'/g, "''")}';`);
         if (comments.length) return create + ";\n\n" + comments.join("\n");
     }
     return create;
@@ -186,7 +187,7 @@ export function AddTableDialog({
     const [error, setError] = useState<string | null>(null);
     const [showPreview, setShowPreview] = useState(true);
     const types = COL_TYPES[connectionType] ?? ["TEXT"];
-    const sqlPreview = buildCreateTableSql(newTableName || "table_name", colDefs, connectionType);
+    const sqlPreview = buildCreateTableSql(newTableName || "table_name", colDefs, connectionType, selectedDb);
     const reset = () => {
         setNewTableName("");
         setColDefs(defaultCols());
@@ -201,7 +202,7 @@ export function AddTableDialog({
         setLoading(true);
         setError(null);
         try {
-            const sql = buildCreateTableSql(newTableName.trim(), colDefs, connectionType);
+            const sql = buildCreateTableSql(newTableName.trim(), colDefs, connectionType, selectedDb);
             await onAddTable(sql);
             onOpenChange(false);
             reset();

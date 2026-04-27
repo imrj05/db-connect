@@ -66,6 +66,7 @@ const FunctionOutput = () => {
 		reorderTabs,
 		switchToTab,
 		clearPendingCellEdits,
+		clearInvocationError,
 		connectedIds,
 		appSettings,
 		showConnectionsManager,
@@ -209,35 +210,7 @@ const FunctionOutput = () => {
 				</div>
 			);
 		}
-		if (
-			showConnectionsManager ||
-			outputType === "idle" ||
-			!invocationResult ||
-			!activeFunction
-		) {
-			if (showConnectionsManager || connectedIds.length === 0) {
-				return (
-					<ConnectionsHome
-						connections={connections}
-						connectedIds={connectedIds}
-						onNewConnection={openNewConnectionPage}
-						onEdit={(conn) => {
-							setEditingConnection(conn);
-							setConnectionDialogOpen(true);
-						}}
-						onConnect={(id) => {
-							setShowConnectionsManager(false);
-							connectAndInit(id);
-						}}
-						onDisconnect={(id) => disconnectConnection(id)}
-					/>
-				);
-			}
-			return (
-				<IdleView onNewConnection={openNewConnectionPage} />
-			);
-		}
-		if (invocationResult.error) {
+		if (invocationResult?.error && activeFunction) {
 			const errorText = invocationResult.error;
 			const lines = errorText.split("\n");
 			const isMultiLine = lines.length > 3;
@@ -249,7 +222,10 @@ const FunctionOutput = () => {
 				});
 			};
 			const handleAskAi = () => {
-				setAskAiFixError(errorText);
+				clearInvocationError();
+				setTimeout(() => {
+					setAskAiFixError(errorText);
+				}, 0);
 			};
 			return (
 				<div className="h-full flex items-center justify-center bg-background p-8">
@@ -257,6 +233,12 @@ const FunctionOutput = () => {
 						<div className="flex items-center justify-between px-4 pt-4 pb-2">
 							<p className="text-[10px] font-bold uppercase tracking-widest text-destructive">Error</p>
 							<div className="flex items-center gap-1.5">
+								<button
+									onClick={() => clearInvocationError()}
+									className="flex items-center gap-1 rounded px-2 py-1 text-[10px] font-medium text-foreground/50 hover:bg-muted hover:text-foreground transition-colors"
+								>
+									← Back to Editor
+								</button>
 								<button
 									onClick={handleCopyError}
 									className="flex items-center gap-1 rounded px-2 py-1 text-[10px] font-medium text-destructive/70 hover:bg-destructive/10 hover:text-destructive transition-colors"
@@ -290,6 +272,34 @@ const FunctionOutput = () => {
 						</div>
 					</div>
 				</div>
+			);
+		}
+		if (
+			showConnectionsManager ||
+			outputType === "idle" ||
+			!invocationResult ||
+			!activeFunction
+		) {
+			if (showConnectionsManager || connectedIds.length === 0) {
+				return (
+					<ConnectionsHome
+						connections={connections}
+						connectedIds={connectedIds}
+						onNewConnection={openNewConnectionPage}
+						onEdit={(conn) => {
+							setEditingConnection(conn);
+							setConnectionDialogOpen(true);
+						}}
+						onConnect={(id) => {
+							setShowConnectionsManager(false);
+							connectAndInit(id);
+						}}
+						onDisconnect={(id) => disconnectConnection(id)}
+					/>
+				);
+			}
+			return (
+				<IdleView onNewConnection={openNewConnectionPage} />
 			);
 		}
 		switch (outputType) {

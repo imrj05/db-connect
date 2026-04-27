@@ -289,6 +289,7 @@ interface AppState {
   setActiveFunctionOnly: (fn: ConnectionFunction) => void;
   setActiveConnection: (connectionId: string) => void;
   setPendingSql: (sql: string) => void;
+  clearInvocationError: () => void;
 
   runMultiStatementSql: (fn: ConnectionFunction, sql: string) => Promise<void>;
   pingConnectionHealth: (connectionId: string) => Promise<void>;
@@ -727,7 +728,8 @@ export const useAppStore = create<AppState>((set, get) => ({
     const database = selectedDatabases[connectionId];
     if (!database) return;
     try {
-      const structure = await tauriApi.getTableStructure(connectionId, database, tableName);
+      const tableSchema = (get().connectionTables[connectionId]?.[database] ?? []).find((t) => t.name === tableName)?.schema;
+      const structure = await tauriApi.getTableStructure(connectionId, database, tableName, tableSchema);
       set((state) => {
         const dbTables = state.connectionTables[connectionId] ?? {};
         const tables = dbTables[database] ?? [];
@@ -835,7 +837,8 @@ export const useAppStore = create<AppState>((set, get) => ({
               }
             }
           }
-          const result = await tauriApi.executeQuery(fn.connectionId, args.sql, get().appSettings.queryTimeoutSecs);
+          const selectedDb = get().selectedDatabases[fn.connectionId];
+          const result = await tauriApi.executeQuery(fn.connectionId, args.sql, get().appSettings.queryTimeoutSecs, selectedDb);
           const sqlResult: FunctionInvocationResult = {
             fn, outputType: "sql-editor", queryResult: result, isLoading: false, invokedAt: Date.now(),
           };
@@ -937,15 +940,14 @@ export const useAppStore = create<AppState>((set, get) => ({
         }
       }
       set((s) => {
-        const errResult: FunctionInvocationResult = s.invocationResult
-          ? { ...s.invocationResult, fn, isLoading: false, error: errorMessage }
-          : {
-              fn,
-              outputType: fallbackOutputType,
-              isLoading: false,
-              error: errorMessage,
-              invokedAt: Date.now(),
-            };
+        const errResult: FunctionInvocationResult = {
+          ...(s.invocationResult ?? {}),
+          fn,
+          outputType: fallbackOutputType,
+          isLoading: false,
+          error: errorMessage,
+          invokedAt: Date.now(),
+        };
         return {
           invocationResult: errResult,
           tabs: s.tabs.map((t) => (t.id === s.activeTabId ? { ...t, result: errResult } : t)),
@@ -980,6 +982,31 @@ export const useAppStore = create<AppState>((set, get) => ({
       tabs: s.tabs.map((t) => (t.id === s.activeTabId ? { ...t, pendingSql: pendingSqlValue } : t)),
     }));
     scheduleWorkspaceSave(get);
+  },
+
+  clearInvocationError: () => {
+    set((s) => {
+      if (!s.invocationResult) return {};
+      const fn = s.invocationResult.fn;
+      const outputType = (
+        fn.type === "query" || fn.type === "execute"
+          ? "sql-editor"
+          : fn.type === "table" || fn.type === "tbl"
+            ? "table-grid"
+            : fn.type === "src"
+              ? "connection-src"
+              : fn.type === "list"
+                ? "table-list"
+                : "sql-editor"
+      ) as import("@/types").FunctionOutputType;
+      const cleared = { ...s.invocationResult, error: undefined, outputType, isLoading: false };
+      return {
+        invocationResult: cleared,
+        tabs: s.tabs.map((t) =>
+          t.id === s.activeTabId ? { ...t, result: cleared } : t,
+        ),
+      };
+    });
   },
 
   runMultiStatementSql: async (fn, sql) => {
@@ -1028,7 +1055,8 @@ export const useAppStore = create<AppState>((set, get) => ({
     // Run all statements concurrently
     const runStmt = async (stmt: string, tabId: string) => {
       try {
-        const result = await tauriApi.executeQuery(fn.connectionId, stmt, get().appSettings.queryTimeoutSecs);
+        const selDb = get().selectedDatabases[fn.connectionId];
+        const result = await tauriApi.executeQuery(fn.connectionId, stmt, get().appSettings.queryTimeoutSecs, selDb);
         const sqlResult: FunctionInvocationResult = {
           fn, outputType: "sql-editor", queryResult: result, isLoading: false, invokedAt: Date.now(),
         };
@@ -1257,7 +1285,8 @@ export const useAppStore = create<AppState>((set, get) => ({
     }
     const entry = tab.undoHistory[tab.undoHistory.length - 1];
     try {
-      await tauriApi.executeQuery(entry.connectionId, entry.reverseSql);
+      const undoDb = get().selectedDatabases[entry.connectionId];
+      await tauriApi.executeQuery(entry.connectionId, entry.reverseSql, undefined, undoDb);
       set((state) => ({
         tabs: state.tabs.map((t) =>
           t.id === tabId
