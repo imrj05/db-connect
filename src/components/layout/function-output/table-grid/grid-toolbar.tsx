@@ -5,7 +5,6 @@ import {
 	RefreshCw,
 	Search,
 	Upload,
-	Download,
 	Pencil,
 	Check,
 	RotateCcw,
@@ -20,7 +19,8 @@ import {
 	Plus,
 	Timer,
 	MoreHorizontal,
-	Eye,
+	FileText,
+	FileJson,
 } from "lucide-react";
 import {
 	DropdownMenu,
@@ -115,8 +115,9 @@ export function GridToolbar({
 	onSearchChange,
 	onClearSearch,
 	onToggleImport,
-	onExport,
-	hasSelectedRows,
+	onExport: _onExport,
+	hasSelectedRows: _hasSelectedRows,
+	onQuickExport,
 	onRenameTable,
 	onDropTable,
 	showInfo,
@@ -135,10 +136,10 @@ export function GridToolbar({
 	onToggleAggFooter,
 	showColorRules,
 	onToggleColorRules,
-	showInsertRow,
 	onInsertRow,
 	autoRefreshInterval,
 	onSetAutoRefresh,
+	showInsertRow: _showInsertRow,
 }: {
 	fn: ConnectionFunction;
 	executionTimeMs: number;
@@ -161,6 +162,7 @@ export function GridToolbar({
 	onClearSearch: () => void;
 	onToggleImport: () => void;
 	onExport?: (preset: import("@/lib/export-utils").ExportPreset, selectedOnly: boolean) => void;
+	onQuickExport?: (format: "csv" | "json" | "sql") => void;
 	hasSelectedRows?: boolean;
 	onRenameTable: () => void;
 	onDropTable: () => void;
@@ -354,242 +356,171 @@ export function GridToolbar({
 						<TooltipContent>Search cells (⌘F)</TooltipContent>
 						</Tooltip>
 					)}
-					{viewMode === "data" && (
-						<Tooltip>
-							<TooltipTrigger asChild>
-								<Button
-									variant="outline"
-									size="sm"
-									onClick={onToggleImport}
-								className="h-7 rounded-md border-border-subtle bg-surface-elevated px-3 text-[11px] font-medium text-foreground/68 shadow-xs hover:bg-surface-2"
-								>
-								<Upload size={11} />
-								Import
-							</Button>
-						</TooltipTrigger>
-						<TooltipContent>Import data</TooltipContent>
-						</Tooltip>
-					)}
-					{viewMode === "data" && onExport && (
-						<DropdownMenu>
-							<DropdownMenuTrigger asChild>
-								<Button
-									variant="outline"
-									size="sm"
-									className="h-7 rounded-md border-border-subtle bg-surface-elevated px-3 text-[11px] font-medium text-foreground/68 shadow-xs hover:bg-surface-2"
-								>
-									<Download size={11} />
-									Export
-								</Button>
-							</DropdownMenuTrigger>
-							<DropdownMenuContent align="end" className="min-w-[180px]">
-								<DropdownMenuItem onClick={() => onExport("csv", false)}>
-									Export as CSV
-								</DropdownMenuItem>
-								<DropdownMenuItem onClick={() => onExport("tsv", false)}>
-									Export as TSV
-								</DropdownMenuItem>
-								<DropdownMenuItem onClick={() => onExport("json", false)}>
-									Export as JSON
-								</DropdownMenuItem>
-								<DropdownMenuItem onClick={() => onExport("sql-inserts", false)}>
-									Export as SQL INSERTs
-								</DropdownMenuItem>
-								<DropdownMenuItem onClick={() => onExport("markdown", false)}>
-									Export as Markdown Table
-								</DropdownMenuItem>
-								<DropdownMenuSeparator />
-								<DropdownMenuItem onClick={() => onExport("clipboard-tsv", false)}>
-									Copy to Clipboard (TSV)
-								</DropdownMenuItem>
-								{hasSelectedRows && (
-									<>
-										<DropdownMenuSeparator />
-										<DropdownMenuItem onClick={() => onExport("csv", true)}>
-											Export Selected Rows (CSV)
-										</DropdownMenuItem>
-										<DropdownMenuItem onClick={() => onExport("clipboard-tsv", true)}>
-											Copy Selected Rows
-										</DropdownMenuItem>
-									</>
-								)}
-							</DropdownMenuContent>
-						</DropdownMenu>
-					)}
-			{fn.tableName && viewMode === "data" && onInsertRow && (
-					<Tooltip>
-						<TooltipTrigger asChild>
-							<Button
-								variant="outline"
-								size="sm"
-								onClick={onInsertRow}
-								className={cn(
-									"h-7 rounded-md border-border-subtle px-3 text-[11px] font-medium shadow-xs",
-									showInsertRow
-										? "bg-accent-green/12 text-accent-green border-accent-green/22 hover:bg-accent-green/16"
-										: "bg-surface-elevated text-foreground/68 hover:bg-surface-2",
-								)}
-							>
+					{/* ••• More actions menu */}
+				<DropdownMenu>
+					<DropdownMenuTrigger asChild>
+						<Button
+							variant="outline"
+							size="sm"
+							className="h-7 w-7 rounded-md border-border-subtle bg-surface-elevated shadow-xs hover:bg-surface-2"
+							aria-label="More actions"
+						>
+							<MoreHorizontal size={11} />
+						</Button>
+					</DropdownMenuTrigger>
+					<DropdownMenuContent align="end" className="min-w-[190px]">
+						{/* Data actions */}
+						{fn.tableName && viewMode === "data" && onInsertRow && (
+							<DropdownMenuItem onClick={onInsertRow} className="text-[11px] gap-2">
 								<Plus size={11} />
 								New Row
-							</Button>
-						</TooltipTrigger>
-						<TooltipContent>Insert new row</TooltipContent>
-					</Tooltip>
-				)}
-				{/* View dropdown — Columns, Aggregation, Color rules, Auto-refresh */}
-				{viewMode === "data" && (
-					<DropdownMenu>
-						<DropdownMenuTrigger asChild>
-							<Button
-								variant="outline"
-								size="sm"
-								className="h-7 rounded-md border-border-subtle bg-surface-elevated px-3 text-[11px] font-medium text-foreground/68 shadow-xs hover:bg-surface-2"
-							>
-								<Eye size={11} />
-								View
-							</Button>
-						</DropdownMenuTrigger>
-						<DropdownMenuContent align="end" className="min-w-[200px]">
-							{/* Columns sub-menu */}
-							{columnIds && columnIds.length > 0 && onToggleColumn && (
-								<DropdownMenuSub>
-									<DropdownMenuSubTrigger className="text-[11px] gap-2">
-										<Columns3 size={11} />
-										Columns
-									</DropdownMenuSubTrigger>
-									<DropdownMenuSubContent className="p-0 min-w-[180px]">
-										<ColumnVisibilityPanel
-											columnIds={columnIds}
-											hiddenColumns={hiddenColumns}
-											onToggleColumn={onToggleColumn}
-										/>
-									</DropdownMenuSubContent>
-								</DropdownMenuSub>
-							)}
-							{/* Aggregation footer */}
-							{onToggleAggFooter && (
-								<DropdownMenuCheckboxItem
-									checked={!!showAggFooter}
-									onCheckedChange={onToggleAggFooter}
-									className="text-[11px] gap-2"
-								>
-									<Sigma size={11} />
-									Aggregation footer
-								</DropdownMenuCheckboxItem>
-							)}
-							{/* Color rules */}
-							{onToggleColorRules && (
-								<DropdownMenuCheckboxItem
-									checked={!!showColorRules}
-									onCheckedChange={onToggleColorRules}
-									className="text-[11px] gap-2"
-								>
-									<Paintbrush size={11} />
-									Color rules
-								</DropdownMenuCheckboxItem>
-							)}
-							{/* Auto-refresh sub-menu */}
-							{onSetAutoRefresh && (
-								<>
-									<DropdownMenuSeparator />
-									<DropdownMenuSub>
-										<DropdownMenuSubTrigger className="text-[11px] gap-2">
-											<span className="relative">
-												<Timer size={11} />
-												{autoRefreshInterval && (
-													<span className="absolute -top-1 -right-1 w-1.5 h-1.5 rounded-full bg-accent-green animate-pulse" />
-												)}
-											</span>
-											Auto-refresh
-											{autoRefreshInterval && (
-												<span className="ml-auto text-[10px] text-accent-green font-medium">
-													{autoRefreshInterval < 60
-														? `${autoRefreshInterval}s`
-														: `${autoRefreshInterval / 60}m`}
-												</span>
-											)}
-										</DropdownMenuSubTrigger>
-										<DropdownMenuSubContent className="text-[11px] w-[130px]">
-											{(
-												[
-													{ label: "Off", value: null },
-													{ label: "30 seconds", value: 30 },
-													{ label: "1 minute", value: 60 },
-													{ label: "5 minutes", value: 300 },
-												] as { label: string; value: number | null }[]
-											).map(({ label, value }) => (
-												<DropdownMenuItem
-													key={label}
-													onClick={() => onSetAutoRefresh(value)}
-													className={cn(
-														"gap-2 cursor-pointer",
-														autoRefreshInterval === value && "font-semibold text-primary",
-													)}
-												>
-													{label}
-													{autoRefreshInterval === value && (
-														<span className="ml-auto text-primary">✓</span>
-													)}
-												</DropdownMenuItem>
-											))}
-										</DropdownMenuSubContent>
-									</DropdownMenuSub>
-								</>
-							)}
-						</DropdownMenuContent>
-					</DropdownMenu>
-				)}
-				{/* More (...) dropdown — Info, Row detail, Rename, Drop table */}
-				{fn.tableName && (
-					<DropdownMenu>
-						<DropdownMenuTrigger asChild>
-							<Button
-								variant="outline"
-								size="sm"
-								className="h-7 rounded-md border-border-subtle bg-surface-elevated px-3 text-[11px] font-medium text-foreground/68 shadow-xs hover:bg-surface-2"
-							>
-								<MoreHorizontal size={11} />
-								More
-							</Button>
-						</DropdownMenuTrigger>
-						<DropdownMenuContent align="end" className="min-w-[180px]">
-							{onToggleInfo && (
-								<DropdownMenuItem
-									onClick={onToggleInfo}
-									className={cn("text-[11px] gap-2", showInfo && "text-accent-blue")}
-								>
-									<Info size={11} />
-									{showInfo ? "Hide table info" : "Table info"}
+							</DropdownMenuItem>
+						)}
+						{viewMode === "data" && (
+							<DropdownMenuItem onClick={onToggleImport} className="text-[11px] gap-2">
+								<Upload size={11} />
+								Import
+							</DropdownMenuItem>
+						)}
+						{viewMode === "data" && onQuickExport && (
+							<>
+								<DropdownMenuItem onClick={() => onQuickExport("csv")} className="text-[11px] gap-2">
+									<FileText size={11} />
+									Export as CSV
 								</DropdownMenuItem>
-							)}
-							{onToggleRowDetail && (
-								<DropdownMenuItem
-									onClick={onToggleRowDetail}
-									className={cn("text-[11px] gap-2", showRowDetail && "text-accent-blue")}
-								>
-									{showRowDetail ? <PanelRightClose size={11} /> : <PanelRightOpen size={11} />}
-									{showRowDetail ? "Close row detail" : "Row detail"}
+								<DropdownMenuItem onClick={() => onQuickExport("json")} className="text-[11px] gap-2">
+									<FileJson size={11} />
+									Export as JSON
 								</DropdownMenuItem>
-							)}
+								<DropdownMenuItem onClick={() => onQuickExport("sql")} className="text-[11px] gap-2">
+									<FileText size={11} />
+									Export as SQL
+								</DropdownMenuItem>
+							</>
+						)}
+
+						{/* View settings */}
+						{viewMode === "data" && (columnIds || onToggleAggFooter || onToggleColorRules || onSetAutoRefresh) && (
 							<DropdownMenuSeparator />
-							<DropdownMenuItem
-								onClick={onRenameTable}
+						)}
+						{viewMode === "data" && columnIds && columnIds.length > 0 && onToggleColumn && (
+							<DropdownMenuSub>
+								<DropdownMenuSubTrigger className="text-[11px] gap-2">
+									<Columns3 size={11} />
+									Columns
+								</DropdownMenuSubTrigger>
+								<DropdownMenuSubContent className="p-0 min-w-[180px]">
+									<ColumnVisibilityPanel
+										columnIds={columnIds}
+										hiddenColumns={hiddenColumns}
+										onToggleColumn={onToggleColumn}
+									/>
+								</DropdownMenuSubContent>
+							</DropdownMenuSub>
+						)}
+						{viewMode === "data" && onToggleAggFooter && (
+							<DropdownMenuCheckboxItem
+								checked={!!showAggFooter}
+								onCheckedChange={onToggleAggFooter}
 								className="text-[11px] gap-2"
 							>
-								<Pencil size={11} />
-								Rename table
-							</DropdownMenuItem>
-							<DropdownMenuItem
-								onClick={onDropTable}
-								className="text-[11px] gap-2 text-destructive focus:text-destructive focus:bg-destructive/10"
+								<Sigma size={11} />
+								Aggregation footer
+							</DropdownMenuCheckboxItem>
+						)}
+						{viewMode === "data" && onToggleColorRules && (
+							<DropdownMenuCheckboxItem
+								checked={!!showColorRules}
+								onCheckedChange={onToggleColorRules}
+								className="text-[11px] gap-2"
 							>
-								<Trash2 size={11} />
-								Drop table
-							</DropdownMenuItem>
-						</DropdownMenuContent>
-					</DropdownMenu>
-				)}
+								<Paintbrush size={11} />
+								Color rules
+							</DropdownMenuCheckboxItem>
+						)}
+						{viewMode === "data" && onSetAutoRefresh && (
+							<DropdownMenuSub>
+								<DropdownMenuSubTrigger className="text-[11px] gap-2">
+									<span className="relative">
+										<Timer size={11} />
+										{autoRefreshInterval && (
+											<span className="absolute -top-1 -right-1 w-1.5 h-1.5 rounded-full bg-accent-green animate-pulse" />
+										)}
+									</span>
+									Auto-refresh
+									{autoRefreshInterval && (
+										<span className="ml-auto text-[10px] text-accent-green font-medium">
+											{autoRefreshInterval < 60 ? `${autoRefreshInterval}s` : `${autoRefreshInterval / 60}m`}
+										</span>
+									)}
+								</DropdownMenuSubTrigger>
+								<DropdownMenuSubContent className="text-[11px] w-[130px]">
+									{(
+										[
+											{ label: "Off", value: null },
+											{ label: "30 seconds", value: 30 },
+											{ label: "1 minute", value: 60 },
+											{ label: "5 minutes", value: 300 },
+										] as { label: string; value: number | null }[]
+									).map(({ label, value }) => (
+										<DropdownMenuItem
+											key={label}
+											onClick={() => onSetAutoRefresh(value)}
+											className={cn(
+												"gap-2 cursor-pointer",
+												autoRefreshInterval === value && "font-semibold text-primary",
+											)}
+										>
+											{label}
+											{autoRefreshInterval === value && (
+												<span className="ml-auto text-primary">✓</span>
+											)}
+										</DropdownMenuItem>
+									))}
+								</DropdownMenuSubContent>
+							</DropdownMenuSub>
+						)}
+
+						{/* Table info & actions */}
+						{fn.tableName && viewMode === "data" && (
+							<DropdownMenuSeparator />
+						)}
+						{fn.tableName && (
+							<>
+								{onToggleInfo && (
+									<DropdownMenuItem
+										onClick={onToggleInfo}
+										className={cn("text-[11px] gap-2", showInfo && "text-accent-blue")}
+									>
+										<Info size={11} />
+										{showInfo ? "Hide table info" : "Table info"}
+									</DropdownMenuItem>
+								)}
+								{onToggleRowDetail && (
+									<DropdownMenuItem
+										onClick={onToggleRowDetail}
+										className={cn("text-[11px] gap-2", showRowDetail && "text-accent-blue")}
+									>
+										{showRowDetail ? <PanelRightClose size={11} /> : <PanelRightOpen size={11} />}
+										{showRowDetail ? "Close row detail" : "Row detail"}
+									</DropdownMenuItem>
+								)}
+								<DropdownMenuSeparator />
+								<DropdownMenuItem onClick={onRenameTable} className="text-[11px] gap-2">
+									<Pencil size={11} />
+									Rename table
+								</DropdownMenuItem>
+								<DropdownMenuItem
+									onClick={onDropTable}
+									className="text-[11px] gap-2 text-destructive focus:text-destructive focus:bg-destructive/10"
+								>
+									<Trash2 size={11} />
+									Drop table
+								</DropdownMenuItem>
+							</>
+						)}
+					</DropdownMenuContent>
+				</DropdownMenu>
 				</div>
 			</div>
 			{/* Search bar */}

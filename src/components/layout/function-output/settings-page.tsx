@@ -6,6 +6,7 @@ import {
     ChevronDown,
     Code2,
     Cpu,
+    Download,
     ExternalLink,
     FolderOpen,
     HardDrive,
@@ -19,6 +20,7 @@ import {
     ShieldOff,
     Sun,
     Table2,
+    Keyboard,
     Trash2,
     Wand2,
     type LucideIcon,
@@ -71,6 +73,7 @@ import {
 } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { Item, ItemContent, ItemGroup } from "@/components/ui/item";
+import { Kbd } from "@/components/ui/kbd";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import {
@@ -87,7 +90,9 @@ import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { getSystemFonts, DB_FONT_MONO, DB_FONT_MONO_STACK, DB_FONT_SANS, DB_FONT_SANS_STACK } from "@/lib/fonts";
 import { licenseDeactivate, licenseGetStored, type StoredLicenseState } from "@/lib/license";
 import { tauriApi, type AiProvider } from "@/lib/tauri-api";
+import { invoke } from "@tauri-apps/api/core";
 import { cn } from "@/lib/utils";
+import { toast } from "@/components/ui/sonner";
 import {
     useAppStore,
     type AppSettings,
@@ -96,8 +101,9 @@ import {
     type UiLightThemeOption,
 } from "@/store/useAppStore";
 import packageJson from "../../../../package.json";
+import type { UpdateInfo } from "@/components/layout/update-dialog";
 
-type Section = "appearance" | "editor" | "table" | "ai" | "storage" | "license" | "about";
+type Section = "appearance" | "editor" | "table" | "ai" | "storage" | "license" | "about" | "keybindings";
 
 const NAV: { id: Section; label: string; description: string; icon: LucideIcon }[] = [
     {
@@ -135,6 +141,12 @@ const NAV: { id: Section; label: string; description: string; icon: LucideIcon }
         label: "License",
         description: "Manage activation status for this device and review license metadata.",
         icon: KeyRound,
+    },
+    {
+        id: "keybindings",
+        label: "Keybindings",
+        description: "Browse all available keyboard shortcuts to navigate and control DB Connect.",
+        icon: Keyboard,
     },
     {
         id: "about",
@@ -1714,6 +1726,37 @@ function LicenseSection({ onActivate }: { onActivate: () => void }) {
 }
 
 function AboutSection() {
+    const [updateStatus, setUpdateStatus] = useState<"idle" | "checking" | "available" | "uptodate" | "error">("idle");
+    const [updateInfo, setUpdateInfo] = useState<UpdateInfo | null>(null);
+    const [installing, setInstalling] = useState(false);
+
+    const handleCheckUpdate = async () => {
+        setUpdateStatus("checking");
+        setUpdateInfo(null);
+        try {
+            const info = await invoke<UpdateInfo>("check_for_updates");
+            if (info.available) {
+                setUpdateInfo(info);
+                setUpdateStatus("available");
+            } else {
+                setUpdateStatus("uptodate");
+            }
+        } catch {
+            setUpdateStatus("error");
+        }
+    };
+
+    const handleInstall = async () => {
+        setInstalling(true);
+        try {
+            await invoke("install_update");
+        } catch (err) {
+            console.error("Update install failed:", err);
+            toast.error("Update installation failed");
+            setInstalling(false);
+        }
+    };
+
     const metadata = [
         { label: "Built with", value: "Tauri 2 · React 19 · TypeScript" },
         { label: "UI", value: "Tailwind CSS v4 · shadcn/ui" },
@@ -1732,7 +1775,7 @@ function AboutSection() {
                         <Badge variant="secondary">Version {packageJson.version}</Badge>
                     </CardAction>
                 </CardHeader>
-                <CardContent>
+                <CardContent className="flex flex-col gap-4">
                     <div className="flex flex-col gap-4 rounded-xl border border-border/60 bg-muted/20 p-4 sm:flex-row sm:items-start">
                         <div className="flex size-12 items-center justify-center rounded-xl bg-primary/10 text-primary">
                             <Table2 />
@@ -1742,6 +1785,56 @@ function AboutSection() {
                             <p className="text-sm leading-6 text-muted-foreground">
                                 DB Connect combines connection management, SQL authoring, query history, and encrypted local storage in a single Tauri app.
                             </p>
+                        </div>
+                    </div>
+
+                    {/* Check for updates */}
+                    <div className="flex items-center justify-between rounded-lg border border-border/60 px-4 py-3">
+                        <div className="flex flex-col gap-0.5">
+                            <span className="text-sm font-medium text-foreground">Updates</span>
+                            <span className="text-xs text-muted-foreground">
+                                {updateStatus === "idle" && "Check whether a newer version is available."}
+                                {updateStatus === "checking" && "Checking for updates…"}
+                                {updateStatus === "uptodate" && `You're on the latest version (${packageJson.version}).`}
+                                {updateStatus === "error" && "Unable to check for updates. Check your connection."}
+                                {updateStatus === "available" && updateInfo && (
+                                    <>Version <span className="font-mono font-semibold text-primary">{updateInfo.version}</span> is available</>
+                                )}
+                            </span>
+                        </div>
+                        <div className="flex items-center gap-2 shrink-0">
+                            {updateStatus === "available" && !installing && (
+                                <Button size="sm" className="h-7 gap-1.5 text-[11px]" onClick={handleInstall}>
+                                    <Download size={11} />
+                                    Update
+                                </Button>
+                            )}
+                            {installing && (
+                                <Button size="sm" className="h-7 gap-1.5 text-[11px]" disabled>
+                                    <Loader2 size={11} className="animate-spin" />
+                                    Installing…
+                                </Button>
+                            )}
+                            {updateStatus !== "checking" && !installing && (
+                                <Button
+                                    variant="outline"
+                                    size="sm"
+                                    className="h-7 text-[11px]"
+                                    onClick={handleCheckUpdate}
+                                >
+                                    {updateStatus === "idle" || updateStatus === "error" ? (
+                                        "Check"
+                                    ) : (
+                                        "Check again"
+                                    )}
+                                </Button>
+                            )}
+                            {updateStatus === "checking" && (
+                                <Button variant="outline" size="sm" className="h-7 text-[11px]" disabled>
+                                    <Loader2 size={11} className="animate-spin" />
+                                    Checking…
+                                </Button>
+                            )}
                         </div>
                     </div>
                 </CardContent>
@@ -1763,6 +1856,65 @@ function AboutSection() {
                             </Item>
                         ))}
                     </ItemGroup>
+                </CardContent>
+            </Card>
+        </div>
+    );
+}
+
+const KEYBINDINGS: { combo: string; action: string; category: string }[] = [
+    { combo: "⌘K", action: "Search / Command palette", category: "Global" },
+    { combo: "⌘T", action: "Open a new tab", category: "Global" },
+    { combo: "⌘W", action: "Close active tab", category: "Global" },
+    { combo: "⌘,", action: "Open Settings", category: "Global" },
+    { combo: "⌘↵", action: "Execute SQL query", category: "Editor" },
+    { combo: "⌘F", action: "Search cells in table", category: "Table" },
+    { combo: "⌘Z", action: "Undo cell edit", category: "Table" },
+    { combo: "⌘D", action: "Clone row", category: "Table" },
+    { combo: "⌘C", action: "Copy cell value", category: "Table" },
+    { combo: "⌘V", action: "Paste cell value", category: "Table" },
+];
+
+function KeybindingsSection() {
+    const grouped = KEYBINDINGS.reduce<Record<string, typeof KEYBINDINGS>>((acc, kb) => {
+        (acc[kb.category] ??= []).push(kb);
+        return acc;
+    }, {});
+
+    return (
+        <div className="flex flex-col gap-6">
+            {Object.entries(grouped).map(([category, bindings]) => (
+                <Card key={category}>
+                    <CardHeader>
+                        <CardTitle>{category}</CardTitle>
+                        <CardDescription>
+                            Keyboard shortcuts for {category.toLowerCase()} actions.
+                        </CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                        <div className="flex flex-col gap-1">
+                            {bindings.map((kb) => (
+                                <div
+                                    key={kb.combo}
+                                    className="flex items-center justify-between rounded-md px-3 py-2.5 transition-colors hover:bg-muted/50"
+                                >
+                                    <span className="text-sm text-foreground/80">{kb.action}</span>
+                                    <Kbd className="text-[11px]">{kb.combo}</Kbd>
+                                </div>
+                            ))}
+                        </div>
+                    </CardContent>
+                </Card>
+            ))}
+            <Card>
+                <CardHeader>
+                    <CardTitle>Note</CardTitle>
+                </CardHeader>
+                <CardContent>
+                    <p className="text-sm leading-6 text-muted-foreground">
+                        On Windows and Linux, use <Kbd className="text-[11px]">Ctrl</Kbd> in place of <Kbd className="text-[11px]">⌘</Kbd>.
+                        Keybindings are currently built-in and not user-customizable.
+                    </p>
                 </CardContent>
             </Card>
         </div>
@@ -1801,7 +1953,7 @@ export function SettingsPage({ onActivate }: { onActivate?: () => void }) {
                 <div className="min-w-0 flex-1">
                     <p className="text-[15px] font-semibold tracking-tight text-foreground">Settings</p>
                     <p className="text-[12px] text-muted-foreground/70">
-                        Adjust appearance, editor behavior, AI, storage, and licensing.
+                        Adjust appearance, editor behavior, AI, storage, licensing, and keybindings.
                     </p>
                 </div>
 
@@ -1901,6 +2053,9 @@ export function SettingsPage({ onActivate }: { onActivate?: () => void }) {
                                     onActivate?.();
                                 }}
                             />
+                        </TabsContent>
+                        <TabsContent value="keybindings" className="mt-0 flex w-full min-w-0 flex-col gap-6">
+                            <KeybindingsSection />
                         </TabsContent>
                         <TabsContent value="about" className="mt-0 flex w-full min-w-0 flex-col gap-6">
                             <AboutSection />

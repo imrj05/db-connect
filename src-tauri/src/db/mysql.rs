@@ -350,7 +350,9 @@ impl DatabaseDriver for MySqlDriver {
                 } else if let Ok(dt) =
                     row.try_get::<sqlx::types::chrono::DateTime<sqlx::types::chrono::Utc>, _>(i)
                 {
-                    serde_json::Value::String(dt.to_string())
+                    // chrono's DateTime<Utc>::to_string() appends " UTC" which MySQL rejects.
+                    // Convert to NaiveDateTime (UTC wall-clock) so the output is "YYYY-MM-DD HH:MM:SS".
+                    serde_json::Value::String(dt.naive_utc().to_string())
                 } else {
                     // Try as bytes if all else fails
                     if let Ok(bytes) = row.try_get::<Vec<u8>, _>(i) {
@@ -445,7 +447,23 @@ impl DatabaseDriver for MySqlDriver {
                     def.push_str(" NOT NULL");
                 }
                 if let Some(ref dv) = col.default_value {
-                    def.push_str(&format!(" DEFAULT {}", dv));
+                    // MySQL SHOW FULL COLUMNS returns default values unquoted for all types.
+                    // String/enum columns need the value re-quoted; numeric/expression defaults do not.
+                    let lower_type = col.data_type.to_lowercase();
+                    let is_string_col = lower_type.starts_with("char")
+                        || lower_type.starts_with("varchar")
+                        || lower_type.contains("text")
+                        || lower_type.starts_with("enum")
+                        || lower_type.starts_with("set")
+                        || lower_type.starts_with("json");
+                    let is_expr = dv.eq_ignore_ascii_case("null")
+                        || dv.to_uppercase().starts_with("CURRENT_")
+                        || dv.starts_with('(');
+                    if is_string_col && !is_expr {
+                        def.push_str(&format!(" DEFAULT '{}'", dv.replace('\'', "''")));
+                    } else {
+                        def.push_str(&format!(" DEFAULT {}", dv));
+                    }
                 }
                 if let Some(ref extra) = col.extra {
                     if extra.contains("auto_increment") {
@@ -468,6 +486,10 @@ impl DatabaseDriver for MySqlDriver {
 
             if include_indexes {
                 for idx in &indexes {
+                    // Skip the PRIMARY index — it is already emitted as PRIMARY KEY (...) in CREATE TABLE
+                    if idx.name == "PRIMARY" {
+                        continue;
+                    }
                     let cols: Vec<String> = idx.columns.iter().map(|c| format!("`{}`", c)).collect();
                     if idx.unique {
                         sql.push_str(&format!(

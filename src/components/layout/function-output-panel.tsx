@@ -76,13 +76,16 @@ const FunctionOutput = () => {
 	const activeConnObj = useMemo(() => { const connId = activeFunction?.connectionId; return connId ? connections.find((c) => c.id === connId) ?? null : null; }, [activeFunction, connections]);
 	const isProductionConn = useMemo(() => !!(activeConnObj?.group?.toLowerCase().includes("prod")), [activeConnObj]);
 	const [page, setPage] = useState(0);
+	const [localPageSize, setLocalPageSize] = useState<number | null>(null);
 	const [pendingDangerSql, setPendingDangerSql] = useState<string | null>(null);
 	const [pendingTabCloseId, setPendingTabCloseId] = useState<string | null>(null);
 	const [askAiFixError, setAskAiFixError] = useState<string | null>(null);
 	const [errorCopied, setErrorCopied] = useState(false);
 	const [errorExpanded, setErrorExpanded] = useState(false);
+	// Reset both page and per-tab page size when switching to a different function/table
 	useEffect(() => {
 		setPage(0);
+		setLocalPageSize(null);
 	}, [activeFunction?.id]);
 	useEffect(() => {
 		const handleTabShortcut = (event: KeyboardEvent) => {
@@ -131,21 +134,22 @@ const FunctionOutput = () => {
 	}, [activeFunction, pendingSqlValue, invokeFunction]);
 	const handlePageChange = useCallback(
 		async (newPage: number) => {
-			if (!activeFunction) return;
-			setPage(newPage);
-			await invokeFunction(activeFunction, { page: newPage });
-		},
-		[activeFunction, invokeFunction],
+		if (!activeFunction) return;
+		setPage(newPage);
+		await invokeFunction(activeFunction, { page: newPage, pageSize: localPageSize ?? appSettings.tablePageSize });
+	},
+	[activeFunction, invokeFunction, localPageSize, appSettings.tablePageSize],
 	);
 	const handleTableClick = useCallback(
-		async (tableName: string) => {
+		async (tableName: string, schema?: string) => {
 			if (!invocationResult) return;
 			const allFns = Object.values(connectionFunctions).flatMap((dbMap) => Object.values(dbMap).flat());
 			const tableFn = allFns.find(
 				(fn) =>
 					fn.type === "table" &&
 					fn.connectionId === invocationResult.fn.connectionId &&
-					fn.tableName === tableName,
+					fn.tableName === tableName &&
+					(schema === undefined || fn.schema === schema),
 			);
 			if (tableFn) await invokeFunction(tableFn);
 		},
@@ -174,15 +178,14 @@ const FunctionOutput = () => {
 	);
 	const activeTableDatabase = useMemo(() => {
 		if (!activeFunction?.tableName) return "default";
-		const tables = Object.values(connectionTables[activeFunction.connectionId] ?? {}).flat();
-		const tableInfo = tables.find((t) => t.name === activeFunction.tableName);
+		// fn.schema is set at build-time from TableInfo.schema (e.g. the MySQL database name).
+		// This avoids an ambiguous flat lookup when two databases share a table name.
 		return (
-			tableInfo?.schema ??
-			connections.find((c) => c.id === activeFunction.connectionId)
-				?.database ??
+			activeFunction.schema ??
+			connections.find((c) => c.id === activeFunction.connectionId)?.database ??
 			"default"
 		);
-	}, [activeFunction, connectionTables, connections]);
+	}, [activeFunction, connections]);
 	// ── Content renderer ──
 	const renderContent = () => {
 		const openNewConnectionPage = () => {
@@ -310,9 +313,14 @@ const FunctionOutput = () => {
 						queryResult={invocationResult.queryResult}
 						isLoading={false}
 						onPageChange={handlePageChange}
+						onPageSizeChange={async (newSize) => {
+							setLocalPageSize(newSize);
+							setPage(0);
+							await invokeFunction(activeFunction, { page: 0, pageSize: newSize });
+						}}
 						page={page}
 						database={activeTableDatabase}
-						pageSize={appSettings.tablePageSize}
+						pageSize={localPageSize ?? appSettings.tablePageSize}
 					/>
 				);
 			case "sql-editor":

@@ -8,7 +8,7 @@ export function TableListView({
 }: {
 	fn: ConnectionFunction;
 	tables: TableInfo[];
-	onTableClick: (tableName: string) => void;
+	onTableClick: (tableName: string, schema?: string) => void;
 }) {
 	return (
 		<div className="h-full flex flex-col bg-background overflow-hidden">
@@ -38,7 +38,7 @@ export function TableListView({
 						{tables.map((t) => (
 							<tr
 								key={`${t.schema}-${t.name}`}
-								onClick={() => onTableClick(t.name)}
+								onClick={() => onTableClick(t.name, t.schema)}
 								className="hover:bg-primary/10 cursor-pointer transition-colors border-b border-border group"
 							>
 								<td className="h-8 px-4 text-foreground/90">

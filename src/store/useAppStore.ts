@@ -284,9 +284,10 @@ interface AppState {
   // ---- Actions: function invocation ----
   invokeFunction: (
     fn: ConnectionFunction,
-    args?: { sql?: string; tableName?: string; page?: number },
+    args?: { sql?: string; tableName?: string; page?: number; pageSize?: number },
   ) => Promise<void>;
   setActiveFunctionOnly: (fn: ConnectionFunction) => void;
+  clearActiveFunction: () => void;
   setActiveConnection: (connectionId: string) => void;
   setPendingSql: (sql: string) => void;
   clearInvocationError: () => void;
@@ -859,11 +860,11 @@ export const useAppStore = create<AppState>((set, get) => ({
         }
 
         case "table": {
-          const tables = getTablesForConn(fn.connectionId);
-          const tableInfo = tables.find((t) => t.name === fn.tableName);
-          const database = tableInfo?.schema ?? connections.find((c) => c.id === fn.connectionId)?.database ?? "default";
+          // Use fn.schema (set at build-time from TableInfo.schema) so that tables
+          // with the same name in different databases always use the correct one.
+          const database = fn.schema ?? connections.find((c) => c.id === fn.connectionId)?.database ?? "default";
           const page = args.page ?? 0;
-          const ps = get().appSettings.tablePageSize;
+          const ps = args.pageSize ?? get().appSettings.tablePageSize;
           const result = await tauriApi.getTableData(fn.connectionId, database, fn.tableName!, page, ps);
           const isMysqlTable = connections.find((c) => c.id === fn.connectionId)?.type === "mysql";
           const qiTable = (n: string) => isMysqlTable ? `\`${n}\`` : `"${n}"`;
@@ -890,10 +891,11 @@ export const useAppStore = create<AppState>((set, get) => ({
             setResult({ fn, outputType: "table-list", tables, isLoading: false, invokedAt: Date.now() });
             break;
           }
+          // Resolve the database: prefer an explicit schema match on the table, then fall back to selectedDatabase
           const tables = getTablesForConn(fn.connectionId);
           const tableInfo = tables.find((t) => t.name === args.tableName);
-          const database = tableInfo?.schema ?? connections.find((c) => c.id === fn.connectionId)?.database ?? "default";
-          const ps2 = get().appSettings.tablePageSize;
+          const database = tableInfo?.schema ?? get().selectedDatabases[fn.connectionId] ?? connections.find((c) => c.id === fn.connectionId)?.database ?? "default";
+          const ps2 = args.pageSize ?? get().appSettings.tablePageSize;
           const result = await tauriApi.getTableData(fn.connectionId, database, args.tableName, args.page ?? 0, ps2);
           const isMysqlTbl = connections.find((c) => c.id === fn.connectionId)?.type === "mysql";
           const qiTbl = (n: string) => isMysqlTbl ? `\`${n}\`` : `"${n}"`;
@@ -968,6 +970,14 @@ export const useAppStore = create<AppState>((set, get) => ({
         activeView: "main",
         tabs: s.tabs.map((t) => (t.id === s.activeTabId ? { ...t, fn, result, label: getTabLabel(fn), pendingSql: "" } : t)),
       };
+    }),
+
+  clearActiveFunction: () =>
+    set({
+      activeFunction: null,
+      invocationResult: null,
+      pendingSqlValue: "",
+      activeView: "main",
     }),
 
   setActiveConnection: (connectionId) =>

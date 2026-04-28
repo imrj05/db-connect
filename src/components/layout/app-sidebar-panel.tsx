@@ -22,6 +22,7 @@ import {
     ChevronsUp,
     RefreshCw,
     TableProperties,
+    Upload,
     XCircle,
     Trash2,
     TriangleAlert,
@@ -40,6 +41,7 @@ import { GROUP_PRESETS } from "@/components/layout/connection-dialog-modal";
 import { ImportExportDialog } from "@/components/layout/import-export-dialog";
 import { ConnectionHealthPanel } from "@/components/layout/connection-health-panel";
 import { DumpDatabaseDialog, type DumpOptions } from "@/components/layout/function-output/table-grid/dump-database-dialog";
+import { ImportSqlDialog } from "@/components/layout/function-output/table-grid/import-sql-dialog";
 import { AddTableDialog } from "@/components/layout/sidebar/add-table-dialog";
 import { toast } from "@/components/ui/sonner";
 import { tauriApi } from "@/lib/tauri-api";
@@ -798,6 +800,8 @@ function DatabaseSection({
     onAddTable,
     onRefreshTables,
     onAfterTruncate,
+    onDumpDatabase,
+    onImportSqlFile,
     // latencyMs
 }: {
     db: string;
@@ -818,9 +822,15 @@ function DatabaseSection({
     onAddTable: (sql: string) => Promise<void>;
     onRefreshTables: () => Promise<void>;
     onAfterTruncate?: () => Promise<void>;
+    onDumpDatabase?: () => void;
+    onImportSqlFile?: () => void;
     latencyMs?: number | null;
 }) {
     const [expanded, setExpanded] = useState(true);
+    // Ensure the selected database is always expanded when it becomes active
+    useEffect(() => {
+        if (isSelected) setExpanded(true);
+    }, [isSelected]);
     const [addTableOpen, setAddTableOpen] = useState(false);
     const [renameTarget, setRenameTarget] = useState<string | null>(null);
     const [renameValue, setRenameValue] = useState("");
@@ -900,10 +910,7 @@ function DatabaseSection({
             <ContextMenu>
                 <ContextMenuTrigger asChild>
                     <button
-                        onClick={() => {
-                            onSelect();
-                            setExpanded((v) => !v);
-                        }}
+                        onClick={onSelect}
                         className={cn(
                             "group flex w-full items-center gap-1.5 rounded-md px-2 py-1.5 text-left transition-colors",
                             isSelected
@@ -911,10 +918,18 @@ function DatabaseSection({
                                 : "text-foreground/62 hover:bg-surface-2 hover:text-foreground",
                         )}
                     >
-                        {expanded
-                            ? <ChevronDown size={11} className="shrink-0 text-foreground/40" />
-                            : <ChevronRight size={11} className="shrink-0 text-foreground/40" />
-                        }
+                        {/* Chevron: toggle expand/collapse only, do not activate the DB */}
+                        <span
+                            role="button"
+                            aria-label={expanded ? "Collapse" : "Expand"}
+                            onClick={(e) => { e.stopPropagation(); setExpanded((v) => !v); }}
+                            className="shrink-0 flex items-center justify-center rounded hover:bg-surface-3 p-0.5 -m-0.5"
+                        >
+                            {expanded
+                                ? <ChevronDown size={11} className="text-foreground/40" />
+                                : <ChevronRight size={11} className="text-foreground/40" />
+                            }
+                        </span>
                         <Database size={11} className={cn("shrink-0", isSelected ? "text-primary/70" : "text-foreground/40")} />
                         <span className="flex-1 truncate font-mono text-[12px] font-semibold">{db}</span>
                         {isSelected && (
@@ -941,6 +956,19 @@ function DatabaseSection({
                         <XCircle size={11} className="shrink-0 text-muted-foreground/60" />
                         Close
                     </ContextMenuItem>
+                    {onDumpDatabase && ["postgresql", "mysql", "mariadb", "sqlite"].includes(conn.type) && (
+                        <>
+                            <ContextMenuSeparator />
+                            <ContextMenuItem onSelect={onDumpDatabase}>
+                                <Download size={11} className="shrink-0 text-muted-foreground/60" />
+                                Dump Database
+                            </ContextMenuItem>
+                            <ContextMenuItem onSelect={onImportSqlFile}>
+                                <Upload size={11} className="shrink-0 text-muted-foreground/60" />
+                                Import SQL File
+                            </ContextMenuItem>
+                        </>
+                    )}
                     <ContextMenuSeparator />
                     <ContextMenuItem variant="destructive" onSelect={onDrop}>
                         <Trash2 size={11} className="shrink-0" />
@@ -1095,6 +1123,9 @@ const Sidebar = () => {
     const [dropDbConfirm, setDropDbConfirm] = useState<string | null>(null);
     const [dropConfirmInput, setDropConfirmInput] = useState("");
     const [droppingDb, setDroppingDb] = useState(false);
+    const [showDumpDialog, setShowDumpDialog] = useState(false);
+    const [dumpDbLoading, setDumpDbLoading] = useState(false);
+    const [showImportSqlDialog, setShowImportSqlDialog] = useState(false);
 
     // Ping connected connections every 30 seconds
     useEffect(() => {
@@ -1163,6 +1194,38 @@ const Sidebar = () => {
             setDroppingDb(false);
             setDropDbConfirm(null);
             setDropConfirmInput("");
+        }
+    };
+
+    const executeDump = async (opts: DumpOptions) => {
+        if (!activeConn) return;
+        setDumpDbLoading(true);
+        const activeDb = currentDb ?? "";
+        const schemaArg = activeConn.type === "postgresql" ? opts.schema || "public" : null;
+        try {
+            const sql = await tauriApi.dumpDatabase(
+                activeConn.id,
+                activeDb,
+                schemaArg,
+                opts.includeData,
+                opts.includeIndexes,
+                opts.includeForeignKeys,
+                opts.createDatabase,
+            );
+            const date = new Date().toISOString().split("T")[0];
+            const defaultName = `${activeDb}-${date}.sql`;
+            const savePath = await tauriApi.saveFileDialog(defaultName, [
+                { name: "SQL Dump", extensions: ["sql"] },
+            ]);
+            if (savePath) {
+                await tauriApi.writeTextFile(savePath, sql);
+                toast.success("Database dump saved");
+                setShowDumpDialog(false);
+            }
+        } catch (e) {
+            toast.error(`Dump failed: ${e}`);
+        } finally {
+            setDumpDbLoading(false);
         }
     };
 
@@ -1416,7 +1479,11 @@ const Sidebar = () => {
 
                                         {/* Open databases as expandable sections */}
                                         {activeDatabases.length > 0 ? (
-                                            activeDatabases.map((db) => {
+                                            // Keep the selected DB pinned to the top
+                                            (selectedDb
+                                                ? [selectedDb, ...activeDatabases.filter((d) => d !== selectedDb)]
+                                                : activeDatabases
+                                            ).map((db) => {
                                                 // Per-db tables and fns — only show this db's data
                                                 const dbFns = (connectionFunctions[conn.id]?.[db] ?? []).filter((f) => f.type === "table");
                                                 const dbTables = connectionTables[conn.id]?.[db] ?? [];
@@ -1461,9 +1528,11 @@ const Sidebar = () => {
                                                              await invokeFunction(activeFunction);
                                                          }
                                                      }}
-                                                     latencyMs={connectionLatency[conn.id]}
-                                                />
-                                                );
+                                                      latencyMs={connectionLatency[conn.id]}
+                                                      onDumpDatabase={() => setShowDumpDialog(true)}
+                                                      onImportSqlFile={() => setShowImportSqlDialog(true)}
+                                                 />
+                                                 );
                                             })
                                         ) : (
                                             /* No open databases yet — show the main DatabaseNode */
@@ -1673,6 +1742,28 @@ const Sidebar = () => {
                         </DialogFooter>
                     </DialogContent>
                 </Dialog>
+            )}
+            {/* Dump Database dialog */}
+            {activeConn && (
+                <DumpDatabaseDialog
+                    open={showDumpDialog}
+                    databaseName={currentDb ?? ""}
+                    dbType={activeConn.type}
+                    loading={dumpDbLoading}
+                    onCancel={() => setShowDumpDialog(false)}
+                    onConfirm={executeDump}
+                />
+            )}
+            {/* Import SQL File dialog */}
+            {activeConn && (
+                <ImportSqlDialog
+                    open={showImportSqlDialog}
+                    connectionId={activeConn.id}
+                    currentDatabase={currentDb ?? ""}
+                    dbType={activeConn.type}
+                    onCancel={() => setShowImportSqlDialog(false)}
+                    onSuccess={() => setShowImportSqlDialog(false)}
+                />
             )}
         </div>
     );

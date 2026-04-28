@@ -5,8 +5,126 @@
 		<link rel="icon" type="image/svg+xml" href="/favicon.svg" />
 		<meta name="viewport" content="width=device-width, initial-scale=1.0" />
 		<title>DB Connect</title>
+		<script>
+			// Pre-paint theme application — runs synchronously before any CSS/JS
+			// to eliminate the white flash on reload/launch.
+			(function () {
+				try {
+					var t = localStorage.getItem("db_connect_theme_v1");
+					if (t !== "light") {
+						// Default to dark when missing or "dark"
+						document.documentElement.classList.add("dark");
+						document.documentElement.style.backgroundColor = "#1a1916";
+					} else {
+						document.documentElement.style.backgroundColor = "#fafafa";
+					}
+				} catch (_) {
+					document.documentElement.classList.add("dark");
+					document.documentElement.style.backgroundColor = "#1a1916";
+				}
+			})();
+		</script>
+		<style>
+			html,
+			body {
+				margin: 0;
+				padding: 0;
+				height: 100%;
+				width: 100%;
+			}
+			#boot-splash {
+				position: fixed;
+				inset: 0;
+				z-index: 99999;
+				display: flex;
+				align-items: center;
+				justify-content: center;
+				background-color: #fafafa;
+				transition: opacity 250ms ease-out;
+				opacity: 1;
+				pointer-events: auto;
+			}
+			html.dark #boot-splash {
+				background-color: #1a1916;
+			}
+			#boot-splash .boot-glow {
+				position: absolute;
+				width: 220px;
+				height: 220px;
+				border-radius: 50%;
+				background: radial-gradient(
+					circle,
+					rgba(120, 130, 200, 0.18) 0%,
+					rgba(120, 130, 200, 0) 65%
+				);
+				animation: boot-glow 1.6s ease-in-out infinite;
+			}
+			html.dark #boot-splash .boot-glow {
+				background: radial-gradient(
+					circle,
+					rgba(180, 190, 240, 0.12) 0%,
+					rgba(180, 190, 240, 0) 65%
+				);
+			}
+			#boot-splash .boot-logo {
+				position: relative;
+				width: 64px;
+				height: 64px;
+				color: #1a1916;
+				animation: boot-pulse 1.6s ease-in-out infinite;
+			}
+			html.dark #boot-splash .boot-logo {
+				color: #e8e8e3;
+			}
+			@keyframes boot-pulse {
+				0%,
+				100% {
+					transform: scale(0.96);
+					opacity: 0.6;
+				}
+				50% {
+					transform: scale(1.04);
+					opacity: 1;
+				}
+			}
+			@keyframes boot-glow {
+				0%,
+				100% {
+					transform: scale(0.9);
+					opacity: 0.5;
+				}
+				50% {
+					transform: scale(1.1);
+					opacity: 1;
+				}
+			}
+			body[data-app-ready="true"] #boot-splash {
+				opacity: 0;
+				pointer-events: none;
+			}
+			@media (prefers-reduced-motion: reduce) {
+				#boot-splash .boot-logo,
+				#boot-splash .boot-glow {
+					animation: none;
+				}
+			}
+		</style>
 	</head>
 	<body class="bg-background text-foreground">
+		<div id="boot-splash" aria-hidden="true">
+			<div class="boot-glow"></div>
+			<svg
+				class="boot-logo"
+				viewBox="0 0 24 24"
+				xmlns="http://www.w3.org/2000/svg"
+				fill="currentColor"
+				aria-hidden="true"
+			>
+				<path
+					d="M21 9.5V12.5C21 14.9853 16.9706 17 12 17C7.02944 17 3 14.9853 3 12.5V9.5C3 11.9853 7.02944 14 12 14C16.9706 14 21 11.9853 21 9.5ZM3 14.5C3 16.9853 7.02944 19 12 19C16.9706 19 21 16.9853 21 14.5V17.5C21 19.9853 16.9706 22 12 22C7.02944 22 3 19.9853 3 17.5V14.5ZM12 12C7.02944 12 3 9.98528 3 7.5C3 5.01472 7.02944 3 12 3C16.9706 3 21 5.01472 21 7.5C21 9.98528 16.9706 12 12 12Z"
+				/>
+			</svg>
+		</div>
 		<div id="root"></div>
 		<script type="module" src="/src/main.tsx"></script>
 	</body>

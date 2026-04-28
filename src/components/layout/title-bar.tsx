@@ -78,6 +78,32 @@ function buildDisplayUrl(conn: ConnectionConfig): string {
     const db = conn.database ? `/${conn.database}` : "";
     return `${proto}://${user}${host}${port}${db}`;
 }
+// ── App brand (logo + name) ───────────────────────────────────────────────────
+const AppBrand = ({ compact = false }: { compact?: boolean }) => (
+    <div className="flex shrink-0 items-center gap-2">
+        <span
+            className={cn(
+                "flex shrink-0 items-center justify-center rounded-[5px] bg-primary/10 text-primary",
+                compact ? "size-6" : "size-7",
+            )}
+            aria-hidden="true"
+        >
+            <svg
+                viewBox="0 0 24 24"
+                fill="currentColor"
+                className={compact ? "size-3.5" : "size-4"}
+            >
+                <path d="M21 9.5V12.5C21 14.9853 16.9706 17 12 17C7.02944 17 3 14.9853 3 12.5V9.5C3 11.9853 7.02944 14 12 14C16.9706 14 21 11.9853 21 9.5ZM3 14.5C3 16.9853 7.02944 19 12 19C16.9706 19 21 16.9853 21 14.5V17.5C21 19.9853 16.9706 22 12 22C7.02944 22 3 19.9853 3 17.5V14.5ZM12 12C7.02944 12 3 9.98528 3 7.5C3 5.01472 7.02944 3 12 3C16.9706 3 21 5.01472 21 7.5C21 9.98528 16.9706 12 12 12Z" />
+            </svg>
+        </span>
+        {!compact && (
+            <span className="text-[13px] font-semibold tracking-tight text-foreground/90 leading-none">
+                DB Connect
+            </span>
+        )}
+    </div>
+);
+
 // ── Title Bar ─────────────────────────────────────────────────────────────────
 interface TitleBarProps {
     isLicensed?: boolean | null;
@@ -92,7 +118,7 @@ const TitleBar = ({ isLicensed, onActivate }: TitleBarProps) => {
         connectedIds,
         connections,
         disconnectConnection,
-        setActiveFunctionOnly,
+        clearActiveFunction,
         setEditingConnection,
         setConnectionDialogOpen,
         setShowConnectionsManager,
@@ -145,7 +171,7 @@ const TitleBar = ({ isLicensed, onActivate }: TitleBarProps) => {
     const orderedConns = activeConn
         ? [activeConn, ...connectedConns.filter((c) => c.id !== activeConn.id)]
         : [];
-    const leadingInset = isMac ? 85 : 12;
+    const leadingInset = isMac ? 92 : 12;
     return (
         <header
             onMouseDown={handleTitleBarMouseDown}
@@ -165,9 +191,7 @@ const TitleBar = ({ isLicensed, onActivate }: TitleBarProps) => {
                                 variant="ghost"
                                 size="icon-xs"
                                 aria-label="Back"
-                                onClick={() =>
-                                    setActiveFunctionOnly(null as any)
-                                }
+                                onClick={() => clearActiveFunction()}
                                 className="shell-icon-button size-7 text-foreground/50 hover:bg-surface-2 hover:text-foreground shrink-0"
                             >
                                 <ChevronLeft size={13} />
@@ -180,6 +204,8 @@ const TitleBar = ({ isLicensed, onActivate }: TitleBarProps) => {
                 )}
                 {activeConn && Logo ? (
                     <>
+                        <AppBrand compact />
+                        <span className="h-5 w-px bg-border-subtle/70 shrink-0" aria-hidden="true" />
                         <div className="flex size-8 shrink-0 items-center justify-center border border-border-subtle bg-surface-2">
                             <Logo
                                 className={cn("text-[16px] shrink-0", logoColor)}
@@ -244,9 +270,7 @@ const TitleBar = ({ isLicensed, onActivate }: TitleBarProps) => {
                         </Tooltip>
                     </>
                 ) : (
-                    <span className="shell-section-label text-foreground/58">
-                        DB Connect
-                    </span>
+                    <AppBrand />
                 )}
             </div>
             {/* ── Right: panel toggles · [Cmd+K] · Connection status · Settings ── */}

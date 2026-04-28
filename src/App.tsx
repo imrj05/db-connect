@@ -27,7 +27,7 @@ import {
     AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
-import { Table2, Loader2 } from "lucide-react";
+import { Loader2 } from "lucide-react";
 import { licenseCheckOffline, syncLicenseInBackground, type OfflineCheckResult } from "@/lib/license";
 import { ErrorBoundary } from "./components/layout/error-boundary";
 import { DB_FONT_SANS, DB_FONT_MONO, DB_FONT_SANS_STACK, DB_FONT_MONO_STACK } from "@/lib/fonts";
@@ -99,6 +99,19 @@ function App() {
         loadConnections()
             .finally(() => setIsLoading(false));
     }, [loadConnections]);
+
+    // Hand off the boot splash (painted by index.html) to the real app once
+    // initial data has loaded. The splash fades via CSS transition, then we
+    // remove its DOM node entirely.
+    useEffect(() => {
+        if (isLoading) return;
+        document.body.dataset.appReady = "true";
+        const t = setTimeout(() => {
+            const splash = document.getElementById("boot-splash");
+            splash?.remove();
+        }, 400);
+        return () => clearTimeout(t);
+    }, [isLoading]);
 
     useEffect(() => {
         const timer = setTimeout(async () => {
@@ -286,14 +299,9 @@ function App() {
     );
 
     if (isLoading) {
-        return (
-            <div className="h-full w-full flex flex-col items-center justify-center gap-4 bg-background">
-                <div className="size-16 rounded-md flex items-center justify-center animate-pulse bg-primary/10 border border-primary/20">
-                    <Table2 size={32} className="text-primary" />
-                </div>
-                <p className="text-sm font-semibold text-foreground">DB Connect</p>
-            </div>
-        );
+        // Boot splash from index.html is still on-screen; render nothing yet
+        // so the splash continues to cover the viewport without flicker.
+        return null;
     }
 
     return (

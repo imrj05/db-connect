@@ -130,6 +130,7 @@ export interface ConnectionFunction {
   connectionId: string;
   type: ConnectionFunctionType;
   tableName?: string;    // only for type === 'table' | 'tbl'
+  schema?: string;       // database/schema the table lives in (MySQL: database name, PG: schema name)
   description: string;   // shown in the command palette
 }
 

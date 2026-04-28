@@ -130,31 +130,46 @@ export function buildConnectionFunctions(
   });
 
   // --- 6+. Per-table shortcuts ---
-  // Track used snake_case names to handle collisions (like R's dbcooper does)
+  // Track used (schema, snake_case name) pairs to handle collisions within the
+  // same database (like R's dbcooper does). We key by schema so that tables
+  // with the same name in *different* databases never collide.
   const usedNames = new Set<string>();
 
   for (const table of tables) {
     const rawName = table.name;
     const snakeName = toSnakeCase(rawName);
+    // When the table carries a schema/database (e.g. MySQL), embed it into the
+    // collision-detection key so identical table names in different databases
+    // never clobber each other.
+    const schemaKey = table.schema ? toSnakeCase(table.schema) : "";
+    const dedupePrefix = schemaKey ? `${schemaKey}__${snakeName}` : snakeName;
 
-    // Handle naming collisions: lahman_batting_2(), lahman_batting_3(), etc.
+    // Handle naming collisions within the same schema: batting_2(), batting_3()
     let finalName = snakeName;
+    let dedupeName = dedupePrefix;
     let suffix = 2;
-    while (usedNames.has(finalName)) {
+    while (usedNames.has(dedupeName)) {
       finalName = `${snakeName}_${suffix}`;
+      dedupeName = schemaKey ? `${schemaKey}__${finalName}` : finalName;
       suffix++;
     }
-    usedNames.add(finalName);
+    usedNames.add(dedupeName);
+
+    // Include schema in the ID so that db1.users and db2.users get unique IDs.
+    const fnId = schemaKey
+      ? `${connectionId}_t_${schemaKey}_${finalName}`
+      : `${connectionId}_t_${finalName}`;
 
     fns.push({
-      id: `${connectionId}_t_${finalName}`,
+      id: fnId,
       name: `${prefix}_${finalName}()`,
       callSignature: `${prefix}_${finalName}()`,
       prefix,
       connectionId,
       type: "table",
       tableName: rawName,
-      description: `Browse ${rawName} table`,
+      schema: table.schema,
+      description: `Browse ${rawName} table${table.schema ? ` (${table.schema})` : ""}`,
     });
   }
 

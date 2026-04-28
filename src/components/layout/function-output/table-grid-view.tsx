@@ -19,11 +19,8 @@ import {
     Loader2,
     Sparkles,
     CircleAlert,
-    Download,
     Hash,
     Key,
-    FileText,
-    FileJson,
     Trash2,
     X,
     Plus,
@@ -32,7 +29,6 @@ import {
      ChevronLeft,
      ChevronRight,
     ExternalLink,
-    Database as DatabaseIcon,
 } from "lucide-react";
 import {
     DropdownMenu,
@@ -170,6 +166,7 @@ export function TableGridView({
     queryResult,
     isLoading,
     onPageChange,
+    onPageSizeChange,
     page,
     database,
     pageSize = 50,
@@ -178,6 +175,7 @@ export function TableGridView({
     queryResult?: { columns: string[]; rows: any[]; executionTimeMs: number };
     isLoading: boolean;
     onPageChange: (page: number) => void;
+    onPageSizeChange?: (size: number) => void;
     page: number;
     database: string;
     pageSize?: number;
@@ -345,7 +343,8 @@ export function TableGridView({
                 (candidate) =>
                     candidate.type === "table" &&
                     candidate.connectionId === fn.connectionId &&
-                    candidate.tableName === relation.targetTable,
+                    candidate.tableName === relation.targetTable &&
+                    (relation.targetSchema === undefined || candidate.schema === relation.targetSchema),
             );
             if (!targetFn) {
                 toast.error(`Table "${relation.targetTable}" not found`);
@@ -371,7 +370,7 @@ export function TableGridView({
                     const isNum = displayValue !== "" && !isNaN(Number(displayValue));
                     const sqlVal = isNum ? displayValue : `'${displayValue.replace(/'/g, "''")}'`;
                     const sql = `SELECT * FROM ${qi(relation.targetTable)} WHERE ${qi(targetCol)} = ${sqlVal} LIMIT ${effectivePageSize}`;
-                    const result = await tauriApi.executeQuery(fn.connectionId, sql);
+                    const result = await tauriApi.executeQuery(fn.connectionId, sql, undefined, database);
                     useAppStore.getState().updateTabFilteredResult(newActiveTabId, result);
                 } catch {
                     // Filter set but query failed — user can still apply manually
@@ -441,11 +440,6 @@ export function TableGridView({
         },
         [queryResult, fn.tableName],
     );
-    const openDumpDialog = useCallback(() => {
-        if (!fn.tableName || !isRelationalDb) return;
-        setShowDumpDialog(true);
-    }, [fn.tableName, isRelationalDb]);
-
     const executeDump = useCallback(async (opts: DumpOptions) => {
         setDumpDbLoading(true);
         const activeDb = selectedDatabases[fn.connectionId] ?? connections.find((c) => c.id === fn.connectionId)?.database ?? database;
@@ -561,7 +555,7 @@ export function TableGridView({
                 return `${acc} ${filters[i].join} ${part}`;
             }, "");
             const sql = `SELECT * FROM ${qi(fn.tableName)} WHERE ${whereClause} LIMIT ${effectivePageSize} OFFSET ${page * effectivePageSize}`;
-            const result = await tauriApi.executeQuery(fn.connectionId, sql);
+            const result = await tauriApi.executeQuery(fn.connectionId, sql, undefined, database);
             setFilteredResult(result);
         } catch {
             // keep previous filtered result on error
@@ -824,6 +818,8 @@ export function TableGridView({
                 await tauriApi.executeQuery(
                     fn.connectionId,
                     `INSERT INTO "${fn.tableName}" (${colList}) VALUES ${values}`,
+                    undefined,
+                    database,
                 );
                 total += batch.length;
             }
@@ -1124,7 +1120,7 @@ export function TableGridView({
                         : `${qi(col)} = ${valueToSqlLiteral(value)}`,
                 );
                 const updateSql = `UPDATE ${qi(fn.tableName)} SET ${qi(edit.columnId)} = ${valueToSqlLiteral(edit.pendingValue)} WHERE ${whereParts.join(" AND ")}`;
-                await tauriApi.executeQuery(fn.connectionId, updateSql);
+                await tauriApi.executeQuery(fn.connectionId, updateSql, undefined, database);
                 // Build reverse UPDATE for undo
                 const reverseSql = `UPDATE ${qi(fn.tableName)} SET ${qi(edit.columnId)} = ${valueToSqlLiteral(edit.originalValue)} WHERE ${whereParts.join(" AND ")}`;
                 if (activeTabId) {
@@ -1211,7 +1207,8 @@ export function TableGridView({
                 (candidate) =>
                     candidate.type === "table" &&
                     candidate.connectionId === fn.connectionId &&
-                    candidate.tableName === tableName,
+                    candidate.tableName === tableName &&
+                    (fn.schema === undefined || candidate.schema === fn.schema),
             );
             if (tableFn) {
                 await invokeFunction(tableFn);
@@ -1371,7 +1368,7 @@ export function TableGridView({
         if (!deleteRowSql) return;
         setDeleteRowLoading(true);
         try {
-            await tauriApi.executeQuery(fn.connectionId, deleteRowSql);
+            await tauriApi.executeQuery(fn.connectionId, deleteRowSql, undefined, database);
             setDeleteRowSql(null);
             await onPageChange(page);
         } catch (e) {
@@ -1408,7 +1405,7 @@ export function TableGridView({
                 return `DELETE FROM ${qi(fn.tableName!)} WHERE ${buildWhereForRow(rowData)}`;
             });
             for (const stmt of stmts) {
-                await tauriApi.executeQuery(fn.connectionId, stmt);
+                await tauriApi.executeQuery(fn.connectionId, stmt, undefined, database);
             }
             setSelectedRowIdxSet(new Set());
             setSelectedRowIdx(-1);
@@ -1452,7 +1449,7 @@ export function TableGridView({
                           })
                           .join(", ")})`;
             try {
-                await tauriApi.executeQuery(fn.connectionId, cloneSql);
+                await tauriApi.executeQuery(fn.connectionId, cloneSql, undefined, database);
                 await onPageChange(page);
             } catch (e) {
                 setCellEditError(String(e));
@@ -1598,6 +1595,8 @@ export function TableGridView({
             await tauriApi.executeQuery(
                 fn.connectionId,
                 `UPDATE ${qi(fn.tableName!)} SET ${qi(columnNullConfirmCol)} = NULL`,
+                undefined,
+                database,
             );
             await onPageChange(page);
         } catch (e) {
@@ -2020,7 +2019,7 @@ export function TableGridView({
                  onInsertRow={() => { setShowInsertRow((v) => !v); if (showInsertRow) setInsertRowValues({}); }}
                  autoRefreshInterval={autoRefreshInterval}
                  onSetAutoRefresh={setAutoRefreshInterval}
-                onExport={async (preset: ExportPreset, selectedOnly: boolean) => {
+                 onExport={async (preset: ExportPreset, selectedOnly: boolean) => {
                     const result = effectiveResult;
                     if (!result) return;
                     try {
@@ -2035,6 +2034,7 @@ export function TableGridView({
                         toast.error("Export failed");
                     }
                 }}
+                onQuickExport={exportData}
             />
             <FilterBar
                 viewMode={viewMode}
@@ -3571,7 +3571,16 @@ export function TableGridView({
                                  {[25, 50, 100, 250, 500].map((n) => (
                                      <DropdownMenuItem
                                          key={n}
-                                         onClick={() => { setLocalPageSize(n); onPageChange(0); }}
+                                         onClick={() => {
+                                             if (onPageSizeChange) {
+                                                 // Let the parent re-fetch with the new size
+                                                 onPageSizeChange(n);
+                                             } else {
+                                                 // Fallback: local-only (no parent callback wired)
+                                                 setLocalPageSize(n);
+                                                 onPageChange(0);
+                                             }
+                                         }}
                                          className={cn("gap-2 cursor-pointer", effectivePageSize === n && "font-semibold text-primary")}
                                      >
                                          {n} rows
@@ -3591,65 +3600,7 @@ export function TableGridView({
                                  )}
                              </DropdownMenuContent>
                          </DropdownMenu>
-                         <DropdownMenu>
-                            <DropdownMenuTrigger asChild>
-                                <Button size="xs" variant="outline" className="h-6 gap-1.5 px-2 text-[11px]">
-                                    <Download size={10} />
-                                    Export
-                                </Button>
-                            </DropdownMenuTrigger>
-                            <DropdownMenuContent
-                                align="end"
-                                side="top"
-                                className="text-[11px] font-mono w-[180px]"
-                            >
-                                <DropdownMenuItem
-                                    onClick={() => exportData("csv")}
-                                    className="gap-2 cursor-pointer"
-                                >
-                                    <FileText size={11} />
-                                    Export as CSV
-                                </DropdownMenuItem>
-                                <DropdownMenuItem
-                                    onClick={() => exportData("json")}
-                                    className="gap-2 cursor-pointer"
-                                >
-                                    <FileJson size={11} />
-                                    Export as JSON
-                                </DropdownMenuItem>
-                                <DropdownMenuItem
-                                    onClick={() => exportData("sql")}
-                                    className="gap-2 cursor-pointer"
-                                >
-                                    <FileText size={11} />
-                                    Export as SQL
-                                </DropdownMenuItem>
-                                {isRelationalDb && (
-                                    <>
-                                        <DropdownMenuSeparator />
-                                        <DropdownMenuItem
-                                            onClick={openDumpDialog}
-                                            disabled={dumpDbLoading}
-                                            className="gap-2 cursor-pointer"
-                                        >
-                                            {dumpDbLoading ? (
-                                                <Loader2 size={11} className="animate-spin" />
-                                            ) : (
-                                                <DatabaseIcon size={11} />
-                                            )}
-                                            {dumpDbLoading ? "Generating..." : "Dump Database"}
-                                        </DropdownMenuItem>
-                                        <DropdownMenuItem
-                                            onClick={() => setShowImportSqlDialog(true)}
-                                            className="gap-2 cursor-pointer"
-                                        >
-                                            <DatabaseIcon size={11} />
-                                            Import SQL File
-                                        </DropdownMenuItem>
-                                    </>
-                                )}
-                            </DropdownMenuContent>
-                        </DropdownMenu>
+
                     </>
                 )}
                 {viewMode === "structure" && structure && (
