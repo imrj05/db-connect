@@ -2,6 +2,15 @@
 
 All notable changes to DB Connect are documented here.
 
+## [0.0.18] — 2026-04-28
+
+- chore: bump version to 0.0.18 in package.json
+- feat(schema-diff): implement schema diffing and DDL generation for PostgreSQL, MySQL, and SQLite
+- feat: add schema filter and image export to ER diagram
+- chore: update CHANGELOG.md for v0.0.17
+
+All notable changes to DB Connect are documented here.
+
 ## [0.0.17] — 2026-04-28
 
 - feat: enhance table handling and export functionality
