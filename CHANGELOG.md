@@ -2,6 +2,15 @@
 
 All notable changes to DB Connect are documented here.
 
+## [0.0.17] — 2026-04-28
+
+- feat: enhance table handling and export functionality
+- Merge branch 'master' of https://github.com/imrj05/db-connect
+- feat: fix query error handling with back navigation and AI fix
+- chore: update CHANGELOG.md for v0.0.16
+
+All notable changes to DB Connect are documented here.
+
 ## [0.0.16] — 2026-04-26
 
 - chore: update version to 0.0.16 and remove obsolete tests
