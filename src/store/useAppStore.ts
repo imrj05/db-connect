@@ -138,6 +138,10 @@ export interface AppSettings {
   aiAuthMode: "api_key" | "oauth";
   aiDefaultModel: string;
   queryTimeoutSecs: number;
+  /** Default directory used as the starting location in the Save dialog when exporting diagrams/images. Empty string means "no preference" (use OS default). */
+  diagramExportDir: string;
+  /** Enable experimental schema editor in the ER diagram view. */
+  experimentalSchemaEditor: boolean;
 }
 
 const DEFAULT_SETTINGS: AppSettings = {
@@ -158,6 +162,8 @@ const DEFAULT_SETTINGS: AppSettings = {
   aiAuthMode: "oauth",
   aiDefaultModel: "openrouter/free",
   queryTimeoutSecs: 30,
+  diagramExportDir: "",
+  experimentalSchemaEditor: false,
 };
 
 function loadSettings(): AppSettings {

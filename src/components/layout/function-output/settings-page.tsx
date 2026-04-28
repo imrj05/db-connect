@@ -8,6 +8,7 @@ import {
     Cpu,
     Download,
     ExternalLink,
+    FlaskConical,
     FolderOpen,
     HardDrive,
     Info,
@@ -103,7 +104,7 @@ import {
 import packageJson from "../../../../package.json";
 import type { UpdateInfo } from "@/components/layout/update-dialog";
 
-type Section = "appearance" | "editor" | "table" | "ai" | "storage" | "license" | "about" | "keybindings";
+type Section = "appearance" | "editor" | "table" | "ai" | "storage" | "license" | "experimental" | "about" | "keybindings";
 
 const NAV: { id: Section; label: string; description: string; icon: LucideIcon }[] = [
     {
@@ -147,6 +148,12 @@ const NAV: { id: Section; label: string; description: string; icon: LucideIcon }
         label: "Keybindings",
         description: "Browse all available keyboard shortcuts to navigate and control DB Connect.",
         icon: Keyboard,
+    },
+    {
+        id: "experimental",
+        label: "Experimental",
+        description: "Try out features that are still in development. Use at your own risk.",
+        icon: FlaskConical,
     },
     {
         id: "about",
@@ -1317,8 +1324,27 @@ function AiSection() {
 }
 
 function StorageSection() {
-    const { clearAllHistory, clearAllSavedQueries, connections, queryHistory, savedQueries } = useAppStore();
+    const { clearAllHistory, clearAllSavedQueries, connections, queryHistory, savedQueries, appSettings, updateAppSetting } = useAppStore();
     const [dataDir, setDataDir] = useState<string | null>(null);
+    const exportDir = appSettings.diagramExportDir;
+
+    const handlePickExportDir = async () => {
+        try {
+            const picked = await tauriApi.pickDirectory(exportDir || undefined);
+            if (picked) {
+                updateAppSetting("diagramExportDir", picked);
+                toast.success("Default export directory updated");
+            }
+        } catch (err) {
+            console.error(err);
+            toast.error("Failed to pick directory");
+        }
+    };
+
+    const handleResetExportDir = () => {
+        updateAppSetting("diagramExportDir", "");
+        toast.success("Default export directory cleared");
+    };
 
     useEffect(() => {
         let cancelled = false;
@@ -1370,6 +1396,40 @@ function StorageSection() {
                             </AlertDescription>
                         </Alert>
                     )}
+                </CardContent>
+            </Card>
+
+            <Card>
+                <CardHeader>
+                    <CardTitle>Exports</CardTitle>
+                    <CardDescription>Default location used when saving ER diagrams as PNG or SVG.</CardDescription>
+                </CardHeader>
+                <CardContent>
+                    <FieldGroup>
+                        <Field orientation="responsive" className={SETTINGS_FIELD_CLASS}>
+                            <FieldContent>
+                                <FieldTitle>Diagram export directory</FieldTitle>
+                                <FieldDescription>
+                                    {exportDir ? (
+                                        <span className="break-all font-mono text-xs">{exportDir}</span>
+                                    ) : (
+                                        "Not set — the Save dialog will start in the system default location."
+                                    )}
+                                </FieldDescription>
+                            </FieldContent>
+                            <div className={cn(SETTINGS_CONTROL_CLASS, "gap-2")}>
+                                <Button size="sm" variant="outline" onClick={() => { void handlePickExportDir(); }}>
+                                    <FolderOpen data-icon="inline-start" />
+                                    {exportDir ? "Change" : "Choose folder"}
+                                </Button>
+                                {exportDir ? (
+                                    <Button size="sm" variant="ghost" onClick={handleResetExportDir}>
+                                        Reset
+                                    </Button>
+                                ) : null}
+                            </div>
+                        </Field>
+                    </FieldGroup>
                 </CardContent>
             </Card>
 
@@ -1725,6 +1785,44 @@ function LicenseSection({ onActivate }: { onActivate: () => void }) {
     );
 }
 
+function ExperimentalSection() {
+    const appSettings = useAppStore((s) => s.appSettings);
+    const updateAppSetting = useAppStore((s) => s.updateAppSetting);
+
+    return (
+        <Card>
+            <CardHeader>
+                <CardTitle>Experimental Features</CardTitle>
+                <CardDescription>
+                    These features are under active development and may change or break. Enable at your own risk.
+                </CardDescription>
+            </CardHeader>
+            <CardContent>
+                <div className="space-y-6">
+                    <Field>
+                        <FieldContent>
+                            <div className="flex items-center gap-3">
+                                <div className="flex-1">
+                                    <FieldTitle>Schema Editor</FieldTitle>
+                                    <FieldDescription>
+                                        Enable the interactive schema editor in the ER Diagram view.
+                                        Allows creating, editing, and deleting tables, columns, indexes, and foreign keys
+                                        directly from the diagram, with migration preview and apply workflow.
+                                    </FieldDescription>
+                                </div>
+                                <Switch
+                                    checked={appSettings.experimentalSchemaEditor}
+                                    onCheckedChange={(v) => updateAppSetting("experimentalSchemaEditor", v)}
+                                />
+                            </div>
+                        </FieldContent>
+                    </Field>
+                </div>
+            </CardContent>
+        </Card>
+    );
+}
+
 function AboutSection() {
     const [updateStatus, setUpdateStatus] = useState<"idle" | "checking" | "available" | "uptodate" | "error">("idle");
     const [updateInfo, setUpdateInfo] = useState<UpdateInfo | null>(null);
@@ -2056,6 +2154,9 @@ export function SettingsPage({ onActivate }: { onActivate?: () => void }) {
                         </TabsContent>
                         <TabsContent value="keybindings" className="mt-0 flex w-full min-w-0 flex-col gap-6">
                             <KeybindingsSection />
+                        </TabsContent>
+                        <TabsContent value="experimental" className="mt-0 flex w-full min-w-0 flex-col gap-6">
+                            <ExperimentalSection />
                         </TabsContent>
                         <TabsContent value="about" className="mt-0 flex w-full min-w-0 flex-col gap-6">
                             <AboutSection />

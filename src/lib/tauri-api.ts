@@ -337,6 +337,31 @@ export const tauriApi = {
     await writeTextFile(path, content);
   },
 
+  async writeBinaryFile(path: string, contents: Uint8Array): Promise<void> {
+    const { writeFile } = await import("@tauri-apps/plugin-fs");
+    await writeFile(path, contents);
+  },
+
+  async pickDirectory(defaultPath?: string): Promise<string | null> {
+    const { open } = await import("@tauri-apps/plugin-dialog");
+    const result = await open({ directory: true, multiple: false, defaultPath });
+    if (typeof result === "string") return result;
+    if (Array.isArray(result)) return result[0] ?? null;
+    return null;
+  },
+
+  async saveFileDialogIn(
+    defaultDir: string | null,
+    defaultName: string,
+    filters: Array<{ name: string; extensions: string[] }>
+  ): Promise<string | null> {
+    const { save } = await import("@tauri-apps/plugin-dialog");
+    const defaultPath = defaultDir
+      ? `${defaultDir.replace(/[/\\]+$/, "")}/${defaultName}`
+      : defaultName;
+    return await save({ defaultPath, filters });
+  },
+
   async readTextFile(path: string): Promise<string> {
     const { readTextFile } = await import("@tauri-apps/plugin-fs");
     return await readTextFile(path);

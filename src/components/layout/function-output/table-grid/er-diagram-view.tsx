@@ -1,97 +1,93 @@
-import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
-	Check,
-	Database,
-	Download,
-	Filter,
-	GripVertical,
-	Image as ImageIcon,
-	Link2,
-	LocateFixed,
-	RefreshCcw,
-	ZoomIn,
-	ZoomOut,
-} from "lucide-react";
-import { Button } from "@/components/ui/button";
-import {
-	DropdownMenu,
-	DropdownMenuContent,
-	DropdownMenuItem,
-	DropdownMenuLabel,
-	DropdownMenuSeparator,
-	DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
+	Background,
+	Controls,
+	MiniMap,
+	ReactFlow,
+	type Connection,
+	type Edge,
+	type Node,
+	type OnConnect,
+	useEdgesState,
+	useNodesState,
+	MarkerType,
+} from "@xyflow/react";
+import "@xyflow/react/dist/style.css";
 import { toast } from "@/components/ui/sonner";
-import { cn } from "@/lib/utils";
+import { tauriApi } from "@/lib/tauri-api";
+import { useAppStore } from "@/store/useAppStore";
 import { SchemaGraph } from "@/types";
+import { TableNode, type TableNodeData } from "./er-diagram-nodes/table-node";
+import { FkEdge } from "./er-diagram-nodes/fk-edge";
+import { ERDiagramToolbar } from "./er-diagram-toolbar";
+import { ERDiagramSaveDialog } from "./er-diagram-save-dialog";
+import {
+	graphToDraft,
+	diffDraft,
+	generateDdl,
+	categorizeChanges,
+} from "@/lib/schema-diff";
+import type {
+	DraftColumn,
+	DraftForeignKey,
+	DraftIndex,
+	DraftTable,
+	SchemaDraft,
+	SchemaChange,
+	CategorizedChanges,
+	DdlStatement,
+} from "@/lib/schema-diff/types";
+
+// ── Constants ────────────────────────────────────────────────────────────────
 
 const NODE_WIDTH = 280;
-const HEADER_HEIGHT = 34;
-const ROW_HEIGHT = 22;
 const COLUMN_GAP = 120;
 const ROW_GAP = 52;
-const VIEWPORT_PADDING = 48;
-const DRAG_THRESHOLD = 4; // px — below this, mousedown+up counts as click
 
-type LayoutNode = {
-	key: string;
-	name: string;
-	schema?: string;
-	columns: SchemaGraph["tables"][number]["columns"];
-	x: number;
-	y: number;
-	width: number;
-	height: number;
-	degree: number;
-};
+const DIAGRAM_POSITIONS_KEY = "db_connect_diagram_positions_v1";
 
-function tableKey(name: string, schema?: string) {
-	return `${schema ?? "default"}::${name}`;
-}
+const nodeTypes = { "table-node": TableNode };
+const edgeTypes = { "fk-edge": FkEdge };
 
-function clamp(value: number, min: number, max: number) {
-	return Math.min(max, Math.max(min, value));
-}
+// ── Export helpers (preserved from original) ─────────────────────────────────
 
-// XML-safe text escaper for SVG export
+const HEADER_HEIGHT = 34;
+const ROW_HEIGHT = 22;
+
 function escapeXml(value: string): string {
 	return value.replace(/[<>&"']/g, (ch) => {
 		switch (ch) {
-			case "<":
-				return "&lt;";
-			case ">":
-				return "&gt;";
-			case "&":
-				return "&amp;";
-			case '"':
-				return "&quot;";
-			case "'":
-				return "&apos;";
-			default:
-				return ch;
+			case "<": return "&lt;";
+			case ">": return "&gt;";
+			case "&": return "&amp;";
+			case '"': return "&quot;";
+			case "'": return "&apos;";
+			default: return ch;
 		}
 	});
 }
 
-// Trigger a browser download for a Blob.
-function downloadBlob(blob: Blob, filename: string) {
-	const url = URL.createObjectURL(blob);
-	const anchor = document.createElement("a");
-	anchor.href = url;
-	anchor.download = filename;
-	document.body.appendChild(anchor);
-	anchor.click();
-	document.body.removeChild(anchor);
-	// Defer revoke so the browser can finish the download.
-	setTimeout(() => URL.revokeObjectURL(url), 1000);
+const _colorNormalizeCanvas: HTMLCanvasElement | null =
+	typeof document !== "undefined" ? document.createElement("canvas") : null;
+const _colorNormalizeCtx = _colorNormalizeCanvas?.getContext("2d") ?? null;
+
+function normalizeColor(input: string): string {
+	if (!_colorNormalizeCtx) return input;
+	try {
+		_colorNormalizeCtx.fillStyle = "#000";
+		_colorNormalizeCtx.fillStyle = input;
+		const out = _colorNormalizeCtx.fillStyle;
+		return typeof out === "string" && out.length > 0 ? out : input;
+	} catch {
+		return input;
+	}
 }
 
-// Resolve a CSS color (handles `var(--name)` & token names) on a live element.
 function resolveCssColor(probe: HTMLElement, color: string): string {
 	probe.style.color = "";
 	probe.style.color = color;
-	const computed = getComputedStyle(probe).color;
-	return computed || color;
+	const computed = getComputedStyle(probe).color || color;
+	return normalizeColor(computed);
 }
 
 type ExportPalette = {
@@ -117,16 +113,18 @@ function readPalette(reference: HTMLElement): ExportPalette {
 	probe.style.pointerEvents = "none";
 	reference.appendChild(probe);
 	const get = (c: string) => resolveCssColor(probe, c);
+	const mix = (token: string, pct: number) =>
+		`color-mix(in oklch, var(${token}) ${pct}%, transparent)`;
 	const palette: ExportPalette = {
-		background: get("hsl(var(--background))"),
-		card: get("hsl(var(--card))"),
-		cardHeader: get("hsl(var(--muted) / 0.35)"),
-		cardHeaderActive: get("hsl(var(--primary) / 0.08)"),
-		border: get("hsl(var(--border))"),
-		borderActive: get("hsl(var(--primary) / 0.45)"),
-		foreground: get("hsl(var(--foreground))"),
-		mutedForeground: get("hsl(var(--muted-foreground) / 0.55)"),
-		primary: get("hsl(var(--primary))"),
+		background: get("var(--background)"),
+		card: get("var(--card)"),
+		cardHeader: get(mix("--muted", 35)),
+		cardHeaderActive: get(mix("--primary", 8)),
+		border: get("var(--border)"),
+		borderActive: get(mix("--primary", 45)),
+		foreground: get("var(--foreground)"),
+		mutedForeground: get(mix("--muted-foreground", 55)),
+		primary: get("var(--primary)"),
 		accentBlue: get("var(--color-accent-blue)"),
 		accentOrange: get("var(--color-accent-orange)"),
 		relationStroke: get("var(--color-accent-blue)"),
@@ -136,11 +134,25 @@ function readPalette(reference: HTMLElement): ExportPalette {
 	return palette;
 }
 
-// Build a self-contained SVG string for the diagram.
-// `nodes` already contains effective positions (incl. user drags).
+type LayoutNodeForExport = {
+	key: string;
+	name: string;
+	schema?: string;
+	columns: { name: string; dataType?: string; isPrimary?: boolean }[];
+	x: number;
+	y: number;
+	width: number;
+	height: number;
+	degree: number;
+};
+
+function tableKey(name: string, schema?: string) {
+	return `${schema ?? "default"}::${name}`;
+}
+
 function buildDiagramSvg(opts: {
 	graph: SchemaGraph;
-	nodes: LayoutNode[];
+	nodes: LayoutNodeForExport[];
 	currentTableName?: string;
 	palette: ExportPalette;
 	margin?: number;
@@ -148,29 +160,21 @@ function buildDiagramSvg(opts: {
 	const { graph, nodes, currentTableName, palette } = opts;
 	const margin = opts.margin ?? 64;
 
-	let minX = Infinity;
-	let minY = Infinity;
-	let maxX = -Infinity;
-	let maxY = -Infinity;
+	let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
 	for (const n of nodes) {
 		minX = Math.min(minX, n.x);
 		minY = Math.min(minY, n.y);
 		maxX = Math.max(maxX, n.x + n.width);
 		maxY = Math.max(maxY, n.y + n.height);
 	}
-	if (!isFinite(minX)) {
-		minX = 0;
-		minY = 0;
-		maxX = 320;
-		maxY = 240;
-	}
+	if (!isFinite(minX)) { minX = 0; minY = 0; maxX = 320; maxY = 240; }
 
 	const offsetX = margin - minX;
 	const offsetY = margin - minY;
 	const width = Math.ceil(maxX - minX + margin * 2);
 	const height = Math.ceil(maxY - minY + margin * 2);
 
-	const nodeByKey = new Map<string, LayoutNode>();
+	const nodeByKey = new Map<string, LayoutNodeForExport>();
 	for (const n of nodes) nodeByKey.set(n.key, n);
 
 	const fkBySource = new Set<string>();
@@ -195,51 +199,26 @@ function buildDiagramSvg(opts: {
 		const target = nodeByKey.get(tk);
 		if (!source || !target) continue;
 
-		const sourceIndex = source.columns.findIndex(
-			(col) => col.name === relation.sourceColumns[0],
-		);
-		const targetIndex = target.columns.findIndex(
-			(col) => col.name === relation.targetColumns[0],
-		);
+		const sourceIndex = source.columns.findIndex((col) => col.name === relation.sourceColumns[0]);
+		const targetIndex = target.columns.findIndex((col) => col.name === relation.targetColumns[0]);
 
 		const fromLeft = target.x < source.x;
-		const startX =
-			(source.x + offsetX) + (fromLeft ? 0 : source.width);
+		const startX = (source.x + offsetX) + (fromLeft ? 0 : source.width);
 		const endX = (target.x + offsetX) + (fromLeft ? target.width : 0);
-		const startY =
-			(source.y + offsetY) + HEADER_HEIGHT +
-			(sourceIndex >= 0 ? sourceIndex : 0) * ROW_HEIGHT + ROW_HEIGHT / 2 + 6;
-		const endY =
-			(target.y + offsetY) + HEADER_HEIGHT +
-			(targetIndex >= 0 ? targetIndex : 0) * ROW_HEIGHT + ROW_HEIGHT / 2 + 6;
+		const startY = (source.y + offsetY) + HEADER_HEIGHT + (sourceIndex >= 0 ? sourceIndex : 0) * ROW_HEIGHT + ROW_HEIGHT / 2 + 6;
+		const endY = (target.y + offsetY) + HEADER_HEIGHT + (targetIndex >= 0 ? targetIndex : 0) * ROW_HEIGHT + ROW_HEIGHT / 2 + 6;
 		const direction = fromLeft ? -1 : 1;
 		const delta = Math.max(56, Math.abs(endX - startX) * 0.45);
-		const isActive =
-			source.name === currentTableName || target.name === currentTableName;
+		const isActive = source.name === currentTableName || target.name === currentTableName;
 		const stroke = isActive ? palette.relationStrokeActive : palette.relationStroke;
 		const strokeWidth = isActive ? 2.5 : 1.8;
 
-		const path =
-			`M ${startX} ${startY} ` +
-			`C ${startX + delta * direction} ${startY}, ` +
-			`${endX - delta * direction} ${endY}, ` +
-			`${endX} ${endY}`;
-
-		parts.push(
-			`<path d="${path}" fill="none" stroke="${escapeXml(palette.background)}" stroke-width="${strokeWidth + 4}" stroke-opacity="0.35" stroke-linecap="round"/>`,
-		);
-		parts.push(
-			`<path d="${path}" fill="none" stroke="${escapeXml(stroke)}" stroke-width="${strokeWidth}" stroke-linecap="round"/>`,
-		);
-		parts.push(
-			`<polygon points="${endX - 8},${endY - 5} ${endX},${endY} ${endX - 8},${endY + 5}" fill="${escapeXml(stroke)}"/>`,
-		);
-		parts.push(
-			`<circle cx="${startX}" cy="${startY}" r="4" fill="${escapeXml(stroke)}"/>`,
-		);
-		parts.push(
-			`<circle cx="${endX}" cy="${endY}" r="4" fill="${escapeXml(stroke)}"/>`,
-		);
+		const path = `M ${startX} ${startY} C ${startX + delta * direction} ${startY}, ${endX - delta * direction} ${endY}, ${endX} ${endY}`;
+		parts.push(`<path d="${path}" fill="none" stroke="${escapeXml(palette.background)}" stroke-width="${strokeWidth + 4}" stroke-opacity="0.35" stroke-linecap="round"/>`);
+		parts.push(`<path d="${path}" fill="none" stroke="${escapeXml(stroke)}" stroke-width="${strokeWidth}" stroke-linecap="round"/>`);
+		parts.push(`<polygon points="${endX - 8},${endY - 5} ${endX},${endY} ${endX - 8},${endY + 5}" fill="${escapeXml(stroke)}"/>`);
+		parts.push(`<circle cx="${startX}" cy="${startY}" r="4" fill="${escapeXml(stroke)}"/>`);
+		parts.push(`<circle cx="${endX}" cy="${endY}" r="4" fill="${escapeXml(stroke)}"/>`);
 	}
 
 	// Cards
@@ -250,79 +229,37 @@ function buildDiagramSvg(opts: {
 		const headerFill = isCurrent ? palette.cardHeaderActive : palette.cardHeader;
 		const stroke = isCurrent ? palette.borderActive : palette.border;
 
-		parts.push(
-			`<rect x="${x}" y="${y}" width="${node.width}" height="${node.height}" rx="12" ry="12" fill="${escapeXml(palette.card)}" stroke="${escapeXml(stroke)}" stroke-width="${isCurrent ? 1.5 : 1}"/>`,
-		);
-		// Header band
-		parts.push(
-			`<path d="M ${x + 12} ${y} H ${x + node.width - 12} A 12 12 0 0 1 ${x + node.width} ${y + 12} V ${y + HEADER_HEIGHT} H ${x} V ${y + 12} A 12 12 0 0 1 ${x + 12} ${y} Z" fill="${escapeXml(headerFill)}"/>`,
-		);
-		parts.push(
-			`<line x1="${x}" y1="${y + HEADER_HEIGHT}" x2="${x + node.width}" y2="${y + HEADER_HEIGHT}" stroke="${escapeXml(palette.border)}" stroke-width="1"/>`,
-		);
-		// Title
-		parts.push(
-			`<text x="${x + 30}" y="${y + 21}" font-size="11" font-weight="700" fill="${escapeXml(palette.foreground)}">${escapeXml(node.name)}</text>`,
-		);
-		// Subtitle: schema · N links
-		parts.push(
-			`<text x="${x + 30}" y="${y + 31}" font-size="9" fill="${escapeXml(palette.mutedForeground)}">${escapeXml((node.schema ?? "default") + " · " + node.degree + " link" + (node.degree === 1 ? "" : "s"))}</text>`,
-		);
+		parts.push(`<rect x="${x}" y="${y}" width="${node.width}" height="${node.height}" rx="12" ry="12" fill="${escapeXml(palette.card)}" stroke="${escapeXml(stroke)}" stroke-width="${isCurrent ? 1.5 : 1}"/>`);
+		parts.push(`<path d="M ${x + 12} ${y} H ${x + node.width - 12} A 12 12 0 0 1 ${x + node.width} ${y + 12} V ${y + HEADER_HEIGHT} H ${x} V ${y + 12} A 12 12 0 0 1 ${x + 12} ${y} Z" fill="${escapeXml(headerFill)}"/>`);
+		parts.push(`<line x1="${x}" y1="${y + HEADER_HEIGHT}" x2="${x + node.width}" y2="${y + HEADER_HEIGHT}" stroke="${escapeXml(palette.border)}" stroke-width="1"/>`);
+		parts.push(`<text x="${x + 30}" y="${y + 21}" font-size="11" font-weight="700" fill="${escapeXml(palette.foreground)}">${escapeXml(node.name)}</text>`);
+		parts.push(`<text x="${x + 30}" y="${y + 31}" font-size="9" fill="${escapeXml(palette.mutedForeground)}">${escapeXml((node.schema ?? "default") + " · " + node.degree + " link" + (node.degree === 1 ? "" : "s"))}</text>`);
 
-		// Columns
 		for (let i = 0; i < node.columns.length; i++) {
 			const col = node.columns[i];
 			const rowY = y + HEADER_HEIGHT + i * ROW_HEIGHT;
 			const cy = rowY + ROW_HEIGHT / 2;
 			const isPrimary = !!col.isPrimary;
 			const isForeign = fkBySource.has(`${node.schema ?? "default"}::${node.name}::${col.name}`);
-			// Row separator
-			if (i > 0) {
-				parts.push(
-					`<line x1="${x + 8}" y1="${rowY}" x2="${x + node.width - 8}" y2="${rowY}" stroke="${escapeXml(palette.border)}" stroke-opacity="0.5" stroke-width="0.5"/>`,
-				);
-			}
-			// Bullet
-			const bulletFill = isPrimary
-				? palette.accentOrange
-				: isForeign
-					? palette.accentBlue
-					: palette.border;
-			parts.push(
-				`<circle cx="${x + 14}" cy="${cy}" r="3" fill="${escapeXml(bulletFill)}"/>`,
-			);
-			// Name (truncate at ~22 chars to keep within card)
+			if (i > 0) parts.push(`<line x1="${x + 8}" y1="${rowY}" x2="${x + node.width - 8}" y2="${rowY}" stroke="${escapeXml(palette.border)}" stroke-opacity="0.5" stroke-width="0.5"/>`);
+			const bulletFill = isPrimary ? palette.accentOrange : isForeign ? palette.accentBlue : palette.border;
+			parts.push(`<circle cx="${x + 14}" cy="${cy}" r="3" fill="${escapeXml(bulletFill)}"/>`);
 			const nameText = col.name.length > 22 ? col.name.slice(0, 21) + "…" : col.name;
-			parts.push(
-				`<text x="${x + 24}" y="${cy + 3.5}" font-size="10" fill="${escapeXml(palette.foreground)}">${escapeXml(nameText)}</text>`,
-			);
-			// Type
+			parts.push(`<text x="${x + 24}" y="${cy + 3.5}" font-size="10" fill="${escapeXml(palette.foreground)}">${escapeXml(nameText)}</text>`);
 			const typeText = col.dataType ?? "";
-			parts.push(
-				`<text x="${x + node.width - 10}" y="${cy + 3.5}" font-size="9" fill="${escapeXml(palette.mutedForeground)}" text-anchor="end">${escapeXml(typeText)}</text>`,
-			);
-			// PK/FK badges
+			parts.push(`<text x="${x + node.width - 10}" y="${cy + 3.5}" font-size="9" fill="${escapeXml(palette.mutedForeground)}" text-anchor="end">${escapeXml(typeText)}</text>`);
 			let badgeRight = node.width - 10 - Math.min(60, typeText.length * 5.5) - 6;
 			if (isForeign) {
-				parts.push(
-					`<rect x="${x + badgeRight - 16}" y="${cy - 6.5}" width="16" height="11" rx="2" ry="2" fill="${escapeXml(palette.accentBlue)}" fill-opacity="0.12" stroke="${escapeXml(palette.accentBlue)}" stroke-opacity="0.25"/>`,
-				);
-				parts.push(
-					`<text x="${x + badgeRight - 8}" y="${cy + 2}" font-size="7" font-weight="800" fill="${escapeXml(palette.accentBlue)}" text-anchor="middle">FK</text>`,
-				);
+				parts.push(`<rect x="${x + badgeRight - 16}" y="${cy - 6.5}" width="16" height="11" rx="2" ry="2" fill="${escapeXml(palette.accentBlue)}" fill-opacity="0.12" stroke="${escapeXml(palette.accentBlue)}" stroke-opacity="0.25"/>`);
+				parts.push(`<text x="${x + badgeRight - 8}" y="${cy + 2}" font-size="7" font-weight="800" fill="${escapeXml(palette.accentBlue)}" text-anchor="middle">FK</text>`);
 				badgeRight -= 20;
 			}
 			if (isPrimary) {
-				parts.push(
-					`<rect x="${x + badgeRight - 16}" y="${cy - 6.5}" width="16" height="11" rx="2" ry="2" fill="${escapeXml(palette.accentOrange)}" fill-opacity="0.12" stroke="${escapeXml(palette.accentOrange)}" stroke-opacity="0.25"/>`,
-				);
-				parts.push(
-					`<text x="${x + badgeRight - 8}" y="${cy + 2}" font-size="7" font-weight="800" fill="${escapeXml(palette.accentOrange)}" text-anchor="middle">PK</text>`,
-				);
+				parts.push(`<rect x="${x + badgeRight - 16}" y="${cy - 6.5}" width="16" height="11" rx="2" ry="2" fill="${escapeXml(palette.accentOrange)}" fill-opacity="0.12" stroke="${escapeXml(palette.accentOrange)}" stroke-opacity="0.25"/>`);
+				parts.push(`<text x="${x + badgeRight - 8}" y="${cy + 2}" font-size="7" font-weight="800" fill="${escapeXml(palette.accentOrange)}" text-anchor="middle">PK</text>`);
 			}
 		}
 	}
-
 	parts.push(`</svg>`);
 	return { svg: parts.join(""), width, height };
 }
@@ -356,6 +293,37 @@ async function rasterizeSvg(svg: string, width: number, height: number, scale = 
 	}
 }
 
+// ── Helpers ──────────────────────────────────────────────────────────────────
+
+let _idCounter = 0;
+function uid(): string {
+	return `rf-${Date.now()}-${++_idCounter}-${Math.random().toString(36).slice(2, 7)}`;
+}
+
+function loadPositions(connectionId: string, database: string): Record<string, { x: number; y: number }> {
+	try {
+		const raw = localStorage.getItem(DIAGRAM_POSITIONS_KEY);
+		if (!raw) return {};
+		const all = JSON.parse(raw) as Record<string, Record<string, { x: number; y: number }>>;
+		return all[`${connectionId}:${database}`] ?? {};
+	} catch {
+		return {};
+	}
+}
+
+function savePositions(connectionId: string, database: string, positions: Record<string, { x: number; y: number }>) {
+	try {
+		const raw = localStorage.getItem(DIAGRAM_POSITIONS_KEY);
+		const all: Record<string, Record<string, { x: number; y: number }>> = raw
+			? JSON.parse(raw)
+			: {};
+		all[`${connectionId}:${database}`] = positions;
+		localStorage.setItem(DIAGRAM_POSITIONS_KEY, JSON.stringify(all));
+	} catch { /* ignore */ }
+}
+
+// ── Main component ──────────────────────────────────────────────────────────
+
 export function ERDiagramView({
 	graph,
 	currentTableName,
@@ -370,337 +338,619 @@ export function ERDiagramView({
 	isRefreshing?: boolean;
 }) {
 	const containerRef = useRef<HTMLDivElement>(null);
+	const rfInstanceRef = useRef<any>(null);
 
-	// ── Canvas pan ──────────────────────────────────────────────────────────
-	const dragRef = useRef<{
-		startX: number;
-		startY: number;
-		originX: number;
-		originY: number;
-	} | null>(null);
-	const [viewport, setViewport] = useState({ x: 32, y: 32, scale: 1 });
-	const [isPanning, setIsPanning] = useState(false);
+	const appSettings = useAppStore((s) => s.appSettings);
+	const connections = useAppStore((s) => s.connections);
+	const activeFunction = useAppStore((s) => s.activeFunction);
+	const selectedDatabases = useAppStore((s) => s.selectedDatabases);
 
-	// Keep a ref to viewport.scale so window-level drag handlers can read it
-	// without needing it in their closure deps (avoids stale reads at any zoom).
-	const viewportScaleRef = useRef(1);
-	useEffect(() => {
-		viewportScaleRef.current = viewport.scale;
-	}, [viewport.scale]);
+	const experimentalEnabled = appSettings.experimentalSchemaEditor ?? false;
 
-	// ── Node drag ───────────────────────────────────────────────────────────
-	const nodeDragRef = useRef<{
-		nodeKey: string;
-		startMouseX: number;
-		startMouseY: number;
-		startNodeX: number;
-		startNodeY: number;
-		hasMoved: boolean;
-	} | null>(null);
-	// Persists "did this mousedown turn into a drag?" across the mouseup → click gap
-	const nodeWasDraggedRef = useRef(false);
+	const connectionId = activeFunction?.connectionId ?? "";
+	const database = connectionId ? (selectedDatabases[connectionId] ?? "") : "";
+	const connection = connections.find((c) => c.id === connectionId);
+	const engine = (connection?.type as "postgresql" | "mysql" | "sqlite") ?? "postgresql";
+	// Normalize engine names
+	const normalizedEngine: "postgres" | "mysql" | "sqlite" =
+		engine === "postgresql" ? "postgres" : engine as "postgres" | "mysql" | "sqlite";
 
-	const [nodePositions, setNodePositions] = useState<Map<string, { x: number; y: number }>>(new Map());
-	const [draggingNodeKey, setDraggingNodeKey] = useState<string | null>(null);
+	// ── State ──────────────────────────────────────────────────────────────────
+	const [isEditing, setIsEditing] = useState(false);
+	const [draft, setDraft] = useState<SchemaDraft | null>(null);
+	const [saveDialogOpen, setSaveDialogOpen] = useState(false);
+	const [ddlStatements, setDdlStatements] = useState<DdlStatement[]>([]);
+	const [categorized, setCategorized] = useState<CategorizedChanges | null>(null);
+	const [orderedChanges, setOrderedChanges] = useState<SchemaChange[]>([]);
+	const [isRunning, setIsRunning] = useState(false);
 
-	// Reset positions whenever the graph changes (e.g. refresh)
-	useEffect(() => {
-		setNodePositions(new Map());
-	}, [graph]);
-
-	// Attach window-level mousemove/mouseup while a node drag is active so the
-	// drag keeps working even when the cursor leaves the canvas container.
-	useEffect(() => {
-		if (!draggingNodeKey) return;
-
-		const onWindowMove = (e: MouseEvent) => {
-			const ref = nodeDragRef.current;
-			if (!ref) return;
-			const dx = e.clientX - ref.startMouseX;
-			const dy = e.clientY - ref.startMouseY;
-			// Cross the threshold → mark as a real drag
-			if (!ref.hasMoved && dx * dx + dy * dy > DRAG_THRESHOLD * DRAG_THRESHOLD) {
-				ref.hasMoved = true;
-				nodeWasDraggedRef.current = true;
-			}
-			if (ref.hasMoved) {
-				// Convert screen-space delta → canvas-space delta
-				const scale = viewportScaleRef.current;
-				setNodePositions((prev) => {
-					const next = new Map(prev);
-					next.set(ref.nodeKey, {
-						x: ref.startNodeX + dx / scale,
-						y: ref.startNodeY + dy / scale,
-					});
-					return next;
-				});
-			}
-		};
-
-		const onWindowUp = () => {
-			nodeDragRef.current = null;
-			setDraggingNodeKey(null);
-		};
-
-		window.addEventListener("mousemove", onWindowMove);
-		window.addEventListener("mouseup", onWindowUp);
-		return () => {
-			window.removeEventListener("mousemove", onWindowMove);
-			window.removeEventListener("mouseup", onWindowUp);
-		};
-	}, [draggingNodeKey]);
-
-	// ── Schema filter ───────────────────────────────────────────────────────
+	// Schema filter
 	const allSchemas = useMemo(() => {
 		const set = new Set<string>();
 		for (const t of graph.tables) set.add(t.schema ?? "default");
 		return [...set].sort((a, b) => a.localeCompare(b));
 	}, [graph]);
-
-	// Selected schemas — null means "all" (default).
 	const [selectedSchemas, setSelectedSchemas] = useState<Set<string> | null>(null);
 
-	// If the graph changes and the selection references gone schemas, reset.
 	useEffect(() => {
 		if (!selectedSchemas) return;
 		const allSet = new Set(allSchemas);
 		for (const s of selectedSchemas) {
-			if (!allSet.has(s)) {
-				setSelectedSchemas(null);
-				return;
-			}
+			if (!allSet.has(s)) { setSelectedSchemas(null); return; }
 		}
 	}, [allSchemas, selectedSchemas]);
 
 	const filteredGraph = useMemo<SchemaGraph>(() => {
-		if (!selectedSchemas || selectedSchemas.size === 0 || allSchemas.length <= 1) {
-			return graph;
-		}
-		const tables = graph.tables.filter((t) =>
-			selectedSchemas.has(t.schema ?? "default"),
-		);
+		if (!selectedSchemas || selectedSchemas.size === 0 || allSchemas.length <= 1) return graph;
+		const tables = graph.tables.filter((t) => selectedSchemas.has(t.schema ?? "default"));
 		const visibleKeys = new Set(tables.map((t) => tableKey(t.name, t.schema)));
 		const relationships = graph.relationships.filter(
-			(r) =>
-				visibleKeys.has(tableKey(r.sourceTable, r.sourceSchema)) &&
+			(r) => visibleKeys.has(tableKey(r.sourceTable, r.sourceSchema)) &&
 				visibleKeys.has(tableKey(r.targetTable, r.targetSchema)),
 		);
 		return { tables, relationships };
 	}, [graph, selectedSchemas, allSchemas.length]);
 
-	const toggleSchema = useCallback(
-		(schema: string) => {
-			setSelectedSchemas((prev) => {
-				const base = prev ?? new Set(allSchemas);
-				const next = new Set(base);
-				if (next.has(schema)) next.delete(schema);
-				else next.add(schema);
-				// If all selected — collapse to null ("all")
-				if (next.size === allSchemas.length) return null;
-				return next;
-			});
-		},
-		[allSchemas],
-	);
-
+	const toggleSchema = useCallback((schema: string) => {
+		setSelectedSchemas((prev) => {
+			const base = prev ?? new Set(allSchemas);
+			const next = new Set(base);
+			if (next.has(schema)) next.delete(schema); else next.add(schema);
+			if (next.size === allSchemas.length) return null;
+			return next;
+		});
+	}, [allSchemas]);
 	const selectAllSchemas = useCallback(() => setSelectedSchemas(null), []);
-
 	const isSchemaSelected = useCallback(
 		(schema: string) => !selectedSchemas || selectedSchemas.has(schema),
 		[selectedSchemas],
 	);
-
 	const activeSchemaCount = selectedSchemas?.size ?? allSchemas.length;
-	const isFiltered =
-		!!selectedSchemas && selectedSchemas.size > 0 && selectedSchemas.size < allSchemas.length;
+	const isFiltered = !!selectedSchemas && selectedSchemas.size > 0 && selectedSchemas.size < allSchemas.length;
 
-	// ── Layout (BFS) ────────────────────────────────────────────────────────
-	const layout = useMemo(() => {
-		const degreeMap = new Map<string, number>();
-		const adjacency = new Map<string, Set<string>>();
+	// ── Build layout nodes ────────────────────────────────────────────────────
 
-		for (const table of filteredGraph.tables) {
-			const key = tableKey(table.name, table.schema);
-			adjacency.set(key, new Set());
-			degreeMap.set(key, 0);
+	const degreeMap = useMemo(() => {
+		const map = new Map<string, number>();
+		for (const t of filteredGraph.tables) {
+			map.set(tableKey(t.name, t.schema), 0);
 		}
+		for (const r of filteredGraph.relationships) {
+			const sk = tableKey(r.sourceTable, r.sourceSchema);
+			const tk = tableKey(r.targetTable, r.targetSchema);
+			map.set(sk, (map.get(sk) ?? 0) + 1);
+			map.set(tk, (map.get(tk) ?? 0) + 1);
+		}
+		return map;
+	}, [filteredGraph]);
 
-		for (const relation of filteredGraph.relationships) {
-			const sourceKey = tableKey(relation.sourceTable, relation.sourceSchema);
-			const targetKey = tableKey(relation.targetTable, relation.targetSchema);
-			adjacency.get(sourceKey)?.add(targetKey);
-			adjacency.get(targetKey)?.add(sourceKey);
-			degreeMap.set(sourceKey, (degreeMap.get(sourceKey) ?? 0) + 1);
-			degreeMap.set(targetKey, (degreeMap.get(targetKey) ?? 0) + 1);
+	// Create BFS layout for initial node positions
+	const bfsLayout = useMemo(() => {
+		const adjacency = new Map<string, Set<string>>();
+		for (const t of filteredGraph.tables) {
+			adjacency.set(tableKey(t.name, t.schema), new Set());
+		}
+		for (const r of filteredGraph.relationships) {
+			const sk = tableKey(r.sourceTable, r.sourceSchema);
+			const tk = tableKey(r.targetTable, r.targetSchema);
+			adjacency.get(sk)?.add(tk);
+			adjacency.get(tk)?.add(sk);
 		}
 
 		const sortedTables = [...filteredGraph.tables].sort((a, b) => {
 			const aKey = tableKey(a.name, a.schema);
 			const bKey = tableKey(b.name, b.schema);
-			const aCurrent = a.name === currentTableName ? 1 : 0;
-			const bCurrent = b.name === currentTableName ? 1 : 0;
-			if (aCurrent !== bCurrent) return bCurrent - aCurrent;
-			const degreeDiff = (degreeMap.get(bKey) ?? 0) - (degreeMap.get(aKey) ?? 0);
-			if (degreeDiff !== 0) return degreeDiff;
-			return a.name.localeCompare(b.name);
+			const aCurr = a.name === currentTableName ? 1 : 0;
+			const bCurr = b.name === currentTableName ? 1 : 0;
+			if (aCurr !== bCurr) return bCurr - aCurr;
+			return ((degreeMap.get(bKey) ?? 0) - (degreeMap.get(aKey) ?? 0)) || a.name.localeCompare(b.name);
 		});
 
-		const root =
-			sortedTables.find((table) => table.name === currentTableName) ??
-			sortedTables[0];
-
+		const root = sortedTables.find((t) => t.name === currentTableName) ?? sortedTables[0];
 		const layerMap = new Map<string, number>();
 		const visited = new Set<string>();
-		const queue: Array<{ key: string; layer: number }> = [];
-
 		if (root) {
-			const rootKey = tableKey(root.name, root.schema);
-			queue.push({ key: rootKey, layer: 0 });
-			visited.add(rootKey);
-			layerMap.set(rootKey, 0);
-		}
-
-		while (queue.length > 0) {
-			const current = queue.shift()!;
-			const neighbors = [...(adjacency.get(current.key) ?? [])].sort((a, b) => {
-				const aTable = filteredGraph.tables.find((table) => tableKey(table.name, table.schema) === a);
-				const bTable = filteredGraph.tables.find((table) => tableKey(table.name, table.schema) === b);
-				if (!aTable || !bTable) return a.localeCompare(b);
-				return aTable.name.localeCompare(bTable.name);
-			});
-
-			for (const neighbor of neighbors) {
-				if (visited.has(neighbor)) continue;
-				visited.add(neighbor);
-				layerMap.set(neighbor, current.layer + 1);
-				queue.push({ key: neighbor, layer: current.layer + 1 });
+			const rk = tableKey(root.name, root.schema);
+			const queue: Array<{ key: string; layer: number }> = [{ key: rk, layer: 0 }];
+			visited.add(rk);
+			layerMap.set(rk, 0);
+			while (queue.length > 0) {
+				const cur = queue.shift()!;
+				for (const nb of [...(adjacency.get(cur.key) ?? [])].sort()) {
+					if (visited.has(nb)) continue;
+					visited.add(nb);
+					layerMap.set(nb, cur.layer + 1);
+					queue.push({ key: nb, layer: cur.layer + 1 });
+				}
 			}
 		}
-
-		let trailingLayer = layerMap.size > 0 ? Math.max(...layerMap.values()) + 1 : 0;
-		for (const table of sortedTables) {
-			const key = tableKey(table.name, table.schema);
+		let trailing = layerMap.size > 0 ? Math.max(...layerMap.values()) + 1 : 0;
+		for (const t of sortedTables) {
+			const key = tableKey(t.name, t.schema);
 			if (layerMap.has(key)) continue;
-			layerMap.set(key, trailingLayer);
-			trailingLayer += 1;
+			layerMap.set(key, trailing++);
 		}
 
-		const layers = new Map<number, typeof filteredGraph.tables>();
-		for (const table of sortedTables) {
-			const key = tableKey(table.name, table.schema);
-			const layer = layerMap.get(key) ?? 0;
-			const group = layers.get(layer) ?? [];
-			group.push(table);
-			layers.set(layer, group);
+		const layers = new Map<number, (typeof filteredGraph.tables)[number][]>();
+		for (const t of sortedTables) {
+			const layer = layerMap.get(tableKey(t.name, t.schema)) ?? 0;
+			const grp = layers.get(layer) ?? [];
+			grp.push(t);
+			layers.set(layer, grp);
 		}
 
-		const nodes = new Map<string, LayoutNode>();
-		let maxWidth = 0;
-		let maxHeight = 0;
-
-		for (const [layerIndex, tables] of [...layers.entries()].sort((a, b) => a[0] - b[0])) {
+		const positions: Record<string, { x: number; y: number }> = {};
+		for (const [layerIdx, tbls] of [...layers.entries()].sort((a, b) => a[0] - b[0])) {
 			let cursorY = 0;
-			for (const table of tables) {
-				const key = tableKey(table.name, table.schema);
-				const height = HEADER_HEIGHT + table.columns.length * ROW_HEIGHT + 12;
-				const x = layerIndex * (NODE_WIDTH + COLUMN_GAP);
-				const y = cursorY;
-
-				nodes.set(key, {
-					key,
-					name: table.name,
-					schema: table.schema,
-					columns: table.columns,
-					x,
-					y,
-					width: NODE_WIDTH,
-					height,
-					degree: degreeMap.get(key) ?? 0,
-				});
-
-				cursorY += height + ROW_GAP;
-				maxWidth = Math.max(maxWidth, x + NODE_WIDTH);
-				maxHeight = Math.max(maxHeight, y + height);
+			for (const tbl of tbls) {
+				const h = 34 + tbl.columns.length * 22 + 12;
+				const key = tableKey(tbl.name, tbl.schema);
+				positions[key] = { x: layerIdx * (NODE_WIDTH + COLUMN_GAP), y: cursorY };
+				cursorY += h + ROW_GAP;
 			}
 		}
+		return positions;
+	}, [filteredGraph, currentTableName, degreeMap]);
 
-		return { nodes, width: maxWidth, height: maxHeight };
-	}, [filteredGraph, currentTableName]);
+	// Load persisted positions (only when not editing)
+	const persistedPositions = useMemo(() => {
+		if (!connectionId || !database) return {};
+		return loadPositions(connectionId, database);
+	}, [connectionId, database]);
 
-	// ── Viewport helpers ────────────────────────────────────────────────────
-	const fitToView = useCallback(() => {
-		const container = containerRef.current;
-		if (!container) return;
-		const boundsWidth = Math.max(layout.width + VIEWPORT_PADDING * 2, 320);
-		const boundsHeight = Math.max(layout.height + VIEWPORT_PADDING * 2, 240);
-		const availableWidth = container.clientWidth - VIEWPORT_PADDING * 2;
-		const availableHeight = container.clientHeight - VIEWPORT_PADDING * 2;
-		const nextScale = clamp(
-			Math.min(availableWidth / boundsWidth, availableHeight / boundsHeight, 1),
-			0.45,
-			1.1,
-		);
-		setViewport({
-			scale: nextScale,
-			x: (container.clientWidth - boundsWidth * nextScale) / 2 + VIEWPORT_PADDING,
-			y: (container.clientHeight - boundsHeight * nextScale) / 2 + VIEWPORT_PADDING,
-		});
-	}, [layout.height, layout.width]);
+	// ── Convert filteredGraph to React Flow nodes/edges ───────────────────────
 
-	useEffect(() => {
-		const frame = requestAnimationFrame(() => fitToView());
-		return () => cancelAnimationFrame(frame);
-	}, [fitToView]);
+	const { rfNodes, rfEdges } = useMemo(() => {
+		const tblMap = new Map<string, (typeof filteredGraph.tables)[number]>();
+		for (const t of filteredGraph.tables) {
+			const k = tableKey(t.name, t.schema);
+			tblMap.set(k, t);
+		}
 
-	const handleWheel = useCallback((event: React.WheelEvent<HTMLDivElement>) => {
-		event.preventDefault();
-		const rect = containerRef.current?.getBoundingClientRect();
-		if (!rect) return;
-		const pointerX = event.clientX - rect.left;
-		const pointerY = event.clientY - rect.top;
+		const fkSourceSet = new Set<string>();
+		for (const r of filteredGraph.relationships) {
+			const sk = tableKey(r.sourceTable, r.sourceSchema);
+			for (const c of r.sourceColumns) fkSourceSet.add(`${sk}::${c}`);
+		}
 
-		setViewport((current) => {
-			const nextScale = clamp(
-				current.scale * (event.deltaY > 0 ? 0.92 : 1.08),
-				0.45,
-				2.2,
-			);
-			const worldX = (pointerX - current.x) / current.scale;
-			const worldY = (pointerY - current.y) / current.scale;
+		const fkSourceMapByTable = new Map<string, Map<string, boolean>>();
+
+		const nodes: Node[] = filteredGraph.tables.map((t) => {
+			const key = tableKey(t.name, t.schema);
+			const pos = persistedPositions[key] ?? bfsLayout[key] ?? { x: 0, y: 0 };
+			const degree = degreeMap.get(key) ?? 0;
+			const colMap = new Map<string, boolean>();
+			for (const c of t.columns) {
+				colMap.set(c.name, fkSourceSet.has(`${key}::${c.name}`));
+			}
+
+			// Convert ColumnInfo[] to DraftColumn[]
+			const draftCols: DraftColumn[] = t.columns.map((c) => ({
+				id: `orig-${key}-${c.name}`,
+				name: c.name,
+				dataType: c.dataType,
+				nullable: c.nullable,
+				isPrimary: c.isPrimary,
+				defaultValue: c.defaultValue,
+			}));
+
+			fkSourceMapByTable.set(key, colMap);
+
 			return {
-				scale: nextScale,
-				x: pointerX - worldX * nextScale,
-				y: pointerY - worldY * nextScale,
+				id: key,
+				type: "table-node",
+				position: pos,
+				data: {
+					label: t.name,
+					schema: t.schema,
+					columns: draftCols,
+					indexes: [],
+					degree,
+					isEditing: false,
+					isCurrent: t.name === currentTableName,
+					fkRelations: [],
+					fkSourceMap: colMap,
+					engine: normalizedEngine,
+				} satisfies TableNodeData,
+				draggable: !isEditing,
 			};
 		});
-	}, []);
 
-	const zoomBy = useCallback((factor: number) => {
-		setViewport((current) => ({
-			...current,
-			scale: clamp(current.scale * factor, 0.45, 2.2),
-		}));
-	}, []);
+		const edges: Edge[] = filteredGraph.relationships.map((r) => {
+			const sk = tableKey(r.sourceTable, r.sourceSchema);
+			const tk = tableKey(r.targetTable, r.targetSchema);
+			return {
+				id: r.name || `${sk}-${tk}-${r.sourceColumns[0]}`,
+				source: sk,
+				target: tk,
+				type: "fk-edge",
+				animated: false,
+				markerEnd: { type: MarkerType.ArrowClosed, color: "var(--color-accent-blue)" },
+				data: { label: r.name, isSelected: false },
+			};
+		});
 
-	// ── Image export ────────────────────────────────────────────────────────
+		return { rfNodes: nodes, rfEdges: edges };
+	}, [filteredGraph, bfsLayout, persistedPositions, degreeMap, currentTableName, isEditing, normalizedEngine]);
+
+	// ── React Flow state ──────────────────────────────────────────────────────
+	const [nodes, setNodes, onNodesChange] = useNodesState(rfNodes as any);
+	const [edges, setEdges, onEdgesChange] = useEdgesState(rfEdges as any);
+
+	// Update when graph changes
+	useEffect(() => {
+		setNodes(rfNodes as any);
+		setEdges(rfEdges as any);
+	}, [rfNodes, rfEdges, setNodes, setEdges]);
+
+	// ── Build draft when entering edit mode ───────────────────────────────────
+	const enterEditMode = useCallback(() => {
+		const d = graphToDraft(filteredGraph, normalizedEngine);
+		setDraft(d);
+		setIsEditing(true);
+
+		// Update nodes to edit mode
+		setNodes((nds) =>
+			nds.map((n) => {
+				const dt = d.tables.find((t) => t.name === (n.data as TableNodeData).label);
+				if (!dt) return n;
+				const fkSourceSet = new Map<string, boolean>();
+				for (const fk of d.foreignKeys) {
+					if (fk.sourceTableId === dt.id) {
+						for (const c of fk.sourceColumns) {
+							const col = dt.columns.find((cc) => cc.name === c);
+							if (col) fkSourceSet.set(col.id, true);
+						}
+					}
+				}
+				return {
+					...n,
+					draggable: true,
+					data: {
+						...n.data,
+						label: dt.name,
+						columns: dt.columns,
+						indexes: dt.indexes,
+						isEditing: true,
+						fkRelations: d.foreignKeys,
+						fkSourceMap: fkSourceSet,
+						onUpdateTable: (patch: { name?: string; columns?: DraftColumn[]; indexes?: DraftIndex[] }) => {
+							setDraft((prev) => {
+								if (!prev) return prev;
+								return {
+									...prev,
+									tables: prev.tables.map((t) =>
+										t.id === dt.id
+											? {
+												...t,
+												name: patch.name ?? t.name,
+												columns: patch.columns ?? t.columns,
+												indexes: patch.indexes ?? t.indexes,
+											}
+											: t,
+									),
+								};
+							});
+						},
+						onDeleteTable: () => {
+							setDraft((prev) => {
+								if (!prev) return prev;
+								return {
+									...prev,
+									tables: prev.tables.filter((t) => t.id !== dt.id),
+									foreignKeys: prev.foreignKeys.filter(
+										(fk) => fk.sourceTableId !== dt.id && fk.targetTableId !== dt.id,
+									),
+								};
+							});
+						},
+						onStartFKDrag: (_tableId: string, _columnId: string) => {
+							/* handled at React Flow level */
+						},
+					},
+				};
+			}),
+		);
+
+		// Add FK edges (editable)
+		setEdges(
+			d.foreignKeys.map((fk) => {
+				const srcT = d.tables.find((t) => t.id === fk.sourceTableId);
+				const tgtT = d.tables.find((t) => t.id === fk.targetTableId);
+				const srcKey = tableKey(srcT?.name ?? "", srcT?.schema);
+				const tgtKey = tableKey(tgtT?.name ?? "", tgtT?.schema);
+				return {
+					id: fk.id,
+					source: srcKey,
+					target: tgtKey,
+					type: "fk-edge",
+					animated: false,
+					markerEnd: { type: MarkerType.ArrowClosed, color: "var(--color-accent-blue)" },
+					data: { label: fk.name, isSelected: false },
+				};
+			}),
+		);
+	}, [filteredGraph, normalizedEngine, setNodes, setEdges]);
+
+	// ── Exit edit mode ────────────────────────────────────────────────────────
+	const exitEditMode = useCallback(() => {
+		setIsEditing(false);
+		setDraft(null);
+		// Revert to read-only nodes/edges
+		setNodes(rfNodes as any);
+		setEdges(rfEdges as any);
+	}, [rfNodes, rfEdges, setNodes, setEdges]);
+
+	// Discard changes
+	const handleDiscard = useCallback(() => {
+		exitEditMode();
+		toast.info("Changes discarded");
+	}, [exitEditMode]);
+
+	// ── Save: compute diff and show dialog ────────────────────────────────────
+	const computeAndShowSave = useCallback(() => {
+		if (!draft) return;
+		const changes = diffDraft(draft, filteredGraph);
+		if (changes.length === 0) {
+			toast.info("No changes to save");
+			return;
+		}
+		const cat = categorizeChanges(changes);
+		const result = generateDdl(changes, normalizedEngine);
+		setOrderedChanges(changes);
+		setCategorized(cat);
+		setDdlStatements(result.statements);
+		setSaveDialogOpen(true);
+
+		// If no destructive changes and user used shortcut, could skip dialog
+		// but we always show for now for safety
+	}, [draft, filteredGraph, normalizedEngine]);
+
+	// ── Run migration ─────────────────────────────────────────────────────────
+	const handleRunMigration = useCallback(async () => {
+		if (orderedChanges.length === 0) return;
+		setIsRunning(true);
+
+		try {
+			const result = generateDdl(orderedChanges, normalizedEngine);
+			const connId = connectionId;
+			const db = database;
+			const timeout = appSettings.queryTimeoutSecs || 30;
+
+			if (result.useTransaction && (normalizedEngine === "postgres" || normalizedEngine === "sqlite")) {
+				// Transactional: BEGIN → statements → COMMIT
+				const allSql = ["BEGIN;", ...result.statements.map((s) => s.sql), "COMMIT;"].join("\n");
+				await tauriApi.executeQuery(connId, allSql, timeout, db);
+			} else if (normalizedEngine === "mysql") {
+				// MySQL: run sequentially, best-effort
+				for (const stmt of result.statements) {
+					await tauriApi.executeQuery(connId, stmt.sql, timeout, db);
+				}
+			} else {
+				// Fallback: run all as batch
+				const allSql = result.statements.map((s) => s.sql).join("\n");
+				await tauriApi.executeQuery(connId, allSql, timeout, db);
+			}
+
+			toast.success("Schema changes applied", {
+				description: `${result.statements.length} statement(s) executed`,
+			});
+			setSaveDialogOpen(false);
+			exitEditMode();
+			// Refresh the graph
+			onRetry();
+		} catch (err: any) {
+			console.error("Migration failed:", err);
+			toast.error("Migration failed", {
+				description: err?.toString?.() ?? String(err),
+			});
+		} finally {
+			setIsRunning(false);
+		}
+	}, [orderedChanges, normalizedEngine, connectionId, database, appSettings.queryTimeoutSecs, exitEditMode, onRetry]);
+
+	// Sync edge deletions back to draft (FK removal)
+	useEffect(() => {
+		if (!isEditing || !draft) return;
+		const edgeIds = new Set(edges.map((e) => e.id));
+		const staleFks = draft.foreignKeys.filter((fk) => !edgeIds.has(fk.id));
+		if (staleFks.length > 0) {
+			setDraft((prev) => {
+				if (!prev) return prev;
+				return {
+					...prev,
+					foreignKeys: prev.foreignKeys.filter((fk) => edgeIds.has(fk.id)),
+				};
+			});
+		}
+	}, [edges, isEditing, draft]);
+
+	// Sync node deletions back to draft (table removal)
+	useEffect(() => {
+		if (!isEditing || !draft) return;
+		const nodeKeys = new Set(nodes.map((n) => n.id));
+		const staleTables = draft.tables.filter((t) => !nodeKeys.has(tableKey(t.name, t.schema)));
+		if (staleTables.length > 0) {
+			setDraft((prev) => {
+				if (!prev) return prev;
+				const staleIds = new Set(staleTables.map((t) => t.id));
+				return {
+					...prev,
+					tables: prev.tables.filter((t) => !staleIds.has(t.id)),
+					foreignKeys: prev.foreignKeys.filter(
+						(fk) => !staleIds.has(fk.sourceTableId) && !staleIds.has(fk.targetTableId),
+					),
+				};
+			});
+		}
+	}, [nodes, isEditing, draft]);
+
+	// ── Add table ─────────────────────────────────────────────────────────────
+	const handleAddTable = useCallback(() => {
+		if (!draft) return;
+		// Find a unique name
+		const existingNames = new Set(draft.tables.map((t) => t.name));
+		let suffix = 1;
+		let name = "new_table_1";
+		while (existingNames.has(name)) {
+			suffix++;
+			name = `new_table_${suffix}`;
+		}
+		const newTable: DraftTable = {
+			id: uid(),
+			name,
+			schema: undefined,
+			columns: [
+				{
+					id: uid(),
+					name: "id",
+					dataType: normalizedEngine === "postgres" ? "serial" : normalizedEngine === "mysql" ? "int" : "integer",
+					nullable: false,
+					isPrimary: true,
+					defaultValue: null,
+				},
+			],
+			indexes: [],
+			isNew: true,
+		};
+		const updated = { ...draft, tables: [...draft.tables, newTable] };
+		setDraft(updated);
+
+		// Add node to React Flow
+		const key = tableKey(name, newTable.schema);
+		setNodes((nds) => [
+			...nds,
+			{
+				id: key,
+				type: "table-node",
+				position: { x: 100 + Math.random() * 200, y: 100 + Math.random() * 200 },
+				draggable: true,
+				data: {
+					label: name,
+					schema: newTable.schema,
+					columns: newTable.columns,
+					indexes: newTable.indexes,
+					degree: 0,
+					isEditing: true,
+					isCurrent: false,
+					fkRelations: [],
+					fkSourceMap: new Map(),
+					engine: normalizedEngine,
+					onUpdateTable: (patch: { name?: string; columns?: DraftColumn[]; indexes?: DraftIndex[] }) => {
+						setDraft((prev) => {
+							if (!prev) return prev;
+							return {
+								...prev,
+								tables: prev.tables.map((t) =>
+									t.id === newTable.id
+										? { ...t, name: patch.name ?? t.name, columns: patch.columns ?? t.columns, indexes: patch.indexes ?? t.indexes }
+										: t,
+								),
+							};
+						});
+					},
+					onDeleteTable: () => {
+						setDraft((prev) => {
+							if (!prev) return prev;
+							return {
+								...prev,
+								tables: prev.tables.filter((t) => t.id !== newTable.id),
+							};
+						});
+					},
+					onStartFKDrag: () => {},
+				} satisfies TableNodeData,
+			} as any,
+		]);
+
+		toast.success(`Added table: ${name}`);
+	}, [draft, normalizedEngine, setNodes]);
+
+	// ── Connect (FK) handler ──────────────────────────────────────────────────
+	const onConnect: OnConnect = useCallback(
+		(connection: Connection) => {
+			if (!draft || !isEditing) return;
+			// Only allow connections in edit mode
+			const { source, target, sourceHandle, targetHandle } = connection;
+			if (!source || !target || !sourceHandle || !targetHandle) return;
+
+			// Parse handles: "col-source-<colId>" / "col-target-<colId>"
+			const srcColId = sourceHandle.replace("col-source-", "");
+			const tgtColId = targetHandle.replace("col-target-", "");
+
+			const srcTable = draft.tables.find((t) => tableKey(t.name, t.schema) === source);
+			const tgtTable = draft.tables.find((t) => tableKey(t.name, t.schema) === target);
+			if (!srcTable || !tgtTable) return;
+
+			const srcCol = srcTable.columns.find((c) => c.id === srcColId);
+			const tgtCol = tgtTable.columns.find((c) => c.id === tgtColId);
+			if (!srcCol || !tgtCol) return;
+
+			const fkName = `fk_${srcTable.name}_${tgtTable.name}_${srcCol.name}`;
+			const newFk: DraftForeignKey = {
+				id: uid(),
+				name: fkName,
+				sourceTableId: srcTable.id,
+				sourceColumns: [srcCol.name],
+				targetTableId: tgtTable.id,
+				targetColumns: [tgtCol.name],
+			};
+
+			setDraft((prev) => {
+				if (!prev) return prev;
+				return { ...prev, foreignKeys: [...prev.foreignKeys, newFk] };
+			});
+
+			// Add edge
+			setEdges((eds) => [
+				...eds,
+				{
+					id: newFk.id,
+					source,
+					target,
+					type: "fk-edge",
+					animated: false,
+					markerEnd: { type: MarkerType.ArrowClosed, color: "var(--color-accent-blue)" },
+					data: { label: fkName, isSelected: false },
+				},
+			]);
+		},
+		[draft, isEditing, setEdges],
+	);
+
+	// ── Export ────────────────────────────────────────────────────────────────
 	const buildExportSvg = useCallback(() => {
 		const reference = containerRef.current;
 		if (!reference) return null;
 		const palette = readPalette(reference);
-		// Use effective node positions (apply user-drag overrides)
-		const nodes = [...layout.nodes.values()].map((node) => {
-			const override = nodePositions.get(node.key);
-			return override
-				? { ...node, x: override.x, y: override.y }
-				: node;
+
+		// Convert React Flow nodes to LayoutNodeForExport shape
+		const exportNodes: LayoutNodeForExport[] = nodes.map((n) => {
+			const data = n.data as TableNodeData | undefined;
+			return {
+				key: n.id,
+				name: data?.label ?? n.id,
+				schema: data?.schema,
+				columns: (data?.columns ?? []).map((c) => ({
+					name: c.name,
+					dataType: c.dataType,
+					isPrimary: c.isPrimary,
+				})),
+				x: n.position.x,
+				y: n.position.y,
+				width: 280,
+				height: 34 + (data?.columns?.length ?? 0) * 22 + 12,
+				degree: data?.degree ?? 0,
+			};
 		});
+
 		return buildDiagramSvg({
 			graph: filteredGraph,
-			nodes,
+			nodes: exportNodes,
 			currentTableName,
 			palette,
 		});
-	}, [layout.nodes, nodePositions, filteredGraph, currentTableName]);
+	}, [nodes, filteredGraph, currentTableName]);
 
 	const exportFilename = useCallback(
 		(ext: string) => {
@@ -711,467 +961,204 @@ export function ERDiagramView({
 		[currentTableName],
 	);
 
-	const handleExportSvg = useCallback(() => {
+	const handleExportSvg = useCallback(async () => {
 		try {
 			const out = buildExportSvg();
 			if (!out) return;
-			const blob = new Blob([out.svg], { type: "image/svg+xml;charset=utf-8" });
-			downloadBlob(blob, exportFilename("svg"));
-			toast.success("ER diagram exported as SVG");
+			const defaultDir = appSettings.diagramExportDir || undefined;
+			const filename = exportFilename("svg");
+			const target = await tauriApi.saveFileDialogIn(defaultDir ?? null, filename, [
+				{ name: "SVG image", extensions: ["svg"] },
+			]);
+			if (!target) return;
+			await tauriApi.writeTextFile(target, out.svg);
+			toast.success("ER diagram saved", { description: target });
 		} catch (err) {
 			console.error(err);
 			toast.error("Failed to export SVG");
 		}
-	}, [buildExportSvg, exportFilename]);
+	}, [buildExportSvg, exportFilename, appSettings.diagramExportDir]);
 
 	const handleExportPng = useCallback(async () => {
 		try {
 			const out = buildExportSvg();
 			if (!out) return;
 			const blob = await rasterizeSvg(out.svg, out.width, out.height, 2);
-			downloadBlob(blob, exportFilename("png"));
-			toast.success("ER diagram exported as PNG");
+			const defaultDir = appSettings.diagramExportDir || undefined;
+			const filename = exportFilename("png");
+			const target = await tauriApi.saveFileDialogIn(defaultDir ?? null, filename, [
+				{ name: "PNG image", extensions: ["png"] },
+			]);
+			if (!target) return;
+			const buffer = new Uint8Array(await blob.arrayBuffer());
+			await tauriApi.writeBinaryFile(target, buffer);
+			toast.success("ER diagram saved", { description: target });
 		} catch (err) {
 			console.error(err);
 			toast.error("Failed to export PNG");
 		}
-	}, [buildExportSvg, exportFilename]);
+	}, [buildExportSvg, exportFilename, appSettings.diagramExportDir]);
 
-	// ── Canvas pan handlers ─────────────────────────────────────────────────
-	const handleCanvasMouseDown = useCallback((event: React.MouseEvent<HTMLDivElement>) => {
-		if (event.button !== 0) return;
-		dragRef.current = {
-			startX: event.clientX,
-			startY: event.clientY,
-			originX: viewport.x,
-			originY: viewport.y,
+	// ── Keyboard shortcuts ────────────────────────────────────────────────────
+	useEffect(() => {
+		const handler = (e: KeyboardEvent) => {
+			if ((e.metaKey || e.ctrlKey) && e.key === "s") {
+				e.preventDefault();
+				if (isEditing && draft) {
+					const changes = diffDraft(draft, filteredGraph);
+					if (changes.length === 0) {
+						toast.info("No changes to save");
+						return;
+					}
+					const cat = categorizeChanges(changes);
+					if (!cat.hasDestructive) {
+						// Apply now shortcut: skip review for non-destructive changes
+						setOrderedChanges(changes);
+						setCategorized(cat);
+						const result = generateDdl(changes, normalizedEngine);
+						setDdlStatements(result.statements);
+						// Still show dialog since we want user confirmation
+						setSaveDialogOpen(true);
+					} else {
+						// Force preview for destructive changes
+						const result = generateDdl(changes, normalizedEngine);
+						setOrderedChanges(changes);
+						setCategorized(cat);
+						setDdlStatements(result.statements);
+						setSaveDialogOpen(true);
+					}
+				}
+			}
 		};
-		setIsPanning(true);
-	}, [viewport.x, viewport.y]);
+		window.addEventListener("keydown", handler);
+		return () => window.removeEventListener("keydown", handler);
+	}, [isEditing, draft, filteredGraph, normalizedEngine]);
 
-	const handleCanvasMouseMove = useCallback((event: React.MouseEvent<HTMLDivElement>) => {
-		if (!dragRef.current) return;
-		const deltaX = event.clientX - dragRef.current.startX;
-		const deltaY = event.clientY - dragRef.current.startY;
-		setViewport((current) => ({
-			...current,
-			x: dragRef.current!.originX + deltaX,
-			y: dragRef.current!.originY + deltaY,
-		}));
-	}, []);
+	// ── Has changes check ─────────────────────────────────────────────────────
+	const hasChanges = useMemo(() => {
+		if (!draft) return false;
+		const changes = diffDraft(draft, filteredGraph);
+		return changes.length > 0;
+	}, [draft, filteredGraph]);
 
-	const stopPanning = useCallback(() => {
-		dragRef.current = null;
-		setIsPanning(false);
-	}, []);
-
-	// ── Node drag handler ───────────────────────────────────────────────────
-	const handleNodeMouseDown = useCallback((event: React.MouseEvent, node: LayoutNode) => {
-		event.stopPropagation(); // prevent canvas pan from starting
-		if (event.button !== 0) return;
-		nodeWasDraggedRef.current = false;
-		const override = nodePositions.get(node.key);
-		nodeDragRef.current = {
-			nodeKey: node.key,
-			startMouseX: event.clientX,
-			startMouseY: event.clientY,
-			startNodeX: override?.x ?? node.x,
-			startNodeY: override?.y ?? node.y,
-			hasMoved: false,
-		};
-		setDraggingNodeKey(node.key);
-	}, [nodePositions]);
-
-	// ── Helpers ──────────────────────────────────────────────────────────────
-	const svgW = Math.max(layout.width + VIEWPORT_PADDING * 2, 640);
-	const svgH = Math.max(layout.height + VIEWPORT_PADDING * 2, 420);
+	// ── Persist positions on node drag end ────────────────────────────────────
+	const handleNodeDragStop = useCallback(
+		(_event: any, _node: any) => {
+			if (isEditing || !connectionId || !database) return;
+			// Debounced save
+			const positions: Record<string, { x: number; y: number }> = {};
+			// Need to read current nodes; use a timeout to get fresh state
+			setTimeout(() => {
+				setNodes((currentNodes) => {
+					for (const n of currentNodes) {
+						positions[n.id] = { x: n.position.x, y: n.position.y };
+					}
+					savePositions(connectionId, database, positions);
+					return currentNodes;
+				});
+			}, 100);
+		},
+		[isEditing, connectionId, database, setNodes],
+	);
 
 	return (
-		<div className="h-full flex flex-col bg-background">
+		<div className="h-full flex flex-col bg-background" ref={containerRef}>
 			{/* Toolbar */}
-			<div className="h-10 shrink-0 border-b border-border px-3 flex items-center justify-between bg-card/80 backdrop-blur-sm">
-				<div className="flex items-center gap-3 min-w-0">
-					<div className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-widest text-muted-foreground/55">
-						<Link2 size={11} className="text-accent-blue/60" />
-						ER Diagram
-					</div>
-					<span className="text-[10px] font-mono text-muted-foreground/40">
-						{filteredGraph.tables.length}
-						{isFiltered ? `/${graph.tables.length}` : ""} tables
-					</span>
-					<span className="text-[10px] font-mono text-muted-foreground/30">
-						{filteredGraph.relationships.length} relations
-					</span>
-					{filteredGraph.relationships.length === 0 && (
-						<span className="text-[10px] font-mono text-muted-foreground/45 truncate">
-							No foreign keys found. Showing schema map only.
-						</span>
-					)}
-				</div>
-				<div className="flex items-center gap-1 shrink-0">
-					{allSchemas.length > 1 && (
-						<DropdownMenu>
-							<DropdownMenuTrigger asChild>
-								<Button
-									variant="ghost"
-									size="xs"
-									className={cn(
-										"h-6 px-2 gap-1.5 text-[10px] font-mono",
-										isFiltered
-											? "text-primary hover:text-primary"
-											: "text-muted-foreground/60 hover:text-foreground",
-									)}
-								>
-									<Filter size={11} />
-									<span>
-										{isFiltered
-											? `${activeSchemaCount}/${allSchemas.length} schemas`
-											: "All schemas"}
-									</span>
-								</Button>
-							</DropdownMenuTrigger>
-							<DropdownMenuContent align="end" className="min-w-[200px]">
-								<DropdownMenuLabel className="text-[10px] uppercase tracking-wider text-muted-foreground/60">
-									Filter by schema
-								</DropdownMenuLabel>
-								<DropdownMenuSeparator />
-								<DropdownMenuItem
-									onSelect={(e) => {
-										e.preventDefault();
-										selectAllSchemas();
-									}}
-									className="text-[11px] font-mono"
-								>
-									<Check
-										size={12}
-										className={cn(
-											"mr-2",
-											!isFiltered ? "opacity-100 text-primary" : "opacity-0",
-										)}
-									/>
-									All schemas
-								</DropdownMenuItem>
-								<DropdownMenuSeparator />
-								{allSchemas.map((schema) => {
-									const checked = isSchemaSelected(schema);
-									return (
-										<DropdownMenuItem
-											key={schema}
-											onSelect={(e) => {
-												e.preventDefault();
-												toggleSchema(schema);
-											}}
-											className="text-[11px] font-mono"
-										>
-											<Check
-												size={12}
-												className={cn(
-													"mr-2",
-													checked ? "opacity-100 text-primary" : "opacity-0",
-												)}
-											/>
-											{schema}
-										</DropdownMenuItem>
-									);
-								})}
-							</DropdownMenuContent>
-						</DropdownMenu>
-					)}
-					<DropdownMenu>
-						<DropdownMenuTrigger asChild>
-							<Button
-								variant="ghost"
-								size="icon-xs"
-								className="text-muted-foreground/50 hover:text-foreground"
-								title="Export diagram"
-							>
-								<Download size={11} />
-							</Button>
-						</DropdownMenuTrigger>
-						<DropdownMenuContent align="end" className="min-w-[180px]">
-							<DropdownMenuLabel className="text-[10px] uppercase tracking-wider text-muted-foreground/60">
-								Export diagram
-							</DropdownMenuLabel>
-							<DropdownMenuSeparator />
-							<DropdownMenuItem
-								onSelect={(e) => {
-									e.preventDefault();
-									void handleExportPng();
-								}}
-								className="text-[11px] font-mono"
-							>
-								<ImageIcon size={12} className="mr-2 text-accent-blue/70" />
-								PNG image
-							</DropdownMenuItem>
-							<DropdownMenuItem
-								onSelect={(e) => {
-									e.preventDefault();
-									handleExportSvg();
-								}}
-								className="text-[11px] font-mono"
-							>
-								<Download size={12} className="mr-2 text-accent-blue/70" />
-								SVG vector
-							</DropdownMenuItem>
-						</DropdownMenuContent>
-					</DropdownMenu>
-					<Button
-						variant="ghost"
-						size="icon-xs"
-						onClick={() => zoomBy(1.12)}
-						className="text-muted-foreground/50 hover:text-foreground"
-					>
-						<ZoomIn size={11} />
-					</Button>
-					<Button
-						variant="ghost"
-						size="icon-xs"
-						onClick={() => zoomBy(0.9)}
-						className="text-muted-foreground/50 hover:text-foreground"
-					>
-						<ZoomOut size={11} />
-					</Button>
-					<Button
-						variant="ghost"
-						size="icon-xs"
-						onClick={fitToView}
-						className="text-muted-foreground/50 hover:text-foreground"
-					>
-						<LocateFixed size={11} />
-					</Button>
-					<Button
-						variant="ghost"
-						size="icon-xs"
-						onClick={onRetry}
-						disabled={isRefreshing}
-						className="text-muted-foreground/50 hover:text-foreground"
-					>
-						<RefreshCcw size={11} className={cn(isRefreshing && "animate-spin")} />
-					</Button>
-				</div>
-			</div>
+			<ERDiagramToolbar
+				totalTables={graph.tables.length}
+				filteredTables={filteredGraph.tables.length}
+				totalRelations={filteredGraph.relationships.length}
+				allSchemas={allSchemas}
+				selectedSchemas={selectedSchemas}
+				isFiltered={isFiltered}
+				activeSchemaCount={activeSchemaCount}
+				isEditing={isEditing}
+				experimentalEnabled={experimentalEnabled}
+				isRefreshing={isRefreshing}
+				hasChanges={hasChanges}
+				onToggleEdit={() => {
+					if (isEditing) {
+						exitEditMode();
+					} else {
+						enterEditMode();
+					}
+				}}
+				onAddTable={handleAddTable}
+				onSave={computeAndShowSave}
+				onDiscard={handleDiscard}
+				onSchemaToggle={toggleSchema}
+				onSelectAllSchemas={selectAllSchemas}
+				onExportPng={handleExportPng}
+				onExportSvg={handleExportSvg}
+				onZoomIn={() => rfInstanceRef.current?.zoomIn?.()}
+				onZoomOut={() => rfInstanceRef.current?.zoomOut?.()}
+				onFit={() => rfInstanceRef.current?.fitView?.()}
+				onRetry={onRetry}
+				isSchemaSelected={isSchemaSelected}
+			/>
 
-			{/* Canvas */}
-			<div
-				ref={containerRef}
-				className={cn(
-					"relative flex-1 overflow-hidden bg-[radial-gradient(circle_at_1px_1px,hsl(var(--border)/0.4)_1px,transparent_0)] bg-size-[24px_24px]",
-					draggingNodeKey ? "cursor-grabbing select-none" : isPanning ? "cursor-grabbing" : "cursor-grab",
-				)}
-				onMouseDown={handleCanvasMouseDown}
-				onMouseMove={handleCanvasMouseMove}
-				onMouseUp={stopPanning}
-				onMouseLeave={stopPanning}
-				onWheel={handleWheel}
-			>
-				<div
-					className="absolute left-0 top-0 origin-top-left"
-					style={{
-						width: svgW,
-						height: svgH,
-						transform: `translate(${viewport.x}px, ${viewport.y}px) scale(${viewport.scale})`,
+			{/* React Flow canvas */}
+			<div className="flex-1">
+				<ReactFlow
+					nodes={nodes}
+					edges={edges}
+					onNodesChange={onNodesChange}
+					onEdgesChange={onEdgesChange}
+					onConnect={onConnect}
+					onNodeDragStop={handleNodeDragStop}
+					onNodeClick={(_event, node) => {
+						if (!isEditing && node.data && (node.data as any).label) {
+							onTableSelect((node.data as any).label);
+						}
 					}}
+					nodeTypes={nodeTypes as any}
+					edgeTypes={edgeTypes as any}
+					fitView
+					onInit={(instance) => {
+						rfInstanceRef.current = instance;
+					}}
+					minZoom={0.2}
+					maxZoom={3}
+					defaultEdgeOptions={{
+						type: "fk-edge",
+						animated: false,
+					}}
+					connectionLineStyle={{
+						stroke: "var(--color-accent-blue)",
+						strokeWidth: 2,
+						strokeDasharray: "6 3",
+					}}
+					deleteKeyCode={isEditing ? "Delete" : null}
+					multiSelectionKeyCode={isEditing ? "Shift" : null}
+					selectionOnDrag={isEditing}
+					panOnDrag={!isEditing}
+					selectNodesOnDrag={isEditing}
+					className="bg-[radial-gradient(circle_at_1px_1px,hsl(var(--border)/0.4)_1px,transparent_0)] bg-[length:24px_24px]"
 				>
-					{/* Table cards */}
-					{[...layout.nodes.values()].map((node) => {
-						const pos = nodePositions.get(node.key) ?? { x: node.x, y: node.y };
-						const isCurrent = node.name === currentTableName;
-						const isDragging = draggingNodeKey === node.key;
-						return (
-							<button
-								key={node.key}
-								type="button"
-								onMouseDown={(event) => handleNodeMouseDown(event, node)}
-								onClick={() => {
-									if (!nodeWasDraggedRef.current) {
-										onTableSelect(node.name);
-									}
-								}}
-								className={cn(
-									"absolute rounded-xl border text-left overflow-hidden shadow-sm select-none",
-									isDragging
-										? "cursor-grabbing shadow-2xl z-10 transition-none"
-										: "cursor-grab transition-shadow",
-									isCurrent
-										? "border-primary/45 bg-card ring-2 ring-primary/20 shadow-lg"
-										: "border-border/70 bg-card/95 hover:border-primary/30 hover:shadow-md",
-								)}
-								style={{
-									left: pos.x,
-									top: pos.y,
-									width: node.width,
-									minHeight: node.height,
-								}}
-							>
-								{/* Card header */}
-								<div
-									className={cn(
-										"px-2 py-2 border-b flex items-center gap-2",
-										isCurrent ? "bg-primary/8 border-primary/15" : "bg-muted/35 border-border/70",
-									)}
-								>
-									<GripVertical
-										size={11}
-										className="text-muted-foreground/25 shrink-0"
-									/>
-									<Database
-										size={12}
-										className={cn(isCurrent ? "text-primary" : "text-accent-blue/65")}
-									/>
-									<div className="min-w-0 flex-1">
-										<div className="text-[11px] font-bold font-mono text-foreground truncate">
-											{node.name}
-										</div>
-										<div className="text-[9px] font-mono text-muted-foreground/45 truncate">
-											{node.schema ?? "default"} · {node.degree} link{node.degree === 1 ? "" : "s"}
-										</div>
-									</div>
-								</div>
-
-								{/* Column rows */}
-								<div className="divide-y divide-border/40">
-									{node.columns.map((column) => {
-										const isPrimary = column.isPrimary;
-										const isForeign = filteredGraph.relationships.some(
-											(relation) =>
-												relation.sourceTable === node.name &&
-												(relation.sourceSchema ?? "default") === (node.schema ?? "default") &&
-												relation.sourceColumns.includes(column.name),
-										);
-										const isConnectedToActive =
-											currentTableName != null &&
-											filteredGraph.relationships.some(
-												(r) =>
-													(r.sourceTable === node.name &&
-														r.sourceColumns.includes(column.name) &&
-														r.targetTable === currentTableName) ||
-													(r.targetTable === node.name &&
-														r.targetColumns.includes(column.name) &&
-														r.sourceTable === currentTableName),
-											);
-										return (
-											<div
-												key={column.name}
-												className={cn(
-													"flex items-center gap-2 px-3 py-1.5 text-[10px] font-mono transition-colors",
-													isConnectedToActive
-														? "bg-primary/5"
-														: "hover:bg-row-hover",
-												)}
-											>
-												<span
-													className={cn(
-														"w-1.5 h-1.5 rounded-full shrink-0",
-														isPrimary
-															? "bg-accent-orange"
-															: isForeign
-																? "bg-accent-blue"
-																: "bg-border",
-													)}
-												/>
-												<span
-													className={cn(
-														"flex-1 min-w-0 truncate",
-														isConnectedToActive ? "text-primary font-semibold" : "text-foreground/88",
-													)}
-												>
-													{column.name}
-												</span>
-												<div className="flex items-center gap-1 shrink-0">
-													{isPrimary && (
-														<span className="px-1 py-0.5 rounded bg-accent-orange/10 border border-accent-orange/20 text-[8px] font-black uppercase tracking-wider text-accent-orange">
-															PK
-														</span>
-													)}
-													{isForeign && (
-														<span className="px-1 py-0.5 rounded bg-accent-blue/10 border border-accent-blue/20 text-[8px] font-black uppercase tracking-wider text-accent-blue">
-															FK
-														</span>
-													)}
-													<span className="text-[9px] text-muted-foreground/40">
-														{column.dataType}
-													</span>
-												</div>
-											</div>
-										);
-									})}
-								</div>
-							</button>
-						);
-					})}
-
-					{/* Relationship connectors - rendered after cards so lines appear on top */}
-					<svg
-						className="absolute inset-0 overflow-visible pointer-events-none"
-						width={svgW}
-						height={svgH}
-						viewBox={`0 0 ${svgW} ${svgH}`}
-						style={{ zIndex: 20 }}
-					>
-						{filteredGraph.relationships.map((relation) => {
-							const source = layout.nodes.get(tableKey(relation.sourceTable, relation.sourceSchema));
-							const target = layout.nodes.get(tableKey(relation.targetTable, relation.targetSchema));
-							if (!source || !target) return null;
-
-							const srcOv = nodePositions.get(source.key);
-							const tgtOv = nodePositions.get(target.key);
-							const srcX = srcOv?.x ?? source.x;
-							const srcY = srcOv?.y ?? source.y;
-							const tgtX = tgtOv?.x ?? target.x;
-							const tgtY = tgtOv?.y ?? target.y;
-
-							const sourceIndex = source.columns.findIndex(
-								(col) => col.name === relation.sourceColumns[0],
-							);
-							const targetIndex = target.columns.findIndex(
-								(col) => col.name === relation.targetColumns[0],
-							);
-
-							const fromLeft = tgtX < srcX;
-							const startX = srcX + (fromLeft ? 0 : source.width);
-							const endX = tgtX + (fromLeft ? target.width : 0);
-
-							const startY =
-								srcY + HEADER_HEIGHT + (sourceIndex >= 0 ? sourceIndex : 0) * ROW_HEIGHT + ROW_HEIGHT / 2 + 6;
-							const endY =
-								tgtY + HEADER_HEIGHT + (targetIndex >= 0 ? targetIndex : 0) * ROW_HEIGHT + ROW_HEIGHT / 2 + 6;
-
-							const direction = fromLeft ? -1 : 1;
-							const delta = Math.max(56, Math.abs(endX - startX) * 0.45);
-							const isActive =
-								source.name === currentTableName || target.name === currentTableName;
-
-							const strokeColor = isActive ? "var(--color-accent-green)" : "var(--color-accent-blue)";
-							const strokeWidth = isActive ? 2.5 : 1.8;
-
-							const pathD = `M ${startX} ${startY} C ${startX + delta * direction} ${startY}, ${endX - delta * direction} ${endY}, ${endX} ${endY}`;
-
-							return (
-								<g key={`${relation.name}-${source.key}-${target.key}`}>
-									<path
-										d={pathD}
-										fill="none"
-										strokeLinecap="round"
-										style={{ stroke: "var(--background)", strokeWidth: strokeWidth + 4, opacity: 0.35 }}
-									/>
-									<path
-										d={pathD}
-										fill="none"
-										strokeLinecap="round"
-										style={{ stroke: strokeColor, strokeWidth }}
-									/>
-									<polygon
-										points={`${endX - 8},${endY - 5} ${endX},${endY} ${endX - 8},${endY + 5}`}
-										style={{ fill: strokeColor }}
-									/>
-									<circle cx={startX} cy={startY} r={4} style={{ fill: strokeColor }} />
-									<circle cx={endX} cy={endY} r={4} style={{ fill: strokeColor }} />
-								</g>
-							);
-						})}
-					</svg>
-				</div>
+					<Background color="hsl(var(--border))" gap={24} />
+					<Controls position="bottom-right" className="!bg-card !border !border-border !rounded-lg" />
+					<MiniMap
+						position="bottom-left"
+						className="!bg-card !border !border-border !rounded-lg"
+						nodeColor={(n) => {
+							const data = n.data as TableNodeData | undefined;
+							if (data?.isCurrent) return "var(--primary)";
+							return "var(--color-accent-blue)";
+						}}
+					/>
+				</ReactFlow>
 			</div>
+
+			{/* Save dialog */}
+			<ERDiagramSaveDialog
+				open={saveDialogOpen}
+				onClose={() => setSaveDialogOpen(false)}
+				onRun={handleRunMigration}
+				categorized={categorized ?? { creates: [], drops: [], alters: [], renames: [], hasDestructive: false }}
+				ddlStatements={ddlStatements}
+				isRunning={isRunning}
+				engine={normalizedEngine}
+			/>
 		</div>
 	);
 }
