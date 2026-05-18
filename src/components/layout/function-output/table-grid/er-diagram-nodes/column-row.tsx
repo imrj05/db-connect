@@ -144,15 +144,10 @@ export function ColumnRow({ column, isEditing, isFK, onUpdate, onDelete, onStart
 				</label>
 			</div>
 
-			{/* FK drag handle */}
+			{/* FK drag affordance. The actual React Flow source handle is overlaid by TableNode. */}
 			{onStartFKDrag && (
-				<button
-					type="button"
-					className="shrink-0 text-muted-foreground/20 hover:text-accent-blue cursor-crosshair p-0.5"
-					onMouseDown={(e) => {
-						e.stopPropagation();
-						onStartFKDrag(column.id);
-					}}
+				<div
+					className="shrink-0 text-accent-blue/75 p-0.5 pointer-events-none"
 					title="Drag to create foreign key"
 				>
 					<svg width="10" height="10" viewBox="0 0 10 10" fill="currentColor">
@@ -160,7 +155,7 @@ export function ColumnRow({ column, isEditing, isFK, onUpdate, onDelete, onStart
 						<circle cx="2" cy="5" r="2" fill="none" stroke="currentColor" strokeWidth="1" />
 						<circle cx="8" cy="5" r="2" fill="none" stroke="currentColor" strokeWidth="1" />
 					</svg>
-				</button>
+				</div>
 			)}
 
 			{/* Delete column */}

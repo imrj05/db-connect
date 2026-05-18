@@ -90,7 +90,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { getSystemFonts, DB_FONT_MONO, DB_FONT_MONO_STACK, DB_FONT_SANS, DB_FONT_SANS_STACK } from "@/lib/fonts";
 import { licenseDeactivate, licenseGetStored, type StoredLicenseState } from "@/lib/license";
-import { tauriApi, type AiProvider } from "@/lib/tauri-api";
+import { tauriApi, type AiDeviceCodeBeginResult, type AiProvider } from "@/lib/tauri-api";
 import { invoke } from "@tauri-apps/api/core";
 import { cn } from "@/lib/utils";
 import { toast } from "@/components/ui/sonner";
@@ -218,55 +218,94 @@ const EDITOR_LIGHT_THEMES: { value: EditorThemeOption; label: string }[] = [
 
 const AI_PROVIDERS: { id: AiProvider; label: string }[] = [
     { id: "openrouter", label: "OpenRouter" },
-    { id: "opencode", label: "OpenCode" },
+    { id: "opencode", label: "OpenCode (OpenRouter-compatible)" },
     { id: "openai", label: "OpenAI" },
     { id: "codex", label: "Codex (OpenAI)" },
-    { id: "github-copilot", label: "GitHub Copilot" },
+    { id: "github-copilot", label: "GitHub Models" },
     { id: "anthropic", label: "Anthropic" },
     { id: "groq", label: "Groq" },
     { id: "gemini", label: "Google Gemini" },
 ];
 
-const AI_PROVIDER_GUIDE: Record<AiProvider, { keysUrl: string; helper: string; placeholder: string }> = {
+type AiAuthMode = AppSettings["aiAuthMode"];
+
+const AI_AUTH_OPTIONS: {
+    id: AiAuthMode;
+    label: string;
+    description: string;
+    providers?: AiProvider[];
+    unavailableLabel: string;
+}[] = [
+    {
+        id: "api_key",
+        label: "API key / token",
+        description: "Supported by every provider. Keys are validated before saving and stored locally on this device.",
+        unavailableLabel: "Unavailable",
+    },
+    {
+        id: "oauth",
+        label: "OAuth browser flow",
+        description: "Supported for OpenRouter-compatible providers. DB Connect opens your browser and receives a localhost callback.",
+        providers: ["openrouter", "opencode"],
+        unavailableLabel: "OpenRouter-compatible only",
+    },
+    {
+        id: "device_code",
+        label: "Device code",
+        description: "Supported by GitHub Models through GitHub's device authorization flow.",
+        providers: ["github-copilot"],
+        unavailableLabel: "GitHub only",
+    },
+];
+
+const AI_PROVIDER_GUIDE: Record<AiProvider, { keysUrl: string; helper: string; placeholder: string; credentialLabel: string }> = {
     openrouter: {
         keysUrl: "https://openrouter.ai/settings/keys",
-        helper: "Use OAuth or an API key to power AI in DB Connect.",
+        helper: "Use OpenRouter OAuth or paste an OpenRouter API key. OAuth stores the returned OpenRouter key locally after the browser flow completes.",
         placeholder: "sk-or-v1-...",
+        credentialLabel: "OpenRouter API key",
     },
     opencode: {
         keysUrl: "https://openrouter.ai/settings/keys",
-        helper: "OpenCode provider uses OpenRouter-compatible API keys.",
+        helper: "This route uses DB Connect's OpenRouter-compatible OpenCode backend path, so it can use OpenRouter OAuth or an OpenRouter API key.",
         placeholder: "sk-or-v1-...",
+        credentialLabel: "OpenRouter API key",
     },
     openai: {
         keysUrl: "https://platform.openai.com/api-keys",
-        helper: "Create a secret key in OpenAI dashboard for DB Connect.",
+        helper: "Create an OpenAI platform API key. DB Connect sends requests to the OpenAI chat completions API.",
         placeholder: "sk-...",
+        credentialLabel: "OpenAI API key",
     },
     codex: {
         keysUrl: "https://platform.openai.com/api-keys",
-        helper: "Codex uses OpenAI API keys and models in DB Connect.",
+        helper: "Codex uses the OpenAI API in DB Connect, so authenticate with an OpenAI platform API key.",
         placeholder: "sk-...",
+        credentialLabel: "OpenAI API key",
     },
     "github-copilot": {
         keysUrl: "https://github.com/settings/tokens",
-        helper: "Use a GitHub token with models access for GitHub Models or Copilot APIs.",
+        helper: "Use a GitHub token or GitHub device-code auth that can access GitHub Models. DB Connect calls the GitHub Models inference API.",
         placeholder: "github_pat_...",
+        credentialLabel: "GitHub personal access token",
     },
     anthropic: {
         keysUrl: "https://console.anthropic.com/settings/keys",
-        helper: "Create an Anthropic API key for DB Connect.",
+        helper: "Create an Anthropic Console API key. DB Connect sends requests to the Anthropic Messages API.",
         placeholder: "sk-ant-...",
+        credentialLabel: "Anthropic API key",
     },
     groq: {
         keysUrl: "https://console.groq.com/keys",
-        helper: "Create a Groq API key for DB Connect.",
+        helper: "Create a GroqCloud API key. DB Connect uses Groq's OpenAI-compatible chat completions endpoint.",
         placeholder: "gsk_...",
+        credentialLabel: "Groq API key",
     },
     gemini: {
         keysUrl: "https://aistudio.google.com/app/apikey",
-        helper: "Create a Gemini API key in Google AI Studio.",
+        helper: "Create a Gemini API key in Google AI Studio. DB Connect passes it as the Google Generative Language API key.",
         placeholder: "AIza...",
+        credentialLabel: "Gemini API key",
     },
 };
 
@@ -279,8 +318,8 @@ const AI_MODEL_PRESETS: Record<AiProvider, { id: string; label: string }[]> = {
     ],
     opencode: [
         { id: "openrouter/free", label: "OpenRouter Free Router" },
-        { id: "openai/gpt-4.1-mini", label: "OpenRouter GPT-4.1 Mini" },
-        { id: "anthropic/claude-3.5-haiku", label: "OpenRouter Claude 3.5 Haiku" },
+        { id: "openai/gpt-4.1-mini", label: "OpenAI GPT-4.1 Mini via OpenRouter" },
+        { id: "anthropic/claude-3.5-haiku", label: "Claude 3.5 Haiku via OpenRouter" },
     ],
     openai: [
         { id: "gpt-4o-mini", label: "GPT-4o Mini" },
@@ -952,20 +991,28 @@ function AiSection() {
     const [loading, setLoading] = useState(false);
     const [oauthLoading, setOauthLoading] = useState(false);
     const [oauthFlowId, setOauthFlowId] = useState<string | null>(null);
+    const [deviceLoading, setDeviceLoading] = useState(false);
+    const [deviceFlow, setDeviceFlow] = useState<AiDeviceCodeBeginResult | null>(null);
 
     const providerLabel = AI_PROVIDERS.find((provider) => provider.id === appSettings.aiProvider)?.label ?? "AI Provider";
     const providerGuide = AI_PROVIDER_GUIDE[appSettings.aiProvider];
-    const oauthSupported = appSettings.aiProvider === "openrouter";
+    const authOptions = AI_AUTH_OPTIONS.map((option) => ({
+        ...option,
+        supported: !option.providers || option.providers.includes(appSettings.aiProvider),
+    }));
+    const selectedAuthOption = authOptions.find((option) => option.id === appSettings.aiAuthMode);
+    const oauthSupported = authOptions.some((option) => option.id === "oauth" && option.supported);
+    const deviceCodeSupported = authOptions.some((option) => option.id === "device_code" && option.supported);
     const activeModelPresets = AI_MODEL_PRESETS[appSettings.aiProvider] ?? [];
     const selectedPreset = activeModelPresets.some((model) => model.id === appSettings.aiDefaultModel)
         ? appSettings.aiDefaultModel
         : "custom";
 
     useEffect(() => {
-        if (!oauthSupported && appSettings.aiAuthMode !== "api_key") {
+        if (!selectedAuthOption?.supported && appSettings.aiAuthMode !== "api_key") {
             updateAppSetting("aiAuthMode", "api_key");
         }
-    }, [oauthSupported, appSettings.aiAuthMode, updateAppSetting]);
+    }, [selectedAuthOption?.supported, appSettings.aiAuthMode, updateAppSetting]);
 
     const loadStatus = async () => {
         try {
@@ -978,6 +1025,8 @@ function AiSection() {
 
     useEffect(() => {
         void loadStatus();
+        setDeviceFlow(null);
+        setOauthFlowId(null);
     }, [appSettings.aiProvider]);
 
     const handleSaveApiKey = async () => {
@@ -1018,14 +1067,33 @@ function AiSection() {
         setOauthLoading(true);
 
         try {
-            const begin = await tauriApi.openrouterOauthBegin();
+            const begin = await tauriApi.aiOauthBegin(appSettings.aiProvider);
             setOauthFlowId(begin.flowId);
             await tauriApi.openExternalUrl(begin.authUrl);
-            const nextStatus = await tauriApi.openrouterOauthComplete(begin.flowId);
+            const nextStatus = await tauriApi.aiOauthComplete(appSettings.aiProvider, begin.flowId);
             setStatus(nextStatus);
         } finally {
             setOauthLoading(false);
             setOauthFlowId(null);
+        }
+    };
+
+    const handleDeviceCodeConnect = async () => {
+        if (!deviceCodeSupported) {
+            return;
+        }
+
+        setDeviceLoading(true);
+
+        try {
+            const begin = await tauriApi.aiDeviceCodeBegin(appSettings.aiProvider);
+            setDeviceFlow(begin);
+            await tauriApi.openExternalUrl(begin.verificationUri);
+            const nextStatus = await tauriApi.aiDeviceCodeComplete(appSettings.aiProvider, begin.flowId);
+            setStatus(nextStatus);
+        } finally {
+            setDeviceLoading(false);
+            setDeviceFlow(null);
         }
     };
 
@@ -1099,25 +1167,54 @@ function AiSection() {
                                 <FieldTitle>Auth mode</FieldTitle>
                                 <FieldDescription>
                                     {oauthSupported
-                                        ? "Choose between a saved API key and the OpenRouter OAuth flow."
-                                        : "This provider currently authenticates with API keys only."}
+                                        ? `${providerLabel} supports direct keys and OpenRouter-compatible OAuth.`
+                                        : deviceCodeSupported
+                                            ? `${providerLabel} supports API tokens and GitHub device-code auth.`
+                                            : `${providerLabel} currently supports API key/token authentication in DB Connect.`}
                                 </FieldDescription>
                             </FieldContent>
                             <div className={SETTINGS_CONTROL_CLASS}>
                                 <Select
                                     value={appSettings.aiAuthMode}
-                                    onValueChange={(value) => updateAppSetting("aiAuthMode", value as "api_key" | "oauth")}
+                                    onValueChange={(value) => updateAppSetting("aiAuthMode", value as AiAuthMode)}
                                 >
                                     <SelectTrigger className={SETTINGS_WIDE_CONTROL_CLASS}>
                                         <SelectValue />
                                     </SelectTrigger>
                                     <SelectContent>
                                         <SelectGroup>
-                                            <SelectItem value="api_key">API Key</SelectItem>
-                                            {oauthSupported ? <SelectItem value="oauth">OAuth (Localhost)</SelectItem> : null}
+                                            {authOptions.map((option) => (
+                                                <SelectItem key={option.id} value={option.id} disabled={!option.supported}>
+                                                    {option.label}{option.supported ? "" : " (not available)"}
+                                                </SelectItem>
+                                            ))}
                                         </SelectGroup>
                                     </SelectContent>
                                 </Select>
+                            </div>
+                        </Field>
+
+                        <Field orientation="responsive" className={SETTINGS_FIELD_CLASS}>
+                            <FieldContent>
+                                <FieldTitle>Available auth options</FieldTitle>
+                                <FieldDescription>All auth methods DB Connect currently supports for the SQL assistant.</FieldDescription>
+                            </FieldContent>
+                            <div className={cn("flex w-full shrink-0 flex-col gap-2", SETTINGS_XL_CONTROL_CLASS)}>
+                                <ItemGroup className="gap-2">
+                                    {authOptions.map((option) => (
+                                        <Item key={option.id} variant="outline" size="sm" className="items-start bg-muted/20">
+                                            <ItemContent className="gap-1">
+                                                <div className="flex flex-wrap items-center gap-2">
+                                                    <p className="text-sm font-medium">{option.label}</p>
+                                                    <Badge variant={option.supported ? "secondary" : "outline"}>
+                                                        {option.supported ? "Available" : option.unavailableLabel}
+                                                    </Badge>
+                                                </div>
+                                                <p className="text-xs text-muted-foreground">{option.description}</p>
+                                            </ItemContent>
+                                        </Item>
+                                    ))}
+                                </ItemGroup>
                             </div>
                         </Field>
                     </FieldGroup>
@@ -1233,16 +1330,26 @@ function AiSection() {
                         </Alert>
                     ) : null}
 
+                    {deviceFlow ? (
+                        <Alert className="border-primary/20 bg-primary/5 text-primary">
+                            <Loader2 className="animate-spin" />
+                            <AlertTitle>Enter device code {deviceFlow.userCode}</AlertTitle>
+                            <AlertDescription className="text-primary/80">
+                                The verification page opened in your browser. Enter this code there, then keep DB Connect open while GitHub confirms access.
+                            </AlertDescription>
+                        </Alert>
+                    ) : null}
+
                     <FieldGroup>
-                        {appSettings.aiAuthMode === "api_key" || !oauthSupported ? (
+                        {appSettings.aiAuthMode === "api_key" || !selectedAuthOption?.supported ? (
                             <>
                                 <Field orientation="responsive" className={SETTINGS_FIELD_CLASS}>
                                     <FieldContent>
-                                        <FieldTitle>{providerLabel} API key</FieldTitle>
+                                        <FieldTitle>{providerGuide.credentialLabel}</FieldTitle>
                                         <FieldDescription>
                                             {status?.configured && status.maskedKey
                                                 ? `Saved on this device as ${status.maskedKey}.`
-                                                : "Paste a provider key and save it securely."}
+                                                : `Paste a ${providerGuide.credentialLabel} and save it securely.`}
                                         </FieldDescription>
                                     </FieldContent>
                                     <div className={cn("flex w-full shrink-0 flex-col gap-2", SETTINGS_XL_CONTROL_CLASS)}>
@@ -1286,7 +1393,7 @@ function AiSection() {
                                     </Field>
                                 ) : null}
                             </>
-                        ) : (
+                        ) : appSettings.aiAuthMode === "oauth" ? (
                             <Field orientation="responsive" className={SETTINGS_FIELD_CLASS}>
                                 <FieldContent>
                                     <FieldTitle>OAuth connection</FieldTitle>
@@ -1298,7 +1405,7 @@ function AiSection() {
                                 </FieldContent>
                                 <div className={SETTINGS_CONTROL_CLASS}>
                                     <div className="flex flex-wrap gap-2">
-                                        <Button size="sm" onClick={handleOAuthConnect} disabled={oauthLoading}>
+                                            <Button size="sm" onClick={handleOAuthConnect} disabled={oauthLoading}>
                                             {oauthLoading ? <Loader2 data-icon="inline-start" className="animate-spin" /> : <Wand2 data-icon="inline-start" />}
                                             {oauthLoading ? "Waiting..." : "Connect"}
                                         </Button>
@@ -1308,6 +1415,35 @@ function AiSection() {
                                                 variant="outline"
                                                 onClick={handleClearCredential}
                                                 disabled={loading || oauthLoading}
+                                            >
+                                                Disconnect
+                                            </Button>
+                                        ) : null}
+                                    </div>
+                                </div>
+                            </Field>
+                        ) : (
+                            <Field orientation="responsive" className={SETTINGS_FIELD_CLASS}>
+                                <FieldContent>
+                                    <FieldTitle>Device-code connection</FieldTitle>
+                                    <FieldDescription>
+                                        {status?.configured
+                                            ? `Connected via ${status.authMode}${status.maskedKey ? ` · ${status.maskedKey}` : ""}.`
+                                            : `Connect ${providerLabel} by entering a one-time code in your browser.`}
+                                    </FieldDescription>
+                                </FieldContent>
+                                <div className={SETTINGS_CONTROL_CLASS}>
+                                    <div className="flex flex-wrap gap-2">
+                                        <Button size="sm" onClick={handleDeviceCodeConnect} disabled={deviceLoading}>
+                                            {deviceLoading ? <Loader2 data-icon="inline-start" className="animate-spin" /> : <Wand2 data-icon="inline-start" />}
+                                            {deviceLoading ? "Waiting..." : "Connect with device code"}
+                                        </Button>
+                                        {status?.configured ? (
+                                            <Button
+                                                size="sm"
+                                                variant="outline"
+                                                onClick={handleClearCredential}
+                                                disabled={loading || deviceLoading}
                                             >
                                                 Disconnect
                                             </Button>
@@ -1965,6 +2101,10 @@ const KEYBINDINGS: { combo: string; action: string; category: string }[] = [
     { combo: "⌘T", action: "Open a new tab", category: "Global" },
     { combo: "⌘W", action: "Close active tab", category: "Global" },
     { combo: "⌘,", action: "Open Settings", category: "Global" },
+    { combo: "⌘B", action: "Show / hide sidebar", category: "Global" },
+    { combo: "⌘⇧L", action: "Show / hide query log", category: "Global" },
+    { combo: "⌘⇧M", action: "Manage connections", category: "Global" },
+    { combo: "⌘⇧D", action: "Switch to next database", category: "Global" },
     { combo: "⌘↵", action: "Execute SQL query", category: "Editor" },
     { combo: "⌘F", action: "Search cells in table", category: "Table" },
     { combo: "⌘Z", action: "Undo cell edit", category: "Table" },

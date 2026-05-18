@@ -71,6 +71,10 @@ pub fn run() {
             commands::ai_test_api_key,
             commands::ai_clear_credential,
             commands::ai_chat_completion,
+            commands::ai_oauth_begin,
+            commands::ai_oauth_complete,
+            commands::ai_device_code_begin,
+            commands::ai_device_code_complete,
             // ── AI / OpenRouter commands ─────────────────────────────────────
             commands::openrouter_get_credential_status,
             commands::openrouter_save_api_key,

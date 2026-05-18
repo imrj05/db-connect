@@ -408,6 +408,19 @@ impl DatabaseDriver for MongoDriver {
         })
     }
 
+    async fn ping(&self) -> Result<()> {
+        let client_lock = self.client.read().await;
+        let client = client_lock
+            .as_ref()
+            .ok_or_else(|| anyhow!("Not connected"))?;
+
+        client
+            .database("admin")
+            .run_command(doc! { "ping": 1 }, None)
+            .await?;
+        Ok(())
+    }
+
     async fn get_table_data(
         &self,
         database: &str,

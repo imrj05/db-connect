@@ -1200,21 +1200,21 @@ export function TableGridView({
         [database, fn.connectionId, isRelationalDb, schemaGraph],
     );
     const handleDiagramTableSelect = useCallback(
-        async (tableName: string) => {
-            if (tableName === fn.tableName) return;
+        async (tableName: string, schema?: string) => {
+            if (tableName === fn.tableName && (schema === undefined || schema === fn.schema)) return;
             const allFns = Object.values(connectionFunctions).flatMap((dbMap) => Object.values(dbMap).flat());
             const tableFn = allFns.find(
                 (candidate) =>
                     candidate.type === "table" &&
                     candidate.connectionId === fn.connectionId &&
                     candidate.tableName === tableName &&
-                    (fn.schema === undefined || candidate.schema === fn.schema),
+                    (schema === undefined || candidate.schema === schema),
             );
             if (tableFn) {
                 await invokeFunction(tableFn);
             }
         },
-        [connectionFunctions, fn.connectionId, fn.tableName, invokeFunction],
+        [connectionFunctions, fn.connectionId, fn.schema, fn.tableName, invokeFunction],
     );
     const handleViewMode = (mode: ViewMode) => {
         setViewMode(mode);
@@ -1230,11 +1230,6 @@ export function TableGridView({
 
     useEffect(() => {
         if (viewMode === "er" && !schemaGraph && isRelationalDb) {
-            loadSchemaGraph();
-        }
-    }, [isRelationalDb, loadSchemaGraph, schemaGraph, viewMode]);
-    useEffect(() => {
-        if (viewMode === "data" && !schemaGraph && isRelationalDb) {
             loadSchemaGraph();
         }
     }, [isRelationalDb, loadSchemaGraph, schemaGraph, viewMode]);
@@ -3429,6 +3424,7 @@ export function TableGridView({
                         <ERDiagramView
                             graph={schemaGraph}
                             currentTableName={fn.tableName}
+                            currentSchema={fn.schema}
                             onTableSelect={handleDiagramTableSelect}
                             onRetry={() => loadSchemaGraph(true)}
                             isRefreshing={schemaGraphLoading}

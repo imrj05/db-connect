@@ -21,10 +21,7 @@ pub fn parse_sql_dump(content: &str) -> ParsedSqlDump {
     let detected_format = detect_dump_format(content);
     let raw = split_statements(content);
     let detected_db_name = extract_db_name(&raw);
-    let statements = raw
-        .into_iter()
-        .filter(|s| !should_strip(s))
-        .collect();
+    let statements = raw.into_iter().filter(|s| !should_strip(s)).collect();
     ParsedSqlDump {
         statements,
         detected_db_name,
@@ -75,11 +72,7 @@ fn extract_db_name(statements: &[String]) -> Option<String> {
         // The statement may be merged with subsequent text (no semicolon after
         // \connect), so only take the first whitespace-separated token.
         if upper.starts_with("\\CONNECT ") {
-            let first_token = trimmed[9..]
-                .trim()
-                .split_whitespace()
-                .next()
-                .unwrap_or("");
+            let first_token = trimmed[9..].trim().split_whitespace().next().unwrap_or("");
             let name = first_token
                 .trim_end_matches(';')
                 .trim_matches('"')
@@ -95,12 +88,11 @@ fn extract_db_name(statements: &[String]) -> Option<String> {
         if upper.starts_with("CREATE DATABASE") {
             let tokens: Vec<&str> = trimmed.split_whitespace().collect();
             // tokens: [CREATE, DATABASE, (IF, NOT, EXISTS,)? name, ...]
-            let name_idx =
-                if tokens.get(2).map(|s| s.eq_ignore_ascii_case("IF")) == Some(true) {
-                    4 // IF NOT EXISTS <name>
-                } else {
-                    2
-                };
+            let name_idx = if tokens.get(2).map(|s| s.eq_ignore_ascii_case("IF")) == Some(true) {
+                4 // IF NOT EXISTS <name>
+            } else {
+                2
+            };
             if let Some(raw) = tokens.get(name_idx) {
                 let name = raw
                     .trim_matches('`')
@@ -321,8 +313,11 @@ fn split_statements(content: &str) -> Vec<String> {
                                 .position(|&c| c == '\n')
                                 .map(|p| start + p)
                                 .unwrap_or(len);
-                            let new_delim: String =
-                                chars[start..end].iter().collect::<String>().trim().to_string();
+                            let new_delim: String = chars[start..end]
+                                .iter()
+                                .collect::<String>()
+                                .trim()
+                                .to_string();
                             i = end;
                             if new_delim == ";" {
                                 // Back to standard delimiter
@@ -339,10 +334,7 @@ fn split_statements(content: &str) -> Vec<String> {
 
                 // ── Statement terminator ──────────────────────────────────
                 let dlen = delimiter.len();
-                if delimiter == vec![';']
-                    && ch == ';'
-                    && !matches!(state, State::CustomDelim(_))
-                {
+                if delimiter == vec![';'] && ch == ';' && !matches!(state, State::CustomDelim(_)) {
                     let s = current.trim().to_string();
                     if !s.is_empty() {
                         statements.push(s);
@@ -574,7 +566,10 @@ mod tests {
 
     #[test]
     fn extracts_mysql_db_name() {
-        let stmts = vec!["USE `mydb`".to_string(), "CREATE TABLE t (id INT)".to_string()];
+        let stmts = vec![
+            "USE `mydb`".to_string(),
+            "CREATE TABLE t (id INT)".to_string(),
+        ];
         assert_eq!(extract_db_name(&stmts), Some("mydb".to_string()));
     }
 
@@ -605,7 +600,13 @@ INSERT INTO `users` VALUES (1,'Alice');
         assert!(parsed.statements.iter().any(|s| s.contains("CREATE TABLE")));
         assert!(parsed.statements.iter().any(|s| s.contains("INSERT INTO")));
         // Stripped statements must not appear
-        assert!(!parsed.statements.iter().any(|s| s.to_uppercase().starts_with("USE ")));
-        assert!(!parsed.statements.iter().any(|s| s.to_uppercase().starts_with("SET SQL_MODE")));
+        assert!(!parsed
+            .statements
+            .iter()
+            .any(|s| s.to_uppercase().starts_with("USE ")));
+        assert!(!parsed
+            .statements
+            .iter()
+            .any(|s| s.to_uppercase().starts_with("SET SQL_MODE")));
     }
 }

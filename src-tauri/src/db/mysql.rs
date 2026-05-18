@@ -28,12 +28,16 @@ impl DatabaseDriver for MySqlDriver {
         let options: MySqlConnectOptions = if let Some(uri) = &config.uri {
             uri.parse()?
         } else {
-            MySqlConnectOptions::new()
+            let options = MySqlConnectOptions::new()
                 .host(config.host.as_deref().unwrap_or("localhost"))
                 .port(config.port.unwrap_or(3306))
                 .username(config.user.as_deref().unwrap_or("root"))
-                .password(config.password.as_deref().unwrap_or(""))
-                .database(database)
+                .database(database);
+
+            match config.password.as_deref().filter(|password| !password.is_empty()) {
+                Some(password) => options.password(password),
+                None => options,
+            }
         };
 
         let ssl_mode = if config.ssl.unwrap_or(false) {
@@ -135,7 +139,9 @@ impl DatabaseDriver for MySqlDriver {
             let seq: u32 = row.try_get::<u32, _>(3).unwrap_or(0);
             let col_name: String = row.try_get(4).unwrap_or_default();
 
-            let entry = index_map.entry(key_name).or_insert((non_unique == 0, vec![]));
+            let entry = index_map
+                .entry(key_name)
+                .or_insert((non_unique == 0, vec![]));
             entry.1.push((seq, col_name));
         }
 
@@ -390,7 +396,10 @@ impl DatabaseDriver for MySqlDriver {
         }
         let query = format!(
             "SELECT * FROM `{}`.`{}` LIMIT {} OFFSET {}",
-            database, table, page_size, page * page_size
+            database,
+            table,
+            page_size,
+            page * page_size
         );
         self.run_query(&query).await
     }
@@ -406,7 +415,9 @@ impl DatabaseDriver for MySqlDriver {
     ) -> Result<String> {
         let tables = self.get_tables(database, schema).await?;
         let foreign_keys = if include_foreign_keys {
-            self.get_foreign_keys(database, schema).await.unwrap_or_default()
+            self.get_foreign_keys(database, schema)
+                .await
+                .unwrap_or_default()
         } else {
             vec![]
         };
@@ -435,7 +446,10 @@ impl DatabaseDriver for MySqlDriver {
             sql.push_str(&format!("DROP TABLE IF EXISTS {};\n", qi_table));
 
             let columns = self.get_columns(database, tname, schema).await?;
-            let indexes = self.get_indexes(database, tname, schema).await.unwrap_or_default();
+            let indexes = self
+                .get_indexes(database, tname, schema)
+                .await
+                .unwrap_or_default();
 
             sql.push_str(&format!("CREATE TABLE {} (\n", qi_table));
             let mut col_defs = Vec::new();
@@ -490,16 +504,21 @@ impl DatabaseDriver for MySqlDriver {
                     if idx.name == "PRIMARY" {
                         continue;
                     }
-                    let cols: Vec<String> = idx.columns.iter().map(|c| format!("`{}`", c)).collect();
+                    let cols: Vec<String> =
+                        idx.columns.iter().map(|c| format!("`{}`", c)).collect();
                     if idx.unique {
                         sql.push_str(&format!(
                             "CREATE UNIQUE INDEX `{}` ON {} ({});\n",
-                            idx.name, qi_table, cols.join(", ")
+                            idx.name,
+                            qi_table,
+                            cols.join(", ")
                         ));
                     } else {
                         sql.push_str(&format!(
                             "CREATE INDEX `{}` ON {} ({});\n",
-                            idx.name, qi_table, cols.join(", ")
+                            idx.name,
+                            qi_table,
+                            cols.join(", ")
                         ));
                     }
                 }
@@ -512,7 +531,9 @@ impl DatabaseDriver for MySqlDriver {
                 let page_size: u32 = 500;
                 let mut page: u32 = 0;
                 loop {
-                    let result = self.get_table_data(database, tname, page, page_size).await?;
+                    let result = self
+                        .get_table_data(database, tname, page, page_size)
+                        .await?;
                     if result.rows.is_empty() && page == 0 {
                         break;
                     }
@@ -523,19 +544,29 @@ impl DatabaseDriver for MySqlDriver {
                             .map(|col| match row.get(col) {
                                 Some(serde_json::Value::Null) | None => "NULL".to_string(),
                                 Some(serde_json::Value::Bool(b)) => {
-                                    if *b { "1".to_string() } else { "0".to_string() }
+                                    if *b {
+                                        "1".to_string()
+                                    } else {
+                                        "0".to_string()
+                                    }
                                 }
                                 Some(serde_json::Value::Number(n)) => n.to_string(),
                                 Some(serde_json::Value::String(s)) => {
                                     format!("'{}'", s.replace('\'', "''").replace('\\', "\\\\"))
                                 }
-                                Some(v) => format!("'{}'", v.to_string().replace('\'', "''").replace('\\', "\\\\")),
+                                Some(v) => format!(
+                                    "'{}'",
+                                    v.to_string().replace('\'', "''").replace('\\', "\\\\")
+                                ),
                             })
                             .collect();
-                        let col_list: Vec<String> = result.columns.iter().map(|c| format!("`{}`", c)).collect();
+                        let col_list: Vec<String> =
+                            result.columns.iter().map(|c| format!("`{}`", c)).collect();
                         sql.push_str(&format!(
                             "INSERT INTO {} ({}) VALUES ({});\n",
-                            qi_table, col_list.join(", "), vals.join(", ")
+                            qi_table,
+                            col_list.join(", "),
+                            vals.join(", ")
                         ));
                     }
                     if result.rows.len() < page_size as usize {
@@ -552,13 +583,25 @@ impl DatabaseDriver for MySqlDriver {
 
         if include_foreign_keys {
             for fk in &foreign_keys {
-                let src_cols: Vec<String> = fk.source_columns.iter().map(|c| format!("`{}`", c)).collect();
-                let tgt_cols: Vec<String> = fk.target_columns.iter().map(|c| format!("`{}`", c)).collect();
+                let src_cols: Vec<String> = fk
+                    .source_columns
+                    .iter()
+                    .map(|c| format!("`{}`", c))
+                    .collect();
+                let tgt_cols: Vec<String> = fk
+                    .target_columns
+                    .iter()
+                    .map(|c| format!("`{}`", c))
+                    .collect();
                 let src_table = format!("`{}`.`{}`", database, fk.source_table);
                 let tgt_table = format!("`{}`.`{}`", database, fk.target_table);
                 sql.push_str(&format!(
                     "ALTER TABLE {} ADD CONSTRAINT `{}` FOREIGN KEY ({}) REFERENCES {} ({});\n",
-                    src_table, fk.name, src_cols.join(", "), tgt_table, tgt_cols.join(", ")
+                    src_table,
+                    fk.name,
+                    src_cols.join(", "),
+                    tgt_table,
+                    tgt_cols.join(", ")
                 ));
             }
             sql.push('\n');

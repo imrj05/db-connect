@@ -26,12 +26,16 @@ impl DatabaseDriver for PostgresDriver {
         let options: PgConnectOptions = if let Some(uri) = &config.uri {
             uri.parse()?
         } else {
-            PgConnectOptions::new()
+            let options = PgConnectOptions::new()
                 .host(config.host.as_deref().unwrap_or("localhost"))
                 .port(config.port.unwrap_or(5432))
                 .username(config.user.as_deref().unwrap_or("postgres"))
-                .password(config.password.as_deref().unwrap_or(""))
-                .database(config.database.as_deref().unwrap_or("postgres"))
+                .database(config.database.as_deref().unwrap_or("postgres"));
+
+            match config.password.as_deref().filter(|password| !password.is_empty()) {
+                Some(password) => options.password(password),
+                None => options,
+            }
         };
 
         let ssl_mode = if config.ssl.unwrap_or(false) {
@@ -459,7 +463,9 @@ impl DatabaseDriver for PostgresDriver {
 
         // Create database guidance (PostgreSQL doesn't support CREATE DATABASE IF NOT EXISTS)
         if create_database {
-            sql.push_str("-- NOTE: CREATE DATABASE must be run as a superuser outside a transaction.\n");
+            sql.push_str(
+                "-- NOTE: CREATE DATABASE must be run as a superuser outside a transaction.\n",
+            );
             sql.push_str("-- Run the following before executing this script:\n");
             sql.push_str(&format!(
                 "--   psql -U postgres -c \"SELECT 'CREATE DATABASE \\\"{}\\\"' WHERE NOT EXISTS (SELECT FROM pg_database WHERE datname='{}')\\gexec\"\n",
@@ -471,7 +477,9 @@ impl DatabaseDriver for PostgresDriver {
 
         let tables = self.get_tables(database, Some(schema_name)).await?;
         let foreign_keys = if include_foreign_keys {
-            self.get_foreign_keys(database, Some(schema_name)).await.unwrap_or_default()
+            self.get_foreign_keys(database, Some(schema_name))
+                .await
+                .unwrap_or_default()
         } else {
             vec![]
         };
@@ -486,7 +494,10 @@ impl DatabaseDriver for PostgresDriver {
             sql.push_str(&format!("DROP TABLE IF EXISTS {} CASCADE;\n", qi_table));
 
             let columns = self.get_columns(database, tname, Some(schema_name)).await?;
-            let indexes = self.get_indexes(database, tname, Some(schema_name)).await.unwrap_or_default();
+            let indexes = self
+                .get_indexes(database, tname, Some(schema_name))
+                .await
+                .unwrap_or_default();
 
             sql.push_str(&format!("CREATE TABLE {} (\n", qi_table));
             let mut col_defs = Vec::new();
@@ -516,16 +527,21 @@ impl DatabaseDriver for PostgresDriver {
 
             if include_indexes {
                 for idx in &indexes {
-                    let cols: Vec<String> = idx.columns.iter().map(|c| format!("\"{}\"", c)).collect();
+                    let cols: Vec<String> =
+                        idx.columns.iter().map(|c| format!("\"{}\"", c)).collect();
                     if idx.unique {
                         sql.push_str(&format!(
                             "CREATE UNIQUE INDEX \"{}\" ON {} ({});\n",
-                            idx.name, qi_table, cols.join(", ")
+                            idx.name,
+                            qi_table,
+                            cols.join(", ")
                         ));
                     } else {
                         sql.push_str(&format!(
                             "CREATE INDEX \"{}\" ON {} ({});\n",
-                            idx.name, qi_table, cols.join(", ")
+                            idx.name,
+                            qi_table,
+                            cols.join(", ")
                         ));
                     }
                 }
@@ -538,7 +554,9 @@ impl DatabaseDriver for PostgresDriver {
                 let page_size: u32 = 500;
                 let mut page: u32 = 0;
                 loop {
-                    let result = self.get_table_data(schema_name, tname, page, page_size).await?;
+                    let result = self
+                        .get_table_data(schema_name, tname, page, page_size)
+                        .await?;
                     if result.rows.is_empty() && page == 0 {
                         break;
                     }
@@ -549,7 +567,11 @@ impl DatabaseDriver for PostgresDriver {
                             .map(|col| match row.get(col) {
                                 Some(serde_json::Value::Null) | None => "NULL".to_string(),
                                 Some(serde_json::Value::Bool(b)) => {
-                                    if *b { "TRUE".to_string() } else { "FALSE".to_string() }
+                                    if *b {
+                                        "TRUE".to_string()
+                                    } else {
+                                        "FALSE".to_string()
+                                    }
                                 }
                                 Some(serde_json::Value::Number(n)) => n.to_string(),
                                 Some(serde_json::Value::String(s)) => {
@@ -560,10 +582,16 @@ impl DatabaseDriver for PostgresDriver {
                                 }
                             })
                             .collect();
-                        let col_list: Vec<String> = result.columns.iter().map(|c| format!("\"{}\"", c)).collect();
+                        let col_list: Vec<String> = result
+                            .columns
+                            .iter()
+                            .map(|c| format!("\"{}\"", c))
+                            .collect();
                         sql.push_str(&format!(
                             "INSERT INTO {} ({}) VALUES ({});\n",
-                            qi_table, col_list.join(", "), vals.join(", ")
+                            qi_table,
+                            col_list.join(", "),
+                            vals.join(", ")
                         ));
                     }
                     if result.rows.len() < page_size as usize {
@@ -580,14 +608,26 @@ impl DatabaseDriver for PostgresDriver {
 
         if include_foreign_keys {
             for fk in &foreign_keys {
-                let src_cols: Vec<String> = fk.source_columns.iter().map(|c| format!("\"{}\"", c)).collect();
-                let tgt_cols: Vec<String> = fk.target_columns.iter().map(|c| format!("\"{}\"", c)).collect();
+                let src_cols: Vec<String> = fk
+                    .source_columns
+                    .iter()
+                    .map(|c| format!("\"{}\"", c))
+                    .collect();
+                let tgt_cols: Vec<String> = fk
+                    .target_columns
+                    .iter()
+                    .map(|c| format!("\"{}\"", c))
+                    .collect();
                 let src_table = format!("\"{}\".\"{}\"", schema_name, fk.source_table);
                 let tgt_schema = fk.target_schema.as_deref().unwrap_or(schema_name);
                 let tgt_table = format!("\"{}\".\"{}\"", tgt_schema, fk.target_table);
                 sql.push_str(&format!(
                     "ALTER TABLE {} ADD CONSTRAINT \"{}\" FOREIGN KEY ({}) REFERENCES {} ({});\n",
-                    src_table, fk.name, src_cols.join(", "), tgt_table, tgt_cols.join(", ")
+                    src_table,
+                    fk.name,
+                    src_cols.join(", "),
+                    tgt_table,
+                    tgt_cols.join(", ")
                 ));
             }
             sql.push('\n');

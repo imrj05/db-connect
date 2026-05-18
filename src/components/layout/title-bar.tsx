@@ -298,7 +298,7 @@ const TitleBar = ({ isLicensed, onActivate }: TitleBarProps) => {
                         </Button>
                     </TooltipTrigger>
                     <TooltipContent side="bottom" sideOffset={4}>
-                        {sidebarCollapsed ? "Show sidebar" : "Hide sidebar"}
+                        {sidebarCollapsed ? "Show sidebar" : "Hide sidebar"} (Cmd+B)
                     </TooltipContent>
                 </Tooltip>
                 {/* Query log toggle */}
@@ -321,7 +321,7 @@ const TitleBar = ({ isLicensed, onActivate }: TitleBarProps) => {
                         </Button>
                     </TooltipTrigger>
                     <TooltipContent side="bottom" sideOffset={4}>
-                        {queryLogOpen ? "Hide query log" : "Show query log"}
+                        {queryLogOpen ? "Hide query log" : "Show query log"} (Cmd+Shift+L)
                     </TooltipContent>
                 </Tooltip>
                 <Button

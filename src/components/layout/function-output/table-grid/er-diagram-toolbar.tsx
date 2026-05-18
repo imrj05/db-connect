@@ -47,6 +47,7 @@ type ERDiagramToolbarProps = {
 	onZoomIn: () => void;
 	onZoomOut: () => void;
 	onFit: () => void;
+	onResetLayout: () => void;
 	onRetry: () => void;
 	isSchemaSelected: (schema: string) => boolean;
 };
@@ -73,6 +74,7 @@ export function ERDiagramToolbar({
 	onZoomIn,
 	onZoomOut,
 	onFit,
+	onResetLayout,
 	onRetry,
 	isSchemaSelected,
 }: ERDiagramToolbarProps) {
@@ -306,8 +308,18 @@ export function ERDiagramToolbar({
 					size="icon-xs"
 					onClick={onFit}
 					className="text-muted-foreground/50 hover:text-foreground"
+					title="Fit diagram"
 				>
 					<LocateFixed size={11} />
+				</Button>
+				<Button
+					variant="ghost"
+					size="icon-xs"
+					onClick={onResetLayout}
+					className="text-muted-foreground/50 hover:text-foreground"
+					title="Reset saved layout"
+				>
+					<RefreshCcw size={11} />
 				</Button>
 				<Button
 					variant="ghost"

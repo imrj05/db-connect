@@ -34,6 +34,15 @@ export interface OpenRouterOAuthBeginResult {
   callbackUrl: string;
 }
 
+export interface AiDeviceCodeBeginResult {
+  provider: string;
+  flowId: string;
+  userCode: string;
+  verificationUri: string;
+  expiresIn: number;
+  interval: number;
+}
+
 export interface OpenRouterMessage {
   role: "system" | "user" | "assistant";
   content: string;
@@ -264,6 +273,22 @@ export const tauriApi = {
 
   async aiChatCompletion(request: OpenRouterChatRequest & { provider: AiProvider }): Promise<AiChatResponse> {
     return await invoke("ai_chat_completion", { request });
+  },
+
+  async aiOauthBegin(provider: AiProvider): Promise<OpenRouterOAuthBeginResult> {
+    return await invoke("ai_oauth_begin", { provider });
+  },
+
+  async aiOauthComplete(provider: AiProvider, flowId: string): Promise<AiCredentialStatus> {
+    return await invoke("ai_oauth_complete", { provider, flowId });
+  },
+
+  async aiDeviceCodeBegin(provider: AiProvider): Promise<AiDeviceCodeBeginResult> {
+    return await invoke("ai_device_code_begin", { provider });
+  },
+
+  async aiDeviceCodeComplete(provider: AiProvider, flowId: string): Promise<AiCredentialStatus> {
+    return await invoke("ai_device_code_complete", { provider, flowId });
   },
 
   // ── OpenRouter compatibility wrappers ─────────────────────────────────────

@@ -27,7 +27,16 @@ import {
     AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
-import { Loader2 } from "lucide-react";
+import { Check, Database, Loader2 } from "lucide-react";
+import {
+    Command,
+    CommandDialog,
+    CommandEmpty,
+    CommandGroup,
+    CommandInput,
+    CommandItem,
+    CommandList,
+} from "@/components/ui/command";
 import { licenseCheckOffline, syncLicenseInBackground, type OfflineCheckResult } from "@/lib/license";
 import { ErrorBoundary } from "./components/layout/error-boundary";
 import { DB_FONT_SANS, DB_FONT_MONO, DB_FONT_SANS_STACK, DB_FONT_MONO_STACK } from "@/lib/fonts";
@@ -54,6 +63,14 @@ function App() {
         openNewTab,
         sidebarCollapsed,
         activeView,
+        toggleSidebar,
+        toggleQueryLog,
+        setShowConnectionsManager,
+        activeFunction,
+        activeConnectionId,
+        selectedDatabases,
+        connectionDatabases,
+        selectDatabase,
     } = useAppStore();
 
     const [onboardingDone, setOnboardingDone] = useState(false);
@@ -71,6 +88,7 @@ function App() {
     });
     const [showCloseApp, setShowCloseApp] = useState(false);
     const [isClosing, setIsClosing] = useState(false);
+    const [databaseSwitcherOpen, setDatabaseSwitcherOpen] = useState(false);
     const isDragging = useRef(false);
     const startX = useRef(0);
     const startWidth = useRef(0);
@@ -80,6 +98,18 @@ function App() {
     // ── License state (non-blocking) ─────────────────────────────────────────
     const [licenseCheck, setLicenseCheck] = useState<OfflineCheckResult | null>(null);
     const [licenseDialogOpen, setLicenseDialogOpen] = useState(false);
+
+    const databaseSwitcherConnectionId =
+        activeConnectionId ?? activeFunction?.connectionId ?? connectedIds[0] ?? null;
+    const databaseSwitcherConnection = databaseSwitcherConnectionId
+        ? connections.find((conn) => conn.id === databaseSwitcherConnectionId) ?? null
+        : null;
+    const databaseSwitcherDatabases = databaseSwitcherConnectionId
+        ? connectionDatabases[databaseSwitcherConnectionId] ?? []
+        : [];
+    const databaseSwitcherSelected = databaseSwitcherConnectionId
+        ? selectedDatabases[databaseSwitcherConnectionId]
+        : undefined;
 
     useEffect(() => {
         licenseCheckOffline().then((result) => {
@@ -220,21 +250,55 @@ function App() {
         return () => window.removeEventListener("keydown", handler);
     }, [activeTabId, closeTab]);
 
-    // ⌘T / Ctrl+T — open new tab
+    // ⌘T / Ctrl+T — open new tab; global workspace shortcuts
     useEffect(() => {
         const handler = (e: KeyboardEvent) => {
-            if ((e.metaKey || e.ctrlKey) && e.key === "t") {
+            if (!(e.metaKey || e.ctrlKey) || e.altKey) return;
+
+            const key = e.key.toLowerCase();
+            if (!e.shiftKey && key === "t") {
                 e.preventDefault();
                 openNewTab();
             }
-            if ((e.metaKey || e.ctrlKey) && e.key === ",") {
+            if (!e.shiftKey && key === ",") {
                 e.preventDefault();
                 setActiveView("settings");
+            }
+            if (!e.shiftKey && key === "b") {
+                e.preventDefault();
+                toggleSidebar();
+            }
+            if (e.shiftKey && key === "l") {
+                e.preventDefault();
+                toggleQueryLog();
+            }
+            if (e.shiftKey && key === "m") {
+                e.preventDefault();
+                setActiveView("main");
+                setShowConnectionsManager(true);
+            }
+            if (e.shiftKey && key === "d") {
+                const connectionId = activeConnectionId ?? activeFunction?.connectionId;
+                if (!connectionId) return;
+                const databases = connectionDatabases[connectionId] ?? [];
+                if (databases.length === 0) return;
+
+                e.preventDefault();
+                setDatabaseSwitcherOpen(true);
             }
         };
         window.addEventListener("keydown", handler);
         return () => window.removeEventListener("keydown", handler);
-    }, [openNewTab]);
+    }, [
+        activeConnectionId,
+        activeFunction?.connectionId,
+        connectionDatabases,
+        openNewTab,
+        setActiveView,
+        setShowConnectionsManager,
+        toggleQueryLog,
+        toggleSidebar,
+    ]);
 
     const handleCloseApp = useCallback(async () => {
         setIsClosing(true);
@@ -353,6 +417,49 @@ function App() {
                         </div>
                     </main>
                     <CommandPalette />
+                    <CommandDialog
+                        open={databaseSwitcherOpen}
+                        onOpenChange={setDatabaseSwitcherOpen}
+                        title="Change Database"
+                        description="Select a database for the active connection."
+                        className="sm:max-w-sm"
+                        width="min(28rem, 92vw)"
+                    >
+                        <Command shouldFilter>
+                            <CommandInput
+                                placeholder={
+                                    databaseSwitcherConnection
+                                        ? `Search ${databaseSwitcherConnection.name} databases...`
+                                        : "Search databases..."
+                                }
+                            />
+                            <CommandList>
+                                <CommandEmpty>No databases found.</CommandEmpty>
+                                <CommandGroup heading="Current Connection Databases">
+                                    {databaseSwitcherDatabases.map((database) => (
+                                        <CommandItem
+                                            key={database}
+                                            value={database}
+                                            onSelect={() => {
+                                                if (!databaseSwitcherConnectionId) return;
+                                                setDatabaseSwitcherOpen(false);
+                                                void selectDatabase(databaseSwitcherConnectionId, database);
+                                            }}
+                                            className="gap-2"
+                                        >
+                                            <Database size={13} className="text-muted-foreground/60" />
+                                            <span className="min-w-0 flex-1 truncate font-mono text-[12px]">
+                                                {database}
+                                            </span>
+                                            {database === databaseSwitcherSelected && (
+                                                <Check size={13} className="text-primary" />
+                                            )}
+                                        </CommandItem>
+                                    ))}
+                                </CommandGroup>
+                            </CommandList>
+                        </Command>
+                    </CommandDialog>
                     {connectionDialogOpen && (
                         <ConnectionDialog
                             initialData={editingConnection ?? undefined}

@@ -22,6 +22,10 @@ function normalizeType(t: string): string {
 	return t.trim().toLowerCase().replace(/\s+/g, " ");
 }
 
+function draftTableKey(name: string, schema?: string): string {
+	return `${schema ?? "default"}::${name}`;
+}
+
 // ── Convert SchemaGraph to SchemaDraft ───────────────────────────────────────
 
 export function graphToDraft(
@@ -31,7 +35,7 @@ export function graphToDraft(
 	const tableIdMap = new Map<string, string>();
 	const tables: DraftTable[] = graph.tables.map((t) => {
 		const id = uid();
-		tableIdMap.set(t.name, id);
+		tableIdMap.set(draftTableKey(t.name, t.schema), id);
 		return {
 			id,
 			name: t.name,
@@ -52,9 +56,9 @@ export function graphToDraft(
 	const foreignKeys: DraftForeignKey[] = graph.relationships.map((r) => ({
 		id: uid(),
 		name: r.name,
-		sourceTableId: tableIdMap.get(r.sourceTable) ?? "",
+		sourceTableId: tableIdMap.get(draftTableKey(r.sourceTable, r.sourceSchema)) ?? "",
 		sourceColumns: r.sourceColumns,
-		targetTableId: tableIdMap.get(r.targetTable) ?? "",
+		targetTableId: tableIdMap.get(draftTableKey(r.targetTable, r.targetSchema)) ?? "",
 		targetColumns: r.targetColumns,
 	}));
 
@@ -71,17 +75,17 @@ export function diffDraft(
 
 	// Build lookup maps
 	const origTableMap = new Map<string, typeof original.tables[number]>();
-	for (const t of original.tables) origTableMap.set(t.name, t);
+	for (const t of original.tables) origTableMap.set(draftTableKey(t.name, t.schema), t);
 
 	const origFkSet = new Set<string>();
 	for (const r of original.relationships) origFkSet.add(r.name);
 
 	const draftTableMap = new Map<string, DraftTable>();
-	for (const t of draft.tables) draftTableMap.set(t.name, t);
+	for (const t of draft.tables) draftTableMap.set(draftTableKey(t.name, t.schema), t);
 
 	// Detect table changes
-	const draftTableNames = new Set(draft.tables.map((t) => t.name));
-	const origTableNames = new Set(original.tables.map((t) => t.name));
+	const draftTableNames = new Set(draft.tables.map((t) => draftTableKey(t.name, t.schema)));
+	const origTableNames = new Set(original.tables.map((t) => draftTableKey(t.name, t.schema)));
 
 	const processedTables = new Set<string>();
 	const droppedTables: SchemaChange[] = [];
@@ -89,19 +93,21 @@ export function diffDraft(
 	const createdTables: SchemaChange[] = [];
 
 	// Dropped tables
-	for (const origName of origTableNames) {
-		if (!draftTableNames.has(origName)) {
+	for (const origKey of origTableNames) {
+		if (!draftTableNames.has(origKey)) {
+			const origTable = origTableMap.get(origKey);
+			if (!origTable) continue;
 			droppedTables.push({
 				type: "dropTable",
-				tableName: origName,
-				schema: original.tables.find((t) => t.name === origName)?.schema,
+				tableName: origTable.name,
+				schema: origTable.schema,
 			});
 		}
 	}
 
 	// Renamed tables (detect via previousName)
 	for (const t of draft.tables) {
-		if (t.previousName && t.previousName !== t.name && origTableMap.has(t.previousName)) {
+		if (t.previousName && t.previousName !== t.name && origTableMap.has(draftTableKey(t.previousName, t.schema))) {
 			renamedTables.push({
 				type: "renameTable",
 				oldName: t.previousName,
@@ -109,7 +115,7 @@ export function diffDraft(
 				schema: t.schema,
 				table: t,
 			});
-			processedTables.add(t.previousName);
+			processedTables.add(draftTableKey(t.previousName, t.schema));
 		}
 	}
 
@@ -125,9 +131,9 @@ export function diffDraft(
 		if (t.isNew && !t.previousName) continue; // handled above
 
 		const effectiveName = t.previousName ?? t.name;
-		const origT = origTableMap.get(effectiveName);
+		const origT = origTableMap.get(draftTableKey(effectiveName, t.schema));
 		if (!origT) continue; // should not happen
-		processedTables.add(effectiveName);
+		processedTables.add(draftTableKey(effectiveName, t.schema));
 
 		const origColMap = new Map<string, ColumnInfo>();
 		for (const c of origT.columns) origColMap.set(c.name, c);
@@ -234,7 +240,7 @@ export function diffDraft(
 	for (const t of draft.tables) {
 		if (t.isNew && !t.previousName) continue; // indexes created with table
 		const effectiveName = t.previousName ?? t.name;
-		const origT = origTableMap.get(effectiveName);
+		const origT = origTableMap.get(draftTableKey(effectiveName, t.schema));
 		if (!origT) continue;
 
 		// We don't have original indexes in SchemaGraph, so we only handle

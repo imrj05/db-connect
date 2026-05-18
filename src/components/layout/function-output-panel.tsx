@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Loader2, Copy, Check, ChevronDown, ChevronRight, Sparkles } from "lucide-react";
 import {
 	AlertDialog,
@@ -80,6 +80,9 @@ const FunctionOutput = () => {
 	const [pendingDangerSql, setPendingDangerSql] = useState<string | null>(null);
 	const [pendingTabCloseId, setPendingTabCloseId] = useState<string | null>(null);
 	const [askAiFixError, setAskAiFixError] = useState<string | null>(null);
+	const [connectingHomeIds, setConnectingHomeIds] = useState<Set<string>>(new Set());
+	const [cancellingHomeIds, setCancellingHomeIds] = useState<Set<string>>(new Set());
+	const homeConnectCancelRef = useRef<Set<string>>(new Set());
 	const [errorCopied, setErrorCopied] = useState(false);
 	const [errorExpanded, setErrorExpanded] = useState(false);
 	// Reset both page and per-tab page size when switching to a different function/table
@@ -155,6 +158,42 @@ const FunctionOutput = () => {
 		},
 		[invocationResult, connectionFunctions, invokeFunction],
 	);
+	const handleHomeConnect = useCallback(
+		async (id: string) => {
+			homeConnectCancelRef.current.delete(id);
+			setConnectingHomeIds((prev) => new Set(prev).add(id));
+			setCancellingHomeIds((prev) => {
+				const next = new Set(prev);
+				next.delete(id);
+				return next;
+			});
+			try {
+				const connected = await connectAndInit(id, {
+					isCancelled: () => homeConnectCancelRef.current.has(id),
+				});
+				if (connected) {
+					setShowConnectionsManager(false);
+				}
+			} finally {
+				homeConnectCancelRef.current.delete(id);
+				setConnectingHomeIds((prev) => {
+					const next = new Set(prev);
+					next.delete(id);
+					return next;
+				});
+				setCancellingHomeIds((prev) => {
+					const next = new Set(prev);
+					next.delete(id);
+					return next;
+				});
+			}
+		},
+		[connectAndInit, setShowConnectionsManager],
+	);
+	const handleHomeCancelConnect = useCallback((id: string) => {
+		homeConnectCancelRef.current.add(id);
+		setCancellingHomeIds((prev) => new Set(prev).add(id));
+	}, []);
 	const handleCloseTab = useCallback(
 		(tabId: string) => {
 			const tab = tabs.find((candidate) => candidate.id === tabId);
@@ -288,15 +327,15 @@ const FunctionOutput = () => {
 					<ConnectionsHome
 						connections={connections}
 						connectedIds={connectedIds}
+						connectingIds={[...connectingHomeIds]}
+						cancellingIds={[...cancellingHomeIds]}
 						onNewConnection={openNewConnectionPage}
 						onEdit={(conn) => {
 							setEditingConnection(conn);
 							setConnectionDialogOpen(true);
 						}}
-						onConnect={(id) => {
-							setShowConnectionsManager(false);
-							connectAndInit(id);
-						}}
+						onConnect={handleHomeConnect}
+						onCancelConnect={handleHomeCancelConnect}
 						onDisconnect={(id) => disconnectConnection(id)}
 					/>
 				);

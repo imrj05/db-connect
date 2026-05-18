@@ -37,22 +37,22 @@ import type {
 	CategorizedChanges,
 	DdlStatement,
 } from "@/lib/schema-diff/types";
+import {
+	HEADER_HEIGHT,
+	ROW_HEIGHT,
+	buildBfsLayout,
+	clearPositions,
+	loadPositions,
+	savePositions,
+	tableKey,
+} from "./er-diagram-model";
 
 // ── Constants ────────────────────────────────────────────────────────────────
-
-const NODE_WIDTH = 280;
-const COLUMN_GAP = 120;
-const ROW_GAP = 52;
-
-const DIAGRAM_POSITIONS_KEY = "db_connect_diagram_positions_v1";
 
 const nodeTypes = { "table-node": TableNode };
 const edgeTypes = { "fk-edge": FkEdge };
 
 // ── Export helpers (preserved from original) ─────────────────────────────────
-
-const HEADER_HEIGHT = 34;
-const ROW_HEIGHT = 22;
 
 function escapeXml(value: string): string {
 	return value.replace(/[<>&"']/g, (ch) => {
@@ -146,18 +146,14 @@ type LayoutNodeForExport = {
 	degree: number;
 };
 
-function tableKey(name: string, schema?: string) {
-	return `${schema ?? "default"}::${name}`;
-}
-
 function buildDiagramSvg(opts: {
 	graph: SchemaGraph;
 	nodes: LayoutNodeForExport[];
-	currentTableName?: string;
+	currentTableKey?: string;
 	palette: ExportPalette;
 	margin?: number;
 }): { svg: string; width: number; height: number } {
-	const { graph, nodes, currentTableName, palette } = opts;
+	const { graph, nodes, currentTableKey, palette } = opts;
 	const margin = opts.margin ?? 64;
 
 	let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
@@ -209,7 +205,7 @@ function buildDiagramSvg(opts: {
 		const endY = (target.y + offsetY) + HEADER_HEIGHT + (targetIndex >= 0 ? targetIndex : 0) * ROW_HEIGHT + ROW_HEIGHT / 2 + 6;
 		const direction = fromLeft ? -1 : 1;
 		const delta = Math.max(56, Math.abs(endX - startX) * 0.45);
-		const isActive = source.name === currentTableName || target.name === currentTableName;
+		const isActive = source.key === currentTableKey || target.key === currentTableKey;
 		const stroke = isActive ? palette.relationStrokeActive : palette.relationStroke;
 		const strokeWidth = isActive ? 2.5 : 1.8;
 
@@ -225,7 +221,7 @@ function buildDiagramSvg(opts: {
 	for (const node of nodes) {
 		const x = node.x + offsetX;
 		const y = node.y + offsetY;
-		const isCurrent = node.name === currentTableName;
+		const isCurrent = node.key === currentTableKey;
 		const headerFill = isCurrent ? palette.cardHeaderActive : palette.cardHeader;
 		const stroke = isCurrent ? palette.borderActive : palette.border;
 
@@ -300,26 +296,12 @@ function uid(): string {
 	return `rf-${Date.now()}-${++_idCounter}-${Math.random().toString(36).slice(2, 7)}`;
 }
 
-function loadPositions(connectionId: string, database: string): Record<string, { x: number; y: number }> {
-	try {
-		const raw = localStorage.getItem(DIAGRAM_POSITIONS_KEY);
-		if (!raw) return {};
-		const all = JSON.parse(raw) as Record<string, Record<string, { x: number; y: number }>>;
-		return all[`${connectionId}:${database}`] ?? {};
-	} catch {
-		return {};
-	}
+function safeHandlePart(value: string): string {
+	return value.replace(/[^a-zA-Z0-9_-]/g, "_");
 }
 
-function savePositions(connectionId: string, database: string, positions: Record<string, { x: number; y: number }>) {
-	try {
-		const raw = localStorage.getItem(DIAGRAM_POSITIONS_KEY);
-		const all: Record<string, Record<string, { x: number; y: number }>> = raw
-			? JSON.parse(raw)
-			: {};
-		all[`${connectionId}:${database}`] = positions;
-		localStorage.setItem(DIAGRAM_POSITIONS_KEY, JSON.stringify(all));
-	} catch { /* ignore */ }
+function columnHandleId(table: string, schema: string | undefined, column: string): string {
+	return `orig_${safeHandlePart(tableKey(table, schema))}_${safeHandlePart(column)}`;
 }
 
 // ── Main component ──────────────────────────────────────────────────────────
@@ -327,13 +309,15 @@ function savePositions(connectionId: string, database: string, positions: Record
 export function ERDiagramView({
 	graph,
 	currentTableName,
+	currentSchema,
 	onTableSelect,
 	onRetry,
 	isRefreshing = false,
 }: {
 	graph: SchemaGraph;
 	currentTableName?: string;
-	onTableSelect: (tableName: string) => void;
+	currentSchema?: string;
+	onTableSelect: (tableName: string, schema?: string) => void;
 	onRetry: () => void;
 	isRefreshing?: boolean;
 }) {
@@ -354,6 +338,7 @@ export function ERDiagramView({
 	// Normalize engine names
 	const normalizedEngine: "postgres" | "mysql" | "sqlite" =
 		engine === "postgresql" ? "postgres" : engine as "postgres" | "mysql" | "sqlite";
+	const currentTableKey = currentTableName ? tableKey(currentTableName, currentSchema) : undefined;
 
 	// ── State ──────────────────────────────────────────────────────────────────
 	const [isEditing, setIsEditing] = useState(false);
@@ -363,6 +348,7 @@ export function ERDiagramView({
 	const [categorized, setCategorized] = useState<CategorizedChanges | null>(null);
 	const [orderedChanges, setOrderedChanges] = useState<SchemaChange[]>([]);
 	const [isRunning, setIsRunning] = useState(false);
+	const [positionsVersion, setPositionsVersion] = useState(0);
 
 	// Schema filter
 	const allSchemas = useMemo(() => {
@@ -410,93 +396,16 @@ export function ERDiagramView({
 
 	// ── Build layout nodes ────────────────────────────────────────────────────
 
-	const degreeMap = useMemo(() => {
-		const map = new Map<string, number>();
-		for (const t of filteredGraph.tables) {
-			map.set(tableKey(t.name, t.schema), 0);
-		}
-		for (const r of filteredGraph.relationships) {
-			const sk = tableKey(r.sourceTable, r.sourceSchema);
-			const tk = tableKey(r.targetTable, r.targetSchema);
-			map.set(sk, (map.get(sk) ?? 0) + 1);
-			map.set(tk, (map.get(tk) ?? 0) + 1);
-		}
-		return map;
-	}, [filteredGraph]);
-
-	// Create BFS layout for initial node positions
-	const bfsLayout = useMemo(() => {
-		const adjacency = new Map<string, Set<string>>();
-		for (const t of filteredGraph.tables) {
-			adjacency.set(tableKey(t.name, t.schema), new Set());
-		}
-		for (const r of filteredGraph.relationships) {
-			const sk = tableKey(r.sourceTable, r.sourceSchema);
-			const tk = tableKey(r.targetTable, r.targetSchema);
-			adjacency.get(sk)?.add(tk);
-			adjacency.get(tk)?.add(sk);
-		}
-
-		const sortedTables = [...filteredGraph.tables].sort((a, b) => {
-			const aKey = tableKey(a.name, a.schema);
-			const bKey = tableKey(b.name, b.schema);
-			const aCurr = a.name === currentTableName ? 1 : 0;
-			const bCurr = b.name === currentTableName ? 1 : 0;
-			if (aCurr !== bCurr) return bCurr - aCurr;
-			return ((degreeMap.get(bKey) ?? 0) - (degreeMap.get(aKey) ?? 0)) || a.name.localeCompare(b.name);
-		});
-
-		const root = sortedTables.find((t) => t.name === currentTableName) ?? sortedTables[0];
-		const layerMap = new Map<string, number>();
-		const visited = new Set<string>();
-		if (root) {
-			const rk = tableKey(root.name, root.schema);
-			const queue: Array<{ key: string; layer: number }> = [{ key: rk, layer: 0 }];
-			visited.add(rk);
-			layerMap.set(rk, 0);
-			while (queue.length > 0) {
-				const cur = queue.shift()!;
-				for (const nb of [...(adjacency.get(cur.key) ?? [])].sort()) {
-					if (visited.has(nb)) continue;
-					visited.add(nb);
-					layerMap.set(nb, cur.layer + 1);
-					queue.push({ key: nb, layer: cur.layer + 1 });
-				}
-			}
-		}
-		let trailing = layerMap.size > 0 ? Math.max(...layerMap.values()) + 1 : 0;
-		for (const t of sortedTables) {
-			const key = tableKey(t.name, t.schema);
-			if (layerMap.has(key)) continue;
-			layerMap.set(key, trailing++);
-		}
-
-		const layers = new Map<number, (typeof filteredGraph.tables)[number][]>();
-		for (const t of sortedTables) {
-			const layer = layerMap.get(tableKey(t.name, t.schema)) ?? 0;
-			const grp = layers.get(layer) ?? [];
-			grp.push(t);
-			layers.set(layer, grp);
-		}
-
-		const positions: Record<string, { x: number; y: number }> = {};
-		for (const [layerIdx, tbls] of [...layers.entries()].sort((a, b) => a[0] - b[0])) {
-			let cursorY = 0;
-			for (const tbl of tbls) {
-				const h = 34 + tbl.columns.length * 22 + 12;
-				const key = tableKey(tbl.name, tbl.schema);
-				positions[key] = { x: layerIdx * (NODE_WIDTH + COLUMN_GAP), y: cursorY };
-				cursorY += h + ROW_GAP;
-			}
-		}
-		return positions;
-	}, [filteredGraph, currentTableName, degreeMap]);
+	const { positions: bfsLayout, degreeMap } = useMemo(
+		() => buildBfsLayout(filteredGraph, currentTableKey),
+		[filteredGraph, currentTableKey],
+	);
 
 	// Load persisted positions (only when not editing)
 	const persistedPositions = useMemo(() => {
 		if (!connectionId || !database) return {};
 		return loadPositions(connectionId, database);
-	}, [connectionId, database]);
+	}, [connectionId, database, positionsVersion]);
 
 	// ── Convert filteredGraph to React Flow nodes/edges ───────────────────────
 
@@ -521,12 +430,14 @@ export function ERDiagramView({
 			const degree = degreeMap.get(key) ?? 0;
 			const colMap = new Map<string, boolean>();
 			for (const c of t.columns) {
-				colMap.set(c.name, fkSourceSet.has(`${key}::${c.name}`));
+				const isFkSource = fkSourceSet.has(`${key}::${c.name}`);
+				colMap.set(c.name, isFkSource);
+				colMap.set(columnHandleId(t.name, t.schema, c.name), isFkSource);
 			}
 
 			// Convert ColumnInfo[] to DraftColumn[]
 			const draftCols: DraftColumn[] = t.columns.map((c) => ({
-				id: `orig-${key}-${c.name}`,
+				id: columnHandleId(t.name, t.schema, c.name),
 				name: c.name,
 				dataType: c.dataType,
 				nullable: c.nullable,
@@ -547,22 +458,28 @@ export function ERDiagramView({
 					indexes: [],
 					degree,
 					isEditing: false,
-					isCurrent: t.name === currentTableName,
+				isCurrent: key === currentTableKey,
 					fkRelations: [],
 					fkSourceMap: colMap,
 					engine: normalizedEngine,
 				} satisfies TableNodeData,
-				draggable: !isEditing,
+				draggable: true,
 			};
 		});
 
 		const edges: Edge[] = filteredGraph.relationships.map((r) => {
 			const sk = tableKey(r.sourceTable, r.sourceSchema);
 			const tk = tableKey(r.targetTable, r.targetSchema);
+			const sourceTable = tblMap.get(sk);
+			const targetTable = tblMap.get(tk);
+			const sourceColumn = sourceTable?.columns.find((c) => c.name === r.sourceColumns[0]);
+			const targetColumn = targetTable?.columns.find((c) => c.name === r.targetColumns[0]);
 			return {
 				id: r.name || `${sk}-${tk}-${r.sourceColumns[0]}`,
 				source: sk,
 				target: tk,
+				...(sourceColumn ? { sourceHandle: `col-source-${columnHandleId(r.sourceTable, r.sourceSchema, sourceColumn.name)}` } : {}),
+				...(targetColumn ? { targetHandle: `col-target-${columnHandleId(r.targetTable, r.targetSchema, targetColumn.name)}` } : {}),
 				type: "fk-edge",
 				animated: false,
 				markerEnd: { type: MarkerType.ArrowClosed, color: "var(--color-accent-blue)" },
@@ -571,7 +488,7 @@ export function ERDiagramView({
 		});
 
 		return { rfNodes: nodes, rfEdges: edges };
-	}, [filteredGraph, bfsLayout, persistedPositions, degreeMap, currentTableName, isEditing, normalizedEngine]);
+	}, [filteredGraph, bfsLayout, persistedPositions, degreeMap, currentTableKey, normalizedEngine]);
 
 	// ── React Flow state ──────────────────────────────────────────────────────
 	const [nodes, setNodes, onNodesChange] = useNodesState(rfNodes as any);
@@ -592,7 +509,7 @@ export function ERDiagramView({
 		// Update nodes to edit mode
 		setNodes((nds) =>
 			nds.map((n) => {
-				const dt = d.tables.find((t) => t.name === (n.data as TableNodeData).label);
+				const dt = d.tables.find((t) => tableKey(t.name, t.schema) === n.id);
 				if (!dt) return n;
 				const fkSourceSet = new Map<string, boolean>();
 				for (const fk of d.foreignKeys) {
@@ -663,6 +580,8 @@ export function ERDiagramView({
 					id: fk.id,
 					source: srcKey,
 					target: tgtKey,
+					sourceHandle: `col-source-${srcT?.columns.find((c) => c.name === fk.sourceColumns[0])?.id ?? ""}`,
+					targetHandle: `col-target-${tgtT?.columns.find((c) => c.name === fk.targetColumns[0])?.id ?? ""}`,
 					type: "fk-edge",
 					animated: false,
 					markerEnd: { type: MarkerType.ArrowClosed, color: "var(--color-accent-blue)" },
@@ -885,6 +804,20 @@ export function ERDiagramView({
 			const srcCol = srcTable.columns.find((c) => c.id === srcColId);
 			const tgtCol = tgtTable.columns.find((c) => c.id === tgtColId);
 			if (!srcCol || !tgtCol) return;
+			if (source === target && srcCol.id === tgtCol.id) {
+				toast.error("Cannot create a foreign key from a column to itself");
+				return;
+			}
+			const alreadyExists = draft.foreignKeys.some(
+				(fk) => fk.sourceTableId === srcTable.id &&
+					fk.targetTableId === tgtTable.id &&
+					fk.sourceColumns[0] === srcCol.name &&
+					fk.targetColumns[0] === tgtCol.name,
+			);
+			if (alreadyExists) {
+				toast.info("That foreign key already exists");
+				return;
+			}
 
 			const fkName = `fk_${srcTable.name}_${tgtTable.name}_${srcCol.name}`;
 			const newFk: DraftForeignKey = {
@@ -908,6 +841,8 @@ export function ERDiagramView({
 					id: newFk.id,
 					source,
 					target,
+					sourceHandle,
+					targetHandle,
 					type: "fk-edge",
 					animated: false,
 					markerEnd: { type: MarkerType.ArrowClosed, color: "var(--color-accent-blue)" },
@@ -947,10 +882,10 @@ export function ERDiagramView({
 		return buildDiagramSvg({
 			graph: filteredGraph,
 			nodes: exportNodes,
-			currentTableName,
+			currentTableKey,
 			palette,
 		});
-	}, [nodes, filteredGraph, currentTableName]);
+	}, [nodes, filteredGraph, currentTableKey]);
 
 	const exportFilename = useCallback(
 		(ext: string) => {
@@ -1061,6 +996,20 @@ export function ERDiagramView({
 		[isEditing, connectionId, database, setNodes],
 	);
 
+	const handleResetLayout = useCallback(() => {
+		if (!connectionId || !database) return;
+		clearPositions(connectionId, database);
+		setPositionsVersion((v) => v + 1);
+		setNodes((currentNodes) =>
+			currentNodes.map((node) => ({
+				...node,
+				position: bfsLayout[node.id] ?? node.position,
+			})),
+		);
+		setTimeout(() => rfInstanceRef.current?.fitView?.({ padding: 0.18 }), 0);
+		toast.success("ER diagram layout reset");
+	}, [bfsLayout, connectionId, database, setNodes]);
+
 	return (
 		<div className="h-full flex flex-col bg-background" ref={containerRef}>
 			{/* Toolbar */}
@@ -1093,6 +1042,7 @@ export function ERDiagramView({
 				onZoomIn={() => rfInstanceRef.current?.zoomIn?.()}
 				onZoomOut={() => rfInstanceRef.current?.zoomOut?.()}
 				onFit={() => rfInstanceRef.current?.fitView?.()}
+				onResetLayout={handleResetLayout}
 				onRetry={onRetry}
 				isSchemaSelected={isSchemaSelected}
 			/>
@@ -1108,7 +1058,8 @@ export function ERDiagramView({
 					onNodeDragStop={handleNodeDragStop}
 					onNodeClick={(_event, node) => {
 						if (!isEditing && node.data && (node.data as any).label) {
-							onTableSelect((node.data as any).label);
+							const data = node.data as TableNodeData;
+							onTableSelect(data.label, data.schema);
 						}
 					}}
 					nodeTypes={nodeTypes as any}

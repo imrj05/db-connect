@@ -54,9 +54,7 @@ impl DatabaseDriver for SqliteDriver {
         let pool = pool_lock.as_ref().ok_or_else(|| anyhow!("Not connected"))?;
 
         // Get the current file path from PRAGMA database_list
-        let row = sqlx::query("PRAGMA database_list")
-            .fetch_one(pool)
-            .await?;
+        let row = sqlx::query("PRAGMA database_list").fetch_one(pool).await?;
         let current_path: String = row.get(2);
 
         let parent = std::path::Path::new(&current_path)
@@ -67,7 +65,10 @@ impl DatabaseDriver for SqliteDriver {
         let new_path = parent.join(format!("{}.db", safe_name));
 
         if new_path.exists() {
-            return Err(anyhow!("A database file '{}' already exists", new_path.display()));
+            return Err(anyhow!(
+                "A database file '{}' already exists",
+                new_path.display()
+            ));
         }
 
         // Opening (connecting) to a new path creates the file in SQLite
@@ -289,7 +290,9 @@ impl DatabaseDriver for SqliteDriver {
     ) -> Result<QueryResult> {
         let query = format!(
             "SELECT * FROM \"{}\" LIMIT {} OFFSET {}",
-            table, page_size, page * page_size
+            table,
+            page_size,
+            page * page_size
         );
         self.run_query(&query).await
     }
@@ -305,7 +308,9 @@ impl DatabaseDriver for SqliteDriver {
     ) -> Result<String> {
         let tables = self.get_tables(database, schema).await?;
         let foreign_keys = if include_foreign_keys {
-            self.get_foreign_keys(database, schema).await.unwrap_or_default()
+            self.get_foreign_keys(database, schema)
+                .await
+                .unwrap_or_default()
         } else {
             vec![]
         };
@@ -328,7 +333,10 @@ impl DatabaseDriver for SqliteDriver {
             sql.push_str(&format!("DROP TABLE IF EXISTS {};\n", qi_table));
 
             let columns = self.get_columns(database, tname, schema).await?;
-            let indexes = self.get_indexes(database, tname, schema).await.unwrap_or_default();
+            let indexes = self
+                .get_indexes(database, tname, schema)
+                .await
+                .unwrap_or_default();
 
             sql.push_str(&format!("CREATE TABLE {} (\n", qi_table));
             let mut col_defs = Vec::new();
@@ -358,16 +366,21 @@ impl DatabaseDriver for SqliteDriver {
 
             if include_indexes {
                 for idx in &indexes {
-                    let cols: Vec<String> = idx.columns.iter().map(|c| format!("\"{}\"", c)).collect();
+                    let cols: Vec<String> =
+                        idx.columns.iter().map(|c| format!("\"{}\"", c)).collect();
                     if idx.unique {
                         sql.push_str(&format!(
                             "CREATE UNIQUE INDEX IF NOT EXISTS \"{}\" ON {} ({});\n",
-                            idx.name, qi_table, cols.join(", ")
+                            idx.name,
+                            qi_table,
+                            cols.join(", ")
                         ));
                     } else {
                         sql.push_str(&format!(
                             "CREATE INDEX IF NOT EXISTS \"{}\" ON {} ({});\n",
-                            idx.name, qi_table, cols.join(", ")
+                            idx.name,
+                            qi_table,
+                            cols.join(", ")
                         ));
                     }
                 }
@@ -380,7 +393,9 @@ impl DatabaseDriver for SqliteDriver {
                 let page_size: u32 = 500;
                 let mut page: u32 = 0;
                 loop {
-                    let result = self.get_table_data(database, tname, page, page_size).await?;
+                    let result = self
+                        .get_table_data(database, tname, page, page_size)
+                        .await?;
                     if result.rows.is_empty() && page == 0 {
                         break;
                     }
@@ -391,7 +406,11 @@ impl DatabaseDriver for SqliteDriver {
                             .map(|col| match row.get(col) {
                                 Some(serde_json::Value::Null) | None => "NULL".to_string(),
                                 Some(serde_json::Value::Bool(b)) => {
-                                    if *b { "1".to_string() } else { "0".to_string() }
+                                    if *b {
+                                        "1".to_string()
+                                    } else {
+                                        "0".to_string()
+                                    }
                                 }
                                 Some(serde_json::Value::Number(n)) => n.to_string(),
                                 Some(serde_json::Value::String(s)) => {
@@ -400,10 +419,16 @@ impl DatabaseDriver for SqliteDriver {
                                 Some(v) => format!("'{}'", v.to_string().replace('\'', "''")),
                             })
                             .collect();
-                        let col_list: Vec<String> = result.columns.iter().map(|c| format!("\"{}\"", c)).collect();
+                        let col_list: Vec<String> = result
+                            .columns
+                            .iter()
+                            .map(|c| format!("\"{}\"", c))
+                            .collect();
                         sql.push_str(&format!(
                             "INSERT INTO {} ({}) VALUES ({});\n",
-                            qi_table, col_list.join(", "), vals.join(", ")
+                            qi_table,
+                            col_list.join(", "),
+                            vals.join(", ")
                         ));
                     }
                     if result.rows.len() < page_size as usize {
@@ -422,7 +447,9 @@ impl DatabaseDriver for SqliteDriver {
         // FK constraints must be declared inside CREATE TABLE.
         if include_foreign_keys && !foreign_keys.is_empty() {
             sql.push_str("-- NOTE: SQLite FK constraints must be declared inside CREATE TABLE.\n");
-            sql.push_str("-- The following FK relationships were defined in the original schema:\n");
+            sql.push_str(
+                "-- The following FK relationships were defined in the original schema:\n",
+            );
             for fk in &foreign_keys {
                 let src_cols = fk.source_columns.join(", ");
                 let tgt_cols = fk.target_columns.join(", ");

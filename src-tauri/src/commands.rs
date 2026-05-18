@@ -43,8 +43,8 @@ const SYSTEM_DATABASES: &[&str] = &[
     "pg_toast_temp_1",
 ];
 
-static OPENROUTER_OAUTH_FLOWS: Lazy<DashMap<String, OpenRouterOAuthFlow>> =
-    Lazy::new(DashMap::new);
+static OPENROUTER_OAUTH_FLOWS: Lazy<DashMap<String, OpenRouterOAuthFlow>> = Lazy::new(DashMap::new);
+static AI_DEVICE_CODE_FLOWS: Lazy<DashMap<String, AiDeviceCodeFlow>> = Lazy::new(DashMap::new);
 
 const AI_PROVIDER_OPENROUTER: &str = "openrouter";
 const AI_PROVIDER_OPENCODE: &str = "opencode";
@@ -61,6 +61,14 @@ struct OpenRouterOAuthFlow {
     code: Option<String>,
     error: Option<String>,
     created_at: Instant,
+}
+
+#[derive(Debug, Clone)]
+struct AiDeviceCodeFlow {
+    provider: String,
+    device_code: String,
+    interval: Duration,
+    expires_at: Instant,
 }
 
 #[derive(Debug, Serialize)]
@@ -87,6 +95,17 @@ pub struct OpenRouterOAuthBeginResult {
     pub flow_id: String,
     pub auth_url: String,
     pub callback_url: String,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct AiDeviceCodeBeginResult {
+    pub provider: String,
+    pub flow_id: String,
+    pub user_code: String,
+    pub verification_uri: String,
+    pub expires_in: u64,
+    pub interval: u64,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -144,6 +163,47 @@ fn normalize_ai_provider(provider: &str) -> Result<&'static str, String> {
     }
 }
 
+fn provider_supports_openrouter_oauth(provider: &str) -> bool {
+    matches!(provider, AI_PROVIDER_OPENROUTER | AI_PROVIDER_OPENCODE)
+}
+
+fn provider_supports_device_code(provider: &str) -> bool {
+    provider == AI_PROVIDER_GITHUB_COPILOT
+}
+
+fn github_oauth_client_id() -> Result<String, String> {
+    std::env::var("GITHUB_OAUTH_CLIENT_ID")
+        .ok()
+        .or_else(|| option_env!("GITHUB_OAUTH_CLIENT_ID").map(str::to_string))
+        .map(|v| v.trim().to_string())
+        .filter(|v| !v.is_empty())
+        .ok_or_else(|| "GitHub device auth requires GITHUB_OAUTH_CLIENT_ID to be configured.".to_string())
+}
+
+fn github_oauth_scopes() -> Option<String> {
+    std::env::var("GITHUB_OAUTH_SCOPES")
+        .ok()
+        .or_else(|| option_env!("GITHUB_OAUTH_SCOPES").map(str::to_string))
+        .map(|v| v.trim().to_string())
+        .filter(|v| !v.is_empty())
+}
+
+fn validate_provider_url(raw: &str, expected_host: &str) -> Result<(), String> {
+    let parsed = url::Url::parse(raw).map_err(|e| format!("Invalid provider URL: {e}"))?;
+    if parsed.scheme() != "https" {
+        return Err("Provider URL must use HTTPS".to_string());
+    }
+    if parsed.host_str() != Some(expected_host) {
+        return Err(format!("Unexpected provider URL host: {:?}", parsed.host_str()));
+    }
+    Ok(())
+}
+
+fn cleanup_expired_auth_flows() {
+    OPENROUTER_OAUTH_FLOWS.retain(|_, flow| flow.created_at.elapsed() < Duration::from_secs(600));
+    AI_DEVICE_CODE_FLOWS.retain(|_, flow| Instant::now() < flow.expires_at);
+}
+
 fn default_model_for_provider(provider: &str) -> &'static str {
     match provider {
         AI_PROVIDER_OPENROUTER => "openrouter/free",
@@ -170,7 +230,9 @@ fn map_openai_style_messages(messages: &[OpenRouterMessage]) -> Vec<serde_json::
         .collect()
 }
 
-fn map_anthropic_messages(messages: &[OpenRouterMessage]) -> (Option<String>, Vec<serde_json::Value>) {
+fn map_anthropic_messages(
+    messages: &[OpenRouterMessage],
+) -> (Option<String>, Vec<serde_json::Value>) {
     let mut system_parts: Vec<String> = Vec::new();
     let mut non_system: Vec<serde_json::Value> = Vec::new();
 
@@ -180,7 +242,11 @@ fn map_anthropic_messages(messages: &[OpenRouterMessage]) -> (Option<String>, Ve
             system_parts.push(m.content.clone());
             continue;
         }
-        let anthropic_role = if role == "assistant" { "assistant" } else { "user" };
+        let anthropic_role = if role == "assistant" {
+            "assistant"
+        } else {
+            "user"
+        };
         non_system.push(serde_json::json!({
             "role": anthropic_role,
             "content": [
@@ -278,16 +344,13 @@ async fn ai_provider_models_ping(provider: &str, api_key: &str) -> Result<(), St
                 Ok(())
             } else {
                 let status = response.status();
-                let body = response
-                    .text()
-                    .await
-                    .unwrap_or_else(|_| {
-                        if provider == AI_PROVIDER_CODEX {
-                            "Unknown Codex error".to_string()
-                        } else {
-                            "Unknown OpenAI error".to_string()
-                        }
-                    });
+                let body = response.text().await.unwrap_or_else(|_| {
+                    if provider == AI_PROVIDER_CODEX {
+                        "Unknown Codex error".to_string()
+                    } else {
+                        "Unknown OpenAI error".to_string()
+                    }
+                });
                 Err(format!(
                     "{} auth failed ({status}): {body}",
                     if provider == AI_PROVIDER_CODEX {
@@ -363,9 +426,8 @@ async fn ai_provider_models_ping(provider: &str, api_key: &str) -> Result<(), St
         }
         AI_PROVIDER_GEMINI => {
             let encoded = urlencoding::encode(api_key);
-            let url = format!(
-                "https://generativelanguage.googleapis.com/v1beta/models?key={encoded}"
-            );
+            let url =
+                format!("https://generativelanguage.googleapis.com/v1beta/models?key={encoded}");
             let client = reqwest::Client::new();
             let response = client
                 .get(&url)
@@ -452,16 +514,13 @@ async fn ai_chat_completion_with_provider(
 
             if !response.status().is_success() {
                 let status = response.status();
-                let body = response
-                    .text()
-                    .await
-                    .unwrap_or_else(|_| {
-                        if provider == AI_PROVIDER_OPENCODE {
-                            "Unknown OpenCode error".to_string()
-                        } else {
-                            "Unknown OpenRouter error".to_string()
-                        }
-                    });
+                let body = response.text().await.unwrap_or_else(|_| {
+                    if provider == AI_PROVIDER_OPENCODE {
+                        "Unknown OpenCode error".to_string()
+                    } else {
+                        "Unknown OpenRouter error".to_string()
+                    }
+                });
                 return Err(format!(
                     "{} generation failed ({status}): {body}",
                     if provider == AI_PROVIDER_OPENCODE {
@@ -609,7 +668,9 @@ async fn ai_chat_completion_with_provider(
                     .text()
                     .await
                     .unwrap_or_else(|_| "Unknown GitHub Copilot error".to_string());
-                return Err(format!("GitHub Copilot generation failed ({status}): {body}"));
+                return Err(format!(
+                    "GitHub Copilot generation failed ({status}): {body}"
+                ));
             }
 
             let json: serde_json::Value = response
@@ -830,6 +891,29 @@ pub async fn connect_database(mut config: ConnectionConfig) -> Result<(), String
         return Err(e.to_string());
     }
 
+    match tokio_timeout(Duration::from_secs(5), driver.ping()).await {
+        Ok(Ok(())) => {}
+        Ok(Err(e)) => {
+            let _ = driver.disconnect().await;
+            if let Some((_, tunnel)) = REGISTRY.tunnels.remove(&config.id) {
+                tunnel.close();
+            }
+            return Err(format!(
+                "Database is not reachable or did not respond to the online check: {e}"
+            ));
+        }
+        Err(_) => {
+            let _ = driver.disconnect().await;
+            if let Some((_, tunnel)) = REGISTRY.tunnels.remove(&config.id) {
+                tunnel.close();
+            }
+            return Err(
+                "Database is not reachable or did not respond to the online check within 5s"
+                    .to_string(),
+            );
+        }
+    }
+
     REGISTRY.connections.insert(config.id.clone(), driver);
     REGISTRY.configs.insert(config.id.clone(), config);
 
@@ -866,7 +950,10 @@ pub async fn create_database(id: String, name: String) -> Result<(), String> {
         .get(&id)
         .ok_or_else(|| "Not connected".to_string())?;
 
-    driver.create_database(&name).await.map_err(|e| e.to_string())
+    driver
+        .create_database(&name)
+        .await
+        .map_err(|e| e.to_string())
 }
 
 #[tauri::command]
@@ -887,7 +974,12 @@ pub async fn get_tables(
 }
 
 #[tauri::command]
-pub async fn execute_query(id: String, query: String, timeout_secs: Option<u64>, database: Option<String>) -> Result<QueryResult, String> {
+pub async fn execute_query(
+    id: String,
+    query: String,
+    timeout_secs: Option<u64>,
+    database: Option<String>,
+) -> Result<QueryResult, String> {
     // Ensure the driver context is set to the correct database before executing
     if let Some(ref db) = database {
         let registries = REGISTRY.configs.get(&id);
@@ -934,19 +1026,8 @@ pub async fn ping_connection(id: String) -> Result<u64, String> {
         .get(&id)
         .ok_or_else(|| "Not connected".to_string())?;
 
-    // Choose ping query based on DB type to avoid sending SQL to non-relational DBs
-    let ping_query = if let Some(cfg) = REGISTRY.configs.get(&id) {
-        match cfg.db_type {
-            DatabaseType::Redis => "PING",
-            DatabaseType::Mongodb => r#"{"ping": 1}"#,
-            _ => "SELECT 1",
-        }
-    } else {
-        "SELECT 1"
-    };
-
     let start = std::time::Instant::now();
-    driver.run_query(ping_query).await.map_err(|e| e.to_string())?;
+    driver.ping().await.map_err(|e| e.to_string())?;
     Ok(start.elapsed().as_millis() as u64)
 }
 
@@ -1176,19 +1257,17 @@ pub async fn dump_database(
         .ok_or_else(|| "Connection config not found".to_string())?;
 
     match config.db_type {
-        DatabaseType::Postgresql | DatabaseType::Mysql | DatabaseType::Sqlite => {
-            driver
-                .dump_database(
-                    &database,
-                    schema.as_deref(),
-                    include_data,
-                    include_indexes,
-                    include_foreign_keys,
-                    create_database,
-                )
-                .await
-                .map_err(|e| e.to_string())
-        }
+        DatabaseType::Postgresql | DatabaseType::Mysql | DatabaseType::Sqlite => driver
+            .dump_database(
+                &database,
+                schema.as_deref(),
+                include_data,
+                include_indexes,
+                include_foreign_keys,
+                create_database,
+            )
+            .await
+            .map_err(|e| e.to_string()),
         _ => Err("Dump not supported for this database type".to_string()),
     }
 }
@@ -1237,15 +1316,14 @@ pub async fn import_sql_file(
         let _ = driver.run_query(&create_sql).await;
         let mut new_cfg = config.clone();
         new_cfg.database = Some(db_name.to_string());
-        driver
-            .connect(&new_cfg)
-            .await
-            .map_err(|e| format!(
+        driver.connect(&new_cfg).await.map_err(|e| {
+            format!(
                 "Could not connect to database \"{}\": {}. \
                  If you lack CREATE DATABASE privileges, create the database \
                  manually first and use \"Import into current database\" mode.",
                 db_name, e
-            ))?;
+            )
+        })?;
         REGISTRY
             .configs
             .entry(id.clone())
@@ -1489,7 +1567,10 @@ pub async fn ai_get_credential_status(provider: String) -> Result<AiCredentialSt
 }
 
 #[tauri::command]
-pub async fn ai_save_api_key(provider: String, api_key: String) -> Result<AiCredentialStatus, String> {
+pub async fn ai_save_api_key(
+    provider: String,
+    api_key: String,
+) -> Result<AiCredentialStatus, String> {
     let provider = normalize_ai_provider(&provider)?;
     let trimmed = api_key.trim();
     if trimmed.is_empty() {
@@ -1542,6 +1623,187 @@ pub async fn ai_chat_completion(request: AiChatRequest) -> Result<AiChatResponse
     ai_chat_completion_with_provider(provider, &request, &credential.api_key).await
 }
 
+#[tauri::command]
+pub async fn ai_oauth_begin(provider: String) -> Result<OpenRouterOAuthBeginResult, String> {
+    let provider = normalize_ai_provider(&provider)?;
+    if !provider_supports_openrouter_oauth(provider) {
+        return Err(format!("OAuth is not supported for {provider}"));
+    }
+
+    openrouter_oauth_begin_internal().await
+}
+
+#[tauri::command]
+pub async fn ai_oauth_complete(
+    provider: String,
+    flow_id: String,
+) -> Result<AiCredentialStatus, String> {
+    let provider = normalize_ai_provider(&provider)?;
+    if !provider_supports_openrouter_oauth(provider) {
+        return Err(format!("OAuth is not supported for {provider}"));
+    }
+
+    openrouter_oauth_complete_internal(provider, flow_id).await
+}
+
+#[tauri::command]
+pub async fn ai_device_code_begin(provider: String) -> Result<AiDeviceCodeBeginResult, String> {
+    cleanup_expired_auth_flows();
+
+    let provider = normalize_ai_provider(&provider)?;
+    if !provider_supports_device_code(provider) {
+        return Err(format!("Device-code auth is not supported for {provider}"));
+    }
+
+    let client_id = github_oauth_client_id()?;
+    let client = reqwest::Client::new();
+    let mut form = vec![("client_id", client_id.as_str())];
+    let scopes = github_oauth_scopes();
+    if let Some(scopes) = scopes.as_deref() {
+        form.push(("scope", scopes));
+    }
+    let response = client
+        .post("https://github.com/login/device/code")
+        .header("Accept", "application/json")
+        .form(&form)
+        .send()
+        .await
+        .map_err(|e| format!("GitHub device-code request failed: {e}"))?;
+
+    let status = response.status();
+    let json: serde_json::Value = response
+        .json()
+        .await
+        .map_err(|e| format!("Invalid GitHub device-code response: {e}"))?;
+
+    if !status.is_success() {
+        return Err(format!("GitHub device-code request failed ({status}): {json}"));
+    }
+
+    let device_code = json
+        .get("device_code")
+        .and_then(|v| v.as_str())
+        .ok_or_else(|| "GitHub did not return a device code".to_string())?
+        .to_string();
+    let user_code = json
+        .get("user_code")
+        .and_then(|v| v.as_str())
+        .ok_or_else(|| "GitHub did not return a user code".to_string())?
+        .to_string();
+    let verification_uri = json
+        .get("verification_uri")
+        .or_else(|| json.get("verification_url"))
+        .and_then(|v| v.as_str())
+        .ok_or_else(|| "GitHub did not return a verification URL".to_string())?
+        .to_string();
+    let expires_in = json.get("expires_in").and_then(|v| v.as_u64()).unwrap_or(900);
+    let interval = json.get("interval").and_then(|v| v.as_u64()).unwrap_or(5);
+    validate_provider_url(&verification_uri, "github.com")?;
+
+    let flow_id = format!("dc-flow-{}", uuid::Uuid::new_v4());
+    AI_DEVICE_CODE_FLOWS.insert(
+        flow_id.clone(),
+        AiDeviceCodeFlow {
+            provider: provider.to_string(),
+            device_code,
+            interval: Duration::from_secs(interval),
+            expires_at: Instant::now() + Duration::from_secs(expires_in),
+        },
+    );
+
+    Ok(AiDeviceCodeBeginResult {
+        provider: provider.to_string(),
+        flow_id,
+        user_code,
+        verification_uri,
+        expires_in,
+        interval,
+    })
+}
+
+#[tauri::command]
+pub async fn ai_device_code_complete(
+    provider: String,
+    flow_id: String,
+) -> Result<AiCredentialStatus, String> {
+    let provider = normalize_ai_provider(&provider)?;
+    if !provider_supports_device_code(provider) {
+        return Err(format!("Device-code auth is not supported for {provider}"));
+    }
+
+    let (_, flow) = AI_DEVICE_CODE_FLOWS
+        .remove(&flow_id)
+        .ok_or_else(|| "Device-code flow not found. Start again.".to_string())?;
+    if flow.provider != provider {
+        return Err("Device-code flow provider mismatch".to_string());
+    }
+    if Instant::now() >= flow.expires_at {
+        return Err("GitHub device code expired. Start again.".to_string());
+    }
+
+    let client_id = github_oauth_client_id()?;
+    let client = reqwest::Client::new();
+    let mut interval = flow.interval;
+
+    loop {
+        if Instant::now() >= flow.expires_at {
+            return Err("GitHub device authorization timed out".to_string());
+        }
+
+        let response = tokio_timeout(
+            Duration::from_secs(15),
+            client
+                .post("https://github.com/login/oauth/access_token")
+                .header("Accept", "application/json")
+                .form(&[
+                    ("client_id", client_id.as_str()),
+                    ("device_code", flow.device_code.as_str()),
+                    (
+                        "grant_type",
+                        "urn:ietf:params:oauth:grant-type:device_code",
+                    ),
+                ])
+                .send(),
+        )
+        .await
+        .map_err(|_| "GitHub token request timed out".to_string())?
+        .map_err(|e| format!("GitHub token request failed: {e}"))?;
+
+        let status = response.status();
+        let json: serde_json::Value = response
+            .json()
+            .await
+            .map_err(|e| format!("Invalid GitHub token response: {e}"))?;
+
+        if let Some(access_token) = json.get("access_token").and_then(|v| v.as_str()) {
+            ai_provider_models_ping(provider, access_token).await?;
+            AppStorage::get()
+                .save_ai_credential(provider, "device_code", access_token)
+                .await
+                .map_err(|e| e.to_string())?;
+
+            return Ok(AiCredentialStatus {
+                provider: provider.to_string(),
+                auth_mode: "device_code".to_string(),
+                configured: true,
+                masked_key: Some(mask_api_key(access_token)),
+            });
+        }
+
+        let error = json.get("error").and_then(|v| v.as_str()).unwrap_or("unknown_error");
+        match error {
+            "authorization_pending" => tokio::time::sleep(interval).await,
+            "slow_down" => {
+                interval = (interval + Duration::from_secs(5)).min(Duration::from_secs(60));
+                tokio::time::sleep(interval).await;
+            }
+            "expired_token" => return Err("GitHub device code expired. Start again.".to_string()),
+            "access_denied" => return Err("GitHub device authorization was denied.".to_string()),
+            _ => return Err(format!("GitHub token request failed ({status}): {json}")),
+        }
+    }
+}
+
 // ── AI / OpenRouter compatibility commands ───────────────────────────────────
 
 #[tauri::command]
@@ -1556,7 +1818,9 @@ pub async fn openrouter_get_credential_status() -> Result<OpenRouterCredentialSt
 }
 
 #[tauri::command]
-pub async fn openrouter_save_api_key(api_key: String) -> Result<OpenRouterCredentialStatus, String> {
+pub async fn openrouter_save_api_key(
+    api_key: String,
+) -> Result<OpenRouterCredentialStatus, String> {
     let s = ai_save_api_key(AI_PROVIDER_OPENROUTER.to_string(), api_key).await?;
     Ok(OpenRouterCredentialStatus {
         provider: s.provider,
@@ -1578,6 +1842,12 @@ pub async fn openrouter_clear_credential() -> Result<(), String> {
 
 #[tauri::command]
 pub async fn openrouter_oauth_begin() -> Result<OpenRouterOAuthBeginResult, String> {
+    openrouter_oauth_begin_internal().await
+}
+
+async fn openrouter_oauth_begin_internal() -> Result<OpenRouterOAuthBeginResult, String> {
+    cleanup_expired_auth_flows();
+
     let flow_id = format!("or-flow-{}", uuid::Uuid::new_v4());
 
     let mut verifier_bytes = [0u8; 32];
@@ -1665,6 +1935,7 @@ pub async fn openrouter_oauth_begin() -> Result<OpenRouterOAuthBeginResult, Stri
     let auth_url = format!(
         "https://openrouter.ai/auth?callback_url={encoded_callback}&code_challenge={encoded_challenge}&code_challenge_method=S256"
     );
+    validate_provider_url(&auth_url, "openrouter.ai")?;
 
     Ok(OpenRouterOAuthBeginResult {
         flow_id,
@@ -1674,7 +1945,22 @@ pub async fn openrouter_oauth_begin() -> Result<OpenRouterOAuthBeginResult, Stri
 }
 
 #[tauri::command]
-pub async fn openrouter_oauth_complete(flow_id: String) -> Result<OpenRouterCredentialStatus, String> {
+pub async fn openrouter_oauth_complete(
+    flow_id: String,
+) -> Result<OpenRouterCredentialStatus, String> {
+    let s = openrouter_oauth_complete_internal(AI_PROVIDER_OPENROUTER, flow_id).await?;
+    Ok(OpenRouterCredentialStatus {
+        provider: s.provider,
+        auth_mode: s.auth_mode,
+        configured: s.configured,
+        masked_key: s.masked_key,
+    })
+}
+
+async fn openrouter_oauth_complete_internal(
+    provider: &str,
+    flow_id: String,
+) -> Result<AiCredentialStatus, String> {
     let start = Instant::now();
     let timeout = Duration::from_secs(240);
 
@@ -1741,12 +2027,12 @@ pub async fn openrouter_oauth_complete(flow_id: String) -> Result<OpenRouterCred
             }
 
             AppStorage::get()
-                .save_ai_credential(AI_PROVIDER_OPENROUTER, "oauth", &key)
+                .save_ai_credential(provider, "oauth", &key)
                 .await
                 .map_err(|e| e.to_string())?;
 
-            return Ok(OpenRouterCredentialStatus {
-                provider: "openrouter".to_string(),
+            return Ok(AiCredentialStatus {
+                provider: provider.to_string(),
                 auth_mode: "oauth".to_string(),
                 configured: true,
                 masked_key: Some(mask_api_key(&key)),
@@ -1965,7 +2251,10 @@ pub async fn license_get_device_name() -> String {
     {
         use std::process::Command;
         // scutil --get ComputerName returns the friendly name set in System Preferences
-        if let Ok(out) = Command::new("scutil").args(["--get", "ComputerName"]).output() {
+        if let Ok(out) = Command::new("scutil")
+            .args(["--get", "ComputerName"])
+            .output()
+        {
             let name = String::from_utf8_lossy(&out.stdout).trim().to_string();
             if !name.is_empty() {
                 return name;

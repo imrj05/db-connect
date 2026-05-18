@@ -164,7 +164,7 @@ function TableNodeComponent({ data, selected, id }: NodeProps<TableNodeType>) {
 
 			{/* Column rows */}
 			<div className="divide-y divide-border/40">
-				{columns.map((column, colIdx) => {
+				{columns.map((column) => {
 					const isFK = fkSourceMap?.get(column.id) ?? false;
 					return (
 						<div key={column.id} className="relative">
@@ -180,25 +180,29 @@ function TableNodeComponent({ data, selected, id }: NodeProps<TableNodeType>) {
 										: undefined
 								}
 							/>
-							{/* React Flow handles for edge connections */}
-							{isEditing && (
-								<>
-									<Handle
-										type="source"
-										position={Position.Right}
-										id={`col-source-${column.id}`}
-										className="!w-2 !h-2 !bg-accent-blue !border-2 !border-background !opacity-0 hover:!opacity-100 transition-opacity"
-										style={{ top: colIdx * 22 + 11, right: -4 }}
-									/>
-									<Handle
-										type="target"
-										position={Position.Left}
-										id={`col-target-${column.id}`}
-										className="!w-2 !h-2 !bg-accent-blue !border-2 !border-background !opacity-0 hover:!opacity-100 transition-opacity"
-										style={{ top: colIdx * 22 + 11, left: -4 }}
-									/>
-								</>
-							)}
+							{/* Handles stay mounted in read-only mode so FK edges attach to the correct rows. */}
+							<Handle
+								type="source"
+								position={Position.Right}
+								id={`col-source-${column.id}`}
+								isConnectable={isEditing}
+								className={cn(
+									"!z-20 !w-3 !h-3 !bg-accent-blue !border-2 !border-background transition-opacity cursor-crosshair",
+									isEditing ? "!opacity-90 hover:!opacity-100" : "!opacity-0",
+								)}
+								style={{ top: 11, right: 20 }}
+							/>
+							<Handle
+								type="target"
+								position={Position.Left}
+								id={`col-target-${column.id}`}
+								isConnectable={isEditing}
+								className={cn(
+									"!z-20 !w-3 !h-3 !bg-accent-blue !border-2 !border-background transition-opacity",
+									isEditing ? "!opacity-70 hover:!opacity-100" : "!opacity-0",
+								)}
+								style={{ top: 11, left: -4 }}
+							/>
 						</div>
 					);
 				})}
@@ -225,17 +229,6 @@ function TableNodeComponent({ data, selected, id }: NodeProps<TableNodeType>) {
 				onUpdate={updateIndexes}
 			/>
 
-			{/* Read-only handles for showing FK connections */}
-			{!isEditing &&
-				columns.map((column) => (
-					<Handle
-						key={`ro-${column.id}`}
-						type="source"
-						position={Position.Right}
-						id={`col-source-${column.id}`}
-						className="!w-1 !h-1 !bg-transparent !border-0"
-					/>
-				))}
 		</div>
 	);
 }

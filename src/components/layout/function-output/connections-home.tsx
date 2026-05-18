@@ -1,4 +1,4 @@
-import { Database, Plus, Pencil, WifiOff } from "lucide-react";
+import { Database, Loader2, Plus, Pencil, WifiOff } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
 	Tooltip,
@@ -33,13 +33,19 @@ export function ConnectionsHome({
 	onEdit,
 	onConnect,
 	onDisconnect,
+	connectingIds = [],
+	cancellingIds = [],
+	onCancelConnect,
 }: {
 	connections: ConnectionConfig[];
 	connectedIds: string[];
 	onNewConnection: () => void;
 	onEdit: (conn: ConnectionConfig) => void;
-	onConnect: (id: string) => void;
+	onConnect: (id: string) => void | Promise<void>;
 	onDisconnect?: (id: string) => void;
+	connectingIds?: string[];
+	cancellingIds?: string[];
+	onCancelConnect?: (id: string) => void;
 }) {
 	if (connections.length === 0) {
 		return (
@@ -96,6 +102,8 @@ export function ConnectionsHome({
 			<div className="max-w-3xl space-y-2 px-6 py-5">
 				{connections.map((conn) => {
 					const isConnected = connectedIds.includes(conn.id);
+					const isConnecting = connectingIds.includes(conn.id);
+					const isCancelling = cancellingIds.includes(conn.id);
 					const Logo = DB_LOGO[conn.type] ?? DB_LOGO.postgresql;
 					const logoColor =
 						DB_COLOR[conn.type] ?? "text-muted-foreground";
@@ -196,11 +204,23 @@ export function ConnectionsHome({
 									variant={
 										isConnected ? "outline" : "default"
 									}
-									className="h-8 rounded-sm px-3.5 text-[12px]"
+									className="h-8 rounded-sm px-3.5 text-[12px] gap-1.5"
+									disabled={isConnecting}
 									onClick={() => onConnect(conn.id)}
 								>
-									{isConnected ? "Open" : "Connect"}
+									{isConnecting && <Loader2 size={12} className="animate-spin" />}
+									{isCancelling ? "Cancelling..." : isConnecting ? "Checking..." : isConnected ? "Open" : "Connect"}
 								</Button>
+								{isConnecting && !isCancelling && onCancelConnect && (
+									<Button
+										size="sm"
+										variant="outline"
+										className="h-8 rounded-sm px-3 text-[12px]"
+										onClick={() => onCancelConnect(conn.id)}
+									>
+										Cancel
+									</Button>
+								)}
 							</div>
 						</div>
 					);

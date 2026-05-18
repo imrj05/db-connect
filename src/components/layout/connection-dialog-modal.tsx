@@ -1,4 +1,4 @@
-import { startTransition, useEffect, useState } from "react";
+import { startTransition, useEffect, useRef, useState } from "react";
 import {
                     Globe,
     Tag,
@@ -173,10 +173,12 @@ const ConnectionDialog = ({ onClose, initialData, mode = "modal" }: ConnectionDi
         updateConnection,
         deleteConnection,
         connectAndInit,
-        isLoading,
     } = useAppStore();
     const [isTesting, setIsTesting] = useState(false);
+    const [isConnecting, setIsConnecting] = useState(false);
+    const [isCancellingConnect, setIsCancellingConnect] = useState(false);
     const [testStatus, setTestStatus] = useState<"idle" | "success" | "error">("idle");
+    const connectCancelRef = useRef(false);
     const [showPassword, setShowPassword] = useState(false);
     const [prefixManuallyEdited, setPrefixManuallyEdited] = useState(!!initialData?.prefix);
     const [uriInput, setUriInput] = useState("");
@@ -307,10 +309,26 @@ const ConnectionDialog = ({ onClose, initialData, mode = "modal" }: ConnectionDi
         const config = currentConfig;
         persistConnection(config);
         setLastSavedConfigKey(currentConfigKey);
-        const connected = await connectAndInit(config.id);
-        if (connected) {
-            onClose();
+        connectCancelRef.current = false;
+        setIsCancellingConnect(false);
+        setIsConnecting(true);
+        try {
+            const connected = await connectAndInit(config.id, {
+                isCancelled: () => connectCancelRef.current,
+            });
+            if (connected) {
+                onClose();
+            } else if (connectCancelRef.current) {
+                toast.info("Connection request cancelled");
+            }
+        } finally {
+            setIsConnecting(false);
+            setIsCancellingConnect(false);
         }
+    };
+    const handleCancelConnect = () => {
+        connectCancelRef.current = true;
+        setIsCancellingConnect(true);
     };
     const handleDelete = () => {
         if (initialData?.id) {
@@ -717,8 +735,10 @@ const ConnectionDialog = ({ onClose, initialData, mode = "modal" }: ConnectionDi
                     <div className="shrink-0 border-t border-border-subtle bg-surface-1 px-6 py-3">
                         <div className="flex h-full items-center justify-between gap-3">
                             <p className={cn("min-w-0 text-xs text-muted-foreground/68 text-pretty", isPageMode ? "max-w-[640px]" : "max-w-[380px]")}>
-                                    {isLoading
-                                        ? "Connecting with the latest saved details..."
+                                    {isConnecting
+                                        ? isCancellingConnect
+                                            ? "Cancelling the connection request..."
+                                            : "Checking database availability and connecting..."
                                         : !formData.name
                                             ? "Add a connection name to save it or connect."
                                             : isDirty
@@ -730,7 +750,7 @@ const ConnectionDialog = ({ onClose, initialData, mode = "modal" }: ConnectionDi
                                     variant="outline"
                                     size="sm"
                                     onClick={handleTest}
-                                    disabled={isTesting || isLoading}
+                                    disabled={isTesting || isConnecting}
                                     className={cn(
                                         "h-8 rounded-md px-3 text-[11px] font-medium gap-1.5",
                                         testStatus === "success" &&
@@ -769,7 +789,7 @@ const ConnectionDialog = ({ onClose, initialData, mode = "modal" }: ConnectionDi
                                     variant="outline"
                                     size="sm"
                                     onClick={onClose}
-                                    disabled={isLoading}
+                                    disabled={isConnecting}
                                     className="h-8 rounded-md px-3 text-[11px] font-medium"
                                 >
                                     Close
@@ -778,7 +798,7 @@ const ConnectionDialog = ({ onClose, initialData, mode = "modal" }: ConnectionDi
                                     variant="outline"
                                     size="sm"
                                     onClick={handleSave}
-                                    disabled={isLoading || !formData.name || !isDirty}
+                                    disabled={isConnecting || !formData.name || !isDirty}
                                     className="h-8 rounded-md px-3 text-[11px] font-medium"
                                 >
                                     {isDirty ? "Save" : "Saved"}
@@ -786,16 +806,31 @@ const ConnectionDialog = ({ onClose, initialData, mode = "modal" }: ConnectionDi
                                 <Button
                                     size="sm"
                                     onClick={handleConnect}
-                                    disabled={isLoading || !formData.name}
+                                    disabled={isConnecting || !formData.name}
                                     className="h-8 rounded-md px-4 text-[11px] font-medium gap-1.5 active:scale-[0.97]"
                                 >
-                                    {isLoading ? (
+                                    {isConnecting ? (
                                         <Loader2 size={11} className="animate-spin" />
                                     ) : (
                                         <CheckCircle2 size={11} />
                                     )}
-                                    Connect now
+                                    {isConnecting
+                                        ? isCancellingConnect
+                                            ? "Cancelling..."
+                                            : "Connecting..."
+                                        : "Connect now"}
                                 </Button>
+                                {isConnecting && !isCancellingConnect && (
+                                    <Button
+                                        type="button"
+                                        variant="outline"
+                                        size="sm"
+                                        onClick={handleCancelConnect}
+                                        className="h-8 rounded-md px-3 text-[11px] font-medium"
+                                    >
+                                        Cancel
+                                    </Button>
+                                )}
                             </div>
                         </div>
                     </div>

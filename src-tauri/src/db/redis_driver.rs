@@ -34,18 +34,14 @@ fn redis_value_to_json(value: &redis::Value) -> serde_json::Value {
     }
 }
 
-async fn scan_all_keys(
-    conn: &mut redis::aio::MultiplexedConnection,
-) -> Result<Vec<String>> {
+async fn scan_all_keys(conn: &mut redis::aio::MultiplexedConnection) -> Result<Vec<String>> {
     let mut cursor: u64 = 0;
     let mut seen = HashSet::new();
     let mut keys = Vec::new();
 
     loop {
-        let (next_cursor, batch): (u64, Vec<String>) = redis::cmd("SCAN")
-            .arg(cursor)
-            .query_async(conn)
-            .await?;
+        let (next_cursor, batch): (u64, Vec<String>) =
+            redis::cmd("SCAN").arg(cursor).query_async(conn).await?;
 
         for key in batch {
             if seen.insert(key.clone()) {
@@ -517,5 +513,18 @@ impl DatabaseDriver for RedisDriver {
             rows,
             execution_time_ms: duration,
         })
+    }
+
+    async fn ping(&self) -> Result<()> {
+        let client = {
+            let client_lock = self.client.read().await;
+            client_lock
+                .as_ref()
+                .ok_or_else(|| anyhow!("Not connected"))?
+                .clone()
+        };
+        let mut conn = client.get_multiplexed_async_connection().await?;
+        let _: String = redis::cmd("PING").query_async(&mut conn).await?;
+        Ok(())
     }
 }

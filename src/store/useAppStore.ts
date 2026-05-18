@@ -135,7 +135,7 @@ export interface AppSettings {
     | "anthropic"
     | "groq"
     | "gemini";
-  aiAuthMode: "api_key" | "oauth";
+  aiAuthMode: "api_key" | "oauth" | "device_code";
   aiDefaultModel: string;
   queryTimeoutSecs: number;
   /** Default directory used as the starting location in the Save dialog when exporting diagrams/images. Empty string means "no preference" (use OS default). */
@@ -255,7 +255,7 @@ interface AppState {
   deleteConnection: (id: string) => void;
 
   // ---- Actions: connection lifecycle ----
-  connectAndInit: (connectionId: string) => Promise<boolean>;
+  connectAndInit: (connectionId: string, options?: { isCancelled?: () => boolean }) => Promise<boolean>;
   disconnectConnection: (connectionId: string) => Promise<void>;
   selectDatabase: (connectionId: string, database: string) => Promise<void>;
   closeOpenDatabase: (connectionId: string, database: string) => Promise<void>;
@@ -498,15 +498,29 @@ export const useAppStore = create<AppState>((set, get) => ({
 
   // ---- Connection lifecycle ----
 
-  connectAndInit: async (connectionId) => {
+  connectAndInit: async (connectionId, options) => {
     const { connections } = get();
     const config = connections.find((c) => c.id === connectionId);
     if (!config) return false;
 
-    set({ isLoading: true });
+    const cleanupCancelledConnection = async () => {
+      try {
+        await tauriApi.disconnect(connectionId);
+      } catch {
+        // Ignore cleanup errors: cancellation should not surface as a connection failure.
+      }
+    };
+
+    const isCancelled = () => options?.isCancelled?.() ?? false;
+
     try {
       // Establish Rust driver connection
       await tauriApi.connect(config);
+
+      if (isCancelled()) {
+        await cleanupCancelledConnection();
+        return false;
+      }
 
       // Fetch available user databases (filtered from system DBs)
       let userDbs: string[] = [];
@@ -519,8 +533,18 @@ export const useAppStore = create<AppState>((set, get) => ({
       // Auto-select: prefer configured DB, then first available
       const autoSelected = config.database ?? userDbs[0] ?? undefined;
 
+      if (isCancelled()) {
+        await cleanupCancelledConnection();
+        return false;
+      }
+
       // Discover tables for the selected database
       const tables = await tauriApi.listAllTables(connectionId, autoSelected);
+
+      if (isCancelled()) {
+        await cleanupCancelledConnection();
+        return false;
+      }
 
       // Build dbcooper-style function registry
       const fns = buildConnectionFunctions(config, tables);
@@ -605,10 +629,9 @@ export const useAppStore = create<AppState>((set, get) => ({
 
       return true;
     } catch (error) {
+      if (isCancelled()) return false;
       toast.error(`Connection failed: ${String(error)}`);
       return false;
-    } finally {
-      set({ isLoading: false });
     }
   },
 
