@@ -11,6 +11,10 @@ import "@fontsource/ibm-plex-mono/500.css";
 import "@fontsource/ibm-plex-mono/600.css";
 import "@fontsource/ibm-plex-mono/700.css";
 import { TooltipProvider } from "@/components/ui/tooltip";
+import { initMonitoring } from "@/lib/monitoring";
+
+initMonitoring();
+
 ReactDOM.createRoot(document.getElementById("root") as HTMLElement).render(
     <React.StrictMode>
         <TooltipProvider>

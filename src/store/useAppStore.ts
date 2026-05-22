@@ -142,6 +142,10 @@ export interface AppSettings {
   diagramExportDir: string;
   /** Enable experimental schema editor in the ER diagram view. */
   experimentalSchemaEditor: boolean;
+  /** Send crash and error reports to the configured reporting server. */
+  errorReportingEnabled: boolean;
+  /** Send coarse anonymous product telemetry to the configured reporting server. */
+  anonymousTelemetryEnabled: boolean;
 }
 
 const DEFAULT_SETTINGS: AppSettings = {
@@ -164,6 +168,8 @@ const DEFAULT_SETTINGS: AppSettings = {
   queryTimeoutSecs: 30,
   diagramExportDir: "",
   experimentalSchemaEditor: false,
+  errorReportingEnabled: true,
+  anonymousTelemetryEnabled: false,
 };
 
 function loadSettings(): AppSettings {

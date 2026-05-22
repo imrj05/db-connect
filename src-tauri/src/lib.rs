@@ -2,6 +2,7 @@ pub mod commands;
 pub mod db;
 pub mod import_export;
 pub mod license;
+pub mod monitoring;
 pub mod sql_import;
 pub mod ssh;
 pub mod storage;
@@ -11,6 +12,8 @@ use tauri::Manager;
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
+    let _sentry_guard = monitoring::init();
+
     tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_dialog::init())
@@ -48,6 +51,8 @@ pub fn run() {
             commands::import_sql_file,
             // ── App info ──────────────────────────────────────────────────────
             commands::get_app_data_dir,
+            monitoring::monitoring_set_preferences,
+            monitoring::monitoring_capture_telemetry,
             // ── Storage commands ───────────────────────────────────────────────
             commands::storage_load_connections,
             commands::storage_save_connection,
