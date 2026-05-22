@@ -2,6 +2,13 @@
 
 All notable changes to DB Connect are documented here.
 
+## [0.0.19] — 2026-05-18
+
+- fix: allow passwordless database connections
+- chore: update CHANGELOG.md for v0.0.18
+
+All notable changes to DB Connect are documented here.
+
 ## [0.0.18] — 2026-04-28
 
 - chore: bump version to 0.0.18 in package.json
