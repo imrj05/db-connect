@@ -22,15 +22,18 @@ export function IdleView({ onNewConnection }: { onNewConnection: () => void }) {
 					Use the sidebar to browse connected databases, or jump anywhere with <Kbd>⌘K</Kbd>.
 				</p>
 			</div>
-			<Button onClick={onNewConnection} size="sm" className="h-9 rounded-sm px-4 text-[12px] font-medium">
+			<Button onClick={onNewConnection} size="sm" className="h-9 rounded-sm px-4 text-[12px] font-medium gap-2">
 				Add Connection
+				<Kbd className="text-[10px]">⌘N</Kbd>
 			</Button>
 			{/* Shortcuts */}
 			<div className="flex items-center gap-px overflow-hidden border border-border-subtle bg-surface-3">
 				{[
 					{ key: "⌘K", label: "Search" },
 					{ key: "⌘T", label: "New tab" },
+					{ key: "⌘B", label: "Toggle sidebar" },
 					{ key: "⌘↵", label: "Run" },
+					{ key: "?", label: "Shortcuts" },
 				].map(({ key, label }, i, arr) => (
 					<div
 						key={key}

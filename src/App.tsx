@@ -17,6 +17,7 @@ import { getCurrentWindow } from "@tauri-apps/api/window";
 import { invoke } from "@tauri-apps/api/core";
 import { UpdateDialog, type UpdateInfo } from "./components/layout/update-dialog";
 import { LicenseActivationDialog } from "./components/layout/license-activation-dialog";
+import { ShortcutsHelpDialog } from "./components/layout/shortcuts-help-dialog";
 import {
     AlertDialog,
     AlertDialogCancel,
@@ -91,6 +92,7 @@ function App() {
     const [showCloseApp, setShowCloseApp] = useState(false);
     const [isClosing, setIsClosing] = useState(false);
     const [databaseSwitcherOpen, setDatabaseSwitcherOpen] = useState(false);
+    const [showShortcutsHelp, setShowShortcutsHelp] = useState(false);
     const isDragging = useRef(false);
     const startX = useRef(0);
     const startWidth = useRef(0);
@@ -267,6 +269,21 @@ function App() {
         return () => window.removeEventListener("keydown", handler);
     }, [activeTabId, closeTab]);
 
+    // "?" — open keyboard shortcuts help (when not typing in an input)
+    useEffect(() => {
+        const handler = (e: KeyboardEvent) => {
+            if (e.metaKey || e.ctrlKey || e.altKey) return;
+            if (e.key !== "?") return;
+            const target = e.target as HTMLElement | null;
+            const tag = target?.tagName;
+            if (tag === "INPUT" || tag === "TEXTAREA" || target?.isContentEditable) return;
+            e.preventDefault();
+            setShowShortcutsHelp((v) => !v);
+        };
+        window.addEventListener("keydown", handler);
+        return () => window.removeEventListener("keydown", handler);
+    }, []);
+
     // ⌘T / Ctrl+T — open new tab; global workspace shortcuts
     useEffect(() => {
         const handler = (e: KeyboardEvent) => {
@@ -284,6 +301,10 @@ function App() {
             if (!e.shiftKey && key === "b") {
                 e.preventDefault();
                 toggleSidebar();
+            }
+            if (!e.shiftKey && key === "n") {
+                e.preventDefault();
+                setActiveView("new-connection");
             }
             if (e.shiftKey && key === "l") {
                 e.preventDefault();
@@ -379,6 +400,16 @@ function App() {
         connectedIds.includes(c.id),
     );
 
+    // Auto-hide the sidebar until the user has at least one live connection.
+    // Once connected, fall back to the user's manual toggle preference.
+    const hasLiveConnection = connectedIds.length > 0;
+    const sidebarHidden =
+        sidebarCollapsed ||
+        connections.length === 0 ||
+        !hasLiveConnection ||
+        showOnboarding ||
+        activeView === "new-connection";
+
     if (isLoading) {
         // Boot splash from index.html is still on-screen; render nothing yet
         // so the splash continues to cover the viewport without flicker.
@@ -394,18 +425,22 @@ function App() {
                         onActivate={() => setLicenseDialogOpen(true)}
                     />
                     <main className="relative z-0 flex flex-1 overflow-hidden bg-app-bg">
-                        {/* Sidebar — collapses smoothly */}
+                        {/* Sidebar — collapses smoothly; fully unmounted when there's no live connection */}
                         <div
                             ref={sidebarRef}
-                            style={{ width: sidebarCollapsed ? 0 : sidebarWidth, minWidth: sidebarCollapsed ? 0 : sidebarWidth }}
+                            style={{ width: sidebarHidden ? 0 : sidebarWidth, minWidth: sidebarHidden ? 0 : sidebarWidth }}
                             className="h-full shrink-0 overflow-hidden border-r border-border-subtle transition-[width,min-width] duration-200 ease-in-out"
+                            aria-hidden={sidebarHidden}
                         >
-                            <Sidebar />
+                            {!sidebarHidden && <Sidebar />}
                         </div>
-                        {/* Sidebar resize handle — hidden when collapsed */}
-                        {!sidebarCollapsed && (
+                        {/* Sidebar resize handle — hidden when sidebar is hidden */}
+                        {!sidebarHidden && (
                             <div
                                 onMouseDown={onMouseDown}
+                                role="separator"
+                                aria-orientation="vertical"
+                                aria-label="Resize sidebar"
                                 className="relative z-10 h-full w-2 shrink-0 cursor-col-resize before:absolute before:inset-y-0 before:left-1/2 before:w-px before:-translate-x-1/2 before:bg-border-subtle before:transition-colors hover:before:bg-primary/35"
                             />
                         )}
@@ -558,6 +593,7 @@ function App() {
                             onSkip={() => setShowUpdateDialog(false)}
                         />
                     )}
+                    <ShortcutsHelpDialog open={showShortcutsHelp} onOpenChange={setShowShortcutsHelp} />
                     <LicenseActivationDialog
                         open={licenseDialogOpen}
                         reason={licenseCheck?.reason}

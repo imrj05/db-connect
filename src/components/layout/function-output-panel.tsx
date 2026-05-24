@@ -200,9 +200,16 @@ const FunctionOutput = () => {
 				setPendingTabCloseId(tabId);
 				return;
 			}
+			// Guard against discarding unsaved SQL in a SQL-editor tab.
+			const isSqlEditor = tab?.result?.outputType === "sql-editor";
+			const liveSql = tab?.id === activeTabId ? pendingSqlValue : tab?.pendingSql ?? "";
+			if (isSqlEditor && liveSql.trim().length > 0) {
+				setPendingTabCloseId(tabId);
+				return;
+			}
 			closeTab(tabId);
 		},
-		[tabs, closeTab],
+		[tabs, closeTab, activeTabId, pendingSqlValue],
 	);
 	const confirmDiscardTab = useCallback(() => {
 		if (!pendingTabCloseId) return;
@@ -214,6 +221,11 @@ const FunctionOutput = () => {
 		() => tabs.find((tab) => tab.id === pendingTabCloseId) ?? null,
 		[pendingTabCloseId, tabs],
 	);
+	const pendingCloseReason = useMemo<"pending-edits" | "unsaved-sql" | null>(() => {
+		if (!pendingCloseTab) return null;
+		if (pendingCloseTab.pendingEdits.length > 0) return "pending-edits";
+		return "unsaved-sql";
+	}, [pendingCloseTab]);
 	const activeTableDatabase = useMemo(() => {
 		if (!activeFunction?.tableName) return "default";
 		// fn.schema is set at build-time from TableInfo.schema (e.g. the MySQL database name).
@@ -433,11 +445,19 @@ const FunctionOutput = () => {
 			>
 				<AlertDialogContent className="max-w-md">
 					<AlertDialogHeader>
-						<AlertDialogTitle>Discard pending edits?</AlertDialogTitle>
+						<AlertDialogTitle>
+							{pendingCloseReason === "unsaved-sql"
+								? "Discard unsaved SQL?"
+								: "Discard pending edits?"}
+						</AlertDialogTitle>
 						<AlertDialogDescription>
-							{pendingCloseTab
-								? `Closing "${pendingCloseTab.label}" will discard ${pendingCloseTab.pendingEdits.length} queued change${pendingCloseTab.pendingEdits.length === 1 ? "" : "s"} that have not been applied.`
-								: "Closing this tab will discard queued changes that have not been applied."}
+							{pendingCloseReason === "unsaved-sql"
+								? pendingCloseTab
+									? `Closing "${pendingCloseTab.label}" will discard your unsaved SQL. Save it as a query first if you want to keep it.`
+									: "Closing this tab will discard unsaved SQL."
+								: pendingCloseTab
+									? `Closing "${pendingCloseTab.label}" will discard ${pendingCloseTab.pendingEdits.length} queued change${pendingCloseTab.pendingEdits.length === 1 ? "" : "s"} that have not been applied.`
+									: "Closing this tab will discard queued changes that have not been applied."}
 						</AlertDialogDescription>
 					</AlertDialogHeader>
 					<AlertDialogFooter>

@@ -1,5 +1,6 @@
 import { Database, Loader2, Plus, Pencil, WifiOff } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Kbd } from "@/components/ui/kbd";
 import {
 	Tooltip,
 	TooltipContent,
@@ -71,6 +72,7 @@ export function ConnectionsHome({
 				>
 					<Plus size={12} />
 					New Connection
+					<Kbd className="ml-1 text-[10px]">⌘N</Kbd>
 				</Button>
 			</div>
 		);
@@ -96,6 +98,7 @@ export function ConnectionsHome({
 				>
 					<Plus size={12} />
 					New Connection
+					<Kbd className="ml-1 text-[10px]">⌘N</Kbd>
 				</Button>
 			</div>
 			{/* Connection list */}

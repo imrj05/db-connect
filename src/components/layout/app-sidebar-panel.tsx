@@ -335,8 +335,10 @@ function DatabaseNode({
     const [renameLoading, setRenameLoading] = useState(false);
     const [truncateTarget, setTruncateTarget] = useState<string | null>(null);
     const [truncateLoading, setTruncateLoading] = useState(false);
+    const [truncateConfirmInput, setTruncateConfirmInput] = useState("");
     const [dropTarget, setDropTarget] = useState<string | null>(null);
     const [dropLoading, setDropLoading] = useState(false);
+    const [dropConfirmInput, setDropConfirmInput] = useState("");
     const qi = (name: string, db?: string) => {
         const quoted = connection.type === "mysql" ? `\`${name}\`` : `"${name}"`;
         const dbPrefix = db ? (connection.type === "mysql" ? `\`${db}\`.` : `"${db}".`) : "";
@@ -360,6 +362,7 @@ function DatabaseNode({
             else {
                 toast.success(`Truncated ${truncateTarget}`);
                 setTruncateTarget(null);
+                setTruncateConfirmInput("");
                 await onRefreshTables();
                 await onAfterTruncate?.();
             }
@@ -385,7 +388,7 @@ function DatabaseNode({
             const targetDb = selectedDb ?? connection.database;
             const res = await tauriApi.executeQuery(connection.id, `DROP TABLE ${qi(dropTarget, targetDb)}`, undefined, targetDb);
             if (res.error) { toast.error(`Drop failed: ${res.error}`); }
-            else { toast.success(`Dropped ${dropTarget}`); setDropTarget(null); await onRefreshTables(); }
+            else { toast.success(`Dropped ${dropTarget}`); setDropTarget(null); setDropConfirmInput(""); await onRefreshTables(); }
         } catch (e) { toast.error(`Drop failed: ${e}`); }
         finally { setDropLoading(false); }
     };
@@ -630,31 +633,66 @@ function DatabaseNode({
                 </DialogContent>
             </Dialog>
             {/* Truncate table confirm dialog */}
-            <Dialog open={!!truncateTarget} onOpenChange={(o) => { if (!o) setTruncateTarget(null); }}>
+            <Dialog open={!!truncateTarget} onOpenChange={(o) => { if (!o) { setTruncateTarget(null); setTruncateConfirmInput(""); } }}>
                 <DialogContent className="max-w-sm">
-                    <DialogHeader><DialogTitle>Truncate table?</DialogTitle></DialogHeader>
-                    <p className="text-sm text-muted-foreground">
-                        All rows in <span className="font-mono font-semibold text-foreground">{truncateTarget}</span> will be permanently deleted. The table structure will remain. This action cannot be undone.
-                    </p>
+                    <DialogHeader>
+                        <DialogTitle className="flex items-center gap-2">
+                            <TriangleAlert size={15} className="text-destructive shrink-0" />
+                            Truncate table?
+                        </DialogTitle>
+                        <DialogDescription>
+                            All rows in <span className="font-mono font-semibold text-foreground/80">{truncateTarget}</span> will be permanently deleted. The table structure will remain. This action cannot be undone.
+                        </DialogDescription>
+                    </DialogHeader>
+                    <div className="space-y-1.5">
+                        <Label className="text-[11px] text-muted-foreground">
+                            Type <span className="font-mono text-destructive">{truncateTarget}</span> to confirm
+                        </Label>
+                        <Input
+                            autoFocus
+                            value={truncateConfirmInput}
+                            placeholder={truncateTarget ?? ""}
+                            className="h-8 text-[11px] font-mono"
+                            onChange={(e) => setTruncateConfirmInput(e.target.value)}
+                            onKeyDown={(e) => { if (e.key === "Enter" && truncateConfirmInput === truncateTarget) executeTruncate(); }}
+                        />
+                    </div>
                     <DialogFooter>
-                        <Button variant="outline" size="sm" onClick={() => setTruncateTarget(null)}>Cancel</Button>
-                        <Button variant="destructive" size="sm" onClick={executeTruncate} disabled={truncateLoading}
-                            className="bg-orange-500 hover:bg-orange-600 text-white border-orange-500">
+                        <Button variant="outline" size="sm" onClick={() => { setTruncateTarget(null); setTruncateConfirmInput(""); }}>Cancel</Button>
+                        <Button variant="destructive" size="sm" onClick={executeTruncate} disabled={truncateLoading || truncateConfirmInput !== truncateTarget}>
                             {truncateLoading ? "Truncating…" : "Truncate"}
                         </Button>
                     </DialogFooter>
                 </DialogContent>
             </Dialog>
             {/* Drop table confirm dialog */}
-            <Dialog open={!!dropTarget} onOpenChange={(o) => { if (!o) setDropTarget(null); }}>
+            <Dialog open={!!dropTarget} onOpenChange={(o) => { if (!o) { setDropTarget(null); setDropConfirmInput(""); } }}>
                 <DialogContent className="max-w-sm">
-                    <DialogHeader><DialogTitle>Drop table?</DialogTitle></DialogHeader>
-                    <p className="text-sm text-muted-foreground">
-                        This will permanently delete <span className="font-mono font-semibold text-foreground">{dropTarget}</span> and all its data. This action cannot be undone.
-                    </p>
+                    <DialogHeader>
+                        <DialogTitle className="flex items-center gap-2">
+                            <TriangleAlert size={15} className="text-destructive shrink-0" />
+                            Drop table?
+                        </DialogTitle>
+                        <DialogDescription>
+                            This will permanently delete <span className="font-mono font-semibold text-foreground/80">{dropTarget}</span> and all its data. This action cannot be undone.
+                        </DialogDescription>
+                    </DialogHeader>
+                    <div className="space-y-1.5">
+                        <Label className="text-[11px] text-muted-foreground">
+                            Type <span className="font-mono text-destructive">{dropTarget}</span> to confirm
+                        </Label>
+                        <Input
+                            autoFocus
+                            value={dropConfirmInput}
+                            placeholder={dropTarget ?? ""}
+                            className="h-8 text-[11px] font-mono"
+                            onChange={(e) => setDropConfirmInput(e.target.value)}
+                            onKeyDown={(e) => { if (e.key === "Enter" && dropConfirmInput === dropTarget) executeDrop(); }}
+                        />
+                    </div>
                     <DialogFooter>
-                        <Button variant="outline" size="sm" onClick={() => setDropTarget(null)}>Cancel</Button>
-                        <Button variant="destructive" size="sm" onClick={executeDrop} disabled={dropLoading}>
+                        <Button variant="outline" size="sm" onClick={() => { setDropTarget(null); setDropConfirmInput(""); }}>Cancel</Button>
+                        <Button variant="destructive" size="sm" onClick={executeDrop} disabled={dropLoading || dropConfirmInput !== dropTarget}>
                             {dropLoading ? "Dropping…" : "Drop table"}
                         </Button>
                     </DialogFooter>
@@ -837,8 +875,10 @@ function DatabaseSection({
     const [renameLoading, setRenameLoading] = useState(false);
     const [truncateTarget, setTruncateTarget] = useState<string | null>(null);
     const [truncateLoading, setTruncateLoading] = useState(false);
+    const [truncateConfirmInput, setTruncateConfirmInput] = useState("");
     const [dropTarget, setDropTarget] = useState<string | null>(null);
     const [dropLoading, setDropLoading] = useState(false);
+    const [dropConfirmInput, setDropConfirmInput] = useState("");
 
     const qi = (name: string, db?: string) => {
         const quoted = conn.type === "mysql" ? `\`${name}\`` : `"${name}"`;
@@ -864,6 +904,7 @@ function DatabaseSection({
             else {
                 toast.success(`Truncated ${truncateTarget}`);
                 setTruncateTarget(null);
+                setTruncateConfirmInput("");
                 await onRefreshTables();
                 await onAfterTruncate?.();
             }
@@ -891,7 +932,7 @@ function DatabaseSection({
             const targetDb = db ?? conn.database;
             const res = await tauriApi.executeQuery(conn.id, `DROP TABLE ${qi(dropTarget, targetDb)}`, undefined, targetDb);
             if (res.error) { toast.error(`Drop failed: ${res.error}`); }
-            else { toast.success(`Dropped ${dropTarget}`); setDropTarget(null); await onRefreshTables(); }
+            else { toast.success(`Dropped ${dropTarget}`); setDropTarget(null); setDropConfirmInput(""); await onRefreshTables(); }
         } catch (e) { toast.error(`Drop failed: ${e}`); }
         finally { setDropLoading(false); }
     };
@@ -1045,16 +1086,33 @@ function DatabaseSection({
             </Dialog>
 
             {/* Truncate table confirm dialog */}
-            <Dialog open={!!truncateTarget} onOpenChange={(o) => { if (!o) setTruncateTarget(null); }}>
+            <Dialog open={!!truncateTarget} onOpenChange={(o) => { if (!o) { setTruncateTarget(null); setTruncateConfirmInput(""); } }}>
                 <DialogContent className="max-w-sm">
-                    <DialogHeader><DialogTitle>Truncate table?</DialogTitle></DialogHeader>
-                    <p className="text-sm text-muted-foreground">
-                        All rows in <span className="font-mono font-semibold text-foreground">{truncateTarget}</span> will be permanently deleted. The table structure will remain. This action cannot be undone.
-                    </p>
+                    <DialogHeader>
+                        <DialogTitle className="flex items-center gap-2">
+                            <TriangleAlert size={15} className="text-destructive shrink-0" />
+                            Truncate table?
+                        </DialogTitle>
+                        <DialogDescription>
+                            All rows in <span className="font-mono font-semibold text-foreground/80">{truncateTarget}</span> will be permanently deleted. The table structure will remain. This action cannot be undone.
+                        </DialogDescription>
+                    </DialogHeader>
+                    <div className="space-y-1.5">
+                        <Label className="text-[11px] text-muted-foreground">
+                            Type <span className="font-mono text-destructive">{truncateTarget}</span> to confirm
+                        </Label>
+                        <Input
+                            autoFocus
+                            value={truncateConfirmInput}
+                            placeholder={truncateTarget ?? ""}
+                            className="h-8 text-[11px] font-mono"
+                            onChange={(e) => setTruncateConfirmInput(e.target.value)}
+                            onKeyDown={(e) => { if (e.key === "Enter" && truncateConfirmInput === truncateTarget) executeTruncate(); }}
+                        />
+                    </div>
                     <DialogFooter>
-                        <Button variant="outline" size="sm" onClick={() => setTruncateTarget(null)}>Cancel</Button>
-                        <Button variant="destructive" size="sm" onClick={executeTruncate} disabled={truncateLoading}
-                            className="bg-orange-500 hover:bg-orange-600 text-white border-orange-500">
+                        <Button variant="outline" size="sm" onClick={() => { setTruncateTarget(null); setTruncateConfirmInput(""); }}>Cancel</Button>
+                        <Button variant="destructive" size="sm" onClick={executeTruncate} disabled={truncateLoading || truncateConfirmInput !== truncateTarget}>
                             {truncateLoading ? "Truncating…" : "Truncate"}
                         </Button>
                     </DialogFooter>
@@ -1062,15 +1120,33 @@ function DatabaseSection({
             </Dialog>
 
             {/* Drop table confirm dialog */}
-            <Dialog open={!!dropTarget} onOpenChange={(o) => { if (!o) setDropTarget(null); }}>
+            <Dialog open={!!dropTarget} onOpenChange={(o) => { if (!o) { setDropTarget(null); setDropConfirmInput(""); } }}>
                 <DialogContent className="max-w-sm">
-                    <DialogHeader><DialogTitle>Drop table?</DialogTitle></DialogHeader>
-                    <p className="text-sm text-muted-foreground">
-                        This will permanently delete <span className="font-mono font-semibold text-foreground">{dropTarget}</span> and all its data. This action cannot be undone.
-                    </p>
+                    <DialogHeader>
+                        <DialogTitle className="flex items-center gap-2">
+                            <TriangleAlert size={15} className="text-destructive shrink-0" />
+                            Drop table?
+                        </DialogTitle>
+                        <DialogDescription>
+                            This will permanently delete <span className="font-mono font-semibold text-foreground/80">{dropTarget}</span> and all its data. This action cannot be undone.
+                        </DialogDescription>
+                    </DialogHeader>
+                    <div className="space-y-1.5">
+                        <Label className="text-[11px] text-muted-foreground">
+                            Type <span className="font-mono text-destructive">{dropTarget}</span> to confirm
+                        </Label>
+                        <Input
+                            autoFocus
+                            value={dropConfirmInput}
+                            placeholder={dropTarget ?? ""}
+                            className="h-8 text-[11px] font-mono"
+                            onChange={(e) => setDropConfirmInput(e.target.value)}
+                            onKeyDown={(e) => { if (e.key === "Enter" && dropConfirmInput === dropTarget) executeDrop(); }}
+                        />
+                    </div>
                     <DialogFooter>
-                        <Button variant="outline" size="sm" onClick={() => setDropTarget(null)}>Cancel</Button>
-                        <Button variant="destructive" size="sm" onClick={executeDrop} disabled={dropLoading}>
+                        <Button variant="outline" size="sm" onClick={() => { setDropTarget(null); setDropConfirmInput(""); }}>Cancel</Button>
+                        <Button variant="destructive" size="sm" onClick={executeDrop} disabled={dropLoading || dropConfirmInput !== dropTarget}>
                             {dropLoading ? "Dropping…" : "Drop table"}
                         </Button>
                     </DialogFooter>

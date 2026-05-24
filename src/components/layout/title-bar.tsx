@@ -283,12 +283,15 @@ const TitleBar = ({ isLicensed, onActivate }: TitleBarProps) => {
                             variant="outline"
                             size="sm"
                             aria-label={sidebarCollapsed ? "Show sidebar" : "Hide sidebar"}
+                            aria-keyshortcuts="Meta+B"
                             onClick={toggleSidebar}
+                            disabled={connectedIds.length === 0}
                             className={cn(
                                 "h-7 rounded-md border-transparent bg-transparent px-2.5 text-[11px] font-medium shadow-none transition-colors",
                                 sidebarCollapsed
                                     ? "text-foreground/54 hover:text-foreground hover:bg-surface-2"
                                     : "text-foreground/66 hover:text-foreground hover:bg-surface-2",
+                                "disabled:opacity-40 disabled:cursor-not-allowed",
                             )}
                         >
                             {sidebarCollapsed
@@ -298,7 +301,9 @@ const TitleBar = ({ isLicensed, onActivate }: TitleBarProps) => {
                         </Button>
                     </TooltipTrigger>
                     <TooltipContent side="bottom" sideOffset={4}>
-                        {sidebarCollapsed ? "Show sidebar" : "Hide sidebar"} (Cmd+B)
+                        {connectedIds.length === 0
+                            ? "Connect to a database to use the sidebar"
+                            : `${sidebarCollapsed ? "Show sidebar" : "Hide sidebar"} (⌘B)`}
                     </TooltipContent>
                 </Tooltip>
                 {/* Query log toggle */}
