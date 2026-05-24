@@ -40,6 +40,8 @@ import {
 import { licenseCheckOffline, syncLicenseInBackground, type OfflineCheckResult } from "@/lib/license";
 import { ErrorBoundary } from "./components/layout/error-boundary";
 import { DB_FONT_SANS, DB_FONT_MONO, DB_FONT_SANS_STACK, DB_FONT_MONO_STACK } from "@/lib/fonts";
+import { captureTelemetry, syncTauriMonitoringPreferences } from "@/lib/monitoring";
+import packageJson from "../package.json";
 
 const SIDEBAR_MIN = 180;
 const SIDEBAR_MAX = 480;
@@ -94,6 +96,7 @@ function App() {
     const startWidth = useRef(0);
     const currentDragWidth = useRef(SIDEBAR_DEFAULT);
     const sidebarRef = useRef<HTMLDivElement>(null);
+    const appStartedTelemetrySent = useRef(false);
 
     // ── License state (non-blocking) ─────────────────────────────────────────
     const [licenseCheck, setLicenseCheck] = useState<OfflineCheckResult | null>(null);
@@ -110,6 +113,21 @@ function App() {
     const databaseSwitcherSelected = databaseSwitcherConnectionId
         ? selectedDatabases[databaseSwitcherConnectionId]
         : undefined;
+    const [isLoading, setIsLoading] = useState(true);
+
+    useEffect(() => {
+        syncTauriMonitoringPreferences(
+            appSettings.errorReportingEnabled,
+            appSettings.anonymousTelemetryEnabled,
+        );
+    }, [appSettings.errorReportingEnabled, appSettings.anonymousTelemetryEnabled]);
+
+    useEffect(() => {
+        if (!isLoading && !appStartedTelemetrySent.current) {
+            appStartedTelemetrySent.current = true;
+            captureTelemetry("app_started", { version: packageJson.version });
+        }
+    }, [isLoading]);
 
     useEffect(() => {
         licenseCheckOffline().then((result) => {
@@ -123,7 +141,6 @@ function App() {
     }, []);
     // ─────────────────────────────────────────────────────────────────────────
 
-    const [isLoading, setIsLoading] = useState(true);
     useEffect(() => {
         setIsLoading(true);
         loadConnections()

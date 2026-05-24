@@ -22,3 +22,4 @@ dist-ssr
 *.sw?
 # License keys — only the private key must be excluded
 keys/license_private.pem
+.env

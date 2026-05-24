@@ -104,7 +104,7 @@ import {
 import packageJson from "../../../../package.json";
 import type { UpdateInfo } from "@/components/layout/update-dialog";
 
-type Section = "appearance" | "editor" | "table" | "ai" | "storage" | "license" | "experimental" | "about" | "keybindings";
+type Section = "appearance" | "editor" | "table" | "ai" | "storage" | "privacy" | "license" | "experimental" | "about" | "keybindings";
 
 const NAV: { id: Section; label: string; description: string; icon: LucideIcon }[] = [
     {
@@ -136,6 +136,12 @@ const NAV: { id: Section; label: string; description: string; icon: LucideIcon }
         label: "Storage",
         description: "Review local data usage and clear saved client-side records.",
         icon: HardDrive,
+    },
+    {
+        id: "privacy",
+        label: "Privacy",
+        description: "Control error reporting and anonymous product telemetry sent to our server.",
+        icon: ShieldCheck,
     },
     {
         id: "license",
@@ -1959,6 +1965,56 @@ function ExperimentalSection() {
     );
 }
 
+function PrivacySection() {
+    const appSettings = useAppStore((s) => s.appSettings);
+    const updateAppSetting = useAppStore((s) => s.updateAppSetting);
+
+    return (
+        <Card>
+            <CardHeader>
+                <CardTitle>Error reporting and telemetry</CardTitle>
+                <CardDescription>
+                    Reporting is only active when a DSN is configured at build time. Anonymous telemetry never includes SQL,
+                    connection names, hosts, usernames, file paths, license keys, or query results.
+                </CardDescription>
+            </CardHeader>
+            <CardContent>
+                <FieldGroup>
+                    <Field orientation="responsive" className={SETTINGS_FIELD_CLASS}>
+                        <FieldContent>
+                            <FieldTitle>Error reporting</FieldTitle>
+                            <FieldDescription>
+                                Send frontend exceptions and native Tauri panics to our server so crashes can be fixed faster.
+                            </FieldDescription>
+                        </FieldContent>
+                        <div className={SETTINGS_CONTROL_CLASS}>
+                            <Switch
+                                checked={appSettings.errorReportingEnabled}
+                                onCheckedChange={(v) => updateAppSetting("errorReportingEnabled", v)}
+                            />
+                        </div>
+                    </Field>
+
+                    <Field orientation="responsive" className={SETTINGS_FIELD_CLASS}>
+                        <FieldContent>
+                            <FieldTitle>Anonymous telemetry</FieldTitle>
+                            <FieldDescription>
+                                Send coarse usage events, such as app startup, without identifying the user or database.
+                            </FieldDescription>
+                        </FieldContent>
+                        <div className={SETTINGS_CONTROL_CLASS}>
+                            <Switch
+                                checked={appSettings.anonymousTelemetryEnabled}
+                                onCheckedChange={(v) => updateAppSetting("anonymousTelemetryEnabled", v)}
+                            />
+                        </div>
+                    </Field>
+                </FieldGroup>
+            </CardContent>
+        </Card>
+    );
+}
+
 function AboutSection() {
     const [updateStatus, setUpdateStatus] = useState<"idle" | "checking" | "available" | "uptodate" | "error">("idle");
     const [updateInfo, setUpdateInfo] = useState<UpdateInfo | null>(null);
@@ -2283,6 +2339,9 @@ export function SettingsPage({ onActivate }: { onActivate?: () => void }) {
                         </TabsContent>
                         <TabsContent value="storage" className="mt-0 flex w-full min-w-0 flex-col gap-6">
                             <StorageSection />
+                        </TabsContent>
+                        <TabsContent value="privacy" className="mt-0 flex w-full min-w-0 flex-col gap-6">
+                            <PrivacySection />
                         </TabsContent>
                         <TabsContent value="license" className="mt-0 flex w-full min-w-0 flex-col gap-6">
                             <LicenseSection
