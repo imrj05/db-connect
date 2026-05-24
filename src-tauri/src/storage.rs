@@ -31,12 +31,6 @@ pub struct AppStorage {
     cipher: Aes256Gcm,
 }
 
-pub struct AiCredential {
-    pub provider: String,
-    pub auth_mode: String,
-    pub api_key: String,
-}
-
 // Safety: Aes256Gcm holds only stack-allocated byte arrays — Send + Sync.
 unsafe impl Send for AppStorage {}
 unsafe impl Sync for AppStorage {}
@@ -49,32 +43,54 @@ impl AppStorage {
 
         // ── Encryption key ────────────────────────────────────────────────────
         // Strategy (in priority order):
-        //   1. File  `{data_dir}/storage.key`  — written on first run, always present after
-        //   2. OS keychain                      — legacy fallback for old installs
-        //   3. Generate new key                 — truly first install
-        // The key is always written back to the file so restarts are reliable.
+        //   1. OS keychain (macOS Keychain / Windows Credential Manager /
+        //      Linux Secret Service) — primary, most secure
+        //   2. File `{data_dir}/storage.key` — fallback when keychain is
+        //      unavailable (headless servers, CI, sandboxed environments)
+        //   3. Generate new key — truly first install; written to keychain
+        //      (and file as backup)
         let key_path = data_dir.join("storage.key");
 
-        let key_bytes: Vec<u8> = if key_path.exists() {
-            let hex_str = tokio::fs::read_to_string(&key_path).await?;
-            hex::decode(hex_str.trim())?
-        } else {
-            // Try keychain (migration from old installs that stored key only there).
-            let from_keychain = keyring::Entry::new("db-connect", "encryption-key")
+        // Helper: read key from keychain.
+        let keychain_key = || -> Option<Vec<u8>> {
+            keyring::Entry::new("db-connect", "encryption-key")
                 .ok()
                 .and_then(|e| e.get_password().ok())
                 .and_then(|s| hex::decode(s.trim()).ok())
-                .filter(|k| k.len() == 32);
+                .filter(|k| k.len() == 32)
+        };
 
-            let key = from_keychain.unwrap_or_else(|| {
-                let mut k = vec![0u8; 32];
-                rand::thread_rng().fill_bytes(&mut k);
-                k
-            });
+        // Helper: persist key to keychain (best-effort — log but don't fail).
+        let save_to_keychain = |key_hex: &str| {
+            if let Ok(entry) = keyring::Entry::new("db-connect", "encryption-key") {
+                if let Err(e) = entry.set_password(key_hex) {
+                    eprintln!("[storage] keychain write failed (non-fatal): {e}");
+                }
+            }
+        };
 
-            // Write to file so next restart is always reliable.
-            tokio::fs::write(&key_path, hex::encode(&key)).await?;
-            key
+        let key_bytes: Vec<u8> = if let Some(k) = keychain_key() {
+            // Primary path: key already in keychain.
+            // Keep the file in sync as a backup (best-effort).
+            let _ = tokio::fs::write(&key_path, hex::encode(&k)).await;
+            k
+        } else if key_path.exists() {
+            // Fallback: key exists only in file (old install or keychain unavailable).
+            let hex_str = tokio::fs::read_to_string(&key_path).await?;
+            let k = hex::decode(hex_str.trim())?;
+            // Migrate to keychain so future restarts use the secure store.
+            save_to_keychain(&hex::encode(&k));
+            k
+        } else {
+            // First install: generate a new key.
+            let mut k = vec![0u8; 32];
+            rand::thread_rng().fill_bytes(&mut k);
+            let hex_key = hex::encode(&k);
+            // Write to keychain (primary).
+            save_to_keychain(&hex_key);
+            // Write to file as backup.
+            tokio::fs::write(&key_path, &hex_key).await?;
+            k
         };
 
         let cipher = Aes256Gcm::new_from_slice(&key_bytes)
@@ -178,17 +194,10 @@ impl AppStorage {
             .execute(&pool)
             .await;
 
-        sqlx::query(
-            "CREATE TABLE IF NOT EXISTS ai_credentials (
-                provider          TEXT PRIMARY KEY,
-                auth_mode         TEXT NOT NULL,
-                encrypted_api_key TEXT NOT NULL,
-                created_at        TEXT DEFAULT (datetime('now')),
-                updated_at        TEXT DEFAULT (datetime('now'))
-            )",
-        )
-        .execute(&pool)
-        .await?;
+        // One-shot cleanup: drop the old ai_credentials table from previous releases.
+        let _ = sqlx::query("DROP TABLE IF EXISTS ai_credentials")
+            .execute(&pool)
+            .await;
 
         sqlx::query(
             "CREATE TABLE IF NOT EXISTS user_snippets (
@@ -524,60 +533,6 @@ impl AppStorage {
     pub async fn delete_history_entry(&self, id: &str) -> Result<()> {
         sqlx::query("DELETE FROM query_history WHERE id = ?")
             .bind(id)
-            .execute(&self.pool)
-            .await?;
-        Ok(())
-    }
-
-    pub async fn save_ai_credential(
-        &self,
-        provider: &str,
-        auth_mode: &str,
-        api_key: &str,
-    ) -> Result<()> {
-        let encrypted_api_key = self.encrypt(api_key)?;
-        sqlx::query(
-            "INSERT INTO ai_credentials (provider, auth_mode, encrypted_api_key)
-             VALUES (?, ?, ?)
-             ON CONFLICT(provider) DO UPDATE SET
-                auth_mode = excluded.auth_mode,
-                encrypted_api_key = excluded.encrypted_api_key,
-                updated_at = datetime('now')",
-        )
-        .bind(provider)
-        .bind(auth_mode)
-        .bind(&encrypted_api_key)
-        .execute(&self.pool)
-        .await?;
-        Ok(())
-    }
-
-    pub async fn load_ai_credential(&self, provider: &str) -> Result<Option<AiCredential>> {
-        let row = sqlx::query(
-            "SELECT provider, auth_mode, encrypted_api_key
-             FROM ai_credentials
-             WHERE provider = ?",
-        )
-        .bind(provider)
-        .fetch_optional(&self.pool)
-        .await?;
-
-        let Some(row) = row else {
-            return Ok(None);
-        };
-
-        let encrypted_api_key: String = row.get("encrypted_api_key");
-        let api_key = self.decrypt(&encrypted_api_key)?;
-        Ok(Some(AiCredential {
-            provider: row.get("provider"),
-            auth_mode: row.get("auth_mode"),
-            api_key,
-        }))
-    }
-
-    pub async fn clear_ai_credential(&self, provider: &str) -> Result<()> {
-        sqlx::query("DELETE FROM ai_credentials WHERE provider = ?")
-            .bind(provider)
             .execute(&self.pool)
             .await?;
         Ok(())
