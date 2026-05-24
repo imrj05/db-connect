@@ -228,13 +228,17 @@ const FunctionOutput = () => {
 	}, [pendingCloseTab]);
 	const activeTableDatabase = useMemo(() => {
 		if (!activeFunction?.tableName) return "default";
-		// fn.schema is set at build-time from TableInfo.schema (e.g. the MySQL database name).
-		// This avoids an ambiguous flat lookup when two databases share a table name.
-		return (
-			activeFunction.schema ??
-			connections.find((c) => c.id === activeFunction.connectionId)?.database ??
-			"default"
-		);
+		const conn = connections.find((c) => c.id === activeFunction.connectionId);
+		// fn.schema means different things per driver:
+		//   - MySQL: schema IS the database name → safe to use as the DB arg.
+		//   - Postgres: schema is a namespace (e.g. "public") INSIDE a database →
+		//     must NOT be passed as the DB arg, or the backend will try to
+		//     switch to a database that doesn't exist.
+		//   - SQLite: no schema/db concept.
+		if (conn?.type === "mysql") {
+			return activeFunction.schema ?? conn?.database ?? "default";
+		}
+		return conn?.database ?? "default";
 	}, [activeFunction, connections]);
 	// ── Content renderer ──
 	const renderContent = () => {

@@ -12,7 +12,11 @@ use tauri::Manager;
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
-    let _sentry_guard = monitoring::init();
+    // Resolve the same directory Tauri's `app_data_dir()` would give us so
+    // monitoring can load the user's persisted opt-in/out *before* the panic
+    // hook is installed. Keep this in sync with `identifier` in tauri.conf.json.
+    let prefs_dir = monitoring::default_data_dir("com.rajeshwar.db-connect");
+    let _sentry_guard = monitoring::init(prefs_dir);
 
     tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())

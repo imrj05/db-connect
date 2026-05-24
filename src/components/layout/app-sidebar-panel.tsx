@@ -242,7 +242,7 @@ function SchemaGroup({
     onLoadColumns: (tableName: string) => Promise<void>;
     pinnedTableNames?: Set<string>;
     onPinToggle?: (tableName: string) => void;
-    onTableAction?: (action: "rename" | "truncate" | "drop", tableName: string) => void;
+    onTableAction?: (action: "rename" | "truncate" | "drop", tableName: string, schema?: string) => void;
 }) {
     const [open, setOpen] = useState(true);
     return (
@@ -275,7 +275,7 @@ function SchemaGroup({
                             onLoadColumns={() => onLoadColumns(fn.tableName ?? "")}
                             isPinned={pinnedTableNames?.has(fn.tableName ?? "")}
                             onPinToggle={onPinToggle ? () => onPinToggle(fn.tableName ?? "") : undefined}
-                            onTableAction={onTableAction ? (action) => onTableAction(action, fn.tableName ?? "") : undefined}
+                            onTableAction={onTableAction ? (action) => onTableAction(action, fn.tableName ?? "", fn.schema) : undefined}
                         />
                     ))}
                 </div>
@@ -331,37 +331,49 @@ function DatabaseNode({
     const [dumpDbLoading, setDumpDbLoading] = useState(false);
     // Table context menu actions
     const [renameTarget, setRenameTarget] = useState<string | null>(null);
+    const [renameTargetSchema, setRenameTargetSchema] = useState<string | undefined>(undefined);
     const [renameValue, setRenameValue] = useState("");
     const [renameLoading, setRenameLoading] = useState(false);
     const [truncateTarget, setTruncateTarget] = useState<string | null>(null);
+    const [truncateTargetSchema, setTruncateTargetSchema] = useState<string | undefined>(undefined);
     const [truncateLoading, setTruncateLoading] = useState(false);
     const [truncateConfirmInput, setTruncateConfirmInput] = useState("");
     const [dropTarget, setDropTarget] = useState<string | null>(null);
+    const [dropTargetSchema, setDropTargetSchema] = useState<string | undefined>(undefined);
     const [dropLoading, setDropLoading] = useState(false);
     const [dropConfirmInput, setDropConfirmInput] = useState("");
-    const qi = (name: string, db?: string) => {
-        const quoted = connection.type === "mysql" ? `\`${name}\`` : `"${name}"`;
-        const dbPrefix = db ? (connection.type === "mysql" ? `\`${db}\`.` : `"${db}".`) : "";
-        return `${dbPrefix}${quoted}`;
+    // Build a fully-qualified identifier for DDL: schema-prefix for Postgres,
+    // database-prefix for MySQL, bare quoted name for SQLite.
+    const qualifiedTable = (name: string, schema?: string, db?: string) => {
+        if (connection.type === "postgresql") {
+            return schema ? `"${schema}"."${name}"` : `"${name}"`;
+        }
+        if (connection.type === "mysql") {
+            return db ? `\`${db}\`.\`${name}\`` : `\`${name}\``;
+        }
+        // sqlite — no schema/db qualifier needed
+        return `"${name}"`;
     };
-    const handleTableAction = async (action: "rename" | "truncate" | "drop", tableName: string) => {
-        if (action === "rename") { setRenameTarget(tableName); setRenameValue(tableName); return; }
-        if (action === "drop") { setDropTarget(tableName); return; }
-        if (action === "truncate") { setTruncateTarget(tableName); return; }
+    const handleTableAction = async (action: "rename" | "truncate" | "drop", tableName: string, schema?: string) => {
+        if (action === "rename") { setRenameTarget(tableName); setRenameTargetSchema(schema); setRenameValue(tableName); return; }
+        if (action === "drop") { setDropTarget(tableName); setDropTargetSchema(schema); return; }
+        if (action === "truncate") { setTruncateTarget(tableName); setTruncateTargetSchema(schema); return; }
     };
     const executeTruncate = async () => {
         if (!truncateTarget) return;
         setTruncateLoading(true);
         try {
             const targetDb = selectedDb ?? connection.database;
+            const qualified = qualifiedTable(truncateTarget, truncateTargetSchema, targetDb);
             const sql = connection.type === "sqlite"
-                ? `DELETE FROM ${qi(truncateTarget, targetDb)}`
-                : `TRUNCATE TABLE ${qi(truncateTarget, targetDb)}`;
+                ? `DELETE FROM ${qualified}`
+                : `TRUNCATE TABLE ${qualified}`;
             const res = await tauriApi.executeQuery(connection.id, sql, undefined, targetDb);
             if (res.error) toast.error(`Truncate failed: ${res.error}`);
             else {
                 toast.success(`Truncated ${truncateTarget}`);
                 setTruncateTarget(null);
+                setTruncateTargetSchema(undefined);
                 setTruncateConfirmInput("");
                 await onRefreshTables();
                 await onAfterTruncate?.();
@@ -374,10 +386,12 @@ function DatabaseNode({
         setRenameLoading(true);
         try {
             const targetDb = selectedDb ?? connection.database;
-            const sql = `ALTER TABLE ${qi(renameTarget, targetDb)} RENAME TO ${qi(renameValue.trim(), targetDb)}`;
+            const qualified = qualifiedTable(renameTarget, renameTargetSchema, targetDb);
+            const newQuoted = connection.type === "mysql" ? `\`${renameValue.trim()}\`` : `"${renameValue.trim()}"`;
+            const sql = `ALTER TABLE ${qualified} RENAME TO ${newQuoted}`;
             const res = await tauriApi.executeQuery(connection.id, sql, undefined, targetDb);
             if (res.error) { toast.error(`Rename failed: ${res.error}`); }
-            else { toast.success(`Renamed to ${renameValue.trim()}`); setRenameTarget(null); await onRefreshTables(); }
+            else { toast.success(`Renamed to ${renameValue.trim()}`); setRenameTarget(null); setRenameTargetSchema(undefined); await onRefreshTables(); }
         } catch (e) { toast.error(`Rename failed: ${e}`); }
         finally { setRenameLoading(false); }
     };
@@ -386,9 +400,10 @@ function DatabaseNode({
         setDropLoading(true);
         try {
             const targetDb = selectedDb ?? connection.database;
-            const res = await tauriApi.executeQuery(connection.id, `DROP TABLE ${qi(dropTarget, targetDb)}`, undefined, targetDb);
+            const qualified = qualifiedTable(dropTarget, dropTargetSchema, targetDb);
+            const res = await tauriApi.executeQuery(connection.id, `DROP TABLE ${qualified}`, undefined, targetDb);
             if (res.error) { toast.error(`Drop failed: ${res.error}`); }
-            else { toast.success(`Dropped ${dropTarget}`); setDropTarget(null); setDropConfirmInput(""); await onRefreshTables(); }
+            else { toast.success(`Dropped ${dropTarget}`); setDropTarget(null); setDropTargetSchema(undefined); setDropConfirmInput(""); await onRefreshTables(); }
         } catch (e) { toast.error(`Drop failed: ${e}`); }
         finally { setDropLoading(false); }
     };
@@ -871,39 +886,48 @@ function DatabaseSection({
     }, [isSelected]);
     const [addTableOpen, setAddTableOpen] = useState(false);
     const [renameTarget, setRenameTarget] = useState<string | null>(null);
+    const [renameTargetSchema, setRenameTargetSchema] = useState<string | undefined>(undefined);
     const [renameValue, setRenameValue] = useState("");
     const [renameLoading, setRenameLoading] = useState(false);
     const [truncateTarget, setTruncateTarget] = useState<string | null>(null);
+    const [truncateTargetSchema, setTruncateTargetSchema] = useState<string | undefined>(undefined);
     const [truncateLoading, setTruncateLoading] = useState(false);
     const [truncateConfirmInput, setTruncateConfirmInput] = useState("");
     const [dropTarget, setDropTarget] = useState<string | null>(null);
+    const [dropTargetSchema, setDropTargetSchema] = useState<string | undefined>(undefined);
     const [dropLoading, setDropLoading] = useState(false);
     const [dropConfirmInput, setDropConfirmInput] = useState("");
 
-    const qi = (name: string, db?: string) => {
-        const quoted = conn.type === "mysql" ? `\`${name}\`` : `"${name}"`;
-        const dbPrefix = db ? (conn.type === "mysql" ? `\`${db}\`.` : `"${db}".`) : "";
-        return `${dbPrefix}${quoted}`;
+    const qualifiedTable = (name: string, schema?: string, dbName?: string) => {
+        if (conn.type === "postgresql") {
+            return schema ? `"${schema}"."${name}"` : `"${name}"`;
+        }
+        if (conn.type === "mysql") {
+            return dbName ? `\`${dbName}\`.\`${name}\`` : `\`${name}\``;
+        }
+        return `"${name}"`;
     };
 
-    const handleTableAction = async (action: "rename" | "truncate" | "drop", tableName: string) => {
-        if (action === "rename") { setRenameTarget(tableName); setRenameValue(tableName); return; }
-        if (action === "drop") { setDropTarget(tableName); return; }
-        if (action === "truncate") { setTruncateTarget(tableName); return; }
+    const handleTableAction = async (action: "rename" | "truncate" | "drop", tableName: string, schema?: string) => {
+        if (action === "rename") { setRenameTarget(tableName); setRenameTargetSchema(schema); setRenameValue(tableName); return; }
+        if (action === "drop") { setDropTarget(tableName); setDropTargetSchema(schema); return; }
+        if (action === "truncate") { setTruncateTarget(tableName); setTruncateTargetSchema(schema); return; }
     };
     const executeTruncate = async () => {
         if (!truncateTarget) return;
         setTruncateLoading(true);
         try {
             const targetDb = db ?? conn.database;
+            const qualified = qualifiedTable(truncateTarget, truncateTargetSchema, targetDb);
             const sql = conn.type === "sqlite"
-                ? `DELETE FROM ${qi(truncateTarget, targetDb)}`
-                : `TRUNCATE TABLE ${qi(truncateTarget, targetDb)}`;
+                ? `DELETE FROM ${qualified}`
+                : `TRUNCATE TABLE ${qualified}`;
             const res = await tauriApi.executeQuery(conn.id, sql, undefined, targetDb);
             if (res.error) toast.error(`Truncate failed: ${res.error}`);
             else {
                 toast.success(`Truncated ${truncateTarget}`);
                 setTruncateTarget(null);
+                setTruncateTargetSchema(undefined);
                 setTruncateConfirmInput("");
                 await onRefreshTables();
                 await onAfterTruncate?.();
@@ -917,10 +941,12 @@ function DatabaseSection({
         setRenameLoading(true);
         try {
             const targetDb = db ?? conn.database;
-            const sql = `ALTER TABLE ${qi(renameTarget, targetDb)} RENAME TO ${qi(renameValue.trim(), targetDb)}`;
+            const qualified = qualifiedTable(renameTarget, renameTargetSchema, targetDb);
+            const newQuoted = conn.type === "mysql" ? `\`${renameValue.trim()}\`` : `"${renameValue.trim()}"`;
+            const sql = `ALTER TABLE ${qualified} RENAME TO ${newQuoted}`;
             const res = await tauriApi.executeQuery(conn.id, sql, undefined, targetDb);
             if (res.error) { toast.error(`Rename failed: ${res.error}`); }
-            else { toast.success(`Renamed to ${renameValue.trim()}`); setRenameTarget(null); await onRefreshTables(); }
+            else { toast.success(`Renamed to ${renameValue.trim()}`); setRenameTarget(null); setRenameTargetSchema(undefined); await onRefreshTables(); }
         } catch (e) { toast.error(`Rename failed: ${e}`); }
         finally { setRenameLoading(false); }
     };
@@ -930,9 +956,10 @@ function DatabaseSection({
         setDropLoading(true);
         try {
             const targetDb = db ?? conn.database;
-            const res = await tauriApi.executeQuery(conn.id, `DROP TABLE ${qi(dropTarget, targetDb)}`, undefined, targetDb);
+            const qualified = qualifiedTable(dropTarget, dropTargetSchema, targetDb);
+            const res = await tauriApi.executeQuery(conn.id, `DROP TABLE ${qualified}`, undefined, targetDb);
             if (res.error) { toast.error(`Drop failed: ${res.error}`); }
-            else { toast.success(`Dropped ${dropTarget}`); setDropTarget(null); setDropConfirmInput(""); await onRefreshTables(); }
+            else { toast.success(`Dropped ${dropTarget}`); setDropTarget(null); setDropTargetSchema(undefined); setDropConfirmInput(""); await onRefreshTables(); }
         } catch (e) { toast.error(`Drop failed: ${e}`); }
         finally { setDropLoading(false); }
     };
