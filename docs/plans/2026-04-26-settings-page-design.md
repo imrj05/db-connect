@@ -20,7 +20,6 @@ Use a left-rail plus cards layout.
 - `appearance`: cards for theme/zoom controls and typography.
 - `editor`: cards for editor typography and syntax highlighting.
 - `table`: card for table paging defaults.
-- `ai`: cards for enablement/provider selection, model defaults, and credentials.
 - `storage`: cards for data location, usage stats, and cleanup actions.
 - `license`: cards for license status and device activation details.
 - `about`: cards for product summary and runtime stack metadata.

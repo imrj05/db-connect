@@ -53,42 +53,38 @@
     - Show cost, scan type, rows, warnings, and missing index suggestions.
     - This could become an advanced flagship feature.
 
-12. AI SQL Assistant Improvements
-    - Add quick prompts: explain query, optimize query, generate query from schema, fix error, create index suggestion.
-    - Add schema-aware context selection.
-
-13. ER Diagram Polish
+12. ER Diagram Polish
     - Make ER diagrams interactive: click table to open, filter by schema, highlight relationships, export diagram image.
     - This can become a flagship feature.
 
-14. Diff / Migration Preview
+13. Diff / Migration Preview
     - When editing rows or schema, show generated SQL before applying.
     - Let users copy or save migration SQL.
     - Especially useful for production safety.
 
-15. Safe Mode For Production
+14. Safe Mode For Production
     - If connection group is `prod`, require confirmation for DELETE, DROP, TRUNCATE, and UPDATE without WHERE.
     - Add a visual production warning in the title bar.
 
-16. Connection Groups Workspace
+15. Connection Groups Workspace
     - Improve group management for Local, Dev, Staging, and Production.
     - Add group colors, icons, and filters.
 
-17. Multiple Result Tabs Per Query
+16. Multiple Result Tabs Per Query
     - Allow running multiple SQL statements and showing separate result tabs.
     - Example: one editor run returns 3 result grids.
 
-18. Keyboard Shortcut Settings
+17. Keyboard Shortcut Settings
     - Add shortcut customization.
     - Show available shortcuts in settings.
     - Developer tools benefit heavily from keyboard control.
 
-19. Command Palette Upgrade
+18. Command Palette Upgrade
     - Add actions like open table, run saved query, switch connection, export current result, toggle theme, and open settings section.
     - Make it the central launcher.
 
-20. Better Error UX
-    - Add error summary, exact SQL line if available, copy error, AI fix button, and database-specific hints.
+19. Better Error UX
+    - Add error summary, exact SQL line if available, copy error, and database-specific hints.
 
 ## UI/UX Polish To Add
 
@@ -151,7 +147,7 @@
 7. Improve Error States
    - Show a short summary first.
    - Include technical detail below in a collapsible block.
-   - Add actions: Copy Error, Copy SQL, Try Again, Ask AI to Fix.
+   - Add actions: Copy Error, Copy SQL, Try Again.
 
 8. Improve Connection Safety UX
    - Production connections should look visually different.

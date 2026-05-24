@@ -100,17 +100,12 @@ Supports PostgreSQL, MySQL, SQLite, MongoDB, and Redis from a single window. Eve
 
 - Shows active connection status, current database, last query execution time, and row count for every result view
 
-### AI Assistant
-
-- Configurable AI provider: OpenRouter (OAuth or API key), OpenAI, or Anthropic
-- Selectable default model; credentials stored via the OS keychain
-
 ### UI & Settings
 
 - macOS-native title bar with traffic-light controls and draggable region
 - Dark and light mode with a full CSS token system; toggle via Command Palette
 - **Split view** — resizable sidebar / main and editor / results panels
-- **Settings page** — tabbed interface with sections for Appearance (UI theme, editor theme, zoom 100–150%, font family), Editor, Table, Storage (clear history / saved queries / snippets), AI (provider, model, credentials), and License
+- **Settings page** — tabbed interface with sections for Appearance (UI theme, editor theme, zoom 100–150%, font family), Editor, Table, Storage (clear history / saved queries / snippets), and License
 - **Onboarding flow** — first-run welcome with DB-type picker, feature cards, and setup guidance
 - **Auto-updater** — background update checks with an install dialog
 
@@ -195,7 +190,7 @@ src/                              # React frontend
       update-dialog.tsx           # Auto-updater UI
       app-onboarding-screen.tsx   # First-run welcome flow
       function-output/
-        settings-page.tsx         # Tabbed settings (Appearance, Editor, AI, License…)
+        settings-page.tsx         # Tabbed settings (Appearance, Editor, License…)
         status-bar.tsx            # Connection status, current DB, timing, row count
         tab-bar.tsx               # Multi-tab bar with context menu
         query-log.tsx             # Append-only SQL execution log
@@ -282,7 +277,6 @@ src-tauri/src/                    # Rust backend
 | SQL dump import & database dump export | Done |
 | Import preview with column/row validation | Done |
 | Status bar (connection, database, timing, rows) | Done |
-| AI assistant (OpenRouter / OpenAI / Anthropic) | Done |
 | Streaming results for large datasets | Planned |
 | Visual schema editing (drag relations) | Planned |
 | Change tracking / undo for cell edits | Planned |

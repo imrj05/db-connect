@@ -179,7 +179,7 @@ Legend: `[x]` Done · `[~]` Partial · `[ ]` Not started
 
 ### Code Generation
 
-- [ ] Generate SQL queries — no AI or template-based SQL generation
+- [ ] Generate SQL queries — no template-based SQL generation
 - [ ] Generate ORM models — no TypeScript/Python/Go model export from schema
 
 ---
@@ -208,14 +208,6 @@ Legend: `[x]` Done · `[~]` Partial · `[ ]` Not started
 ---
 
 ## Unique Features
-
-### AI Features
-
-- [ ] AI query generator — no LLM integration
-- [ ] Natural language to SQL — no text-to-SQL feature
-- [ ] Query optimization suggestions — no AI-based recommendations
-
----
 
 ### Visual Tools
 
@@ -311,7 +303,6 @@ _Last audited: 2026-04-06. Counts reflect actual codebase state, not just todo e
 | Versioning | 0 | 0 | 2 |
 | Logs | 1 | 1 | 1 |
 | Collaboration | 1 | 0 | 2 |
-| AI Features | 0 | 0 | 3 |
 | Visual Tools | 2 | 0 | 1 |
 | Multi DB Insights | 0 | 0 | 3 |
 | Offline | 1 | 1 | 1 |
