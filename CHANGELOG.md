@@ -2,6 +2,19 @@
 
 All notable changes to DB Connect are documented here.
 
+## [0.0.21] — 2026-05-24
+
+- chore: update version to 0.0.21 and add new dependency for dirs feat(monitoring): enhance telemetry preferences handling and initialization refactor: update table action handlers to support schema in database operations
+- docs: remove AI assistant references from README, plan, todo, and settings design doc
+- feat(ux): sidebar auto-hide, typed-confirm drop/truncate, shortcuts help, dirty-tab guard
+- refactor(frontend): remove AI assistant UI, store fields, and SDK deps
+- refactor(backend): remove AI provider commands and credential storage
+- Merge pull request #3 from imrj05/fix/no-password-connection-version
+- Merge branch 'master' of https://github.com/imrj05/db-connect into fix/no-password-connection-version
+- chore: update CHANGELOG.md for v0.0.19
+
+All notable changes to DB Connect are documented here.
+
 ## [0.0.19] — 2026-05-18
 
 - fix: allow passwordless database connections
