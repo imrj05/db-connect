@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Loader2, Copy, Check, ChevronDown, ChevronRight, Sparkles } from "lucide-react";
+import { Loader2, Copy, Check, ChevronDown, ChevronRight } from "lucide-react";
 import {
 	AlertDialog,
 	AlertDialogAction,
@@ -79,7 +79,6 @@ const FunctionOutput = () => {
 	const [localPageSize, setLocalPageSize] = useState<number | null>(null);
 	const [pendingDangerSql, setPendingDangerSql] = useState<string | null>(null);
 	const [pendingTabCloseId, setPendingTabCloseId] = useState<string | null>(null);
-	const [askAiFixError, setAskAiFixError] = useState<string | null>(null);
 	const [connectingHomeIds, setConnectingHomeIds] = useState<Set<string>>(new Set());
 	const [cancellingHomeIds, setCancellingHomeIds] = useState<Set<string>>(new Set());
 	const homeConnectCancelRef = useRef<Set<string>>(new Set());
@@ -263,12 +262,6 @@ const FunctionOutput = () => {
 					setTimeout(() => setErrorCopied(false), 2000);
 				});
 			};
-			const handleAskAi = () => {
-				clearInvocationError();
-				setTimeout(() => {
-					setAskAiFixError(errorText);
-				}, 0);
-			};
 			return (
 				<div className="h-full flex items-center justify-center bg-background p-8">
 					<div className="max-w-lg w-full bg-destructive/5 border border-destructive/20 rounded-lg overflow-hidden">
@@ -288,14 +281,6 @@ const FunctionOutput = () => {
 									{errorCopied ? <Check size={10} /> : <Copy size={10} />}
 									{errorCopied ? "Copied" : "Copy"}
 								</button>
-								{(activeFunction?.type === "query" || activeFunction?.type === "execute") && (
-									<button
-										onClick={handleAskAi}
-										className="flex items-center gap-1 rounded px-2 py-1 text-[10px] font-medium text-accent-blue/80 hover:bg-accent-blue/10 hover:text-accent-blue transition-colors"
-									>
-										<Sparkles size={10} />Ask AI to fix
-									</button>
-								)}
 							</div>
 						</div>
 						<div className="px-4 pb-4">
@@ -373,8 +358,6 @@ const FunctionOutput = () => {
 						onExecute={handleExecuteSql}
 						onExplain={handleExplainSql}
 						tables={Object.values(connectionTables[activeFunction.connectionId] ?? {}).flat()}
-						askAiFixError={askAiFixError}
-						onAskAiFixConsumed={() => setAskAiFixError(null)}
 					/>
 				);
 			case "table-list":

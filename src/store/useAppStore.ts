@@ -124,19 +124,7 @@ export interface AppSettings {
   uiLightTheme: UiLightThemeOption;
   uiFontFamily: string;
   monoFontFamily: string;
-  aiEnabled: boolean;
   rowDensity: "compact" | "default" | "comfortable";
-  aiProvider:
-    | "openrouter"
-    | "opencode"
-    | "openai"
-    | "codex"
-    | "github-copilot"
-    | "anthropic"
-    | "groq"
-    | "gemini";
-  aiAuthMode: "api_key" | "oauth" | "device_code";
-  aiDefaultModel: string;
   queryTimeoutSecs: number;
   /** Default directory used as the starting location in the Save dialog when exporting diagrams/images. Empty string means "no preference" (use OS default). */
   diagramExportDir: string;
@@ -160,11 +148,7 @@ const DEFAULT_SETTINGS: AppSettings = {
   uiLightTheme: "light",
   uiFontFamily: DB_FONT_SANS,
   monoFontFamily: DB_FONT_MONO,
-  aiEnabled: false,
   rowDensity: "default",
-  aiProvider: "openrouter",
-  aiAuthMode: "oauth",
-  aiDefaultModel: "openrouter/free",
   queryTimeoutSecs: 30,
   diagramExportDir: "",
   experimentalSchemaEditor: false,

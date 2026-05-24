@@ -1,13 +1,11 @@
 import { startTransition, type ReactNode, useEffect, useRef, useState } from "react";
 import {
-    Bot,
     CalendarClock,
     Check,
     ChevronDown,
     Code2,
     Cpu,
     Download,
-    ExternalLink,
     FlaskConical,
     FolderOpen,
     HardDrive,
@@ -23,7 +21,6 @@ import {
     Table2,
     Keyboard,
     Trash2,
-    Wand2,
     type LucideIcon,
 } from "lucide-react";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
@@ -72,7 +69,6 @@ import {
     FieldGroup,
     FieldTitle,
 } from "@/components/ui/field";
-import { Input } from "@/components/ui/input";
 import { Item, ItemContent, ItemGroup } from "@/components/ui/item";
 import { Kbd } from "@/components/ui/kbd";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -90,7 +86,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { getSystemFonts, DB_FONT_MONO, DB_FONT_MONO_STACK, DB_FONT_SANS, DB_FONT_SANS_STACK } from "@/lib/fonts";
 import { licenseDeactivate, licenseGetStored, type StoredLicenseState } from "@/lib/license";
-import { tauriApi, type AiDeviceCodeBeginResult, type AiProvider } from "@/lib/tauri-api";
+import { tauriApi } from "@/lib/tauri-api";
 import { invoke } from "@tauri-apps/api/core";
 import { cn } from "@/lib/utils";
 import { toast } from "@/components/ui/sonner";
@@ -104,7 +100,7 @@ import {
 import packageJson from "../../../../package.json";
 import type { UpdateInfo } from "@/components/layout/update-dialog";
 
-type Section = "appearance" | "editor" | "table" | "ai" | "storage" | "privacy" | "license" | "experimental" | "about" | "keybindings";
+type Section = "appearance" | "editor" | "table" | "storage" | "privacy" | "license" | "experimental" | "about" | "keybindings";
 
 const NAV: { id: Section; label: string; description: string; icon: LucideIcon }[] = [
     {
@@ -124,12 +120,6 @@ const NAV: { id: Section; label: string; description: string; icon: LucideIcon }
         label: "Table",
         description: "Set sensible defaults for browsing large result sets and table pages.",
         icon: Table2,
-    },
-    {
-        id: "ai",
-        label: "AI",
-        description: "Configure providers, models, and credentials for the SQL assistant.",
-        icon: Bot,
     },
     {
         id: "storage",
@@ -222,143 +212,10 @@ const EDITOR_LIGHT_THEMES: { value: EditorThemeOption; label: string }[] = [
     { value: "light-soft-white", label: "Soft White" },
 ];
 
-const AI_PROVIDERS: { id: AiProvider; label: string }[] = [
-    { id: "openrouter", label: "OpenRouter" },
-    { id: "opencode", label: "OpenCode (OpenRouter-compatible)" },
-    { id: "openai", label: "OpenAI" },
-    { id: "codex", label: "Codex (OpenAI)" },
-    { id: "github-copilot", label: "GitHub Models" },
-    { id: "anthropic", label: "Anthropic" },
-    { id: "groq", label: "Groq" },
-    { id: "gemini", label: "Google Gemini" },
-];
-
-type AiAuthMode = AppSettings["aiAuthMode"];
-
-const AI_AUTH_OPTIONS: {
-    id: AiAuthMode;
-    label: string;
-    description: string;
-    providers?: AiProvider[];
-    unavailableLabel: string;
-}[] = [
-    {
-        id: "api_key",
-        label: "API key / token",
-        description: "Supported by every provider. Keys are validated before saving and stored locally on this device.",
-        unavailableLabel: "Unavailable",
-    },
-    {
-        id: "oauth",
-        label: "OAuth browser flow",
-        description: "Supported for OpenRouter-compatible providers. DB Connect opens your browser and receives a localhost callback.",
-        providers: ["openrouter", "opencode"],
-        unavailableLabel: "OpenRouter-compatible only",
-    },
-    {
-        id: "device_code",
-        label: "Device code",
-        description: "Supported by GitHub Models through GitHub's device authorization flow.",
-        providers: ["github-copilot"],
-        unavailableLabel: "GitHub only",
-    },
-];
-
-const AI_PROVIDER_GUIDE: Record<AiProvider, { keysUrl: string; helper: string; placeholder: string; credentialLabel: string }> = {
-    openrouter: {
-        keysUrl: "https://openrouter.ai/settings/keys",
-        helper: "Use OpenRouter OAuth or paste an OpenRouter API key. OAuth stores the returned OpenRouter key locally after the browser flow completes.",
-        placeholder: "sk-or-v1-...",
-        credentialLabel: "OpenRouter API key",
-    },
-    opencode: {
-        keysUrl: "https://openrouter.ai/settings/keys",
-        helper: "This route uses DB Connect's OpenRouter-compatible OpenCode backend path, so it can use OpenRouter OAuth or an OpenRouter API key.",
-        placeholder: "sk-or-v1-...",
-        credentialLabel: "OpenRouter API key",
-    },
-    openai: {
-        keysUrl: "https://platform.openai.com/api-keys",
-        helper: "Create an OpenAI platform API key. DB Connect sends requests to the OpenAI chat completions API.",
-        placeholder: "sk-...",
-        credentialLabel: "OpenAI API key",
-    },
-    codex: {
-        keysUrl: "https://platform.openai.com/api-keys",
-        helper: "Codex uses the OpenAI API in DB Connect, so authenticate with an OpenAI platform API key.",
-        placeholder: "sk-...",
-        credentialLabel: "OpenAI API key",
-    },
-    "github-copilot": {
-        keysUrl: "https://github.com/settings/tokens",
-        helper: "Use a GitHub token or GitHub device-code auth that can access GitHub Models. DB Connect calls the GitHub Models inference API.",
-        placeholder: "github_pat_...",
-        credentialLabel: "GitHub personal access token",
-    },
-    anthropic: {
-        keysUrl: "https://console.anthropic.com/settings/keys",
-        helper: "Create an Anthropic Console API key. DB Connect sends requests to the Anthropic Messages API.",
-        placeholder: "sk-ant-...",
-        credentialLabel: "Anthropic API key",
-    },
-    groq: {
-        keysUrl: "https://console.groq.com/keys",
-        helper: "Create a GroqCloud API key. DB Connect uses Groq's OpenAI-compatible chat completions endpoint.",
-        placeholder: "gsk_...",
-        credentialLabel: "Groq API key",
-    },
-    gemini: {
-        keysUrl: "https://aistudio.google.com/app/apikey",
-        helper: "Create a Gemini API key in Google AI Studio. DB Connect passes it as the Google Generative Language API key.",
-        placeholder: "AIza...",
-        credentialLabel: "Gemini API key",
-    },
-};
-
-const AI_MODEL_PRESETS: Record<AiProvider, { id: string; label: string }[]> = {
-    openrouter: [
-        { id: "openrouter/free", label: "OpenRouter Free Router" },
-        { id: "meta-llama/llama-3.3-70b-instruct:free", label: "Llama 3.3 70B :free" },
-        { id: "qwen/qwen-2.5-coder-32b-instruct:free", label: "Qwen 2.5 Coder :free" },
-        { id: "deepseek/deepseek-r1:free", label: "DeepSeek R1 :free" },
-    ],
-    opencode: [
-        { id: "openrouter/free", label: "OpenRouter Free Router" },
-        { id: "openai/gpt-4.1-mini", label: "OpenAI GPT-4.1 Mini via OpenRouter" },
-        { id: "anthropic/claude-3.5-haiku", label: "Claude 3.5 Haiku via OpenRouter" },
-    ],
-    openai: [
-        { id: "gpt-4o-mini", label: "GPT-4o Mini" },
-        { id: "gpt-4.1-mini", label: "GPT-4.1 Mini" },
-    ],
-    codex: [
-        { id: "gpt-5", label: "GPT-5" },
-        { id: "gpt-5-mini", label: "GPT-5 Mini" },
-    ],
-    "github-copilot": [
-        { id: "openai/gpt-4.1-mini", label: "OpenAI GPT-4.1 Mini" },
-        { id: "openai/gpt-4o-mini", label: "OpenAI GPT-4o Mini" },
-        { id: "deepseek/deepseek-r1", label: "DeepSeek R1" },
-    ],
-    anthropic: [
-        { id: "claude-3-5-haiku-latest", label: "Claude 3.5 Haiku" },
-        { id: "claude-3-7-sonnet-latest", label: "Claude 3.7 Sonnet" },
-    ],
-    groq: [
-        { id: "llama-3.1-8b-instant", label: "Llama 3.1 8B Instant" },
-        { id: "llama-3.3-70b-versatile", label: "Llama 3.3 70B Versatile" },
-    ],
-    gemini: [
-        { id: "gemini-1.5-flash", label: "Gemini 1.5 Flash" },
-        { id: "gemini-1.5-pro", label: "Gemini 1.5 Pro" },
-    ],
-};
-
 const SETTINGS_FIELD_CLASS = "gap-4 border-b border-border/50 pb-4 last:border-0 last:pb-0";
 const SETTINGS_CONTROL_CLASS = "flex w-full min-w-0 shrink-0 justify-start";
 const SETTINGS_CONTENT_WIDTH_CLASS = "flex w-full min-w-0 flex-col gap-6";
 const SETTINGS_WIDE_CONTROL_CLASS = "w-full";
-const SETTINGS_XL_CONTROL_CLASS = "w-full";
 
 function Card({ className, ...props }: React.ComponentProps<typeof BaseCard>) {
     return (
@@ -985,485 +842,6 @@ function TableSection() {
     );
 }
 
-function AiSection() {
-    const { appSettings, updateAppSetting } = useAppStore();
-    const [status, setStatus] = useState<{
-        provider: string;
-        authMode: string;
-        configured: boolean;
-        maskedKey: string | null;
-    } | null>(null);
-    const [apiKeyInput, setApiKeyInput] = useState("");
-    const [loading, setLoading] = useState(false);
-    const [oauthLoading, setOauthLoading] = useState(false);
-    const [oauthFlowId, setOauthFlowId] = useState<string | null>(null);
-    const [deviceLoading, setDeviceLoading] = useState(false);
-    const [deviceFlow, setDeviceFlow] = useState<AiDeviceCodeBeginResult | null>(null);
-
-    const providerLabel = AI_PROVIDERS.find((provider) => provider.id === appSettings.aiProvider)?.label ?? "AI Provider";
-    const providerGuide = AI_PROVIDER_GUIDE[appSettings.aiProvider];
-    const authOptions = AI_AUTH_OPTIONS.map((option) => ({
-        ...option,
-        supported: !option.providers || option.providers.includes(appSettings.aiProvider),
-    }));
-    const selectedAuthOption = authOptions.find((option) => option.id === appSettings.aiAuthMode);
-    const oauthSupported = authOptions.some((option) => option.id === "oauth" && option.supported);
-    const deviceCodeSupported = authOptions.some((option) => option.id === "device_code" && option.supported);
-    const activeModelPresets = AI_MODEL_PRESETS[appSettings.aiProvider] ?? [];
-    const selectedPreset = activeModelPresets.some((model) => model.id === appSettings.aiDefaultModel)
-        ? appSettings.aiDefaultModel
-        : "custom";
-
-    useEffect(() => {
-        if (!selectedAuthOption?.supported && appSettings.aiAuthMode !== "api_key") {
-            updateAppSetting("aiAuthMode", "api_key");
-        }
-    }, [selectedAuthOption?.supported, appSettings.aiAuthMode, updateAppSetting]);
-
-    const loadStatus = async () => {
-        try {
-            const nextStatus = await tauriApi.aiGetCredentialStatus(appSettings.aiProvider);
-            setStatus(nextStatus);
-        } catch {
-            setStatus(null);
-        }
-    };
-
-    useEffect(() => {
-        void loadStatus();
-        setDeviceFlow(null);
-        setOauthFlowId(null);
-    }, [appSettings.aiProvider]);
-
-    const handleSaveApiKey = async () => {
-        if (!apiKeyInput.trim()) {
-            return;
-        }
-
-        setLoading(true);
-
-        try {
-            const nextStatus = await tauriApi.aiSaveApiKey(appSettings.aiProvider, apiKeyInput.trim());
-            setStatus(nextStatus);
-            setApiKeyInput("");
-        } finally {
-            setLoading(false);
-        }
-    };
-
-    const handleTestApiKey = async () => {
-        if (!apiKeyInput.trim()) {
-            return;
-        }
-
-        setLoading(true);
-
-        try {
-            await tauriApi.aiTestApiKey(appSettings.aiProvider, apiKeyInput.trim());
-        } finally {
-            setLoading(false);
-        }
-    };
-
-    const handleOAuthConnect = async () => {
-        if (!oauthSupported) {
-            return;
-        }
-
-        setOauthLoading(true);
-
-        try {
-            const begin = await tauriApi.aiOauthBegin(appSettings.aiProvider);
-            setOauthFlowId(begin.flowId);
-            await tauriApi.openExternalUrl(begin.authUrl);
-            const nextStatus = await tauriApi.aiOauthComplete(appSettings.aiProvider, begin.flowId);
-            setStatus(nextStatus);
-        } finally {
-            setOauthLoading(false);
-            setOauthFlowId(null);
-        }
-    };
-
-    const handleDeviceCodeConnect = async () => {
-        if (!deviceCodeSupported) {
-            return;
-        }
-
-        setDeviceLoading(true);
-
-        try {
-            const begin = await tauriApi.aiDeviceCodeBegin(appSettings.aiProvider);
-            setDeviceFlow(begin);
-            await tauriApi.openExternalUrl(begin.verificationUri);
-            const nextStatus = await tauriApi.aiDeviceCodeComplete(appSettings.aiProvider, begin.flowId);
-            setStatus(nextStatus);
-        } finally {
-            setDeviceLoading(false);
-            setDeviceFlow(null);
-        }
-    };
-
-    const handleClearCredential = async () => {
-        setLoading(true);
-
-        try {
-            await tauriApi.aiClearCredential(appSettings.aiProvider);
-            await loadStatus();
-            setApiKeyInput("");
-        } finally {
-            setLoading(false);
-        }
-    };
-
-    return (
-        <div className="flex flex-col gap-6">
-            <Card>
-                <CardHeader>
-                    <CardTitle>Assistant preferences</CardTitle>
-                    <CardDescription>Turn the SQL assistant on and choose how DB Connect should authenticate.</CardDescription>
-                    <CardAction>
-                        <Badge variant={appSettings.aiEnabled ? "secondary" : "outline"}>
-                            {appSettings.aiEnabled ? "Enabled" : "Disabled"}
-                        </Badge>
-                    </CardAction>
-                </CardHeader>
-                <CardContent>
-                    <FieldGroup>
-                        <Field orientation="responsive" className={SETTINGS_FIELD_CLASS}>
-                            <FieldContent>
-                                <FieldTitle>Enable AI</FieldTitle>
-                                <FieldDescription>Turn on AI-assisted SQL generation in the editor.</FieldDescription>
-                            </FieldContent>
-                            <div className={SETTINGS_CONTROL_CLASS}>
-                                <Switch
-                                    checked={appSettings.aiEnabled}
-                                    onCheckedChange={(value) => updateAppSetting("aiEnabled", Boolean(value))}
-                                />
-                            </div>
-                        </Field>
-
-                        <Field orientation="responsive" className={SETTINGS_FIELD_CLASS}>
-                            <FieldContent>
-                                <FieldTitle>Provider</FieldTitle>
-                                <FieldDescription>Choose the model provider used by the SQL assistant.</FieldDescription>
-                            </FieldContent>
-                            <div className={SETTINGS_CONTROL_CLASS}>
-                                <Select
-                                    value={appSettings.aiProvider}
-                                    onValueChange={(value) => updateAppSetting("aiProvider", value as AppSettings["aiProvider"])}
-                                >
-                                    <SelectTrigger className={SETTINGS_WIDE_CONTROL_CLASS}>
-                                        <SelectValue />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                        <SelectGroup>
-                                            {AI_PROVIDERS.map((provider) => (
-                                                <SelectItem key={provider.id} value={provider.id}>
-                                                    {provider.label}
-                                                </SelectItem>
-                                            ))}
-                                        </SelectGroup>
-                                    </SelectContent>
-                                </Select>
-                            </div>
-                        </Field>
-
-                        <Field orientation="responsive" className={SETTINGS_FIELD_CLASS}>
-                            <FieldContent>
-                                <FieldTitle>Auth mode</FieldTitle>
-                                <FieldDescription>
-                                    {oauthSupported
-                                        ? `${providerLabel} supports direct keys and OpenRouter-compatible OAuth.`
-                                        : deviceCodeSupported
-                                            ? `${providerLabel} supports API tokens and GitHub device-code auth.`
-                                            : `${providerLabel} currently supports API key/token authentication in DB Connect.`}
-                                </FieldDescription>
-                            </FieldContent>
-                            <div className={SETTINGS_CONTROL_CLASS}>
-                                <Select
-                                    value={appSettings.aiAuthMode}
-                                    onValueChange={(value) => updateAppSetting("aiAuthMode", value as AiAuthMode)}
-                                >
-                                    <SelectTrigger className={SETTINGS_WIDE_CONTROL_CLASS}>
-                                        <SelectValue />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                        <SelectGroup>
-                                            {authOptions.map((option) => (
-                                                <SelectItem key={option.id} value={option.id} disabled={!option.supported}>
-                                                    {option.label}{option.supported ? "" : " (not available)"}
-                                                </SelectItem>
-                                            ))}
-                                        </SelectGroup>
-                                    </SelectContent>
-                                </Select>
-                            </div>
-                        </Field>
-
-                        <Field orientation="responsive" className={SETTINGS_FIELD_CLASS}>
-                            <FieldContent>
-                                <FieldTitle>Available auth options</FieldTitle>
-                                <FieldDescription>All auth methods DB Connect currently supports for the SQL assistant.</FieldDescription>
-                            </FieldContent>
-                            <div className={cn("flex w-full shrink-0 flex-col gap-2", SETTINGS_XL_CONTROL_CLASS)}>
-                                <ItemGroup className="gap-2">
-                                    {authOptions.map((option) => (
-                                        <Item key={option.id} variant="outline" size="sm" className="items-start bg-muted/20">
-                                            <ItemContent className="gap-1">
-                                                <div className="flex flex-wrap items-center gap-2">
-                                                    <p className="text-sm font-medium">{option.label}</p>
-                                                    <Badge variant={option.supported ? "secondary" : "outline"}>
-                                                        {option.supported ? "Available" : option.unavailableLabel}
-                                                    </Badge>
-                                                </div>
-                                                <p className="text-xs text-muted-foreground">{option.description}</p>
-                                            </ItemContent>
-                                        </Item>
-                                    ))}
-                                </ItemGroup>
-                            </div>
-                        </Field>
-                    </FieldGroup>
-                </CardContent>
-            </Card>
-
-            <Card>
-                <CardHeader>
-                    <CardTitle>Model defaults</CardTitle>
-                    <CardDescription>Choose the default model identifier sent with new AI requests.</CardDescription>
-                    <CardAction>
-                        <Badge variant="outline">{providerLabel}</Badge>
-                    </CardAction>
-                </CardHeader>
-                <CardContent>
-                    <FieldGroup>
-                        <Field orientation="responsive" className={SETTINGS_FIELD_CLASS}>
-                            <FieldContent>
-                                <FieldTitle>Default model</FieldTitle>
-                                <FieldDescription>Pick a preset or enter a custom model id for {providerLabel}.</FieldDescription>
-                            </FieldContent>
-                            <div className={cn("flex w-full shrink-0 flex-col gap-2", SETTINGS_XL_CONTROL_CLASS)}>
-                                <div className="flex flex-col gap-2 sm:flex-row">
-                                    <Select
-                                        value={selectedPreset}
-                                        onValueChange={(value) => {
-                                            if (value === "custom") {
-                                                return;
-                                            }
-
-                                            updateAppSetting("aiDefaultModel", value);
-                                        }}
-                                    >
-                                        <SelectTrigger className="w-full">
-                                            <SelectValue placeholder="Choose preset" />
-                                        </SelectTrigger>
-                                        <SelectContent>
-                                            <SelectGroup>
-                                                {activeModelPresets.map((preset) => (
-                                                    <SelectItem key={preset.id} value={preset.id}>
-                                                        {preset.label}
-                                                    </SelectItem>
-                                                ))}
-                                                <SelectItem value="custom">Custom</SelectItem>
-                                            </SelectGroup>
-                                        </SelectContent>
-                                    </Select>
-                                    <Input
-                                        value={appSettings.aiDefaultModel}
-                                        onChange={(event) => updateAppSetting(
-                                            "aiDefaultModel",
-                                            event.target.value || activeModelPresets[0]?.id || "openrouter/free",
-                                        )}
-                                        className="w-full font-mono"
-                                        placeholder={activeModelPresets[0]?.id || "openrouter/free"}
-                                    />
-                                </div>
-                            </div>
-                        </Field>
-
-                        <Field orientation="responsive" className={SETTINGS_FIELD_CLASS}>
-                            <FieldContent>
-                                <FieldTitle>API key portal</FieldTitle>
-                                <FieldDescription>{providerGuide.helper}</FieldDescription>
-                            </FieldContent>
-                            <div className={SETTINGS_CONTROL_CLASS}>
-                                <Button
-                                    size="sm"
-                                    variant="outline"
-                                    onClick={() => {
-                                        void tauriApi.openExternalUrl(providerGuide.keysUrl);
-                                    }}
-                                >
-                                    Open keys page
-                                    <ExternalLink data-icon="inline-end" />
-                                </Button>
-                            </div>
-                        </Field>
-                    </FieldGroup>
-                </CardContent>
-            </Card>
-
-            <Card>
-                <CardHeader>
-                    <CardTitle>Credential</CardTitle>
-                    <CardDescription>Store a provider credential locally for this device.</CardDescription>
-                    <CardAction>
-                        <Badge variant={status?.configured ? "secondary" : "outline"}>
-                            {status?.configured ? "Configured" : "Missing"}
-                        </Badge>
-                    </CardAction>
-                </CardHeader>
-                <CardContent className="flex flex-col gap-4">
-                    <Alert className={cn(status?.configured ? "border-success/20 bg-success/10 text-success" : "border-border/60 bg-muted/30")}>
-                        {status?.configured ? <ShieldCheck /> : <ShieldOff />}
-                        <AlertTitle>{status?.configured ? "Credential ready" : "Credential required"}</AlertTitle>
-                        <AlertDescription className={cn(status?.configured ? "text-success/80" : "text-muted-foreground")}>
-                            {status?.configured
-                                ? status.maskedKey
-                                    ? `${providerLabel} is configured with ${status.maskedKey}.`
-                                    : `${providerLabel} is configured for this device.`
-                                : `Add an API key or connect ${providerLabel} before using AI-assisted SQL generation.`}
-                        </AlertDescription>
-                    </Alert>
-
-                    {oauthFlowId ? (
-                        <Alert className="border-primary/20 bg-primary/5 text-primary">
-                            <Loader2 className="animate-spin" />
-                            <AlertTitle>Waiting for browser callback</AlertTitle>
-                            <AlertDescription className="text-primary/80">
-                                Keep this settings page open while the OAuth flow returns to the app.
-                            </AlertDescription>
-                        </Alert>
-                    ) : null}
-
-                    {deviceFlow ? (
-                        <Alert className="border-primary/20 bg-primary/5 text-primary">
-                            <Loader2 className="animate-spin" />
-                            <AlertTitle>Enter device code {deviceFlow.userCode}</AlertTitle>
-                            <AlertDescription className="text-primary/80">
-                                The verification page opened in your browser. Enter this code there, then keep DB Connect open while GitHub confirms access.
-                            </AlertDescription>
-                        </Alert>
-                    ) : null}
-
-                    <FieldGroup>
-                        {appSettings.aiAuthMode === "api_key" || !selectedAuthOption?.supported ? (
-                            <>
-                                <Field orientation="responsive" className={SETTINGS_FIELD_CLASS}>
-                                    <FieldContent>
-                                        <FieldTitle>{providerGuide.credentialLabel}</FieldTitle>
-                                        <FieldDescription>
-                                            {status?.configured && status.maskedKey
-                                                ? `Saved on this device as ${status.maskedKey}.`
-                                                : `Paste a ${providerGuide.credentialLabel} and save it securely.`}
-                                        </FieldDescription>
-                                    </FieldContent>
-                                    <div className={cn("flex w-full shrink-0 flex-col gap-2", SETTINGS_XL_CONTROL_CLASS)}>
-                                        <Input
-                                            type="password"
-                                            value={apiKeyInput}
-                                            onChange={(event) => setApiKeyInput(event.target.value)}
-                                            className="w-full font-mono"
-                                            placeholder={providerGuide.placeholder}
-                                        />
-                                        <div className="flex flex-wrap justify-end gap-2">
-                                            <Button
-                                                size="sm"
-                                                variant="outline"
-                                                onClick={handleTestApiKey}
-                                                disabled={loading || !apiKeyInput.trim()}
-                                            >
-                                                {loading ? <Loader2 data-icon="inline-start" className="animate-spin" /> : null}
-                                                Test key
-                                            </Button>
-                                            <Button size="sm" onClick={handleSaveApiKey} disabled={loading || !apiKeyInput.trim()}>
-                                                {loading ? <Loader2 data-icon="inline-start" className="animate-spin" /> : null}
-                                                Save key
-                                            </Button>
-                                        </div>
-                                    </div>
-                                </Field>
-
-                                {status?.configured ? (
-                                    <Field orientation="responsive" className={SETTINGS_FIELD_CLASS}>
-                                        <FieldContent>
-                                            <FieldTitle>Remove saved credential</FieldTitle>
-                                            <FieldDescription>Clear the stored {providerLabel} credential from this device.</FieldDescription>
-                                        </FieldContent>
-                                        <div className={SETTINGS_CONTROL_CLASS}>
-                                            <Button size="sm" variant="outline" onClick={handleClearCredential} disabled={loading}>
-                                                <Trash2 data-icon="inline-start" />
-                                                Remove credential
-                                            </Button>
-                                        </div>
-                                    </Field>
-                                ) : null}
-                            </>
-                        ) : appSettings.aiAuthMode === "oauth" ? (
-                            <Field orientation="responsive" className={SETTINGS_FIELD_CLASS}>
-                                <FieldContent>
-                                    <FieldTitle>OAuth connection</FieldTitle>
-                                    <FieldDescription>
-                                        {status?.configured
-                                            ? `Connected via ${status.authMode}${status.maskedKey ? ` · ${status.maskedKey}` : ""}.`
-                                            : `Connect ${providerLabel} in your browser and finish the localhost callback.`}
-                                    </FieldDescription>
-                                </FieldContent>
-                                <div className={SETTINGS_CONTROL_CLASS}>
-                                    <div className="flex flex-wrap gap-2">
-                                            <Button size="sm" onClick={handleOAuthConnect} disabled={oauthLoading}>
-                                            {oauthLoading ? <Loader2 data-icon="inline-start" className="animate-spin" /> : <Wand2 data-icon="inline-start" />}
-                                            {oauthLoading ? "Waiting..." : "Connect"}
-                                        </Button>
-                                        {status?.configured ? (
-                                            <Button
-                                                size="sm"
-                                                variant="outline"
-                                                onClick={handleClearCredential}
-                                                disabled={loading || oauthLoading}
-                                            >
-                                                Disconnect
-                                            </Button>
-                                        ) : null}
-                                    </div>
-                                </div>
-                            </Field>
-                        ) : (
-                            <Field orientation="responsive" className={SETTINGS_FIELD_CLASS}>
-                                <FieldContent>
-                                    <FieldTitle>Device-code connection</FieldTitle>
-                                    <FieldDescription>
-                                        {status?.configured
-                                            ? `Connected via ${status.authMode}${status.maskedKey ? ` · ${status.maskedKey}` : ""}.`
-                                            : `Connect ${providerLabel} by entering a one-time code in your browser.`}
-                                    </FieldDescription>
-                                </FieldContent>
-                                <div className={SETTINGS_CONTROL_CLASS}>
-                                    <div className="flex flex-wrap gap-2">
-                                        <Button size="sm" onClick={handleDeviceCodeConnect} disabled={deviceLoading}>
-                                            {deviceLoading ? <Loader2 data-icon="inline-start" className="animate-spin" /> : <Wand2 data-icon="inline-start" />}
-                                            {deviceLoading ? "Waiting..." : "Connect with device code"}
-                                        </Button>
-                                        {status?.configured ? (
-                                            <Button
-                                                size="sm"
-                                                variant="outline"
-                                                onClick={handleClearCredential}
-                                                disabled={loading || deviceLoading}
-                                            >
-                                                Disconnect
-                                            </Button>
-                                        ) : null}
-                                    </div>
-                                </div>
-                            </Field>
-                        )}
-                    </FieldGroup>
-                </CardContent>
-            </Card>
-        </div>
-    );
-}
 
 function StorageSection() {
     const { clearAllHistory, clearAllSavedQueries, connections, queryHistory, savedQueries, appSettings, updateAppSetting } = useAppStore();
@@ -2333,9 +1711,6 @@ export function SettingsPage({ onActivate }: { onActivate?: () => void }) {
                         </TabsContent>
                         <TabsContent value="table" className="mt-0 flex w-full min-w-0 flex-col gap-6">
                             <TableSection />
-                        </TabsContent>
-                        <TabsContent value="ai" className="mt-0 flex w-full min-w-0 flex-col gap-6">
-                            <AiSection />
                         </TabsContent>
                         <TabsContent value="storage" className="mt-0 flex w-full min-w-0 flex-col gap-6">
                             <StorageSection />

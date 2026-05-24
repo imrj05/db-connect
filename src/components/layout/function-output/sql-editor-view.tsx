@@ -12,11 +12,9 @@ import { oneDark } from "@codemirror/theme-one-dark";
 import { EditorView } from "@codemirror/view";
 import type { Extension } from "@codemirror/state";
 import { format as formatSql } from "sql-formatter";
-import { Clock, Bookmark, Pencil, Zap, Sparkles, Loader2 } from "lucide-react";
+import { Clock, Bookmark, Pencil, Zap } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Input } from "@/components/ui/input";
-import { Switch } from "@/components/ui/switch";
 import {
 	Dialog,
 	DialogContent,
@@ -28,8 +26,6 @@ import {
 import { useAppStore, EditorThemeOption } from "@/store/useAppStore";
 import { cn } from "@/lib/utils";
 import { Kbd } from "@/components/ui/kbd";
-import { tauriApi } from "@/lib/tauri-api";
-import { toast } from "@/components/ui/sonner";
 import {
 	ConnectionFunction,
 	TableInfo,
@@ -129,8 +125,6 @@ export function SqlEditorView({
 	onExecute,
 	onExplain,
 	tables,
-	askAiFixError,
-	onAskAiFixConsumed,
 }: {
 	fn: ConnectionFunction;
 	queryResult?: { columns: string[]; rows: any[]; executionTimeMs: number; error?: string };
@@ -140,8 +134,6 @@ export function SqlEditorView({
 	onExecute: (sql?: string) => void;
 	onExplain: () => void;
 	tables: TableInfo[];
-	askAiFixError?: string | null;
-	onAskAiFixConsumed?: () => void;
 }) {
 	const {
 		theme,
@@ -157,20 +149,13 @@ export function SqlEditorView({
 	} = useAppStore();
 	const editorFontSize = appSettings.editorFontSize;
 	// Sub-panel tab: which panel is currently shown
-	const [panel, setPanel] = useState<"editor" | "history" | "saved" | "snippets" | "ai">(
+	const [panel, setPanel] = useState<"editor" | "history" | "saved" | "snippets">(
 		"editor",
 	);
 	// Save-query UI state
 	const [saveOpen, setSaveOpen] = useState(false);
 	const [saveName, setSaveName] = useState("");
 	const [previewOpen, setPreviewOpen] = useState(false);
-	const [aiOpen, setAiOpen] = useState(false);
-	const [aiPrompt, setAiPrompt] = useState("");
-	const [aiIncludeSql, setAiIncludeSql] = useState(true);
-	const [aiIncludeSchema, setAiIncludeSchema] = useState(true);
-	const [aiReplaceEditor, setAiReplaceEditor] = useState(true);
-	const [aiLoading, setAiLoading] = useState(false);
-	const [aiConfigured, setAiConfigured] = useState(false);
 	// Query log state
 	const [showQueryLogSyntax, setShowQueryLogSyntax] = useState(true);
 	const history: QueryHistoryEntry[] = queryHistory.filter(
@@ -297,128 +282,6 @@ export function SqlEditorView({
 		setPreviewOpen(false);
 		await onExplain();
 	};
-	useEffect(() => {
-		let mounted = true;
-		tauriApi
-			.aiGetCredentialStatus(appSettings.aiProvider)
-			.then((status) => {
-				if (mounted) setAiConfigured(status.configured);
-			})
-			.catch(() => {
-				if (mounted) setAiConfigured(false);
-			});
-		return () => {
-			mounted = false;
-		};
-	}, [aiOpen, appSettings.aiProvider]);
-
-	// External "Ask AI to fix" trigger (from error panel)
-	useEffect(() => {
-		if (!askAiFixError) return;
-		const prompt = `Fix the following SQL error and return only corrected SQL:\n\nError: ${askAiFixError}`;
-		setAiPrompt(prompt);
-		setAiIncludeSql(true);
-		setAiIncludeSchema(true);
-		setAiReplaceEditor(true);
-		setAiOpen(true);
-		setPanel("ai");
-		onAskAiFixConsumed?.();
-	}, [askAiFixError]); // eslint-disable-line react-hooks/exhaustive-deps
-
-	const runAiQuickAction = (mode: "generate" | "explain" | "fix") => {
-		if (mode === "explain") {
-			setAiPrompt("Explain what this SQL does and potential performance issues.");
-			setAiIncludeSql(true);
-			setAiIncludeSchema(false);
-			setAiReplaceEditor(false);
-			setAiOpen(true);
-			return;
-		}
-		if (mode === "fix") {
-			const lastError = queryResult?.error;
-			const errorHint = lastError
-				? `Fix the following SQL error and return only corrected SQL:\n\nError: ${lastError}`
-				: "Fix syntax and logical issues in current SQL and return corrected SQL.";
-			setAiPrompt(errorHint);
-			setAiIncludeSql(true);
-			setAiIncludeSchema(true);
-			setAiReplaceEditor(true);
-			setAiOpen(true);
-			return;
-		}
-		// generate
-		setAiPrompt("");
-		setAiIncludeSql(true);
-		setAiIncludeSchema(true);
-		setAiReplaceEditor(true);
-		setAiOpen(true);
-	};
-	const handleAiGenerate = async () => {
-		if (!appSettings.aiEnabled) {
-			toast.error("AI is disabled. Enable it from Settings > AI.");
-			return;
-		}
-		if (!aiConfigured) {
-			toast.error(`${appSettings.aiProvider} is not configured. Setup in Settings > AI.`);
-			return;
-		}
-		const prompt = aiPrompt.trim();
-		if (!prompt) {
-			toast.error("Enter a prompt for AI generation.");
-			return;
-		}
-		setAiLoading(true);
-		try {
-			const contextParts: string[] = [];
-			contextParts.push("You are an expert SQL assistant. Return only executable SQL. No markdown code fences.");
-			contextParts.push(`Database engine: ${connections.find((c) => c.id === fn.connectionId)?.type ?? "unknown"}`);
-			if (aiIncludeSchema) {
-				const schemaLines = tables.slice(0, 40).map((t) => {
-					const cols = (t.columns ?? []).slice(0, 20).map((c) => `${c.name}:${c.dataType}`).join(", ");
-					return `${t.name}${cols ? ` (${cols})` : ""}`;
-				});
-				if (schemaLines.length) {
-					contextParts.push(`Schema context:\n${schemaLines.join("\n")}`);
-				}
-			}
-			if (aiIncludeSql && pendingSql.trim()) {
-				contextParts.push(`Current SQL:\n${pendingSql.trim()}`);
-			}
-			contextParts.push(`User request:\n${prompt}`);
-
-			const response = await tauriApi.aiChatCompletion({
-				provider: appSettings.aiProvider,
-				model: appSettings.aiDefaultModel || "openrouter/free",
-				messages: [
-					{ role: "system", content: "Generate safe, precise SQL for the user's database context." },
-					{ role: "user", content: contextParts.join("\n\n") },
-				],
-				temperature: 0.2,
-				maxTokens: 1200,
-			});
-
-			let generated = response.content.trim();
-			if (generated.startsWith("```") && generated.endsWith("```")) {
-				generated = generated
-					.replace(/^```[a-zA-Z]*\n?/, "")
-					.replace(/\n?```$/, "")
-					.trim();
-			}
-			if (!generated) {
-				throw new Error("AI returned empty SQL");
-			}
-			const shouldReplace = aiReplaceEditor;
-			onSqlChange(shouldReplace ? generated : `${pendingSql.trim()}\n\n${generated}`.trim());
-			setAiOpen(false);
-			setAiPrompt("");
-			toast.success("SQL generated");
-		} catch (error) {
-			const message = error instanceof Error ? error.message : String(error);
-			toast.error(message || "AI generation failed");
-		} finally {
-			setAiLoading(false);
-		}
-	};
 	const tabBtn = (
 		id: typeof panel,
 		icon: React.ReactNode,
@@ -483,7 +346,6 @@ export function SqlEditorView({
 					connectionSaved.length,
 				)}
 				{tabBtn("snippets", <Zap size={9} />, "Snippets")}
-			{tabBtn("ai", <Sparkles size={9} />, "AI")}
 			</div>
 			{/* ── History panel ── */}
 			{panel === "history" && (
@@ -516,64 +378,6 @@ export function SqlEditorView({
 					setPanel("editor");
 				}}
 		/>
-		)}
-		{/* ── AI generate panel ── */}
-		{panel === "ai" && (
-			<div className="flex flex-col h-full overflow-hidden bg-background">
-				<div className="px-3 py-2 border-b border-border shrink-0">
-					<p className="text-[11px] font-semibold text-foreground/70 mb-1">Generate SQL with AI</p>
-					<p className="text-[10px] text-muted-foreground/50">Describe what you want in plain English.</p>
-				</div>
-				{!appSettings.aiEnabled ? (
-					<div className="flex-1 flex items-center justify-center px-4">
-						<p className="text-[11px] text-center text-muted-foreground/50">
-							AI is disabled.<br />
-							<span className="text-primary/70 cursor-pointer underline" onClick={() => useAppStore.getState().setActiveView("settings")}>
-								Enable in Settings › AI
-							</span>
-						</p>
-					</div>
-				) : (
-					<div className="flex-1 flex flex-col gap-2 p-3 min-h-0">
-						<textarea
-							value={aiPrompt}
-							onChange={(e) => setAiPrompt(e.target.value)}
-							placeholder="e.g. Find the top 10 customers by total order value in 2024"
-							rows={4}
-							className="resize-none rounded-md border border-border/60 bg-surface-3 px-2 py-1.5 text-[11px] text-foreground placeholder:text-muted-foreground/40 focus:outline-none focus:ring-1 focus:ring-primary/50 shrink-0"
-							onKeyDown={(e) => {
-								if ((e.metaKey || e.ctrlKey) && e.key === "Enter") {
-									e.preventDefault();
-									handleAiGenerate();
-								}
-							}}
-						/>
-						<div className="flex items-center gap-3 text-[10px] text-muted-foreground/60">
-							<label className="flex items-center gap-1 cursor-pointer select-none">
-								<input type="checkbox" checked={aiIncludeSchema} onChange={(e) => setAiIncludeSchema(e.target.checked)} className="w-3 h-3 rounded" />
-								Schema context
-							</label>
-							<label className="flex items-center gap-1 cursor-pointer select-none">
-								<input type="checkbox" checked={aiIncludeSql} onChange={(e) => setAiIncludeSql(e.target.checked)} className="w-3 h-3 rounded" />
-								Current SQL
-							</label>
-							<label className="flex items-center gap-1 cursor-pointer select-none">
-								<input type="checkbox" checked={aiReplaceEditor} onChange={(e) => setAiReplaceEditor(e.target.checked)} className="w-3 h-3 rounded" />
-								Replace editor
-							</label>
-						</div>
-						<Button
-							size="sm"
-							className="h-7 text-[11px] gap-1.5 w-full"
-							onClick={() => { handleAiGenerate().then(() => setPanel("editor")); }}
-							disabled={aiLoading || !aiPrompt.trim()}
-						>
-							{aiLoading ? <><Loader2 size={11} className="animate-spin" />Generating…</> : <><Sparkles size={11} />Generate SQL</>}
-						</Button>
-						<p className="text-[9px] text-muted-foreground/35 text-center">⌘↵ to generate</p>
-					</div>
-				)}
-			</div>
 		)}
 		{/* ── Editor panel ── */}
 			{panel === "editor" && (
@@ -635,8 +439,6 @@ export function SqlEditorView({
 						onExecute={onExecute}
 						onRunAll={() => onExecute()}
 						onExplain={onExplain}
-						aiEnabled={appSettings.aiEnabled}
-						aiConfigured={aiConfigured}
 						onFormat={() => {
 							try {
 								const formatted = formatSql(pendingSql, {
@@ -650,7 +452,6 @@ export function SqlEditorView({
 								// If sql-formatter can't parse (e.g. Redis/Mongo commands), fall back silently
 							}
 						}}
-						onAiOpen={() => setAiOpen(true)}
 						onSaveOpen={() => setSaveOpen(true)}
 						onSaveNameChange={setSaveName}
 						onSaveConfirm={handleSave}
@@ -720,80 +521,6 @@ export function SqlEditorView({
 							disabled={!hasSql || isLoading}
 						>
 							Run
-						</Button>
-					</DialogFooter>
-				</DialogContent>
-			</Dialog>
-			<Dialog open={aiOpen} onOpenChange={setAiOpen}>
-				<DialogContent className="max-w-2xl">
-					<DialogHeader>
-						<DialogTitle>AI SQL Assistant</DialogTitle>
-						<DialogDescription>
-							Generate SQL with {appSettings.aiProvider} ({appSettings.aiDefaultModel || "openrouter/free"}).
-						</DialogDescription>
-					</DialogHeader>
-					<div className="space-y-3">
-						<div className="flex flex-wrap items-center gap-2">
-							<Button
-								variant="outline"
-								size="xs"
-								onClick={() => runAiQuickAction("generate")}
-								className="h-7"
-							>
-								General SQL
-							</Button>
-							<Button
-								variant="outline"
-								size="xs"
-								onClick={() => runAiQuickAction("explain")}
-								className="h-7"
-							>
-								Explain SQL
-							</Button>
-							<Button
-								variant="outline"
-								size="xs"
-								onClick={() => runAiQuickAction("fix")}
-								className="h-7"
-							>
-								Fix SQL Error
-							</Button>
-							<span className={cn(
-								"ml-auto text-[10px] font-bold uppercase tracking-[0.12em] px-1.5 py-0.5 rounded-md border",
-							aiConfigured
-								? "border-accent-green/35 bg-accent-green/8 text-accent-green"
-								: "border-amber-500/35 bg-amber-500/8 text-amber-700 dark:text-amber-300",
-							)}>
-								{aiConfigured ? `${appSettings.aiProvider} Ready` : `${appSettings.aiProvider} Setup Needed`}
-							</span>
-						</div>
-						<Input
-							value={aiPrompt}
-							onChange={(e) => setAiPrompt(e.target.value)}
-							placeholder="e.g. find top 10 customers by revenue in last 30 days"
-							className="h-9"
-						/>
-						<div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-							<label className="flex items-center gap-2 text-[12px] text-muted-foreground">
-								<Switch checked={aiIncludeSql} onCheckedChange={(v) => setAiIncludeSql(!!v)} />
-								Include current SQL
-							</label>
-							<label className="flex items-center gap-2 text-[12px] text-muted-foreground">
-								<Switch checked={aiIncludeSchema} onCheckedChange={(v) => setAiIncludeSchema(!!v)} />
-								Include schema context
-							</label>
-							<label className="flex items-center gap-2 text-[12px] text-muted-foreground">
-								<Switch checked={aiReplaceEditor} onCheckedChange={(v) => setAiReplaceEditor(!!v)} />
-								Replace editor SQL
-							</label>
-						</div>
-					</div>
-					<DialogFooter>
-						<Button variant="outline" onClick={() => setAiOpen(false)}>
-							Cancel
-						</Button>
-						<Button onClick={handleAiGenerate} disabled={aiLoading || !aiPrompt.trim()}>
-							{aiLoading ? "Generating..." : "Generate SQL"}
 						</Button>
 					</DialogFooter>
 				</DialogContent>
