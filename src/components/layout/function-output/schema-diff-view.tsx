@@ -16,7 +16,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { cn } from "@/lib/utils";
 import { useAppStore } from "@/store/useAppStore";
 import { tauriApi } from "@/lib/tauri-api";
-import { toast } from "@/components/ui/sonner";
+import { toast } from "sonner";
 import type { SchemaDiff, TableDiff, ColumnDiff, SchemaGraphTable, ForeignKeyRelation, RelationshipDiff, DiffStatus } from "@/types";
 
 // ── Diff computation ─────────────────────────────────────────────────────────

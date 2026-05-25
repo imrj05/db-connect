@@ -1,4 +1,4 @@
-use crate::db::DatabaseDriver;
+use crate::db::{validate_table_query_identifiers, DatabaseDriver};
 use crate::types::*;
 use anyhow::{anyhow, Result};
 use async_trait::async_trait;
@@ -388,18 +388,16 @@ impl DatabaseDriver for MySqlDriver {
         page: u32,
         page_size: u32,
     ) -> Result<QueryResult> {
+        validate_table_query_identifiers(database, table, None)?;
         let pool_lock = self.pool.read().await;
         if let Some(pool) = pool_lock.as_ref() {
-            if let Err(e) = pool.execute(format!("USE `{}`", database).as_str()).await {
+            if let Err(e) = pool.execute(format!("USE `{database}`").as_str()).await {
                 println!("Warning: Failed to switch to database {}: {}", database, e);
             }
         }
         let query = format!(
-            "SELECT * FROM `{}`.`{}` LIMIT {} OFFSET {}",
-            database,
-            table,
-            page_size,
-            page * page_size
+            "SELECT * FROM `{database}`.`{table}` LIMIT {page_size} OFFSET {}",
+            page.saturating_mul(page_size)
         );
         self.run_query(&query).await
     }

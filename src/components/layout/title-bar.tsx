@@ -83,7 +83,7 @@ const AppBrand = ({ compact = false }: { compact?: boolean }) => (
     <div className="flex shrink-0 items-center gap-2">
         <span
             className={cn(
-                "flex shrink-0 items-center justify-center rounded-[5px] bg-primary/10 text-primary",
+                "flex shrink-0 items-center justify-center rounded-md bg-primary/10 text-primary",
                 compact ? "size-6" : "size-7",
             )}
             aria-hidden="true"
@@ -287,10 +287,10 @@ const TitleBar = ({ isLicensed, onActivate }: TitleBarProps) => {
                             onClick={toggleSidebar}
                             disabled={connectedIds.length === 0}
                             className={cn(
-                                "h-7 rounded-md border-transparent bg-transparent px-2.5 text-[11px] font-medium shadow-none transition-colors",
+                                "h-7 rounded-md border-border-subtle bg-surface-2 px-2.5 text-[11px] font-medium shadow-none transition-colors hover:bg-surface-3",
                                 sidebarCollapsed
-                                    ? "text-foreground/54 hover:text-foreground hover:bg-surface-2"
-                                    : "text-foreground/66 hover:text-foreground hover:bg-surface-2",
+                                    ? "text-foreground/54 hover:text-foreground"
+                                    : "text-foreground/66 hover:text-foreground",
                                 "disabled:opacity-40 disabled:cursor-not-allowed",
                             )}
                         >
@@ -316,10 +316,10 @@ const TitleBar = ({ isLicensed, onActivate }: TitleBarProps) => {
                             aria-label={queryLogOpen ? "Hide query log" : "Show query log"}
                             onClick={toggleQueryLog}
                             className={cn(
-                                "h-7 rounded-md border-transparent bg-transparent px-2.5 text-[11px] font-medium shadow-none transition-colors",
+                                "h-7 rounded-md border-border-subtle bg-surface-2 px-2.5 text-[11px] font-medium shadow-none transition-colors hover:bg-surface-3",
                                 queryLogOpen
-                                    ? "text-foreground/68 hover:text-foreground hover:bg-surface-2"
-                                    : "text-foreground/54 hover:text-foreground hover:bg-surface-2",
+                                    ? "text-foreground/68 hover:text-foreground"
+                                    : "text-foreground/54 hover:text-foreground",
                             )}
                         >
                             <ScrollText size={10} className="shrink-0" />

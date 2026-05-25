@@ -1,4 +1,4 @@
-use crate::db::DatabaseDriver;
+use crate::db::{validate_table_query_identifiers, DatabaseDriver};
 use crate::types::*;
 use anyhow::{anyhow, Result};
 use async_trait::async_trait;
@@ -431,12 +431,10 @@ impl DatabaseDriver for PostgresDriver {
         page: u32,
         page_size: u32,
     ) -> Result<QueryResult> {
+        validate_table_query_identifiers(database, table, None)?;
         let query = format!(
-            "SELECT * FROM \"{}\".\"{}\" LIMIT {} OFFSET {}",
-            database,
-            table,
-            page_size,
-            page * page_size
+            "SELECT * FROM \"{database}\".\"{table}\" LIMIT {page_size} OFFSET {}",
+            page.saturating_mul(page_size)
         );
         self.run_query(&query).await
     }

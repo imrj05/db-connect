@@ -89,7 +89,7 @@ import { licenseDeactivate, licenseGetStored, type StoredLicenseState } from "@/
 import { tauriApi } from "@/lib/tauri-api";
 import { invoke } from "@tauri-apps/api/core";
 import { cn } from "@/lib/utils";
-import { toast } from "@/components/ui/sonner";
+import { toast } from "sonner";
 import {
     useAppStore,
     type AppSettings,
@@ -220,7 +220,7 @@ const SETTINGS_WIDE_CONTROL_CLASS = "w-full";
 function Card({ className, ...props }: React.ComponentProps<typeof BaseCard>) {
     return (
         <BaseCard
-            className={cn("w-full min-w-0 rounded-none border border-border-subtle bg-surface-2 py-0 ring-0 shadow-none", className)}
+            className={cn("w-full min-w-0 border border-border-subtle bg-surface-2 py-0 ring-0 shadow-none", className)}
             {...props}
         />
     );
@@ -229,7 +229,7 @@ function Card({ className, ...props }: React.ComponentProps<typeof BaseCard>) {
 function CardHeader({ className, ...props }: React.ComponentProps<typeof BaseCardHeader>) {
     return (
         <BaseCardHeader
-            className={cn("rounded-none border-b border-border-subtle px-4 py-5", className)}
+            className={cn("border-b border-border-subtle px-4 py-5", className)}
             {...props}
         />
     );

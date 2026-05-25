@@ -1,4 +1,4 @@
-use crate::db::DatabaseDriver;
+use crate::db::{validate_sql_identifier, validate_table_query_identifiers, DatabaseDriver};
 use crate::types::*;
 use anyhow::{anyhow, Result};
 use async_trait::async_trait;
@@ -110,11 +110,12 @@ impl DatabaseDriver for SqliteDriver {
         table: &str,
         _schema: Option<&str>,
     ) -> Result<Vec<ColumnInfo>> {
+        validate_table_query_identifiers("", table, None)?;
         let pool_lock = self.pool.read().await;
         let pool = pool_lock.as_ref().ok_or_else(|| anyhow!("Not connected"))?;
 
         // PRAGMA table_info: cid(0), name(1), type(2), notnull(3), dflt_value(4), pk(5)
-        let rows = sqlx::query(&format!("PRAGMA table_info(\"{}\")", table))
+        let rows = sqlx::query(&format!("PRAGMA table_info(\"{table}\")"))
             .fetch_all(pool)
             .await?;
 
@@ -138,11 +139,12 @@ impl DatabaseDriver for SqliteDriver {
         table: &str,
         _schema: Option<&str>,
     ) -> Result<Vec<IndexInfo>> {
+        validate_table_query_identifiers("", table, None)?;
         let pool_lock = self.pool.read().await;
         let pool = pool_lock.as_ref().ok_or_else(|| anyhow!("Not connected"))?;
 
         // PRAGMA index_list: seq(0), name(1), unique(2), origin(3), partial(4)
-        let index_rows = sqlx::query(&format!("PRAGMA index_list(\"{}\")", table))
+        let index_rows = sqlx::query(&format!("PRAGMA index_list(\"{table}\")"))
             .fetch_all(pool)
             .await?;
 
@@ -151,8 +153,11 @@ impl DatabaseDriver for SqliteDriver {
             let index_name: String = irow.get(1);
             let unique: i32 = irow.get(2);
 
+            // Validate index_name before use in PRAGMA index_info
+            validate_sql_identifier(&index_name, "index name")?;
+
             // PRAGMA index_info: seqno(0), cid(1), name(2)
-            let col_rows = sqlx::query(&format!("PRAGMA index_info(\"{}\")", index_name))
+            let col_rows = sqlx::query(&format!("PRAGMA index_info(\"{index_name}\")"))
                 .fetch_all(pool)
                 .await
                 .unwrap_or_default();
@@ -288,11 +293,10 @@ impl DatabaseDriver for SqliteDriver {
         page: u32,
         page_size: u32,
     ) -> Result<QueryResult> {
+        validate_table_query_identifiers("", table, None)?;
         let query = format!(
-            "SELECT * FROM \"{}\" LIMIT {} OFFSET {}",
-            table,
-            page_size,
-            page * page_size
+            "SELECT * FROM \"{table}\" LIMIT {page_size} OFFSET {}",
+            page.saturating_mul(page_size)
         );
         self.run_query(&query).await
     }

@@ -43,7 +43,7 @@ import { ConnectionHealthPanel } from "@/components/layout/connection-health-pan
 import { DumpDatabaseDialog, type DumpOptions } from "@/components/layout/function-output/table-grid/dump-database-dialog";
 import { ImportSqlDialog } from "@/components/layout/function-output/table-grid/import-sql-dialog";
 import { AddTableDialog } from "@/components/layout/sidebar/add-table-dialog";
-import { toast } from "@/components/ui/sonner";
+import { toast } from "sonner";
 import { tauriApi } from "@/lib/tauri-api";
 import { ConnectionConfig, ConnectionFunction, ColumnInfo } from "@/types";
 import { cn } from "@/lib/utils";
@@ -86,7 +86,7 @@ function ColumnIcon({ col }: { col: ColumnInfo }) {
 // ── Column row ─────────────────────────────────────────────────────────────────
 function ColumnRow({ col }: { col: ColumnInfo }) {
     return (
-        <div className="flex h-[22px] items-center gap-2 rounded-[4px] pl-1.5 pr-2.5 text-foreground/62 transition-colors hover:bg-surface-2/72 hover:text-foreground/82">
+        <div className="flex h-[22px] items-center gap-2 rounded-md pl-1.5 pr-2.5 text-foreground/62 transition-colors hover:bg-surface-2/72 hover:text-foreground/82">
             <ColumnIcon col={col} />
             <span className="text-[11px] font-mono truncate flex-1">{col.name}</span>
             <span className="text-[11px] font-mono text-foreground/38 shrink-0">
@@ -145,7 +145,7 @@ function TableRow({
                     <button
                         onClick={() => onInvoke(fn)}
                         className={cn(
-                            "group flex h-7 w-full items-center gap-2.5 overflow-hidden rounded-[4px] pl-1.5 pr-2.5 transition-colors focus-visible:ring-2 focus-visible:ring-ring/50 focus-visible:outline-none",
+                            "group flex h-7 w-full items-center gap-2.5 overflow-hidden rounded-md pl-1.5 pr-2.5 transition-colors focus-visible:ring-2 focus-visible:ring-ring/50 focus-visible:outline-none",
                             isActive
                                 ? "bg-surface-selected/82 text-foreground shadow-xs ring-1 ring-border-subtle"
                                 : "text-foreground/72 hover:bg-surface-2 hover:text-foreground",
@@ -250,7 +250,7 @@ function SchemaGroup({
             {showLabel && (
                 <button
                     onClick={() => setOpen((v) => !v)}
-                    className="flex h-[26px] w-full items-center gap-2 rounded-[4px] pl-1.5 pr-2.5 text-foreground/60 transition-colors hover:bg-surface-2/72 hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring/50 focus-visible:outline-none"
+                    className="flex h-[26px] w-full items-center gap-2 rounded-md pl-1.5 pr-2.5 text-foreground/60 transition-colors hover:bg-surface-2/72 hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring/50 focus-visible:outline-none"
                 >
                     <span className="flex items-center justify-center w-4 shrink-0 text-foreground/35">
                         {open ? <ChevronDown size={10} /> : <ChevronRight size={10} />}
@@ -478,7 +478,7 @@ function DatabaseNode({
     const schemaKeys = Object.keys(bySchema);
     const showSchemaLabels = schemaKeys.length > 1 || (schemaKeys.length === 1 && schemaKeys[0] !== "public");
     return (
-        <div className="overflow-hidden border border-border-subtle bg-surface-2">
+        <div className="overflow-hidden rounded-md border border-border-subtle bg-surface-2">
             {/* DB name row */}
             <button
                 onClick={() => isConnected ? setOpen((v) => !v) : onConnect()}
@@ -491,7 +491,7 @@ function DatabaseNode({
                         ? open ? <ChevronDown size={11} /> : <ChevronRight size={11} />
                         : <ChevronRight size={11} />}
                 </span>
-                <div className="flex h-7 w-7 shrink-0 items-center justify-center border border-border-subtle bg-surface-3">
+                <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md border border-border-subtle bg-surface-3">
                     <Logo className={cn("text-[14px] shrink-0", logoColor)} />
                 </div>
                 <span className="text-[13px] font-semibold flex-1 text-left truncate min-w-0">
@@ -525,7 +525,7 @@ function DatabaseNode({
                 )}
                 {isConnected && !isLoading && latencyMs !== undefined && (
                     <span className={cn(
-                        "shrink-0 text-[9px] font-mono tabular-nums px-1 rounded",
+                        "shrink-0 rounded-md px-1 text-[9px] font-mono tabular-nums",
                         latencyMs === null
                             ? "text-destructive/70 bg-destructive/10"
                             : latencyMs < 50
@@ -796,7 +796,7 @@ function SavedConnectionsList({
                                 <button
                                     key={conn.id}
                                     onClick={() => onEditConnection(conn)}
-                                    className="group w-full rounded px-2.5 py-2 text-left transition-colors hover:bg-surface-2 border border-transparent hover:border-border-subtle"
+                                    className="group w-full rounded-md border border-transparent px-2.5 py-2 text-left transition-colors hover:bg-surface-2 hover:border-border-subtle"
                                 >
                                     <div className="flex items-center justify-between gap-1.5 mb-0.5">
                                         <div className="flex items-center gap-1.5 min-w-0">
@@ -812,7 +812,7 @@ function SavedConnectionsList({
                                             {group && (
                                                 <span
                                                     className={cn(
-                                                        "text-[9px] font-bold uppercase tracking-[0.08em] px-1 py-0.5 rounded border",
+                                                        "rounded-md border px-1 py-0.5 text-[9px] font-bold uppercase tracking-[0.08em]",
                                                         group.activeClass,
                                                     )}
                                                 >
@@ -991,7 +991,7 @@ function DatabaseSection({
                             role="button"
                             aria-label={expanded ? "Collapse" : "Expand"}
                             onClick={(e) => { e.stopPropagation(); setExpanded((v) => !v); }}
-                            className="shrink-0 flex items-center justify-center rounded hover:bg-surface-3 p-0.5 -m-0.5"
+                            className="-m-0.5 flex shrink-0 items-center justify-center rounded-md p-0.5 hover:bg-surface-3"
                         >
                             {expanded
                                 ? <ChevronDown size={11} className="text-foreground/40" />
@@ -1384,7 +1384,7 @@ const Sidebar = () => {
                                                         )}
                                                     >
                                                         <div className={cn(
-                                                            "flex h-8 w-8 items-center justify-center border border-transparent transition-colors",
+                                                            "flex h-8 w-8 items-center justify-center rounded-md border border-transparent transition-colors",
                                                             isActive
                                                                 ? "border-border-subtle bg-surface-2"
                                                                 : "bg-transparent group-hover:bg-surface-3"

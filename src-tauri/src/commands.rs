@@ -35,8 +35,78 @@ const SYSTEM_DATABASES: &[&str] = &[
     "pg_toast_temp_1",
 ];
 
+/// Validate connection config fields to reject obviously malformed or dangerous input.
+fn validate_connection_config(config: &ConnectionConfig) -> Result<(), String> {
+    // ID: must be non-empty and not contain path traversal or injection chars
+    if config.id.is_empty() {
+        return Err("Connection ID cannot be empty".to_string());
+    }
+    for ch in &['/', '\\', '\0', '\n', '\r'] {
+        if config.id.contains(*ch) {
+            return Err(format!("Connection ID contains invalid character: {:?}", ch));
+        }
+    }
+
+    // Host: allow IP addresses (digits/dots), hostnames (alphanumeric/hyphen/dot/underscore), or localhost
+    if let Some(ref h) = config.host {
+        if !h.is_empty() {
+            // Basic hostname/IP check: alphanumeric, dots, hyphens, underscores
+            for ch in h.chars() {
+                if !ch.is_ascii_alphanumeric() && !matches!(ch, '.' | '-' | '_' | ':') {
+                    return Err(format!("Host contains invalid character: '{}'", ch));
+                }
+            }
+        }
+    }
+
+    // Port: must be 1-65535 if provided
+    if let Some(p) = config.port {
+        if !(1..=65535).contains(&p) {
+            return Err(format!("Port {p} is outside valid range (1-65535)"));
+        }
+    }
+
+    // Database name: reject SQL injection characters
+    if let Some(ref db) = config.database {
+        for ch in &['"', '\'', '\0', ';', '\n', '\r'] {
+            if db.contains(*ch) {
+                return Err(format!("Database name contains unsafe character: '{}'", ch));
+            }
+        }
+    }
+
+    // SSH host: same validation as host
+    if let Some(ref h) = config.ssh_host {
+        if !h.is_empty() {
+            for ch in h.chars() {
+                if !ch.is_ascii_alphanumeric() && !matches!(ch, '.' | '-' | '_' | ':') {
+                    return Err(format!("SSH host contains invalid character: '{}'", ch));
+                }
+            }
+        }
+    }
+
+    // SSH port: must be 1-65535
+    if let Some(p) = config.ssh_port {
+        if !(1..=65535).contains(&p) {
+            return Err(format!("SSH port {p} is outside valid range (1-65535)"));
+        }
+    }
+
+    // SSH key path: must not contain null byte or newline (path traversal is ok for file paths)
+    if let Some(ref p) = config.ssh_key_path {
+        if p.contains('\0') || p.contains('\n') || p.contains('\r') {
+            return Err("SSH key path contains invalid characters".to_string());
+        }
+    }
+
+    Ok(())
+}
+
 #[tauri::command]
 pub async fn connect_database(mut config: ConnectionConfig) -> Result<(), String> {
+    validate_connection_config(&config)?;
+
     // ── SSH tunnel setup ───────────────────────────────────────────────────────
     if config.ssh_enabled.unwrap_or(false) {
         let ssh_host = config.ssh_host.clone().ok_or("SSH host is required")?;
@@ -60,7 +130,7 @@ pub async fn connect_database(mut config: ConnectionConfig) -> Result<(), String
             .unwrap_or_else(|| "localhost".to_string());
         let db_port = config.port.unwrap_or(5432);
 
-        let tunnel = SshTunnel::establish(&ssh_host, ssh_port, &ssh_user, auth, db_host, db_port)
+        let tunnel = SshTunnel::establish(&ssh_host, ssh_port, &ssh_user, auth, db_host, db_port, None)
             .await
             .map_err(|e| format!("SSH tunnel failed: {e}"))?;
 
@@ -506,10 +576,17 @@ pub async fn import_sql_file(
             DatabaseType::Mysql => format!("CREATE DATABASE IF NOT EXISTS `{}`", db_name),
             _ => format!("CREATE DATABASE \"{}\"", db_name),
         };
-        // Best-effort — ignore error (DB may already exist, or user lacks
-        // CREATE DATABASE privilege; the subsequent connect will surface the
-        // real error if the database truly doesn't exist).
-        let _ = driver.run_query(&create_sql).await;
+        // Try to create the database, but don't fail hard if it already exists or
+        // the user lacks CREATE DATABASE privileges. Log the error so it's visible
+        // if something unexpected goes wrong.
+        match driver.run_query(&create_sql).await {
+            Ok(_) => {}
+            Err(e) => {
+                eprintln!(
+                    "[import_sql] CREATE DATABASE \"{db_name}\" failed (will try reconnect): {e}"
+                );
+            }
+        }
         let mut new_cfg = config.clone();
         new_cfg.database = Some(db_name.to_string());
         driver.connect(&new_cfg).await.map_err(|e| {

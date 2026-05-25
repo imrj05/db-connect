@@ -5,19 +5,35 @@
 //! incoming local connection to `(db_host, db_port)` through the SSH session.
 //!
 //! Drop (or call `.close()`) to abort the forwarding task.
+//!
+//! Host key verification uses Trust-on-First-Use (TOFU) via the standard
+//! SSH known_hosts format. The known_hosts file lives in the app's data
+//! directory to avoid polluting the user's regular SSH known_hosts.
 
+use std::path::PathBuf;
 use std::sync::Arc;
 
 use anyhow::{anyhow, Result};
 use russh::client;
-use russh_keys::key;
+use russh_keys::{check_known_hosts_path, learn_known_hosts_path, Error as RusshKeyError, key};
 use tokio::io::copy_bidirectional;
 use tokio::net::TcpListener;
 use tokio::sync::Mutex;
 
-// ── Handler ────────────────────────────────────────────────────────────────────
+// ── Handler ───────────────────────────────────────────────────────────────────
 
-struct SshClientHandler;
+struct SshClientHandler {
+    /// Path to the known_hosts file (within the app's data directory).
+    known_hosts_path: PathBuf,
+    host: String,
+    port: u16,
+}
+
+impl SshClientHandler {
+    fn new(known_hosts_path: PathBuf, host: String, port: u16) -> Self {
+        Self { known_hosts_path, host, port }
+    }
+}
 
 #[async_trait::async_trait]
 impl client::Handler for SshClientHandler {
@@ -25,11 +41,37 @@ impl client::Handler for SshClientHandler {
 
     async fn check_server_key(
         &mut self,
-        _server_public_key: &key::PublicKey,
+        server_public_key: &key::PublicKey,
     ) -> Result<bool, Self::Error> {
-        // Accept all host keys — sufficient for typical internal tunnels.
-        // TODO: verify against known_hosts for stricter security.
-        Ok(true)
+        match check_known_hosts_path(&self.host, self.port, server_public_key, &self.known_hosts_path) {
+            Ok(true) => {
+                // Key matches a known entry — accept
+                Ok(true)
+            }
+            Ok(false) => {
+                // Unknown host — Trust-on-First-Use: add to known_hosts
+                let fingerprint = server_public_key.fingerprint();
+                learn_known_hosts_path(&self.host, self.port, server_public_key, &self.known_hosts_path)
+                    .map_err(|e| anyhow!("Failed to save known_hosts: {e}"))?;
+
+                println!(
+                    "[SSH] New host added to known_hosts: {}:{} (fingerprint: {})",
+                    self.host, self.port, fingerprint
+                );
+                Ok(true)
+            }
+            Err(RusshKeyError::KeyChanged { line }) => {
+                // Key mismatch — possible MITM attack
+                let actual_fp = server_public_key.fingerprint();
+                Err(anyhow!(
+                    "Host key mismatch for [{}]:{} (known_hosts line {}) — possible man-in-the-middle attack!\n\
+                     Actual fingerprint: {}\n\
+                     If the server was reinstalled, remove that line from:\n  {}",
+                    self.host, self.port, line, actual_fp, self.known_hosts_path.display()
+                ))
+            }
+            Err(e) => Err(anyhow!("Known hosts check failed: {e}")),
+        }
     }
 }
 
@@ -46,12 +88,14 @@ pub enum SshAuth {
 // ── Tunnel ─────────────────────────────────────────────────────────────────────
 
 pub struct SshTunnel {
-    /// The local port that forwards to the remote database.
     pub local_port: u16,
     task: tokio::task::JoinHandle<()>,
 }
 
 impl SshTunnel {
+    /// Establish an SSH tunnel.
+    ///
+    /// `known_hosts_path` defaults to `{app_data_dir}/known_hosts` if `None`.
     pub async fn establish(
         ssh_host: &str,
         ssh_port: u16,
@@ -59,10 +103,21 @@ impl SshTunnel {
         auth: SshAuth,
         db_host: String,
         db_port: u16,
+        known_hosts_path: Option<PathBuf>,
     ) -> Result<Self> {
         let config = Arc::new(client::Config::default());
 
-        let mut session = client::connect(config, (ssh_host, ssh_port), SshClientHandler).await?;
+        // Default known_hosts path: {app_data_dir}/ssh/known_hosts
+        let kh_path = known_hosts_path.unwrap_or_else(|| {
+            dirs::data_dir()
+                .unwrap_or_else(|| PathBuf::from("."))
+                .join("ssh")
+                .join("known_hosts")
+        });
+
+        let handler = SshClientHandler::new(kh_path, ssh_host.to_string(), ssh_port);
+
+        let mut session = client::connect(config, (ssh_host, ssh_port), handler).await?;
 
         let authenticated = match auth {
             SshAuth::Password(pw) => session.authenticate_password(ssh_user, pw).await?,
@@ -82,7 +137,6 @@ impl SshTunnel {
         let listener = TcpListener::bind("127.0.0.1:0").await?;
         let local_port = listener.local_addr()?.port();
 
-        // Wrap session so the forwarding task and each connection task share it
         let session = Arc::new(Mutex::new(session));
 
         let task = tokio::spawn(async move {

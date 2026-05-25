@@ -71,7 +71,7 @@ import {
     QueryResult,
 } from "@/types";
 import { tauriApi } from "@/lib/tauri-api";
-import { toast } from "@/components/ui/sonner";
+import { toast } from "sonner";
 import { GridToolbar } from "@/components/layout/function-output/table-grid/grid-toolbar";
 import { TableInfoPanel } from "@/components/layout/function-output/table-grid/table-info-panel";
 import { FilterBar } from "@/components/layout/function-output/table-grid/filter-bar";
@@ -2180,15 +2180,15 @@ export function TableGridView({
                                                             return (
                                                                 <span className="flex items-center gap-0.5 ml-auto opacity-60 group-hover/th:opacity-100 transition-opacity">
                                                                     {col.isPrimary && (
-                                                                        <span className="rounded-[2px] border border-accent-yellow/40 bg-accent-yellow/10 px-0.5 text-[7px] font-bold text-accent-yellow leading-none">PK</span>
+                                                                        <span className="rounded-sm border border-accent-yellow/40 bg-accent-yellow/10 px-0.5 text-[7px] font-bold text-accent-yellow leading-none">PK</span>
                                                                     )}
                                                                     {fkNames.has(col.name) && (
-                                                                        <span className="rounded-[2px] border border-accent-blue/40 bg-accent-blue/10 px-0.5 text-[7px] font-bold text-accent-blue leading-none">FK</span>
+                                                                        <span className="rounded-sm border border-accent-blue/40 bg-accent-blue/10 px-0.5 text-[7px] font-bold text-accent-blue leading-none">FK</span>
                                                                     )}
                                                                     {col.isUnique && !col.isPrimary && (
-                                                                        <span className="rounded-[2px] border border-accent-purple/40 bg-accent-purple/10 px-0.5 text-[7px] font-bold text-accent-purple leading-none">UQ</span>
+                                                                        <span className="rounded-sm border border-accent-purple/40 bg-accent-purple/10 px-0.5 text-[7px] font-bold text-accent-purple leading-none">UQ</span>
                                                                     )}
-                                                                    <span className="rounded-[2px] border border-border/50 bg-muted/30 px-0.5 text-[7px] font-mono text-muted-foreground/50 leading-none">
+                                                                    <span className="rounded-sm border border-border/50 bg-muted/30 px-0.5 text-[7px] font-mono text-muted-foreground/50 leading-none">
                                                                         {col.dataType.replace(/\(.*\)/, "").toUpperCase().slice(0, 7)}
                                                                     </span>
                                                                 </span>
@@ -3464,8 +3464,8 @@ export function TableGridView({
                             className={cn(
                                 "relative flex items-center px-3 text-[12px] font-medium transition-colors focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ring/40",
                                 viewMode === mode
-                                    ? "text-foreground bg-surface-3/92 rounded-[4px]"
-                                    : "text-foreground/46 hover:text-foreground/72 hover:bg-surface-3/72 rounded-[4px]",
+                                    ? "text-foreground bg-surface-3/92 rounded-md"
+                                    : "text-foreground/46 hover:text-foreground/72 hover:bg-surface-3/72 rounded-md",
                             )}
                         >
                             {mode}

@@ -51,7 +51,7 @@ export function ConnectionsHome({
 	if (connections.length === 0) {
 		return (
 			<div className="flex h-full flex-col items-center justify-center gap-4 bg-surface-2 px-6">
-				<div className="flex h-16 w-16 items-center justify-center border border-border-subtle bg-surface-3">
+				<div className="flex h-16 w-16 items-center justify-center rounded-md border border-border-subtle bg-surface-3">
 					<Database size={24} className="text-foreground/32" />
 				</div>
 				<div className="text-center space-y-1.5">
@@ -114,7 +114,7 @@ export function ConnectionsHome({
 					return (
 						<div
 							key={conn.id}
-						className="flex items-center gap-4 border border-border-subtle bg-surface-3 px-4 py-4 transition-colors hover:bg-surface-elevated hover:border-border/70"
+						className="flex items-center gap-4 rounded-md border border-border-subtle bg-surface-3 px-4 py-4 transition-colors hover:bg-surface-elevated hover:border-border/70"
 						>
 							{/* DB logo */}
 							<Logo

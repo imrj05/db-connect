@@ -19,7 +19,7 @@ import {
 import { EncryptionUtils } from "@/lib/encryption";
 import { buildConnectionFunctions, suggestPrefix } from "@/lib/db-functions";
 import { tauriApi } from "@/lib/tauri-api";
-import { toast } from "@/components/ui/sonner";
+import { toast } from "sonner";
 import { DB_FONT_SANS, DB_FONT_MONO } from "@/lib/fonts";
 
 // Helper to create a default empty filter
@@ -387,7 +387,7 @@ export const useAppStore = create<AppState>((set, get) => ({
       if (connections.length === 0) {
         const encrypted = localStorage.getItem(LEGACY_CONNECTIONS_KEY);
         if (encrypted) {
-          const decrypted = EncryptionUtils.decrypt(encrypted);
+          const decrypted = EncryptionUtils.tryMigrateLegacy(encrypted);
           if (Array.isArray(decrypted) && decrypted.length > 0) {
             const migrated = (decrypted as ConnectionConfig[]).map((c) => ({
               ...c,

@@ -12,7 +12,7 @@ function TypeBadge({ type }: { type: string }) {
 		.toUpperCase()
 		.slice(0, 7);
 	return (
-		<span className="shrink-0 rounded-[3px] border border-border/60 bg-muted/50 px-1 py-px text-[8px] font-mono text-muted-foreground/70 leading-none">
+        <span className="shrink-0 rounded-sm border border-border/60 bg-muted/50 px-1 py-px text-[8px] font-mono text-muted-foreground/70 leading-none">
 			{short}
 		</span>
 	);
@@ -117,17 +117,17 @@ export function TableInfoPanel({
 								{/* Badges */}
 								<div className="flex items-center gap-1 shrink-0">
 									{col.isPrimary && (
-										<span className="rounded-[3px] border border-accent-yellow/30 bg-accent-yellow/10 px-1 py-px text-[8px] font-bold text-accent-yellow leading-none">
+                                        <span className="rounded-sm border border-accent-yellow/30 bg-accent-yellow/10 px-1 py-px text-[8px] font-bold text-accent-yellow leading-none">
 											PK
 										</span>
 									)}
 									{fkColumnNames.has(col.name) && (
-										<span className="rounded-[3px] border border-accent-blue/30 bg-accent-blue/10 px-1 py-px text-[8px] font-bold text-accent-blue leading-none">
+                                        <span className="rounded-sm border border-accent-blue/30 bg-accent-blue/10 px-1 py-px text-[8px] font-bold text-accent-blue leading-none">
 											FK
 										</span>
 									)}
 									{col.isUnique && !col.isPrimary && (
-										<span className="rounded-[3px] border border-accent-purple/30 bg-accent-purple/10 px-1 py-px text-[8px] font-bold text-accent-purple leading-none">
+                                        <span className="rounded-sm border border-accent-purple/30 bg-accent-purple/10 px-1 py-px text-[8px] font-bold text-accent-purple leading-none">
 											UQ
 										</span>
 									)}
@@ -163,7 +163,7 @@ export function TableInfoPanel({
 											{idx.name}
 										</span>
 										{idx.unique && (
-											<span className="rounded-[3px] border border-accent-purple/30 bg-accent-purple/10 px-1 py-px text-[8px] font-bold text-accent-purple leading-none shrink-0">
+                                            <span className="rounded-sm border border-accent-purple/30 bg-accent-purple/10 px-1 py-px text-[8px] font-bold text-accent-purple leading-none shrink-0">
 												UNIQUE
 											</span>
 										)}

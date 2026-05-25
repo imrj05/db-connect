@@ -14,7 +14,7 @@ import {
 } from "@/components/ui/context-menu";
 import { cn } from "@/lib/utils";
 import { ResultTab } from "@/types";
-import { toast } from "@/components/ui/sonner";
+import { toast } from "sonner";
 import { useEffect, useRef, useState } from "react";
 
 const TYPE_META: Record<string, { icon: LucideIcon; iconClassName: string }> = {
@@ -192,7 +192,7 @@ export function TabBar({
 										if (!dragState.current.dragging) onSwitchTab(tab.id);
 									}}
 									className={cn(
-										"group/tab flex h-8 shrink-0 items-center gap-2 border border-transparent bg-transparent px-3 transition-[color,background-color,border-color]",
+										"group/tab flex h-8 shrink-0 items-center gap-2 rounded-md border border-transparent bg-transparent py-0 pl-3 pr-2 transition-[color,background-color,border-color]",
 										isActive
 											? "border-border-subtle bg-surface-3 text-foreground"
 											: "border-border/42 text-foreground/60 hover:border-border/60 hover:bg-surface-2 hover:text-foreground/84",
@@ -225,11 +225,11 @@ export function TabBar({
 												onCloseTab(tab.id);
 											}}
 											className={cn(
-												"shell-icon-button ml-1 size-6 text-foreground/36 hover:bg-surface-2 hover:text-foreground",
+												"shell-icon-button ml-1 flex size-6 items-center justify-center p-0 text-foreground/36 hover:bg-surface-2 hover:text-foreground",
 												isActive ? "opacity-100" : "opacity-0 group-hover/tab:opacity-100",
 											)}
 										>
-											<X size={11} />
+											<X className="size-3" />
 										</Button>
 									)}
 								</div>
@@ -269,7 +269,7 @@ export function TabBar({
 				className="pointer-events-none fixed left-0 top-0 z-[9999] opacity-0 transition-opacity duration-100 will-change-transform"
 				style={{ transform: "translate(0px, 0px)" }}
 			>
-				<div className="flex h-8 items-center gap-2 rounded border border-primary/40 bg-surface-elevated px-3 shadow-xl ring-1 ring-primary/20 backdrop-blur-sm">
+				<div className="flex h-8 items-center gap-2 rounded-md border border-primary/40 bg-surface-elevated px-3 shadow-xl ring-1 ring-primary/20 backdrop-blur-sm">
 					{GhostIcon && (
 						<GhostIcon
 							size={13}

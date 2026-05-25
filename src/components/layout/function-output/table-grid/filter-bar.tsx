@@ -85,7 +85,7 @@ export function FilterBar({
               >
                 <ToggleGroupItem
                   value={f.join}
-                  className="h-8 w-10 rounded-[4px] px-0 text-[10px] font-semibold uppercase tracking-[0.14em]"
+                  className="h-8 w-10 rounded-md px-0 text-[10px] font-semibold uppercase tracking-[0.14em]"
                   aria-label={`Join with ${f.join}`}
                 >
                   {f.join}
@@ -185,7 +185,7 @@ export function FilterBar({
                   size="sm"
                   onClick={onApply}
                   disabled={filterLoading || filters.length === 0 || !allFiltersHaveColumns}
-                  className="h-8 px-3 bg-primary hover:bg-primary/92 text-primary-foreground disabled:opacity-50 disabled:cursor-not-allowed gap-1.5 text-[11px] font-medium rounded-[4px] shadow-xs"
+                  className="h-8 px-3 bg-primary hover:bg-primary/92 text-primary-foreground disabled:opacity-50 disabled:cursor-not-allowed gap-1.5 text-[11px] font-medium rounded-md shadow-xs"
                 >
                   {filterLoading ? (
                     <Loader2 size={14} className="animate-spin" />

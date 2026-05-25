@@ -54,3 +54,4 @@ font-kit = "0.11"
 reqwest = { version = "0.12", default-features = false, features = ["json", "rustls-tls"] }
 sentry = { version = "0.48.2", default-features = false, features = ["backtrace", "contexts", "panic", "reqwest", "native-tls"] }
 dirs = "5"
+

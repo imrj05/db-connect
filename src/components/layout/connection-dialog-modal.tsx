@@ -24,7 +24,7 @@ import {
 import { ConnectionConfig } from "@/types";
 import { useAppStore } from "@/store/useAppStore";
 import { tauriApi } from "@/lib/tauri-api";
-import { toast } from "@/components/ui/sonner";
+import { toast } from "sonner";
 import {
     Dialog,
     DialogContent,
@@ -60,7 +60,7 @@ import {
 } from "@/components/ui/tabs";
 import { cn } from "@/lib/utils";
 import { suggestPrefix } from "@/lib/db-functions";
-import { DB_LOGO as DB_LOGOS } from "@/lib/db-ui";
+import { DB_COLOR, DB_LOGO as DB_LOGOS } from "@/lib/db-ui";
 import { EngineSelector } from "@/components/layout/connection-dialog/engine-selector";
 import { GroupSelector } from "@/components/layout/connection-dialog/group-selector";
 import { EngineFields } from "@/components/layout/connection-dialog/engine-fields";
@@ -596,7 +596,7 @@ const ConnectionDialog = ({ onClose, initialData, mode = "modal" }: ConnectionDi
                         <TabsContent value="quick-connect" className="min-h-0 flex-1 overflow-hidden">
                             <div className={cn("grid h-full min-h-0 gap-4 overflow-y-auto p-6", isPageMode ? "xl:grid-cols-[minmax(0,1.25fr)_minmax(320px,0.75fr)]" : "lg:grid-cols-[minmax(0,1.1fr)_minmax(0,0.9fr)]")}>
                                 <div className="flex flex-col gap-4 self-start">
-                                    <Card size="sm" className={cn("py-0 rounded-none", isPageMode ? "border-border-subtle bg-surface-2" : "border border-border-subtle bg-surface-2")}>
+                                    <Card size="sm" className={cn("py-0", isPageMode ? "border-border-subtle bg-surface-2" : "border border-border-subtle bg-surface-2")}>
                                         <CardHeader className="border-b border-border-subtle py-4">
                                             <CardTitle className="flex items-center gap-2 text-sm">
                                                 <Link2 className="size-4 text-muted-foreground" />
@@ -648,7 +648,7 @@ const ConnectionDialog = ({ onClose, initialData, mode = "modal" }: ConnectionDi
                                             </FieldGroup>
                                         </CardContent>
                                     </Card>
-                                    <Card size="sm" className={cn("py-0 rounded-none", isPageMode ? "border-border-subtle bg-surface-2" : "border border-border-subtle bg-surface-2")}>
+                                    <Card size="sm" className={cn("py-0", isPageMode ? "border-border-subtle bg-surface-2" : "border border-border-subtle bg-surface-2")}>
                                         <CardHeader className="border-b border-border-subtle py-4">
                                             <CardTitle className="flex items-center gap-2 text-sm">
                                                 <Zap className="size-4 text-muted-foreground" />
@@ -667,11 +667,11 @@ const ConnectionDialog = ({ onClose, initialData, mode = "modal" }: ConnectionDi
                                                             key={preset.label}
                                                             type="button"
                                                             onClick={() => handlePreset(preset)}
-                                                            className="group flex items-center justify-between border border-border-subtle bg-surface-elevated px-4 py-3.5 text-left transition-colors hover:border-border hover:bg-surface-3"
+                                                            className="group flex items-center justify-between rounded-md border border-border-subtle bg-surface-elevated px-4 py-3.5 text-left transition-colors hover:border-border hover:bg-surface-3"
                                                         >
                                                             <div className="flex min-w-0 items-center gap-3">
-                                                                <div className="flex size-10 items-center justify-center border border-border-subtle bg-surface-3 text-foreground/70">
-                                                                    <Logo className="text-base" />
+                                                                <div className="flex size-10 items-center justify-center rounded-md border border-border-subtle bg-surface-3">
+                                                                    <Logo className={cn("text-xl", DB_COLOR[preset.engine])} />
                                                                 </div>
                                                                 <div className="min-w-0">
                                                                     <p className="text-sm font-semibold text-foreground">
@@ -694,7 +694,7 @@ const ConnectionDialog = ({ onClose, initialData, mode = "modal" }: ConnectionDi
                                         </CardContent>
                                     </Card>
                                 </div>
-                                <Card size="sm" className={cn("h-fit self-start py-0 rounded-none", isPageMode ? "border-border-subtle bg-surface-2" : "border border-border-subtle bg-surface-2")}>
+                                <Card size="sm" className={cn("h-fit self-start py-0", isPageMode ? "border-border-subtle bg-surface-2" : "border border-border-subtle bg-surface-2")}>
                                         <CardHeader className="border-b border-border-subtle py-4">
                                             <CardTitle className="flex items-center gap-2 text-sm">
                                                 <LayoutTemplate className="size-4 text-muted-foreground" />
@@ -706,12 +706,12 @@ const ConnectionDialog = ({ onClose, initialData, mode = "modal" }: ConnectionDi
                                         </CardHeader>
                                         <CardContent className="py-4">
                                             <div className="flex flex-col gap-3">
-                                                <div className="border border-border-subtle bg-surface-elevated px-3 py-3">
+                                                <div className="rounded-md border border-border-subtle bg-surface-elevated px-3 py-3">
                                                     <p className="shell-section-label text-foreground/58">Step 1</p>
                                                     <p className="mt-1 text-[12px] font-medium text-foreground">Choose a preset or paste a URI</p>
                                                     <p className="mt-1 text-[11px] text-muted-foreground/65">We infer the engine and prefill host, port, database, and URI values.</p>
                                                 </div>
-                                                <div className="border border-border-subtle bg-surface-elevated px-3 py-3">
+                                                <div className="rounded-md border border-border-subtle bg-surface-elevated px-3 py-3">
                                                     <p className="shell-section-label text-foreground/58">Step 2</p>
                                                     <p className="mt-1 text-[12px] font-medium text-foreground">Review the full details form</p>
                                                     <p className="mt-1 text-[11px] text-muted-foreground/65">Adjust naming, environment, SSL, SSH tunnel, and credentials before testing.</p>

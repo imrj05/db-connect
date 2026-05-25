@@ -13,7 +13,6 @@ import {
     CommandItem,
     CommandList,
     CommandSeparator,
-    CommandFooter,
 } from "@/components/ui/command";
 import { Kbd, KbdGroup } from "@/components/ui/kbd";
 import { useAppStore } from "@/store/useAppStore";
@@ -143,7 +142,7 @@ export function CommandPalette() {
     const showSaved = filteredSavedQueries.length > 0;
 
     return (
-        <CommandDialog open={commandPaletteOpen} onOpenChange={setCommandPaletteOpen} className="sm:max-w-sm" width="min(28rem, 92vw)">
+        <CommandDialog open={commandPaletteOpen} onOpenChange={setCommandPaletteOpen} className="sm:max-w-2xl" width="min(48rem, 92vw)">
             <Command shouldFilter={false}>
                 <CommandInput
                     placeholder={isSchemaSearch ? "Search tables and columns across all databases…" : "Search functions, tables, queries, commands…"}
@@ -435,7 +434,7 @@ export function CommandPalette() {
                     </CommandGroup>
                     )}
                 </CommandList>
-                <CommandFooter>
+                <div className="flex items-center justify-between gap-3 border-t px-3 py-2 text-xs text-muted-foreground">
                     {isSchemaSearch ? (
                         <span className="flex items-center gap-1.5 text-foreground/52 text-[12px]">
                             <Search size={11} />
@@ -461,7 +460,7 @@ export function CommandPalette() {
                         <Kbd>Esc</Kbd>
                         close
                     </span>
-                </CommandFooter>
+                </div>
             </Command>
         </CommandDialog>
     );

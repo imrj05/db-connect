@@ -11,7 +11,6 @@ import {
 } from "./components/layout/app-onboarding-screen";
 import { SettingsPage } from "./components/layout/function-output/settings-page";
 import { SchemaDiffView } from "./components/layout/function-output/schema-diff-view";
-import { TooltipProvider } from "./components/ui/tooltip";
 import { Toaster } from "@/components/ui/sonner";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { invoke } from "@tauri-apps/api/core";
@@ -185,15 +184,11 @@ function App() {
         document.documentElement.classList.remove(...toRemove);
 
         if (theme === "dark") {
-            // Apply dark variant class override (skip "dark" variant as .dark already handles it)
             if (appSettings.uiDarkTheme !== "dark") {
                 document.documentElement.classList.add(`ui-dark-${appSettings.uiDarkTheme}`);
             }
-        } else {
-            // Apply light variant class (skip "light" variant as it's the default)
-            if (appSettings.uiLightTheme !== "light") {
-                document.documentElement.classList.add(`ui-light-${appSettings.uiLightTheme}`);
-            }
+        } else if (appSettings.uiLightTheme !== "light") {
+            document.documentElement.classList.add(`ui-light-${appSettings.uiLightTheme}`);
         }
 
         const editorTheme = theme === "dark" ? appSettings.editorDarkTheme : appSettings.editorLightTheme;
@@ -418,8 +413,7 @@ function App() {
 
     return (
         <ErrorBoundary>
-            <TooltipProvider>
-                <div id="app-wrapper" className="h-full flex flex-col bg-app-bg text-foreground overflow-hidden font-sans selection:bg-accent/30">
+            <div id="app-wrapper" className="h-full flex flex-col bg-app-bg text-foreground overflow-hidden font-sans selection:bg-accent/30">
                     <TitleBar
                         isLicensed={licenseCheck?.ok ?? null}
                         onActivate={() => setLicenseDialogOpen(true)}
@@ -474,8 +468,8 @@ function App() {
                         onOpenChange={setDatabaseSwitcherOpen}
                         title="Change Database"
                         description="Select a database for the active connection."
-                        className="sm:max-w-sm"
-                        width="min(28rem, 92vw)"
+                        className="sm:max-w-xl"
+                        width="min(40rem, 92vw)"
                     >
                         <Command shouldFilter>
                             <CommandInput
@@ -603,8 +597,7 @@ function App() {
                         }}
                         onClose={() => setLicenseDialogOpen(false)}
                     />
-                </div>
-            </TooltipProvider>
+            </div>
         </ErrorBoundary>
     );
 }

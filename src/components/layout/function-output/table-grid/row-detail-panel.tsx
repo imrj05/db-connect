@@ -138,7 +138,7 @@ export function RowDetailPanel({
 											{col}
 										</span>
 										{meta?.dataType && (
-											<span className="shrink-0 rounded-[3px] border border-border/50 bg-muted/40 px-1 py-px text-[8px] font-mono text-muted-foreground/50 leading-none">
+                                            <span className="shrink-0 rounded-sm border border-border/50 bg-muted/40 px-1 py-px text-[8px] font-mono text-muted-foreground/50 leading-none">
 												{meta.dataType.replace(/\(.*\)/, "").toUpperCase().slice(0, 8)}
 											</span>
 										)}

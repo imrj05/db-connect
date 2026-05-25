@@ -58,12 +58,12 @@ function PgTextPlan({ rows }: { rows: Record<string, unknown>[] }) {
 							{line.trimStart()}
 						</span>
 						{seqScan && (
-							<span className="ml-auto shrink-0 rounded-[3px] border border-amber-400/30 bg-amber-400/10 px-1 py-px text-[8px] font-bold text-amber-600 dark:text-amber-400 leading-none">
+                            <span className="ml-auto shrink-0 rounded-sm border border-amber-400/30 bg-amber-400/10 px-1 py-px text-[8px] font-bold text-amber-600 dark:text-amber-400 leading-none">
 								SEQ SCAN
 							</span>
 						)}
 						{indexScan && (
-							<span className="ml-auto shrink-0 rounded-[3px] border border-accent-green/30 bg-accent-green/10 px-1 py-px text-[8px] font-bold text-accent-green leading-none">
+                            <span className="ml-auto shrink-0 rounded-sm border border-accent-green/30 bg-accent-green/10 px-1 py-px text-[8px] font-bold text-accent-green leading-none">
 								INDEX
 							</span>
 						)}
@@ -184,12 +184,12 @@ function SQLiteExplainTable({
 							{detail}
 						</span>
 						{isScan && !isIndex && (
-							<span className="shrink-0 rounded-[3px] border border-amber-400/30 bg-amber-400/10 px-1 py-px text-[8px] font-bold text-amber-600 dark:text-amber-400 leading-none">
+                            <span className="shrink-0 rounded-sm border border-amber-400/30 bg-amber-400/10 px-1 py-px text-[8px] font-bold text-amber-600 dark:text-amber-400 leading-none">
 								FULL SCAN
 							</span>
 						)}
 						{isIndex && (
-							<span className="shrink-0 rounded-[3px] border border-accent-green/30 bg-accent-green/10 px-1 py-px text-[8px] font-bold text-accent-green leading-none">
+                            <span className="shrink-0 rounded-sm border border-accent-green/30 bg-accent-green/10 px-1 py-px text-[8px] font-bold text-accent-green leading-none">
 								INDEX
 							</span>
 						)}
@@ -242,13 +242,13 @@ export function ExplainPlanView({
 					Query Plan
 				</span>
 				{seqScanCount > 0 && (
-					<span className="flex items-center gap-1 rounded-[4px] border border-amber-400/30 bg-amber-400/10 px-1.5 py-0.5 text-[9px] font-bold text-amber-600 dark:text-amber-400 leading-none ml-auto">
+                    <span className="flex items-center gap-1 rounded-sm border border-amber-400/30 bg-amber-400/10 px-1.5 py-0.5 text-[9px] font-bold text-amber-600 dark:text-amber-400 leading-none ml-auto">
 						<AlertTriangle size={9} />
 						{seqScanCount} full scan{seqScanCount > 1 ? "s" : ""}
 					</span>
 				)}
 				{seqScanCount === 0 && (
-					<span className="flex items-center gap-1 rounded-[4px] border border-accent-green/30 bg-accent-green/10 px-1.5 py-0.5 text-[9px] font-bold text-accent-green leading-none ml-auto">
+                    <span className="flex items-center gap-1 rounded-sm border border-accent-green/30 bg-accent-green/10 px-1.5 py-0.5 text-[9px] font-bold text-accent-green leading-none ml-auto">
 						<Table2 size={9} />
 						No full scans
 					</span>

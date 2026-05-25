@@ -13,7 +13,7 @@ import {
 	MarkerType,
 } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
-import { toast } from "@/components/ui/sonner";
+import { toast } from "sonner";
 import { tauriApi } from "@/lib/tauri-api";
 import { useAppStore } from "@/store/useAppStore";
 import { SchemaGraph } from "@/types";
