@@ -1,6 +1,6 @@
 import { startTransition, useEffect, useRef, useState } from "react";
 import {
-                    Globe,
+    Globe,
     Tag,
     Loader2,
     CheckCircle2,
@@ -41,6 +41,7 @@ import {
     CardHeader,
     CardTitle,
 } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
 import {
     Collapsible,
     CollapsibleContent,
@@ -91,9 +92,16 @@ const QUICK_PRESETS = [
     { label: "MongoDB", engine: "mongodb" as const, name: "Local MongoDB", uri: "mongodb://localhost:27017" },
     { label: "Redis", engine: "redis" as const, name: "Local Redis", host: "localhost", port: 6379 },
 ];
+const ENGINE_LABELS: Record<string, string> = {
+    postgresql: "PostgreSQL",
+    mysql: "MySQL",
+    sqlite: "SQLite",
+    mongodb: "MongoDB",
+    redis: "Redis",
+};
 const DEFAULT_DIALOG_TAB = "quick-connect";
 const tabTriggerBaseClass =
-    "flex h-9 min-w-[148px] items-center justify-center gap-2 rounded-sm border px-3 text-xs font-medium transition-colors";
+    "flex h-7 min-w-[116px] items-center justify-center gap-1.5 rounded-md border px-2.5 text-[11px] font-medium transition-colors";
 const createDraftConnectionId = () =>
     Math.random().toString(36).substring(7);
 const buildConnectionConfig = (
@@ -139,9 +147,9 @@ function ConnectionUrlPreview({
         return `${scheme}://${user || "user"}:****@${host || "localhost"}:${port || 5432}/${database || "db"}`;
     })();
     return (
-        <div className="bg-muted/20 border border-border rounded-lg px-3 py-2 flex items-center gap-2">
+        <div className="flex items-center gap-2 rounded-md border border-border-subtle bg-surface-elevated px-2.5 py-1.5">
             <span className="text-[9px] font-bold uppercase tracking-widest text-muted-foreground/40 shrink-0">
-                URL
+                Preview
             </span>
             <span className="text-[11px] font-mono text-muted-foreground/60 truncate">
                 {url}
@@ -154,9 +162,9 @@ function StepBadge({ step, active }: { step: string; active: boolean }) {
     return (
         <span
             className={cn(
-                "flex size-5 items-center justify-center border text-[10px] font-bold leading-none",
+                "flex size-5 items-center justify-center rounded-sm border text-[10px] font-bold leading-none",
                 active
-                    ? "border-border-subtle bg-surface-1 text-foreground"
+                    ? "border-primary/30 bg-primary/10 text-primary"
                     : "border-border-subtle bg-transparent text-muted-foreground/55",
             )}
         >
@@ -338,502 +346,515 @@ const ConnectionDialog = ({ onClose, initialData, mode = "modal" }: ConnectionDi
         }
     };
     // ── Render ───────────────────────────────────────────────────────────────────
+    const selectedEngine = formData.type ?? "postgresql";
+    const SelectedEngineLogo = DB_LOGOS[selectedEngine] ?? DB_LOGOS.postgresql;
+    const selectedEngineLabel = ENGINE_LABELS[selectedEngine] ?? "Database";
+
     const content = (
         <Tabs
             value={activeTab}
             onValueChange={setActiveTab}
-            className={cn("flex flex-col", mode === "modal" ? "h-[620px]" : "h-full min-h-0")}
+            className={cn(
+                "flex flex-col overflow-hidden bg-surface-1",
+                mode === "modal" ? "h-[600px]" : "h-full min-h-0",
+            )}
         >
-                    <div className="flex items-center justify-between gap-4 border-b border-border-subtle bg-surface-1 px-6 py-4">
-                        <div className="min-w-0">
-                            <h2 className="text-sm font-semibold tracking-tight text-foreground">
+            <div className="flex shrink-0 items-center justify-between gap-3 border-b border-border-subtle bg-card px-5 py-3">
+                <div className="flex min-w-0 items-center gap-2.5">
+                    <div className="flex size-8 shrink-0 items-center justify-center rounded-md border border-border-subtle bg-surface-elevated">
+                        <SelectedEngineLogo className={cn("text-lg", DB_COLOR[selectedEngine])} />
+                    </div>
+                    <div className="min-w-0">
+                        <div className="flex items-center gap-2">
+                            <h2 className="truncate text-sm font-semibold tracking-tight text-foreground">
                                 {initialData ? "Edit Connection" : "New Connection"}
                             </h2>
-                                            <p className="mt-1 text-xs text-muted-foreground/68">
-                                {initialData
-                                    ? `Editing ${initialData.name}`
-                                    : activeTab === "quick-connect"
-                                        ? "Start with a preset or URI, then continue into the details form."
-                                        : "Review the generated details and finish the connection setup."}
-                            </p>
+                            <Badge variant="outline" className="h-5 rounded-sm px-2 text-[10px]">
+                                {selectedEngineLabel}
+                            </Badge>
                         </div>
-                        {!initialData && (
-                            <TabsList
-                                variant="line"
-                                className="grid h-10 auto-cols-fr grid-flow-col shrink-0 bg-transparent p-0"
-                            >
-                                <TabsTrigger
-                                    value="quick-connect"
-                                    className={cn(
-                                        tabTriggerBaseClass,
-                                        activeTab === "quick-connect"
-                                            ? "border-border-subtle bg-surface-2 text-foreground [&_svg]:text-foreground"
-                                            : "border-border-subtle bg-transparent text-muted-foreground/60 hover:bg-surface-2 hover:text-foreground/80 [&_svg]:text-muted-foreground/45",
-                                    )}
-                                >
-                                    <StepBadge step="1" active={activeTab === "quick-connect"} />
-                                    <WandSparkles data-icon="inline-start" />
-                                    Quick Connect
-                                </TabsTrigger>
-                                <TabsTrigger
-                                    value="details"
-                                    className={cn(
-                                        tabTriggerBaseClass,
-                                        activeTab === "details"
-                                            ? "border-border-subtle bg-surface-2 text-foreground [&_svg]:text-foreground"
-                                            : "border-border-subtle bg-transparent text-muted-foreground/60 hover:bg-surface-2 hover:text-foreground/80 [&_svg]:text-muted-foreground/45",
-                                    )}
-                                >
-                                    <StepBadge step="2" active={activeTab === "details"} />
-                                    <LayoutTemplate data-icon="inline-start" />
-                                    Details
-                                </TabsTrigger>
-                            </TabsList>
-                        )}
+                        <p className="mt-0.5 truncate text-[11px] text-muted-foreground/68">
+                            {initialData
+                                ? `Editing ${initialData.name}`
+                                : activeTab === "quick-connect"
+                                    ? "Start from a URI or local preset."
+                                    : "Review details, security, and connect."}
+                        </p>
                     </div>
-                    <TabsContent value="details" className="min-h-0 flex-1 overflow-hidden">
-                        <div className="flex h-full min-h-0 flex-col bg-surface-1">
-                            <EngineSelector
-                                selectedType={formData.type ?? "postgresql"}
-                                onSelect={handleEngineChange}
-                            />
-                            <div className="flex min-w-0 flex-1 flex-col overflow-hidden">
-                                {!initialData && (
-                                    <div className="border-b border-border-subtle bg-surface-2 px-6 py-5">
-                                        <div className="flex items-start justify-between gap-4">
+                </div>
+
+                {!initialData && (
+                    <TabsList
+                        variant="line"
+                        className="grid h-8 auto-cols-fr grid-flow-col shrink-0 bg-surface-2 p-0.5"
+                    >
+                        <TabsTrigger
+                            value="quick-connect"
+                            className={cn(
+                                tabTriggerBaseClass,
+                                activeTab === "quick-connect"
+                                    ? "border-border-subtle bg-surface-elevated text-foreground [&_svg]:text-foreground"
+                                    : "border-transparent bg-transparent text-muted-foreground/60 hover:text-foreground/80 [&_svg]:text-muted-foreground/45",
+                            )}
+                        >
+                            <StepBadge step="1" active={activeTab === "quick-connect"} />
+                            <WandSparkles data-icon="inline-start" />
+                            Quick Connect
+                        </TabsTrigger>
+                        <TabsTrigger
+                            value="details"
+                            className={cn(
+                                tabTriggerBaseClass,
+                                activeTab === "details"
+                                    ? "border-border-subtle bg-surface-elevated text-foreground [&_svg]:text-foreground"
+                                    : "border-transparent bg-transparent text-muted-foreground/60 hover:text-foreground/80 [&_svg]:text-muted-foreground/45",
+                            )}
+                        >
+                            <StepBadge step="2" active={activeTab === "details"} />
+                            <LayoutTemplate data-icon="inline-start" />
+                            Details
+                        </TabsTrigger>
+                    </TabsList>
+                )}
+            </div>
+
+            <TabsContent value="details" className="min-h-0 flex-1 overflow-hidden">
+                <div className="flex h-full min-h-0 flex-col bg-surface-1">
+                    <EngineSelector
+                        selectedType={selectedEngine}
+                        onSelect={handleEngineChange}
+                    />
+
+                    <div className="flex-1 overflow-y-auto px-4 py-4">
+                        <div className={cn("mx-auto flex w-full flex-col gap-3", isPageMode ? "max-w-6xl" : "max-w-4xl")}>
+                            <div className="grid gap-3 lg:grid-cols-[minmax(0,1fr)_240px]">
+                                <div className="flex min-w-0 flex-col gap-3">
+                                    <div className="rounded-md border border-border-subtle bg-card">
+                                        <div className="flex items-center justify-between gap-3 border-b border-border-subtle px-4 py-2.5">
                                             <div className="min-w-0">
-                                                <h3 className="text-xl font-bold tracking-[-0.02em] text-foreground">
-                                                    {formData.name?.trim() || "New Connection"}
-                                                </h3>
-                                                <p className="mt-2 text-sm text-muted-foreground/72">
-                                                    Configure and connect using a simple, focused setup flow.
+                                                <p className="shell-section-label">Details</p>
+                                                <p className="mt-0.5 truncate text-[11px] text-muted-foreground/64">
+                                                    Saved locally as the connection profile.
                                                 </p>
                                             </div>
-                                            <Button
-                                                type="button"
-                                                variant="outline"
-                                                size="sm"
-                                                onClick={() => setActiveTab("quick-connect")}
-                                                className="h-8 shrink-0 rounded-sm px-3 text-[11px] font-medium"
-                                            >
-                                                Back to presets
-                                            </Button>
-                                        </div>
-                                    </div>
-                                )}
-
-                                <div className="flex-1 overflow-y-auto px-6 py-6">
-                                    <div className={cn("flex w-full flex-col gap-5", !isPageMode && "mx-auto max-w-5xl")}>
-                                        <div>
-                                            <p className="shell-section-label text-foreground/58">Group</p>
-                                            <div className="mt-3">
-                                                <GroupSelector
-                                                    group={formData.group}
-                                                    onChange={(g) => patch({ group: g })}
-                                                />
-                                            </div>
-                                        </div>
-
-                                        <div className="border border-border-subtle bg-surface-2">
-                                            <div className="p-6">
-                                                <FieldGroup>
-                                                    <div className="grid grid-cols-2 gap-4">
-                                                        <Field>
-                                                            <FieldLabel>
-                                                                <Tag className="mr-1 inline size-3 opacity-60" />
-                                                                Connection Name
-                                                                <span className="ml-0.5 text-destructive">*</span>
-                                                            </FieldLabel>
-                                                            <Input
-                                                                value={formData.name || ""}
-                                                                onChange={(e) => patch({ name: e.target.value })}
-                                                                placeholder="e.g. Production Analytics"
-                                                                className="h-12 border-border-subtle bg-background text-sm"
-                                                            />
-                                                        </Field>
-                                                        <Field>
-                                                            <FieldLabel>
-                                                                <Hash className="mr-1 inline size-3 opacity-60" />
-                                                                Function Prefix
-                                                            </FieldLabel>
-                                                            <div className="flex gap-2">
-                                                                <Input
-                                                                    value={formData.prefix || ""}
-                                                                    onChange={(e) => {
-                                                                        setPrefixManuallyEdited(true);
-                                                                        patch({ prefix: e.target.value });
-                                                                    }}
-                                                                    placeholder="e.g. prod"
-                                                                    className="h-12 flex-1 border-border-subtle bg-background font-mono text-sm"
-                                                                />
-                                                                <Button
-                                                                    type="button"
-                                                                    variant="outline"
-                                                                    size="sm"
-                                                                    onClick={() => {
-                                                                        setPrefixManuallyEdited(false);
-                                                                        patch({ prefix: suggestPrefix(formData.name || "") });
-                                                                    }}
-                                                                    className="h-12 shrink-0 rounded-sm px-4 text-[10px] font-bold uppercase tracking-widest"
-                                                                >
-                                                                    Auto
-                                                                </Button>
-                                                            </div>
-                                                            {formData.prefix && (
-                                                                <FieldDescription className="mt-1 text-[10px] font-mono text-muted-foreground/40">
-                                                                    <span className="text-foreground/50">{formData.prefix}_list()</span>
-                                                                    {" · "}
-                                                                    <span className="text-foreground/50">{formData.prefix}_query()</span>
-                                                                    {" · ..."}
-                                                                </FieldDescription>
-                                                            )}
-                                                        </Field>
-                                                    </div>
-
-                                                    <EngineFields
-                                                        formData={formData}
-                                                        showPassword={showPassword}
-                                                        onTogglePassword={() => setShowPassword((v) => !v)}
-                                                        onPatch={patch}
-                                                    />
-                                                </FieldGroup>
-                                            </div>
-
-                                            <div className="border-t border-border-subtle px-6 py-5">
-                                                <Collapsible open={advancedOpen} onOpenChange={setAdvancedOpen}>
-                                                    <CollapsibleTrigger asChild>
-                                                        <button
-                                                            type="button"
-                                                            className="flex w-full items-center justify-between gap-3 text-left"
-                                                        >
-                                                            <div className="flex items-center gap-2 text-muted-foreground/74">
-                                                                <Settings2 size={14} />
-                                                                <span className="text-sm font-medium text-foreground/82">Advanced Options</span>
-                                                            </div>
-                                                            <ChevronDown
-                                                                size={14}
-                                                                className={cn(
-                                                                    "text-muted-foreground/55 transition-transform",
-                                                                    advancedOpen && "rotate-180",
-                                                                )}
-                                                            />
-                                                        </button>
-                                                    </CollapsibleTrigger>
-
-                                                    <CollapsibleContent className="pt-5">
-                                                        <div className="flex flex-col gap-5 border-t border-border-subtle pt-5">
-                                                            {formData.type !== "sqlite" && (
-                                                                <div
-                                                                    className="flex cursor-pointer items-center justify-between gap-3"
-                                                                    onClick={() => patch({ ssl: !formData.ssl })}
-                                                                >
-                                                                    <div className="min-w-0">
-                                                                        <p className="text-[11px] font-semibold text-foreground">SSL / TLS Encryption</p>
-                                                                        <p className="mt-0.5 text-[10px] text-muted-foreground/60">
-                                                                            Encrypt traffic in transit for remote or managed databases.
-                                                                        </p>
-                                                                    </div>
-                                                                    <Switch
-                                                                        checked={!!formData.ssl}
-                                                                        onCheckedChange={(checked) => patch({ ssl: checked })}
-                                                                        onClick={(e) => e.stopPropagation()}
-                                                                        className="shrink-0"
-                                                                    />
-                                                                </div>
-                                                            )}
-
-                                                            {formData.type !== "sqlite" && (
-                                                                <SshTunnelSection formData={formData} onPatch={patch} />
-                                                            )}
-
-                                                            {/* Safety Mode */}
-                                                            <div className="flex items-start gap-3 pt-1">
-                                                                <ShieldAlert size={14} className="mt-0.5 shrink-0 text-foreground/42" />
-                                                                <div className="flex flex-col gap-1.5 flex-1 min-w-0">
-                                                                    <span className="text-[13px] font-medium text-foreground/80">Safety Mode</span>
-                                                                    <div className="flex gap-2">
-                                                                        {(["none", "warn", "read-only"] as const).map((mode) => (
-                                                                            <button
-                                                                                key={mode}
-                                                                                type="button"
-                                                                                onClick={() => patch({ safetyMode: mode })}
-                                                                                className={`px-3 py-1 rounded text-[12px] font-medium border transition-colors ${
-                                                                                    (formData.safetyMode ?? "none") === mode
-                                                                                        ? mode === "read-only"
-                                                                                            ? "bg-destructive/15 border-destructive/40 text-destructive"
-                                                                                            : mode === "warn"
-                                                                                                ? "bg-accent-orange/15 border-accent-orange/40 text-accent-orange"
-                                                                                                : "bg-surface-3 border-border text-foreground"
-                                                                                        : "bg-transparent border-border-subtle text-foreground/50 hover:border-border hover:text-foreground/70"
-                                                                                }`}
-                                                                            >
-                                                                                {mode === "none" ? "None" : mode === "warn" ? "Warn on write" : "Read-only"}
-                                                                            </button>
-                                                                        ))}
-                                                                    </div>
-                                                                    <span className="text-[11px] text-foreground/42 leading-snug">
-                                                                        {(formData.safetyMode ?? "none") === "warn"
-                                                                            ? "Shows a confirmation dialog before any INSERT, UPDATE, or DELETE."
-                                                                            : (formData.safetyMode ?? "none") === "read-only"
-                                                                                ? "Blocks all write queries on this connection."
-                                                                                : "No restrictions. Queries run without extra prompts."}
-                                                                    </span>
-                                                                </div>
-                                                            </div>
-
-                                                            <ConnectionUrlPreview formData={formData} />
-                                                        </div>
-                                                    </CollapsibleContent>
-                                                </Collapsible>
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    </TabsContent>
-                    {!initialData && (
-                        <TabsContent value="quick-connect" className="min-h-0 flex-1 overflow-hidden">
-                            <div className={cn("grid h-full min-h-0 gap-4 overflow-y-auto p-6", isPageMode ? "xl:grid-cols-[minmax(0,1.25fr)_minmax(320px,0.75fr)]" : "lg:grid-cols-[minmax(0,1.1fr)_minmax(0,0.9fr)]")}>
-                                <div className="flex flex-col gap-4 self-start">
-                                    <Card size="sm" className={cn("py-0", isPageMode ? "border-border-subtle bg-surface-2" : "border border-border-subtle bg-surface-2")}>
-                                        <CardHeader className="border-b border-border-subtle py-4">
-                                            <CardTitle className="flex items-center gap-2 text-sm">
-                                                <Link2 className="size-4 text-muted-foreground" />
-                                                Paste Connection URI
-                                            </CardTitle>
-                                            <CardDescription className="text-xs">
-                                                Paste a full connection string and we&apos;ll populate the form for you.
-                                            </CardDescription>
-                                        </CardHeader>
-                                        <CardContent className="py-4">
-                                            <FieldGroup>
-                                                <Field>
-                                                    <FieldLabel>Connection URI</FieldLabel>
-                                                    <div className="flex gap-2">
-                                                        <Input
-                                                            value={uriInput}
-                                                            onChange={(e) => setUriInput(e.target.value)}
-                                                            placeholder="postgresql://user:pass@host:5432/db"
-                                                            className="h-9 flex-1 bg-surface-elevated font-mono text-[11px]"
-                                                            onPaste={(e) => {
-                                                                const pasted = e.clipboardData.getData("text").trim();
-                                                                if (/^(postgresql|postgres|mysql|sqlite|mongodb|redis):/.test(pasted)) {
-                                                                    e.preventDefault();
-                                                                    handleParseUri(pasted);
-                                                                }
-                                                            }}
-                                                            onKeyDown={(e) => {
-                                                                if (e.key === "Enter" && uriInput.trim()) {
-                                                                    e.preventDefault();
-                                                                    handleParseUri();
-                                                                }
-                                                            }}
-                                                        />
-                                                        <Button
-                                                            type="button"
-                                                            variant="outline"
-                                                            size="sm"
-                                                            onClick={() => handleParseUri()}
-                                                            disabled={!uriInput.trim() || isParsingUri}
-                                                            className="h-9 shrink-0 rounded-sm text-[10px] font-bold uppercase tracking-widest"
-                                                        >
-                                                            {isParsingUri ? <Loader2 className="animate-spin" /> : "Parse"}
-                                                        </Button>
-                                                    </div>
-                                                    <FieldDescription className="text-xs">
-                                                        Supported schemes: PostgreSQL, MySQL, SQLite, MongoDB, and Redis.
-                                                    </FieldDescription>
-                                                </Field>
-                                            </FieldGroup>
-                                        </CardContent>
-                                    </Card>
-                                    <Card size="sm" className={cn("py-0", isPageMode ? "border-border-subtle bg-surface-2" : "border border-border-subtle bg-surface-2")}>
-                                        <CardHeader className="border-b border-border-subtle py-4">
-                                            <CardTitle className="flex items-center gap-2 text-sm">
-                                                <Zap className="size-4 text-muted-foreground" />
-                                                Quick Connect Presets
-                                            </CardTitle>
-                                            <CardDescription className="text-xs">
-                                                    Pick a starting point, then continue to the details step with the form prefilled.
-                                            </CardDescription>
-                                        </CardHeader>
-                                        <CardContent className="py-4">
-                                            <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
-                                                {QUICK_PRESETS.map((preset) => {
-                                                    const Logo = DB_LOGOS[preset.engine];
-                                                    return (
-                                                        <button
-                                                            key={preset.label}
-                                                            type="button"
-                                                            onClick={() => handlePreset(preset)}
-                                                            className="group flex items-center justify-between rounded-md border border-border-subtle bg-surface-elevated px-4 py-3.5 text-left transition-colors hover:border-border hover:bg-surface-3"
-                                                        >
-                                                            <div className="flex min-w-0 items-center gap-3">
-                                                                <div className="flex size-10 items-center justify-center rounded-md border border-border-subtle bg-surface-3">
-                                                                    <Logo className={cn("text-xl", DB_COLOR[preset.engine])} />
-                                                                </div>
-                                                                <div className="min-w-0">
-                                                                    <p className="text-sm font-semibold text-foreground">
-                                                                        {preset.name}
-                                                                    </p>
-                                                                    <p className="truncate text-[11px] text-muted-foreground">
-                                                                        {preset.engine === "mongodb"
-                                                                            ? preset.uri
-                                                                            : preset.engine === "sqlite"
-                                                                                ? preset.database
-                                                                                : `${preset.host}:${preset.port}`}
-                                                                    </p>
-                                                                </div>
-                                                            </div>
-                                                            <ArrowRight className="size-4 shrink-0 text-muted-foreground transition-transform group-hover:translate-x-0.5" />
-                                                        </button>
-                                                    );
-                                                })}
-                                            </div>
-                                        </CardContent>
-                                    </Card>
-                                </div>
-                                <Card size="sm" className={cn("h-fit self-start py-0", isPageMode ? "border-border-subtle bg-surface-2" : "border border-border-subtle bg-surface-2")}>
-                                        <CardHeader className="border-b border-border-subtle py-4">
-                                            <CardTitle className="flex items-center gap-2 text-sm">
-                                                <LayoutTemplate className="size-4 text-muted-foreground" />
-                                                What happens next
-                                            </CardTitle>
-                                            <CardDescription className="text-xs">
-                                                Quick Connect fills the same details form you would otherwise complete manually.
-                                            </CardDescription>
-                                        </CardHeader>
-                                        <CardContent className="py-4">
-                                            <div className="flex flex-col gap-3">
-                                                <div className="rounded-md border border-border-subtle bg-surface-elevated px-3 py-3">
-                                                    <p className="shell-section-label text-foreground/58">Step 1</p>
-                                                    <p className="mt-1 text-[12px] font-medium text-foreground">Choose a preset or paste a URI</p>
-                                                    <p className="mt-1 text-[11px] text-muted-foreground/65">We infer the engine and prefill host, port, database, and URI values.</p>
-                                                </div>
-                                                <div className="rounded-md border border-border-subtle bg-surface-elevated px-3 py-3">
-                                                    <p className="shell-section-label text-foreground/58">Step 2</p>
-                                                    <p className="mt-1 text-[12px] font-medium text-foreground">Review the full details form</p>
-                                                    <p className="mt-1 text-[11px] text-muted-foreground/65">Adjust naming, environment, SSL, SSH tunnel, and credentials before testing.</p>
-                                                </div>
+                                            {!initialData && (
                                                 <Button
                                                     type="button"
+                                                    variant="outline"
                                                     size="sm"
-                                                    onClick={() => setActiveTab("details")}
-                                                    className="mt-1 h-9 gap-1.5 rounded-sm px-4 text-[12px] font-medium"
+                                                    onClick={() => setActiveTab("quick-connect")}
+                                                    className="h-7 shrink-0 px-2.5 text-[11px]"
                                                 >
-                                                    Continue to details
-                                                    <ArrowRight size={12} />
+                                                    Back
                                                 </Button>
+                                            )}
+                                        </div>
+
+                                        <div className="p-3">
+                                            <FieldGroup className="gap-3">
+                                                <div className="grid gap-2.5 md:grid-cols-2">
+                                                    <Field className="gap-1.5">
+                                                        <FieldLabel className="text-xs">
+                                                            <Tag className="mr-1 inline size-3 opacity-60" />
+                                                            Connection Name
+                                                            <span className="ml-0.5 text-destructive">*</span>
+                                                        </FieldLabel>
+                                                        <Input
+                                                            value={formData.name || ""}
+                                                            onChange={(e) => patch({ name: e.target.value })}
+                                                            placeholder="e.g. Production Analytics"
+                                                            className="h-9 border-border-subtle bg-surface-elevated text-xs"
+                                                        />
+                                                    </Field>
+                                                    <Field className="gap-1.5">
+                                                        <FieldLabel className="text-xs">
+                                                            <Hash className="mr-1 inline size-3 opacity-60" />
+                                                            Function Prefix
+                                                        </FieldLabel>
+                                                        <div className="flex gap-2">
+                                                            <Input
+                                                                value={formData.prefix || ""}
+                                                                onChange={(e) => {
+                                                                    setPrefixManuallyEdited(true);
+                                                                    patch({ prefix: e.target.value });
+                                                                }}
+                                                                placeholder="e.g. prod"
+                                                                className="h-9 flex-1 border-border-subtle bg-surface-elevated font-mono text-xs"
+                                                            />
+                                                            <Button
+                                                                type="button"
+                                                                variant="outline"
+                                                                size="sm"
+                                                                onClick={() => {
+                                                                    setPrefixManuallyEdited(false);
+                                                                    patch({ prefix: suggestPrefix(formData.name || "") });
+                                                                }}
+                                                                className="h-9 shrink-0 px-3 text-[10px] font-bold uppercase"
+                                                            >
+                                                                Auto
+                                                            </Button>
+                                                        </div>
+                                                        {formData.prefix && (
+                                                            <FieldDescription className="text-[10px] font-mono text-muted-foreground/46">
+                                                                <span className="text-foreground/52">{formData.prefix}_list()</span>
+                                                                {" | "}
+                                                                <span className="text-foreground/52">{formData.prefix}_query()</span>
+                                                                {" | ..."}
+                                                            </FieldDescription>
+                                                        )}
+                                                    </Field>
+                                                </div>
+
+                                                <EngineFields
+                                                    formData={formData}
+                                                    showPassword={showPassword}
+                                                    onTogglePassword={() => setShowPassword((v) => !v)}
+                                                    onPatch={patch}
+                                                />
+                                            </FieldGroup>
+                                        </div>
+                                    </div>
+
+                                    <div className="rounded-md border border-border-subtle bg-card">
+                                        <Collapsible open={advancedOpen} onOpenChange={setAdvancedOpen}>
+                                            <CollapsibleTrigger asChild>
+                                                <button
+                                                    type="button"
+                                                    className="flex w-full items-center justify-between gap-3 px-4 py-3 text-left"
+                                                >
+                                                    <div className="flex min-w-0 items-center gap-2.5">
+                                                        <div className="flex size-7 shrink-0 items-center justify-center rounded-md border border-border-subtle bg-surface-elevated text-muted-foreground">
+                                                            <Settings2 size={14} />
+                                                        </div>
+                                                        <div className="min-w-0">
+                                                            <p className="text-[13px] font-medium text-foreground">Advanced Options</p>
+                                                            <p className="mt-0.5 text-xs text-muted-foreground/62">
+                                                                SSL, SSH tunnel, safety mode, and URL preview.
+                                                            </p>
+                                                        </div>
+                                                    </div>
+                                                    <ChevronDown
+                                                        size={14}
+                                                        className={cn(
+                                                            "shrink-0 text-muted-foreground/55 transition-transform",
+                                                            advancedOpen && "rotate-180",
+                                                        )}
+                                                    />
+                                                </button>
+                                            </CollapsibleTrigger>
+
+                                            <CollapsibleContent>
+                                                <div className="flex flex-col gap-3 border-t border-border-subtle px-4 py-3">
+                                                    {formData.type !== "sqlite" && (
+                                                        <div
+                                                            className="flex cursor-pointer items-center justify-between gap-3 rounded-md border border-border-subtle bg-surface-elevated px-3 py-2.5"
+                                                            onClick={() => patch({ ssl: !formData.ssl })}
+                                                        >
+                                                            <div className="min-w-0">
+                                                                <p className="text-[12px] font-semibold text-foreground">SSL / TLS Encryption</p>
+                                                                <p className="mt-0.5 text-[11px] text-muted-foreground/60">
+                                                                    Encrypt traffic in transit for remote or managed databases.
+                                                                </p>
+                                                            </div>
+                                                            <Switch
+                                                                checked={!!formData.ssl}
+                                                                onCheckedChange={(checked) => patch({ ssl: checked })}
+                                                                onClick={(e) => e.stopPropagation()}
+                                                                className="shrink-0"
+                                                            />
+                                                        </div>
+                                                    )}
+
+                                                    {formData.type !== "sqlite" && (
+                                                        <SshTunnelSection formData={formData} onPatch={patch} />
+                                                    )}
+
+                                                    <div className="flex items-start gap-3 rounded-md border border-border-subtle bg-surface-elevated px-3 py-2.5">
+                                                        <ShieldAlert size={14} className="mt-0.5 shrink-0 text-foreground/42" />
+                                                        <div className="flex min-w-0 flex-1 flex-col gap-2">
+                                                            <span className="text-[12px] font-medium text-foreground/82">Safety Mode</span>
+                                                            <div className="flex flex-wrap gap-2">
+                                                                {(["none", "warn", "read-only"] as const).map((mode) => (
+                                                                    <button
+                                                                        key={mode}
+                                                                        type="button"
+                                                                        onClick={() => patch({ safetyMode: mode })}
+                                                                        className={cn(
+                                                                            "rounded-md border px-2.5 py-1 text-[11px] font-medium transition-colors",
+                                                                            (formData.safetyMode ?? "none") === mode
+                                                                                ? mode === "read-only"
+                                                                                    ? "border-destructive/40 bg-destructive/15 text-destructive"
+                                                                                    : mode === "warn"
+                                                                                        ? "border-accent-orange/40 bg-accent-orange/15 text-accent-orange"
+                                                                                        : "border-border bg-surface-3 text-foreground"
+                                                                                : "border-border-subtle bg-transparent text-foreground/50 hover:border-border hover:text-foreground/70",
+                                                                        )}
+                                                                    >
+                                                                        {mode === "none" ? "None" : mode === "warn" ? "Warn on write" : "Read-only"}
+                                                                    </button>
+                                                                ))}
+                                                            </div>
+                                                            <span className="text-[11px] leading-snug text-foreground/42">
+                                                                {(formData.safetyMode ?? "none") === "warn"
+                                                                    ? "Shows a confirmation dialog before any INSERT, UPDATE, or DELETE."
+                                                                    : (formData.safetyMode ?? "none") === "read-only"
+                                                                        ? "Blocks all write queries on this connection."
+                                                                        : "No restrictions. Queries run without extra prompts."}
+                                                            </span>
+                                                        </div>
+                                                    </div>
+
+                                                    <ConnectionUrlPreview formData={formData} />
+                                                </div>
+                                            </CollapsibleContent>
+                                        </Collapsible>
+                                    </div>
+                                </div>
+
+                                <aside className="flex min-w-0 flex-col gap-3">
+                                    <div className="rounded-md border border-border-subtle bg-card p-3">
+                                        <p className="shell-section-label">Group</p>
+                                        <div className="mt-2">
+                                            <GroupSelector
+                                                group={formData.group}
+                                                onChange={(g) => patch({ group: g })}
+                                            />
+                                        </div>
+                                    </div>
+
+                                    <div className="rounded-md border border-border-subtle bg-card p-3">
+                                        <p className="shell-section-label">Connection Preview</p>
+                                        <div className="mt-2 flex items-center gap-2.5">
+                                            <div className="flex size-8 shrink-0 items-center justify-center rounded-md border border-border-subtle bg-surface-elevated">
+                                                <SelectedEngineLogo className={cn("text-lg", DB_COLOR[selectedEngine])} />
                                             </div>
-                                        </CardContent>
-                                </Card>
-                            </div>
-                        </TabsContent>
-                    )}
-                    {/* ── Footer ── */}
-                    <div className="shrink-0 border-t border-border-subtle bg-surface-1 px-6 py-3">
-                        <div className="flex h-full items-center justify-between gap-3">
-                            <p className={cn("min-w-0 text-xs text-muted-foreground/68 text-pretty", isPageMode ? "max-w-[640px]" : "max-w-[380px]")}>
-                                    {isConnecting
-                                        ? isCancellingConnect
-                                            ? "Cancelling the connection request..."
-                                            : "Checking database availability and connecting..."
-                                        : !formData.name
-                                            ? "Add a connection name to save it or connect."
-                                            : isDirty
-                                                ? "Save keeps this dialog open. Connect saves first and closes on success."
-                                                : "Saved in the background. You can keep editing, close, or connect now."}
-                            </p>
-                            <div className="flex items-center gap-2">
-                                <Button
-                                    variant="outline"
-                                    size="sm"
-                                    onClick={handleTest}
-                                    disabled={isTesting || isConnecting}
-                                    className={cn(
-                                        "h-8 rounded-md px-3 text-[11px] font-medium gap-1.5",
-                                        testStatus === "success" &&
-                                        "bg-primary/8 text-primary border-primary/24",
-                                        testStatus === "error" &&
-                                        "bg-destructive/10 text-destructive border-destructive/20",
-                                    )}
-                                >
-                                    {isTesting ? (
-                                        <Loader2 size={11} className="animate-spin" />
-                                    ) : testStatus === "success" ? (
-                                        <Wifi size={11} />
-                                    ) : testStatus === "error" ? (
-                                        <WifiOff size={11} />
-                                    ) : (
-                                        <Globe size={11} />
-                                    )}
-                                    {testStatus === "success"
-                                        ? "Connected"
-                                        : testStatus === "error"
-                                            ? "Failed"
-                                            : "Test"}
-                                </Button>
-                                {initialData && (
-                                    <Button
-                                        variant="ghost"
-                                        size="sm"
-                                        onClick={handleDelete}
-                                        className="h-8 rounded-md px-3 text-[11px] font-medium text-destructive/60 hover:text-destructive hover:bg-destructive/10 gap-1.5"
-                                    >
-                                        <Trash2 size={11} />
-                                        Delete
-                                    </Button>
-                                )}
-                                <Button
-                                    variant="outline"
-                                    size="sm"
-                                    onClick={onClose}
-                                    disabled={isConnecting}
-                                    className="h-8 rounded-md px-3 text-[11px] font-medium"
-                                >
-                                    Close
-                                </Button>
-                                <Button
-                                    variant="outline"
-                                    size="sm"
-                                    onClick={handleSave}
-                                    disabled={isConnecting || !formData.name || !isDirty}
-                                    className="h-8 rounded-md px-3 text-[11px] font-medium"
-                                >
-                                    {isDirty ? "Save" : "Saved"}
-                                </Button>
-                                <Button
-                                    size="sm"
-                                    onClick={handleConnect}
-                                    disabled={isConnecting || !formData.name}
-                                    className="h-8 rounded-md px-4 text-[11px] font-medium gap-1.5 active:scale-[0.97]"
-                                >
-                                    {isConnecting ? (
-                                        <Loader2 size={11} className="animate-spin" />
-                                    ) : (
-                                        <CheckCircle2 size={11} />
-                                    )}
-                                    {isConnecting
-                                        ? isCancellingConnect
-                                            ? "Cancelling..."
-                                            : "Connecting..."
-                                        : "Connect now"}
-                                </Button>
-                                {isConnecting && !isCancellingConnect && (
-                                    <Button
-                                        type="button"
-                                        variant="outline"
-                                        size="sm"
-                                        onClick={handleCancelConnect}
-                                        className="h-8 rounded-md px-3 text-[11px] font-medium"
-                                    >
-                                        Cancel
-                                    </Button>
-                                )}
+                                            <div className="min-w-0">
+                                                <p className="truncate text-[13px] font-semibold text-foreground">
+                                                    {formData.name || "Untitled"}
+                                                </p>
+                                                <p className="text-[11px] text-muted-foreground/58">
+                                                    {selectedEngineLabel}
+                                                </p>
+                                            </div>
+                                        </div>
+                                        <div className="mt-3">
+                                            <ConnectionUrlPreview formData={formData} />
+                                        </div>
+                                    </div>
+                                </aside>
                             </div>
                         </div>
                     </div>
+                </div>
+            </TabsContent>
+
+            {!initialData && (
+                <TabsContent value="quick-connect" className="min-h-0 flex-1 overflow-hidden">
+                    <div className="h-full min-h-0 overflow-y-auto p-4">
+                        <div className={cn("mx-auto flex min-w-0 flex-col gap-3", isPageMode ? "max-w-6xl" : "max-w-4xl")}>
+                            <Card size="sm" className="!gap-0 border-border-subtle bg-card py-0 shadow-none ring-0">
+                                <CardHeader className="border-b border-border-subtle !py-2.5 !pb-2.5">
+                                    <CardTitle className="flex items-center gap-2 text-sm">
+                                        <Link2 className="size-4 text-muted-foreground" />
+                                        Paste Connection URI
+                                    </CardTitle>
+                                    <CardDescription className="text-xs">
+                                        A valid URI auto-fills engine, host, port, database, and credentials.
+                                    </CardDescription>
+                                </CardHeader>
+                                <CardContent className="py-3">
+                                    <FieldGroup className="gap-2.5">
+                                        <Field className="gap-1.5">
+                                            <FieldLabel className="text-xs">Connection URI</FieldLabel>
+                                            <div className="flex gap-2">
+                                                <Input
+                                                    value={uriInput}
+                                                    onChange={(e) => setUriInput(e.target.value)}
+                                                    placeholder="postgresql://user:pass@host:5432/db"
+                                                    className="h-9 flex-1 border-border-subtle bg-surface-elevated font-mono text-[11px]"
+                                                    onPaste={(e) => {
+                                                        const pasted = e.clipboardData.getData("text").trim();
+                                                        if (/^(postgresql|postgres|mysql|sqlite|mongodb|redis):/.test(pasted)) {
+                                                            e.preventDefault();
+                                                            handleParseUri(pasted);
+                                                        }
+                                                    }}
+                                                    onKeyDown={(e) => {
+                                                        if (e.key === "Enter" && uriInput.trim()) {
+                                                            e.preventDefault();
+                                                            handleParseUri();
+                                                        }
+                                                    }}
+                                                />
+                                                <Button
+                                                    type="button"
+                                                    variant="outline"
+                                                    size="sm"
+                                                    onClick={() => handleParseUri()}
+                                                    disabled={!uriInput.trim() || isParsingUri}
+                                                    className="h-9 shrink-0 px-3 text-[10px] font-bold uppercase"
+                                                >
+                                                    {isParsingUri ? <Loader2 className="animate-spin" /> : "Parse"}
+                                                </Button>
+                                            </div>
+                                            <FieldDescription className="text-xs">
+                                                Supported schemes: PostgreSQL, MySQL, SQLite, MongoDB, and Redis.
+                                            </FieldDescription>
+                                        </Field>
+                                    </FieldGroup>
+                                </CardContent>
+                            </Card>
+
+                            <Card size="sm" className="!gap-0 border-border-subtle bg-card py-0 shadow-none ring-0">
+                                <CardHeader className="border-b border-border-subtle !py-2.5 !pb-2.5">
+                                    <CardTitle className="flex items-center gap-2 text-sm">
+                                        <Zap className="size-4 text-muted-foreground" />
+                                        Local Presets
+                                    </CardTitle>
+                                    <CardDescription className="text-xs">
+                                        Choose a starting point, then review the details before saving or connecting.
+                                    </CardDescription>
+                                </CardHeader>
+                                <CardContent className="py-3">
+                                    <div className="grid grid-cols-1 gap-2.5 md:grid-cols-3 lg:grid-cols-5">
+                                        {QUICK_PRESETS.map((preset) => {
+                                            const Logo = DB_LOGOS[preset.engine];
+                                            return (
+                                                <button
+                                                    key={preset.label}
+                                                    type="button"
+                                                    onClick={() => handlePreset(preset)}
+                                                    className="group flex min-h-[58px] items-center gap-2.5 rounded-md border border-border-subtle bg-surface-elevated p-2.5 text-left transition-colors hover:border-border hover:bg-surface-3"
+                                                >
+                                                    <div className="flex size-8 shrink-0 items-center justify-center rounded-md border border-border-subtle bg-surface-2">
+                                                        <Logo className={cn("text-lg", DB_COLOR[preset.engine])} />
+                                                    </div>
+                                                    <div className="min-w-0 flex-1">
+                                                        <p className="truncate text-[12px] font-semibold text-foreground">
+                                                            {preset.name}
+                                                        </p>
+                                                        <p className="truncate text-[11px] text-muted-foreground">
+                                                            {preset.engine === "mongodb"
+                                                                ? preset.uri
+                                                                : preset.engine === "sqlite"
+                                                                    ? preset.database
+                                                            : `${preset.host}:${preset.port}`}
+                                                        </p>
+                                                    </div>
+                                                    <ArrowRight className="size-3.5 shrink-0 text-muted-foreground transition-transform group-hover:translate-x-0.5" />
+                                                </button>
+                                            );
+                                        })}
+                                    </div>
+                                </CardContent>
+                            </Card>
+                        </div>
+                    </div>
+                </TabsContent>
+            )}
+
+            <div className="shrink-0 border-t border-border-subtle bg-card px-5 py-2.5">
+                <div className="flex h-full items-center justify-between gap-3">
+                    <p className={cn("min-w-0 text-[11px] text-muted-foreground/68 text-pretty", isPageMode ? "max-w-[640px]" : "max-w-[390px]")}>
+                        {isConnecting
+                            ? isCancellingConnect
+                                ? "Cancelling the connection request..."
+                                : "Checking database availability and connecting..."
+                            : !formData.name
+                                ? "Add a connection name to save it or connect."
+                                : isDirty
+                                    ? "Save keeps this view open. Connect saves first and closes on success."
+                                    : "Saved in the background. You can keep editing, close, or connect now."}
+                    </p>
+                    <div className="flex shrink-0 flex-wrap items-center justify-end gap-2">
+                        <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={handleTest}
+                            disabled={isTesting || isConnecting}
+                            className={cn(
+                                "h-7 px-2.5 text-[11px] font-medium gap-1.5",
+                                testStatus === "success" &&
+                                "bg-primary/8 text-primary border-primary/24",
+                                testStatus === "error" &&
+                                "bg-destructive/10 text-destructive border-destructive/20",
+                            )}
+                        >
+                            {isTesting ? (
+                                <Loader2 size={11} className="animate-spin" />
+                            ) : testStatus === "success" ? (
+                                <Wifi size={11} />
+                            ) : testStatus === "error" ? (
+                                <WifiOff size={11} />
+                            ) : (
+                                <Globe size={11} />
+                            )}
+                            {testStatus === "success"
+                                ? "Connected"
+                                : testStatus === "error"
+                                    ? "Failed"
+                                    : "Test"}
+                        </Button>
+                        {initialData && (
+                            <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={handleDelete}
+                                className="h-7 px-2.5 text-[11px] font-medium text-destructive/60 hover:text-destructive hover:bg-destructive/10 gap-1.5"
+                            >
+                                <Trash2 size={11} />
+                                Delete
+                            </Button>
+                        )}
+                        <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={onClose}
+                            disabled={isConnecting}
+                            className="h-7 px-2.5 text-[11px] font-medium"
+                        >
+                            Close
+                        </Button>
+                        <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={handleSave}
+                            disabled={isConnecting || !formData.name || !isDirty}
+                            className="h-7 px-2.5 text-[11px] font-medium"
+                        >
+                            {isDirty ? "Save" : "Saved"}
+                        </Button>
+                        <Button
+                            size="sm"
+                            onClick={handleConnect}
+                            disabled={isConnecting || !formData.name}
+                            className="h-7 px-3 text-[11px] font-medium gap-1.5 active:scale-[0.97]"
+                        >
+                            {isConnecting ? (
+                                <Loader2 size={11} className="animate-spin" />
+                            ) : (
+                                <CheckCircle2 size={11} />
+                            )}
+                            {isConnecting
+                                ? isCancellingConnect
+                                    ? "Cancelling..."
+                                    : "Connecting..."
+                                : "Connect now"}
+                        </Button>
+                        {isConnecting && !isCancellingConnect && (
+                            <Button
+                                type="button"
+                                variant="outline"
+                                size="sm"
+                                onClick={handleCancelConnect}
+                                className="h-7 px-2.5 text-[11px] font-medium"
+                            >
+                                Cancel
+                            </Button>
+                        )}
+                    </div>
+                </div>
+            </div>
         </Tabs>
     );
 
@@ -849,7 +870,7 @@ const ConnectionDialog = ({ onClose, initialData, mode = "modal" }: ConnectionDi
         <Dialog open onOpenChange={(open) => !open && onClose()}>
             <DialogContent
                 showCloseButton={false}
-                className="!max-w-[920px] !w-[920px] !p-0 !gap-0 overflow-hidden border border-border-subtle bg-card"
+                className="!max-w-[920px] !w-[min(920px,calc(100vw-24px))] !p-0 !gap-0 overflow-hidden border border-border-subtle bg-card"
             >
                 <DialogTitle className="sr-only">
                     {initialData ? "Edit Connection" : "New Connection"}

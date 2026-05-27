@@ -19,8 +19,9 @@ export function EngineSelector({
 	onSelect: (id: string) => void;
 }) {
 	return (
-		<div className="flex shrink-0 border-b border-border-subtle bg-surface-2">
-			{DATABASE_ENGINES.map((engine, i) => {
+		<div className="shrink-0 border-b border-border-subtle bg-card px-4 py-2">
+			<div className="grid grid-cols-5 gap-1.5">
+			{DATABASE_ENGINES.map((engine) => {
 				const isActive = selectedType === engine.id;
 				const Logo = DB_LOGOS[engine.id];
 				return (
@@ -29,32 +30,37 @@ export function EngineSelector({
 						type="button"
 						onClick={() => onSelect(engine.id)}
 						className={cn(
-							"group relative flex flex-1 flex-col items-center gap-1.5 py-3 px-2 text-center transition-colors",
-							i < DATABASE_ENGINES.length - 1 && "border-r border-border-subtle",
+							"group relative flex min-w-0 items-center gap-1.5 rounded-md border px-2.5 py-1.5 text-left transition-colors",
 							isActive
-								? "bg-surface-1 text-foreground"
-								: "bg-surface-2 text-muted-foreground/60 hover:bg-surface-hover hover:text-foreground/80",
+								? "border-primary/30 bg-primary/8 text-foreground"
+								: "border-border-subtle bg-surface-elevated text-muted-foreground/62 hover:border-border hover:bg-surface-hover hover:text-foreground/80",
 						)}
 					>
 					<Logo
 						className={cn(
-							"text-xl transition-opacity",
+							"shrink-0 text-lg transition-opacity",
 							DB_COLOR[engine.id],
 							isActive ? "opacity-100" : "opacity-40 group-hover:opacity-70",
 						)}
 					/>
-						<span className={cn(
-							"text-xs font-medium leading-none",
-							isActive ? "text-foreground" : "text-muted-foreground/60 group-hover:text-foreground/80",
-						)}>
-							{engine.label}
-						</span>
+						<div className="min-w-0">
+							<span className={cn(
+								"block truncate text-xs font-semibold leading-none",
+								isActive ? "text-foreground" : "text-muted-foreground/70 group-hover:text-foreground/80",
+							)}>
+								{engine.label}
+							</span>
+							<span className="mt-0.5 hidden truncate text-[10px] text-muted-foreground/48 xl:block">
+								{engine.description}
+							</span>
+						</div>
 						{isActive && (
-							<span className="absolute bottom-0 left-0 right-0 h-[2px] bg-primary" />
+							<span className="absolute inset-x-3 bottom-0 h-px bg-primary" />
 						)}
 					</button>
 				);
 			})}
+			</div>
 		</div>
 	);
 }

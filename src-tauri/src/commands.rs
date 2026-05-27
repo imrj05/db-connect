@@ -103,6 +103,99 @@ fn validate_connection_config(config: &ConnectionConfig) -> Result<(), String> {
     Ok(())
 }
 
+fn route_config_through_ssh_tunnel(
+    config: &mut ConnectionConfig,
+    local_port: u16,
+) -> Result<(), String> {
+    config.host = Some("127.0.0.1".to_string());
+    config.port = Some(local_port);
+
+    if let Some(uri) = config.uri.as_deref().filter(|uri| !uri.is_empty()) {
+        match config.db_type {
+            DatabaseType::Mongodb => {
+                let mut parsed =
+                    url::Url::parse(uri).map_err(|e| format!("Invalid MongoDB URI: {e}"))?;
+
+                if parsed.scheme() == "mongodb+srv" {
+                    return Err(
+                        "MongoDB SRV URIs cannot be routed through an SSH tunnel. Use a standard mongodb:// URI with the resolved host and port.".to_string(),
+                    );
+                }
+
+                parsed
+                    .set_host(Some("127.0.0.1"))
+                    .map_err(|_| "Could not rewrite MongoDB URI host for SSH tunnel".to_string())?;
+                parsed
+                    .set_port(Some(local_port))
+                    .map_err(|_| "Could not rewrite MongoDB URI port for SSH tunnel".to_string())?;
+                config.uri = Some(parsed.to_string());
+            }
+            _ => {
+                // SQL/Redis drivers prefer URI over host/port. Once the SSH
+                // tunnel is open, force them through the local forwarded port.
+                config.uri = None;
+            }
+        }
+    }
+
+    Ok(())
+}
+
+fn default_database_port(db_type: &DatabaseType) -> u16 {
+    match db_type {
+        DatabaseType::Postgresql => 5432,
+        DatabaseType::Mysql => 3306,
+        DatabaseType::Mongodb => 27017,
+        DatabaseType::Redis => 6379,
+        DatabaseType::Sqlite => 0,
+    }
+}
+
+fn resolve_ssh_tunnel_target(config: &ConnectionConfig) -> Result<(String, u16), String> {
+    if matches!(config.db_type, DatabaseType::Sqlite) {
+        return Err("SSH tunnels are not supported for SQLite file connections".to_string());
+    }
+
+    if let Some(uri) = config.uri.as_deref().filter(|uri| !uri.is_empty()) {
+        let parsed = url::Url::parse(uri).map_err(|e| format!("Invalid database URI: {e}"))?;
+
+        if matches!(config.db_type, DatabaseType::Mongodb) && parsed.scheme() == "mongodb+srv" {
+            return Err(
+                "MongoDB SRV URIs cannot be routed through an SSH tunnel. Use a standard mongodb:// URI with the resolved host and port.".to_string(),
+            );
+        }
+
+        let host = parsed
+            .host_str()
+            .ok_or_else(|| "Database URI must include a host for SSH tunneling".to_string())?
+            .to_string();
+        let port = parsed
+            .port()
+            .or(config.port)
+            .unwrap_or_else(|| default_database_port(&config.db_type));
+
+        if port == 0 {
+            return Err("Database URI must include a port for SSH tunneling".to_string());
+        }
+
+        return Ok((host, port));
+    }
+
+    let host = config
+        .host
+        .clone()
+        .unwrap_or_else(|| "localhost".to_string());
+    let port = config
+        .port
+        .unwrap_or_else(|| default_database_port(&config.db_type));
+
+    if port == 0 {
+        return Err("Database port is required for SSH tunneling".to_string());
+    }
+
+    Ok((host, port))
+}
+
 #[tauri::command]
 pub async fn connect_database(mut config: ConnectionConfig) -> Result<(), String> {
     validate_connection_config(&config)?;
@@ -123,20 +216,19 @@ pub async fn connect_database(mut config: ConnectionConfig) -> Result<(), String
             SshAuth::Password(pw)
         };
 
-        // The DB host/port to forward to (from the connection config)
-        let db_host = config
-            .host
-            .clone()
-            .unwrap_or_else(|| "localhost".to_string());
-        let db_port = config.port.unwrap_or(5432);
+        // The DB host/port must be reachable from the SSH server. URI-first
+        // drivers still need the original URI target for the SSH forward.
+        let (db_host, db_port) = resolve_ssh_tunnel_target(&config)?;
 
         let tunnel = SshTunnel::establish(&ssh_host, ssh_port, &ssh_user, auth, db_host, db_port, None)
             .await
             .map_err(|e| format!("SSH tunnel failed: {e}"))?;
 
-        // Redirect the driver to connect via the local tunnel port
-        config.host = Some("127.0.0.1".to_string());
-        config.port = Some(tunnel.local_port);
+        // Redirect the driver to connect via the local tunnel port.
+        if let Err(e) = route_config_through_ssh_tunnel(&mut config, tunnel.local_port) {
+            tunnel.close();
+            return Err(e);
+        }
 
         REGISTRY.tunnels.insert(config.id.clone(), tunnel);
     }
@@ -153,6 +245,13 @@ pub async fn connect_database(mut config: ConnectionConfig) -> Result<(), String
         // If the driver connect fails, clean up the tunnel we just opened
         if let Some((_, tunnel)) = REGISTRY.tunnels.remove(&config.id) {
             tunnel.close();
+        }
+        if config.ssh_enabled.unwrap_or(false) {
+            return Err(format!(
+                "Database connection through SSH tunnel failed: {e}. \
+                 SSH authentication succeeded, but the database connection was reset or rejected after forwarding. \
+                 Check that the database host/port are correct from the SSH server, the database type is correct, and SSL settings match the server."
+            ));
         }
         return Err(e.to_string());
     }
@@ -926,6 +1025,97 @@ pub async fn install_update(app: tauri::AppHandle) -> Result<(), String> {
     app.request_restart();
 
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn base_config(db_type: DatabaseType) -> ConnectionConfig {
+        ConnectionConfig {
+            id: "test".to_string(),
+            name: "Test".to_string(),
+            prefix: "test".to_string(),
+            db_type,
+            host: Some("db.internal".to_string()),
+            port: Some(5432),
+            user: Some("user".to_string()),
+            password: Some("pass".to_string()),
+            database: Some("app".to_string()),
+            schema: None,
+            ssl: None,
+            uri: None,
+            group: None,
+            ssh_enabled: Some(true),
+            ssh_host: Some("bastion.internal".to_string()),
+            ssh_port: Some(22),
+            ssh_user: Some("ubuntu".to_string()),
+            ssh_password: Some("secret".to_string()),
+            ssh_key_path: None,
+            ssh_key_passphrase: None,
+        }
+    }
+
+    #[test]
+    fn ssh_tunnel_clears_sql_uri_so_driver_uses_forwarded_port() {
+        let mut config = base_config(DatabaseType::Postgresql);
+        config.uri = Some("postgres://user:pass@db.internal:5432/app".to_string());
+
+        route_config_through_ssh_tunnel(&mut config, 45123).unwrap();
+
+        assert_eq!(config.host.as_deref(), Some("127.0.0.1"));
+        assert_eq!(config.port, Some(45123));
+        assert_eq!(config.uri, None);
+    }
+
+    #[test]
+    fn ssh_tunnel_rewrites_mongodb_uri_to_forwarded_port() {
+        let mut config = base_config(DatabaseType::Mongodb);
+        config.uri = Some("mongodb://user:pass@db.internal:27017/app?authSource=admin".to_string());
+
+        route_config_through_ssh_tunnel(&mut config, 45123).unwrap();
+
+        assert_eq!(config.host.as_deref(), Some("127.0.0.1"));
+        assert_eq!(config.port, Some(45123));
+        assert_eq!(
+            config.uri.as_deref(),
+            Some("mongodb://user:pass@127.0.0.1:45123/app?authSource=admin")
+        );
+    }
+
+    #[test]
+    fn ssh_tunnel_target_uses_mongodb_uri_host_and_port() {
+        let mut config = base_config(DatabaseType::Mongodb);
+        config.host = None;
+        config.port = None;
+        config.uri = Some("mongodb://user:pass@mongo.internal:27018/app".to_string());
+
+        let (host, port) = resolve_ssh_tunnel_target(&config).unwrap();
+
+        assert_eq!(host, "mongo.internal");
+        assert_eq!(port, 27018);
+    }
+
+    #[test]
+    fn ssh_tunnel_target_rejects_mongodb_srv_uri() {
+        let mut config = base_config(DatabaseType::Mongodb);
+        config.uri = Some("mongodb+srv://user:pass@cluster.example.com/app".to_string());
+
+        let err = resolve_ssh_tunnel_target(&config).unwrap_err();
+
+        assert!(err.contains("MongoDB SRV URIs cannot be routed"));
+    }
+
+    #[test]
+    fn ssh_tunnel_target_uses_database_type_default_port() {
+        let mut config = base_config(DatabaseType::Redis);
+        config.port = None;
+
+        let (host, port) = resolve_ssh_tunnel_target(&config).unwrap();
+
+        assert_eq!(host, "db.internal");
+        assert_eq!(port, 6379);
+    }
 }
 
 // ── License commands ───────────────────────────────────────────────────────────

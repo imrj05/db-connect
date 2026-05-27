@@ -1868,6 +1868,29 @@
     --sql-identifier: #09090B;
 }
 
+/* Keep selected UI visibly tied to the active app accent. */
+:root,
+.dark {
+    --surface-selected: color-mix(in oklch, var(--primary) 18%, var(--surface-2));
+    --surface-selected-hover: color-mix(in oklch, var(--primary) 26%, var(--surface-2));
+    --text-selection-bg: color-mix(in oklch, var(--primary) 38%, var(--surface-2));
+    --text-selection-fg: var(--foreground);
+    --color-row-selected: var(--surface-selected);
+    --color-cell-focus-bg: var(--surface-selected);
+    --color-sidebar-item-active: var(--surface-selected);
+}
+
+[class*="ui-dark-"],
+[class*="ui-light-"] {
+    --surface-selected: color-mix(in oklch, var(--accent) 18%, var(--surface-2));
+    --surface-selected-hover: color-mix(in oklch, var(--accent) 26%, var(--surface-2));
+    --text-selection-bg: color-mix(in oklch, var(--accent) 38%, var(--surface-2));
+    --text-selection-fg: var(--foreground);
+    --color-row-selected: var(--surface-selected);
+    --color-cell-focus-bg: var(--surface-selected);
+    --color-sidebar-item-active: var(--surface-selected);
+}
+
 /* ========================================
  * TAILWIND THEME EXPORT
  * ======================================== */
@@ -2031,8 +2054,17 @@
     }
 
     ::selection {
-        background: color-mix(in oklch, var(--accent) 26%, transparent);
-        color: var(--foreground);
+        background: var(--text-selection-bg);
+        color: var(--text-selection-fg);
+    }
+
+    .cm-selectionBackground,
+    .cm-focused .cm-selectionBackground {
+        background-color: var(--text-selection-bg) !important;
+    }
+
+    .cm-selectionMatch {
+        background-color: color-mix(in oklch, var(--text-selection-bg) 72%, transparent) !important;
     }
 
     /* // add the background color of the body based on the user selected theme (light/dark) */

@@ -102,7 +102,7 @@ function createCustomLightTheme(variant: string): Extension {
 			borderLeftColor: "var(--color-foreground)",
 		},
 		".cm-selectionBackground": {
-			backgroundColor: "var(--color-muted) !important",
+			backgroundColor: "var(--text-selection-bg) !important",
 		},
 		".cm-content": {
 			caretColor: "var(--color-foreground)",
@@ -405,7 +405,7 @@ export function SqlEditorView({
 								]}
 								onChange={onSqlChange}
 								onCreateEditor={(view) => { editorViewRef.current = view; }}
-								className="text-[13px] h-full selection:bg-primary/30"
+								className="text-[13px] h-full"
 								basicSetup={{
 									lineNumbers: true,
 									foldGutter: false,

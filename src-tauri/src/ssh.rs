@@ -10,7 +10,7 @@
 //! SSH known_hosts format. The known_hosts file lives in the app's data
 //! directory to avoid polluting the user's regular SSH known_hosts.
 
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
 use anyhow::{anyhow, Result};
@@ -87,6 +87,20 @@ pub enum SshAuth {
 
 // ── Tunnel ─────────────────────────────────────────────────────────────────────
 
+fn expand_tilde_path(path: &str) -> PathBuf {
+    if path == "~" {
+        return dirs::home_dir().unwrap_or_else(|| PathBuf::from(path));
+    }
+
+    if let Some(rest) = path.strip_prefix("~/") {
+        if let Some(home) = dirs::home_dir() {
+            return home.join(rest);
+        }
+    }
+
+    Path::new(path).to_path_buf()
+}
+
 pub struct SshTunnel {
     pub local_port: u16,
     task: tokio::task::JoinHandle<()>,
@@ -114,6 +128,10 @@ impl SshTunnel {
                 .join("ssh")
                 .join("known_hosts")
         });
+        if let Some(parent) = kh_path.parent() {
+            std::fs::create_dir_all(parent)
+                .map_err(|e| anyhow!("Failed to create SSH known_hosts directory: {e}"))?;
+        }
 
         let handler = SshClientHandler::new(kh_path, ssh_host.to_string(), ssh_port);
 
@@ -122,7 +140,8 @@ impl SshTunnel {
         let authenticated = match auth {
             SshAuth::Password(pw) => session.authenticate_password(ssh_user, pw).await?,
             SshAuth::Key { path, passphrase } => {
-                let key_pair = russh_keys::load_secret_key(&path, passphrase.as_deref())?;
+                let key_path = expand_tilde_path(&path);
+                let key_pair = russh_keys::load_secret_key(&key_path, passphrase.as_deref())?;
                 session
                     .authenticate_publickey(ssh_user, Arc::new(key_pair))
                     .await?
@@ -137,17 +156,37 @@ impl SshTunnel {
         let listener = TcpListener::bind("127.0.0.1:0").await?;
         let local_port = listener.local_addr()?.port();
 
+        let preflight_channel = session
+            .channel_open_direct_tcpip(&db_host, db_port as u32, "127.0.0.1", local_port as u32)
+            .await
+            .map_err(|e| {
+                anyhow!(
+                    "SSH server could not open a tunnel to database target {}:{}: {}. \
+                     Check that the database host and port are reachable from the SSH server. \
+                     If this host is a Docker service name like 'postgres', it only works when the SSH server is inside the same Docker network; otherwise use 127.0.0.1 with the published database port, or a private IP/DNS name reachable from the SSH server.",
+                    db_host,
+                    db_port,
+                    e
+                )
+            })?;
+        let _ = preflight_channel.close().await;
+
         let session = Arc::new(Mutex::new(session));
 
         let task = tokio::spawn(async move {
-            while let Ok((mut local_stream, _)) = listener.accept().await {
+            while let Ok((mut local_stream, local_addr)) = listener.accept().await {
                 let session = session.clone();
                 let db_host = db_host.clone();
 
                 tokio::spawn(async move {
                     let channel = {
                         let s = session.lock().await;
-                        s.channel_open_direct_tcpip(&db_host, db_port as u32, "127.0.0.1", 0)
+                        s.channel_open_direct_tcpip(
+                            &db_host,
+                            db_port as u32,
+                            local_addr.ip().to_string(),
+                            local_addr.port() as u32,
+                        )
                             .await
                     };
                     match channel {

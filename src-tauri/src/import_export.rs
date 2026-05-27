@@ -550,6 +550,13 @@ mod tests {
             ssl: Some(true),
             uri: None,
             group: None,
+            ssh_enabled: None,
+            ssh_host: None,
+            ssh_port: None,
+            ssh_user: None,
+            ssh_password: None,
+            ssh_key_path: None,
+            ssh_key_passphrase: None,
         }
     }
 
@@ -586,6 +593,13 @@ mod tests {
             ssl: None,
             uri: None,
             group: None,
+            ssh_enabled: None,
+            ssh_host: None,
+            ssh_port: None,
+            ssh_user: None,
+            ssh_password: None,
+            ssh_key_path: None,
+            ssh_key_passphrase: None,
         };
         assert_eq!(
             connection_to_uri(&conn, false),
@@ -609,6 +623,13 @@ mod tests {
             ssl: Some(true),
             uri: None,
             group: None,
+            ssh_enabled: None,
+            ssh_host: None,
+            ssh_port: None,
+            ssh_user: None,
+            ssh_password: None,
+            ssh_key_path: None,
+            ssh_key_passphrase: None,
         };
         let uri = connection_to_uri(&conn, true);
         assert!(uri.starts_with("rediss://"));

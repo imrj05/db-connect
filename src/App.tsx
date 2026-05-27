@@ -413,7 +413,8 @@ function App() {
 
     return (
         <ErrorBoundary>
-            <div id="app-wrapper" className="h-full flex flex-col bg-app-bg text-foreground overflow-hidden font-sans selection:bg-accent/30">
+            <>
+                <div id="app-wrapper" className="h-full flex flex-col bg-app-bg text-foreground overflow-hidden font-sans">
                     <TitleBar
                         isLicensed={licenseCheck?.ok ?? null}
                         onActivate={() => setLicenseDialogOpen(true)}
@@ -579,7 +580,6 @@ function App() {
                             </AlertDialogFooter>
                         </AlertDialogContent>
                     </AlertDialog>
-                    <Toaster position="bottom-right" richColors theme={theme} />
                     {updateInfo && (
                         <UpdateDialog
                             open={showUpdateDialog}
@@ -597,7 +597,9 @@ function App() {
                         }}
                         onClose={() => setLicenseDialogOpen(false)}
                     />
-            </div>
+                </div>
+                <Toaster position="top-center" richColors theme={theme} />
+            </>
         </ErrorBoundary>
     );
 }

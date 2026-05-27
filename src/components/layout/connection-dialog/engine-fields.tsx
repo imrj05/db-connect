@@ -13,7 +13,7 @@ function FormLabel({
 	required?: boolean;
 }) {
 	return (
-		<Label className="mb-2 block text-[11px] font-label font-bold uppercase tracking-[0.12em] text-muted-foreground/72">
+		<Label className="mb-1 block text-[10px] font-label font-bold uppercase tracking-[0.1em] text-muted-foreground/70">
 			{children}
 			{required && <span className="text-destructive ml-0.5">*</span>}
 		</Label>
@@ -31,6 +31,8 @@ export function EngineFields({
 	onTogglePassword: () => void;
 	onPatch: (partial: Partial<ConnectionConfig>) => void;
 }) {
+	const isSshTunnelEnabled = !!formData.sshEnabled;
+
 	return (
 		<AnimatePresence mode="wait">
 			<motion.div
@@ -39,7 +41,7 @@ export function EngineFields({
 				animate={{ opacity: 1, y: 0 }}
 				exit={{ opacity: 0, y: -6 }}
 				transition={{ duration: 0.15 }}
-				className="space-y-4"
+				className="flex flex-col gap-3"
 			>
 				{formData.type === "mongodb" ? (
 					<div>
@@ -50,8 +52,8 @@ export function EngineFields({
 							value={formData.uri || ""}
 							onChange={(e) => onPatch({ uri: e.target.value })}
 							placeholder="mongodb+srv://user:pass@cluster0.example.net/db"
-className="h-12 border-border-subtle bg-background font-mono text-sm"
-						name="db-uri"
+							className="h-9 border-border-subtle bg-surface-elevated font-mono text-xs"
+							name="db-uri"
 							autoComplete="off"
 						/>
 					</div>
@@ -65,15 +67,15 @@ className="h-12 border-border-subtle bg-background font-mono text-sm"
 								value={formData.database || ""}
 								onChange={(e) => onPatch({ database: e.target.value })}
 								placeholder="/path/to/database.sqlite"
-							className="h-12 flex-1 border-border-subtle bg-background font-mono text-sm"
-							name="db-file"
+								className="h-9 flex-1 border-border-subtle bg-surface-elevated font-mono text-xs"
+								name="db-file"
 								autoComplete="off"
 							/>
 							<Button
 								type="button"
 								variant="outline"
 								size="sm"
-								className="h-12 shrink-0 rounded-sm px-4 text-[10px] font-bold uppercase tracking-widest"
+								className="h-9 shrink-0 px-3 text-[10px] font-bold uppercase"
 								onClick={async () => {
 									try {
 										const { open } = await import("@tauri-apps/plugin-dialog");
@@ -87,19 +89,24 @@ className="h-12 border-border-subtle bg-background font-mono text-sm"
 						</div>
 					</div>
 				) : (
-					<div className="space-y-5">
+					<div className="flex flex-col gap-3">
 						{/* Host + Port */}
-						<div className="grid grid-cols-3 gap-4">
-							<div className="col-span-2">
-								<FormLabel>Host</FormLabel>
+						<div className="grid gap-3 md:grid-cols-[minmax(0,1fr)_108px]">
+							<div>
+								<FormLabel>{isSshTunnelEnabled ? "Database Host from SSH Server" : "Host"}</FormLabel>
 								<Input
 									value={formData.host || ""}
 									onChange={(e) => onPatch({ host: e.target.value })}
-									placeholder="localhost"
-							className="h-12 border-border-subtle bg-background font-mono text-sm"
-							name="db-host"
+									placeholder={isSshTunnelEnabled ? "127.0.0.1 or private-db.internal" : "localhost"}
+									className="h-9 border-border-subtle bg-surface-elevated font-mono text-xs"
+									name="db-host"
 									autoComplete="off"
 								/>
+								{isSshTunnelEnabled && (
+									<p className="mt-1 text-[10px] leading-snug text-muted-foreground/58">
+										This host must be reachable from the SSH server, not from your laptop.
+									</p>
+								)}
 							</div>
 							<div>
 								<FormLabel>Port</FormLabel>
@@ -108,23 +115,23 @@ className="h-12 border-border-subtle bg-background font-mono text-sm"
 									value={formData.port || ""}
 									onChange={(e) => onPatch({ port: parseInt(e.target.value) || 0 })}
 									placeholder="5432"
-							className="h-12 border-border-subtle bg-background font-mono text-sm"
-							name="db-port"
+									className="h-9 border-border-subtle bg-surface-elevated font-mono text-xs"
+									name="db-port"
 									autoComplete="off"
 								/>
 							</div>
 						</div>
 
 						{/* User + Password */}
-						<div className="grid grid-cols-2 gap-4">
+						<div className="grid gap-3 md:grid-cols-2">
 							<div>
 								<FormLabel>{formData.type === "redis" ? "Username (optional)" : "Username"}</FormLabel>
 								<Input
 									value={formData.user || ""}
 									onChange={(e) => onPatch({ user: e.target.value })}
 									placeholder={formData.type === "redis" ? "default" : "database_user"}
-								className="h-12 border-border-subtle bg-background font-mono text-sm"
-								name="db-username"
+									className="h-9 border-border-subtle bg-surface-elevated font-mono text-xs"
+									name="db-username"
 									autoComplete="username"
 								/>
 							</div>
@@ -136,8 +143,8 @@ className="h-12 border-border-subtle bg-background font-mono text-sm"
 										value={formData.password || ""}
 										onChange={(e) => onPatch({ password: e.target.value })}
 										placeholder="••••••••"
-									className="h-12 border-border-subtle bg-background pr-9 font-mono text-sm"
-									name="db-password"
+										className="h-9 border-border-subtle bg-surface-elevated pr-8 font-mono text-xs"
+										name="db-password"
 										autoComplete="current-password"
 									/>
 									<Button
@@ -160,8 +167,8 @@ className="h-12 border-border-subtle bg-background font-mono text-sm"
 								value={formData.database || ""}
 								onChange={(e) => onPatch({ database: e.target.value })}
 								placeholder={formData.type === "redis" ? "0" : "e.g. postgres"}
-							className="h-12 border-border-subtle bg-background font-mono text-sm"
-							name="db-database"
+								className="h-9 border-border-subtle bg-surface-elevated font-mono text-xs"
+								name="db-database"
 								autoComplete="off"
 							/>
 						</div>

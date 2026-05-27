@@ -8,7 +8,7 @@ import { ConnectionConfig } from "@/types";
 
 function FormLabel({ children }: { children: React.ReactNode }) {
     return (
-        <Label className="mb-1 block text-[11px] font-label font-bold uppercase tracking-[0.16em] text-muted-foreground/65">
+        <Label className="mb-1 block text-[10px] font-label font-bold uppercase tracking-[0.1em] text-muted-foreground/65">
             {children}
         </Label>
     );
@@ -30,7 +30,7 @@ function AuthMethodButton({
             type="button"
             onClick={onClick}
             className={cn(
-                "flex items-center gap-2 border px-2.5 py-2 text-left transition-colors",
+                "flex items-center gap-2 rounded-md border px-2.5 py-1.5 text-left transition-colors",
                 active
                     ? "border-primary/24 bg-primary/5 text-foreground"
                     : "border-border-subtle bg-surface-2 hover:border-border hover:bg-surface-3 text-muted-foreground/80",
@@ -55,15 +55,15 @@ export function SshTunnelSection({
     const tunnelEnabled = !!formData.sshEnabled;
 
     return (
-        <div>
+        <div className="rounded-md border border-border-subtle bg-surface-elevated px-3 py-2.5">
             {/* Toggle row */}
             <div
                 className="flex cursor-pointer items-center justify-between gap-3"
                 onClick={() => onPatch({ sshEnabled: !tunnelEnabled })}
             >
                 <div className="min-w-0">
-                    <p className="text-[11px] font-semibold text-foreground">SSH Tunnel</p>
-                    <p className="mt-0.5 text-[10px] text-muted-foreground/60">
+                    <p className="text-[12px] font-semibold text-foreground">SSH Tunnel</p>
+                    <p className="mt-0.5 text-[11px] text-muted-foreground/60">
                         Route the connection through a bastion host.
                     </p>
                 </div>
@@ -85,7 +85,7 @@ export function SshTunnelSection({
                         transition={{ duration: 0.18, ease: "easeOut" }}
                         className="overflow-hidden"
                     >
-                        <div className="mt-4 space-y-4 border-t border-border-subtle pt-4">
+                        <div className="mt-3 flex flex-col gap-3 border-t border-border-subtle pt-3">
                             {/* Host + Port */}
                             <div className="grid gap-3 md:grid-cols-[minmax(0,1fr)_96px]">
                                 <div>
@@ -94,7 +94,7 @@ export function SshTunnelSection({
                                         value={formData.sshHost ?? ""}
                                         onChange={(e) => onPatch({ sshHost: e.target.value })}
                                         placeholder="bastion.example.com"
-                                        className="h-9 border-border-subtle bg-background text-xs"
+                                        className="h-9 border-border-subtle bg-surface-2 text-xs"
                                     />
                                 </div>
                                 <div>
@@ -103,7 +103,7 @@ export function SshTunnelSection({
                                         type="number"
                                         value={formData.sshPort ?? 22}
                                         onChange={(e) => onPatch({ sshPort: parseInt(e.target.value) || 22 })}
-                                        className="h-9 border-border-subtle bg-background font-mono text-xs"
+                                        className="h-9 border-border-subtle bg-surface-2 font-mono text-xs"
                                     />
                                 </div>
                             </div>
@@ -115,13 +115,13 @@ export function SshTunnelSection({
                                     value={formData.sshUser ?? ""}
                                     onChange={(e) => onPatch({ sshUser: e.target.value })}
                                     placeholder="ubuntu"
-                                    className="h-9 border-border-subtle bg-background text-xs"
+                                    className="h-9 border-border-subtle bg-surface-2 text-xs"
                                 />
                             </div>
 
                             {/* Auth method */}
                             <div>
-                                <p className="shell-section-label mb-2 text-muted-foreground/55">Auth Method</p>
+                                <p className="shell-section-label mb-1.5 text-muted-foreground/55">Auth Method</p>
                                 <div className="grid grid-cols-2 gap-2">
                                     <AuthMethodButton
                                         active={!isKeyAuth}
@@ -147,14 +147,14 @@ export function SshTunnelSection({
                                         value={formData.sshPassword ?? ""}
                                         onChange={(e) => onPatch({ sshPassword: e.target.value })}
                                         placeholder="SSH password"
-                                        className="h-9 border-border-subtle bg-background text-xs"
+                                        className="h-9 border-border-subtle bg-surface-2 text-xs"
                                     />
                                 </div>
                             )}
 
                             {/* Key auth inputs */}
                             {isKeyAuth && (
-                                <div className="space-y-3">
+                                <div className="flex flex-col gap-2.5">
                                     <div>
                                         <FormLabel>Private Key Path</FormLabel>
                                         <div className="relative">
@@ -162,7 +162,7 @@ export function SshTunnelSection({
                                                 value={formData.sshKeyPath ?? ""}
                                                 onChange={(e) => onPatch({ sshKeyPath: e.target.value })}
                                                 placeholder="~/.ssh/id_rsa"
-                                                className="h-9 border-border-subtle bg-background pr-9 font-mono text-xs"
+                                                className="h-9 border-border-subtle bg-surface-2 pr-9 font-mono text-xs"
                                             />
                                             <button
                                                 type="button"
@@ -186,7 +186,7 @@ export function SshTunnelSection({
                                             value={formData.sshKeyPassphrase ?? ""}
                                             onChange={(e) => onPatch({ sshKeyPassphrase: e.target.value })}
                                             placeholder="Passphrase (optional)"
-                                            className="h-9 border-border-subtle bg-background text-xs"
+                                            className="h-9 border-border-subtle bg-surface-2 text-xs"
                                         />
                                     </div>
                                 </div>
