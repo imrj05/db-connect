@@ -29,7 +29,7 @@ import {
   easing,
   spring,
   stagger as staggerTokens,
-} from "@/lib/tokens/motion";
+} from "@/lib/motion/tokens";
 
 // ---------------------------------------------------------------------------
 // Types

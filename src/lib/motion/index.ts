@@ -24,7 +24,7 @@ export {
   type Stagger,
   spring,
   stagger,
-} from "@/lib/tokens/motion";
+} from "@/lib/motion/tokens";
 // ---------------------------------------------------------------------------
 // Motion Hooks & Runtime Utilities
 // ---------------------------------------------------------------------------

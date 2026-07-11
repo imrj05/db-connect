@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { diffDraft, graphToDraft } from "@/lib/schema-diff";
+import { diffDraft, graphToDraft } from "@/features/schema-diff/lib";
 import type { SchemaGraph } from "@/types";
 
 function buildGraph(): SchemaGraph {

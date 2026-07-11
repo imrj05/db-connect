@@ -1,9 +1,9 @@
 import { waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import { TableGridView } from "@/components/layout/function-output/table-grid-view";
+import { TableGridView } from "@/features/table-grid/table-grid-view";
 import { tauriApi } from "@/lib/tauri-api";
-import { useAppStore } from "@/store/useAppStore";
+import { useAppStore } from "@/stores/useAppStore";
 import { renderWithProviders, resetAppStore } from "./test-utils";
 import type { ConnectionFunction, TableStructure } from "@/types";
 

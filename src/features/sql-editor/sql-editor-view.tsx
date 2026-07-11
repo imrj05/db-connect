@@ -1,0 +1,537 @@
+import React, {
+	useCallback,
+	useEffect,
+	useMemo,
+	useRef,
+	useState,
+} from "react";
+import CodeMirror from "@uiw/react-codemirror";
+import { sql } from "@codemirror/lang-sql";
+import { indentUnit } from "@codemirror/language";
+import { oneDark } from "@codemirror/theme-one-dark";
+import { EditorView } from "@codemirror/view";
+import type { Extension } from "@codemirror/state";
+import { format as formatSql } from "sql-formatter";
+import { Clock, Bookmark, Pencil, Zap } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import {
+	Dialog,
+	DialogContent,
+	DialogDescription,
+	DialogFooter,
+	DialogHeader,
+	DialogTitle,
+} from "@/components/ui/dialog";
+import { useAppStore, EditorThemeOption } from "@/stores/useAppStore";
+import { cn } from "@/lib/utils";
+import { Kbd } from "@/components/ui/kbd";
+import {
+	ConnectionFunction,
+	TableInfo,
+	QueryHistoryEntry,
+	SavedQuery,
+	QueryResult,
+} from "@/types";
+import { QueryLog } from "@/features/workspace/query-log";
+import { QueryHistoryPanel } from "@/features/sql-editor/components/query-history-panel";
+import { SavedQueriesPanel } from "@/features/sql-editor/components/saved-queries-panel";
+import { SnippetsPanel } from "@/features/sql-editor/components/snippets-panel";
+import { SqlEditorToolbar } from "@/features/sql-editor/components/sql-editor-toolbar";
+import { ResultsGrid } from "@/features/sql-editor/components/results-grid";
+
+// Theme imports
+import { monokai } from "@fsegurai/codemirror-theme-monokai";
+import { palenight } from "@fsegurai/codemirror-theme-palenight";
+import { dracula } from "@uiw/codemirror-theme-dracula";
+import { githubLight } from "@uiw/codemirror-theme-github";
+import { solarizedLight } from "@uiw/codemirror-theme-solarized";
+
+function isDestructive(sql: string): boolean {
+	return /\b(DELETE|DROP|TRUNCATE)\b/i.test(sql.trim());
+}
+
+// Resolve editor theme to actual CodeMirror theme
+function resolveEditorTheme(editorTheme: EditorThemeOption): Extension {
+	if (editorTheme === "system") {
+		const isDark = window.matchMedia("(prefers-color-scheme: dark)").matches;
+		return isDark ? oneDark : githubLight;
+	}
+
+	switch (editorTheme) {
+		case "dark-one-dark":
+			return oneDark;
+		case "dark-monokai":
+			return monokai;
+		case "dark-palenight":
+			return palenight;
+		case "dark-dracula":
+			return dracula;
+		case "light-github":
+			return githubLight;
+		case "light-solarized":
+			return solarizedLight;
+		case "light-white-pine":
+		case "light-soft-white":
+			return createCustomLightTheme(editorTheme);
+		default:
+			return oneDark;
+	}
+}
+
+// Create custom light themes using CSS variables
+function createCustomLightTheme(variant: string): Extension {
+	const isSoftWhite = variant === "light-soft-white";
+
+	const base = {
+		"&": {
+			backgroundColor: "var(--color-card)",
+			color: "var(--color-foreground)",
+		},
+		".cm-gutters": {
+			backgroundColor: "var(--color-card)",
+			color: "var(--color-muted-foreground)",
+			borderRight: "1px solid var(--color-border)",
+		},
+		".cm-activeLineGutter": {
+			backgroundColor: isSoftWhite ? "oklch(0.97 0 0)" : "var(--color-accent)",
+		},
+		".cm-activeLine": {
+			backgroundColor: isSoftWhite ? "oklch(0.97 0 0)" : "var(--color-accent)",
+		},
+		".cm-cursor": {
+			borderLeftColor: "var(--color-foreground)",
+		},
+		".cm-selectionBackground": {
+			backgroundColor: "var(--text-selection-bg) !important",
+		},
+		".cm-content": {
+			caretColor: "var(--color-foreground)",
+		},
+		".cm-matchingBracket, .cm-nonmatchingBracket": {
+			backgroundColor: "var(--color-accent)",
+			outline: "1px solid var(--color-border)",
+		},
+	};
+
+	return EditorView.theme(base);
+}
+
+export function SqlEditorView({
+	fn,
+	queryResult,
+	isLoading,
+	pendingSql,
+	onSqlChange,
+	onExecute,
+	onExplain,
+	onCancel,
+	canCancel,
+	tables,
+}: {
+	fn: ConnectionFunction;
+	queryResult?: QueryResult;
+	isLoading: boolean;
+	pendingSql: string;
+	onSqlChange: (sql: string) => void;
+	onExecute: (sql?: string) => void;
+	onExplain: () => void;
+	onCancel: () => void | Promise<void>;
+	canCancel: boolean;
+	tables: TableInfo[];
+}) {
+	const {
+		theme,
+		queryHistory,
+		connections,
+		selectedDatabases,
+		savedQueries,
+		clearHistory,
+		deleteHistoryEntry,
+		saveQuery,
+		deleteSavedQuery,
+		appSettings,
+	} = useAppStore();
+	const editorFontSize = appSettings.editorFontSize;
+	// Sub-panel tab: which panel is currently shown
+	const [panel, setPanel] = useState<"editor" | "history" | "saved" | "snippets">(
+		"editor",
+	);
+	// Save-query UI state
+	const [saveOpen, setSaveOpen] = useState(false);
+	const [saveName, setSaveName] = useState("");
+	const [previewOpen, setPreviewOpen] = useState(false);
+	// Query log state
+	const [showQueryLogSyntax, setShowQueryLogSyntax] = useState(true);
+	const history: QueryHistoryEntry[] = queryHistory.filter(
+		(entry) => entry.connectionId === fn.connectionId,
+	);
+	const connectionSaved: SavedQuery[] = savedQueries.filter(
+		(q) => !q.connectionId || q.connectionId === fn.connectionId,
+	);
+	const editorViewRef = useRef<EditorView | null>(null);
+	const hasSql = !!pendingSql.trim();
+	const destructivePreview = isDestructive(pendingSql);
+	// Feature 5: count distinct non-empty statements for "Run All (N)" button
+	const statementCount = useMemo(() => {
+		const stmts = pendingSql
+			.split(/;/)
+			.map((s) => s.replace(/--[^\n]*/g, "").trim())
+			.filter(Boolean);
+		return stmts.length;
+	}, [pendingSql]);
+	useEffect(() => {
+		const down = (e: KeyboardEvent) => {
+			if (
+				e.key === "Enter" &&
+				(e.metaKey || e.ctrlKey) &&
+				panel === "editor"
+			) {
+				e.preventDefault();
+				const view = editorViewRef.current;
+				if (view) {
+					const sel = view.state.selection.main;
+					const selected = sel.empty ? undefined : view.state.sliceDoc(sel.from, sel.to).trim();
+					onExecute(selected || undefined);
+				} else {
+					onExecute();
+				}
+			}
+		};
+		document.addEventListener("keydown", down);
+		return () => document.removeEventListener("keydown", down);
+	}, [onExecute, panel]);
+
+	// Load SQL dispatched by the command palette (palette-load-sql event)
+	useEffect(() => {
+		const handler = (e: Event) => {
+			const detail = (e as CustomEvent<{ sql: string; connectionId?: string }>).detail;
+			if (!detail?.sql) return;
+			// Only load if the event targets this editor's connection (or is unscoped)
+			if (!detail.connectionId || detail.connectionId === fn.connectionId) {
+				onSqlChange(detail.sql);
+				setPanel("editor");
+			}
+		};
+		window.addEventListener("palette-load-sql", handler);
+		return () => window.removeEventListener("palette-load-sql", handler);
+	}, [fn.connectionId, onSqlChange]);
+	const fontSizeTheme = EditorView.theme({
+		"&": { fontSize: `${editorFontSize}px` },
+		".cm-content": { fontSize: `${editorFontSize}px` },
+	});
+	const activeEditorTheme = theme === "dark" ? appSettings.editorDarkTheme : appSettings.editorLightTheme;
+	const editorTheme = useMemo(
+		() => resolveEditorTheme(activeEditorTheme),
+		[activeEditorTheme],
+	);
+	const sqlSchema = useMemo(() => {
+		const s: Record<string, string[]> = {};
+		for (const t of tables)
+			s[t.name] = (t.columns ?? []).map((c) => c.name);
+		return s;
+	}, [tables]);
+	// Resizable split
+	const [editorHeightPx, setEditorHeightPx] = useState(220);
+	const dragState = useRef<{ startY: number; startH: number } | null>(null);
+	const currentDragHeight = useRef(220);
+	const editorContainerRef = useRef<HTMLDivElement>(null);
+	const startDrag = useCallback(
+		(e: React.MouseEvent) => {
+			e.preventDefault();
+			dragState.current = { startY: e.clientY, startH: editorHeightPx };
+			document.body.style.cursor = "row-resize";
+			document.body.style.userSelect = "none";
+			const onMove = (ev: MouseEvent) => {
+				if (!dragState.current) return;
+				const next = Math.max(
+					80,
+					Math.min(
+						600,
+						dragState.current.startH +
+							(ev.clientY - dragState.current.startY),
+					),
+				);
+				currentDragHeight.current = next;
+				// Direct DOM mutation — no React re-render on every pixel
+				if (editorContainerRef.current) {
+					editorContainerRef.current.style.height = `${next}px`;
+				}
+			};
+			const onUp = () => {
+				dragState.current = null;
+				document.body.style.cursor = "";
+				document.body.style.userSelect = "";
+				// Commit final height to React state (single re-render)
+				setEditorHeightPx(currentDragHeight.current);
+				window.removeEventListener("mousemove", onMove);
+				window.removeEventListener("mouseup", onUp);
+			};
+			window.addEventListener("mousemove", onMove);
+			window.addEventListener("mouseup", onUp);
+		},
+		[editorHeightPx],
+	);
+	const handleSave = () => {
+		const name = saveName.trim();
+		if (!name || !pendingSql.trim()) return;
+		saveQuery(name, pendingSql, fn.connectionId);
+		setSaveName("");
+		setSaveOpen(false);
+	};
+	const handlePreviewRun = async () => {
+		setPreviewOpen(false);
+		await onExecute();
+	};
+	const handlePreviewExplain = async () => {
+		setPreviewOpen(false);
+		await onExplain();
+	};
+	const tabBtn = (
+		id: typeof panel,
+		icon: React.ReactNode,
+		label: string,
+		count?: number,
+	) => (
+		<Button
+			variant="ghost"
+			onClick={() => setPanel(id)}
+			className={cn(
+				"h-full px-3 rounded-none gap-1.5 text-[11px] font-bold uppercase tracking-widest border-b-2 border-transparent",
+				panel === id
+					? "text-accent-blue border-primary"
+					: "text-muted-foreground hover:text-muted-foreground",
+			)}
+		>
+			{icon}
+			{label}
+			{count !== undefined && count > 0 && (
+				<Badge
+					variant="secondary"
+					className="h-4 px-1 text-[10px] font-mono"
+				>
+					{count}
+				</Badge>
+			)}
+		</Button>
+	);
+	return (
+		<div className="h-full flex flex-col bg-background overflow-hidden">
+			{/* Header */}
+			<div className="h-9 flex items-center justify-between bg-background border-b border-border px-4 shrink-0">
+				<div className="flex items-center gap-2 min-w-0">
+					<span className="font-mono text-[11px] text-accent-blue font-bold shrink-0">
+						{fn.callSignature
+							.slice(fn.prefix.length + 1)
+							.replace(/\(.*$/, "")}
+					</span>
+					{selectedDatabases[fn.connectionId] && (
+						<span className="inline-flex items-center gap-1 px-1.5 h-4 rounded text-[9px] font-mono font-bold uppercase tracking-wider border border-accent-green/30 bg-accent-green/8 text-accent-green shrink-0">
+							{selectedDatabases[fn.connectionId]}
+						</span>
+					)}
+				</div>
+				<span className="text-[10px] font-mono text-muted-foreground uppercase tracking-widest">
+					{fn.type === "execute" ? "DDL / DML" : "SELECT"}
+				</span>
+			</div>
+			{/* Sub-tab strip */}
+			<div className="h-8 bg-background border-b border-border flex items-stretch shrink-0 px-1">
+				{tabBtn("editor", <Pencil size={9} />, "Editor")}
+				{tabBtn(
+					"history",
+					<Clock size={9} />,
+					"History",
+					history.length,
+				)}
+				{tabBtn(
+					"saved",
+					<Bookmark size={9} />,
+					"Saved",
+					connectionSaved.length,
+				)}
+				{tabBtn("snippets", <Zap size={9} />, "Snippets")}
+			</div>
+			{/* ── History panel ── */}
+			{panel === "history" && (
+				<QueryHistoryPanel
+					history={history}
+					connections={connections}
+					onSelectQuery={(sql) => { onSqlChange(sql); setPanel("editor"); }}
+					onClearHistory={() => clearHistory(fn.connectionId)}
+					onDeleteEntry={(id) => deleteHistoryEntry(id)}
+					onSaveQuery={(sql) => { saveQuery(`Query ${new Date().toLocaleTimeString()}`, sql, fn.connectionId); }}
+				/>
+			)}
+			{/* ── Saved queries panel ── */}
+		{panel === "saved" && (
+			<SavedQueriesPanel
+				savedQueries={connectionSaved}
+				onLoadQuery={(sql) => { onSqlChange(sql); setPanel("editor"); }}
+				onDeleteQuery={deleteSavedQuery}
+			/>
+		)}
+		{/* ── Snippets panel ── */}
+		{panel === "snippets" && (
+			<SnippetsPanel
+				onInsert={(snippet) => {
+					// Append snippet to editor (or replace if editor is empty)
+					const newSql = pendingSql.trim()
+						? `${pendingSql.trim()}\n\n${snippet}`
+						: snippet;
+					onSqlChange(newSql);
+					setPanel("editor");
+				}}
+		/>
+		)}
+		{/* ── Editor panel ── */}
+			{panel === "editor" && (
+				<>
+				{/* Editor area — fixed height when results visible, flex-1 otherwise */}
+				<div
+					ref={editorContainerRef}
+					className="relative group min-h-0 overflow-hidden"
+					style={
+						queryResult
+							? { height: editorHeightPx, flexShrink: 0 }
+							: { flex: "1 1 0%" }
+					}
+				>
+						<div className="absolute inset-0 scrollbar-thin">
+							<CodeMirror
+								value={pendingSql}
+								height="100%"
+								theme={editorTheme}
+								extensions={[
+									sql({ schema: sqlSchema }),
+									fontSizeTheme,
+									indentUnit.of(" ".repeat(appSettings.editorTabSize)),
+									...(appSettings.editorWordWrap ? [EditorView.lineWrapping] : []),
+								]}
+								onChange={onSqlChange}
+								onCreateEditor={(view) => { editorViewRef.current = view; }}
+								className="text-[13px] h-full"
+								basicSetup={{
+									lineNumbers: true,
+									foldGutter: false,
+									highlightActiveLine: true,
+									dropCursor: true,
+									allowMultipleSelections: true,
+									indentOnInput: true,
+									syntaxHighlighting: true,
+									bracketMatching: true,
+									autocompletion: true,
+									rectangularSelection: true,
+									crosshairCursor: true,
+									highlightSelectionMatches: true,
+									closeBrackets: true,
+									searchKeymap: true,
+								}}
+							/>
+						</div>
+						<div className="absolute top-4 right-6 flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-10">
+							<Kbd>⌘↵</Kbd>
+						</div>
+					</div>
+					{/* Execute + Format + Save bar */}
+					<SqlEditorToolbar
+						isLoading={isLoading}
+						hasSql={hasSql}
+						saveOpen={saveOpen}
+						saveName={saveName}
+						statementCount={statementCount}
+						onPreview={() => setPreviewOpen(true)}
+						onExecute={onExecute}
+						onRunAll={() => onExecute()}
+						onExplain={onExplain}
+						onCancel={onCancel}
+						canCancel={canCancel}
+						onFormat={() => {
+							try {
+								const formatted = formatSql(pendingSql, {
+									language: "sql",
+									tabWidth: 2,
+									keywordCase: "upper",
+									linesBetweenQueries: 2,
+								});
+								onSqlChange(formatted);
+							} catch {
+								// If sql-formatter can't parse (e.g. Redis/Mongo commands), fall back silently
+							}
+						}}
+						onSaveOpen={() => setSaveOpen(true)}
+						onSaveNameChange={setSaveName}
+						onSaveConfirm={handleSave}
+						onSaveCancel={() => { setSaveOpen(false); setSaveName(""); }}
+					/>
+					{/* Results */}
+					{queryResult && (
+						<ResultsGrid
+							queryResult={queryResult}
+							tables={tables}
+							connectionId={fn.connectionId}
+							onResizeStart={startDrag}
+						/>
+					)}
+					{/* Query Log — always visible */}
+					<QueryLog
+						entries={history}
+						showSyntax={showQueryLogSyntax}
+						onSyntaxToggle={setShowQueryLogSyntax}
+						onClear={() => clearHistory(fn.connectionId)}
+					/>
+				</>
+			)}
+			<Dialog open={previewOpen} onOpenChange={setPreviewOpen}>
+				<DialogContent className="max-w-2xl p-0 overflow-hidden">
+					<DialogHeader className="px-5 pt-5 pb-3 border-b border-border">
+						<div className="flex items-center justify-between gap-3">
+							<div className="min-w-0">
+								<DialogTitle>Preview SQL</DialogTitle>
+								<DialogDescription className="mt-1">
+									Review the current query before running it.
+								</DialogDescription>
+							</div>
+							<div className="flex items-center gap-2 shrink-0">
+							<Badge
+								variant="secondary"
+								className="text-[10px] font-mono uppercase tracking-widest"
+							>
+								{fn.type === "execute" ? "DDL / DML" : "Query"}
+							</Badge>
+							{destructivePreview && (
+								<Badge className="text-[10px] font-mono uppercase tracking-widest bg-destructive/12 text-destructive border border-destructive/20 hover:bg-destructive/12">
+									Destructive
+								</Badge>
+							)}
+							</div>
+						</div>
+					</DialogHeader>
+					<div className="px-5 py-4">
+						<pre className="max-h-[50vh] overflow-auto rounded-lg border border-border bg-muted/35 px-4 py-3 text-[12px] font-mono whitespace-pre-wrap break-all text-foreground/85">
+							{pendingSql.trim() || "No SQL to preview."}
+						</pre>
+					</div>
+					<DialogFooter className="mx-0 mb-0 rounded-none border-t bg-card/60 px-5 py-4">
+						<Button variant="outline" onClick={() => setPreviewOpen(false)}>
+							Close
+						</Button>
+						<Button
+							variant="ghost"
+							onClick={handlePreviewExplain}
+							disabled={!hasSql || isLoading}
+						>
+							Explain
+						</Button>
+						<Button
+							onClick={handlePreviewRun}
+							disabled={!hasSql || isLoading}
+						>
+							Run
+						</Button>
+					</DialogFooter>
+				</DialogContent>
+			</Dialog>
+		</div>
+	);
+}

@@ -1,6 +1,6 @@
 import React from "react";
 import ReactDOM from "react-dom/client";
-import App from "./App";
+import App from "./app/App";
 import "sonner/dist/styles.css";
 import "./App.css";
 import "@fontsource/jetbrains-mono/400.css";

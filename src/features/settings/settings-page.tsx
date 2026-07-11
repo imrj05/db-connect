@@ -1,0 +1,1771 @@
+import { startTransition, type ReactNode, useEffect, useMemo, useRef, useState } from "react";
+import {
+    CalendarClock,
+    Check,
+    ChevronDown,
+    Code2,
+    Cpu,
+    Download,
+    FlaskConical,
+    FolderOpen,
+    HardDrive,
+    Info,
+    KeyRound,
+    Loader2,
+    Moon,
+    Palette,
+    RefreshCw,
+    ShieldCheck,
+    ShieldOff,
+    Sun,
+    Table2,
+    Keyboard,
+    Trash2,
+    type LucideIcon,
+} from "lucide-react";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import {
+    AlertDialog,
+    AlertDialogAction,
+    AlertDialogCancel,
+    AlertDialogContent,
+    AlertDialogDescription,
+    AlertDialogFooter,
+    AlertDialogHeader,
+    AlertDialogMedia,
+    AlertDialogTitle,
+    AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import {
+    Card as BaseCard,
+    CardAction as BaseCardAction,
+    CardContent as BaseCardContent,
+    CardDescription,
+    CardHeader as BaseCardHeader,
+    CardTitle,
+} from "@/components/ui/card";
+import {
+    Command,
+    CommandEmpty,
+    CommandGroup,
+    CommandInput,
+    CommandItem,
+    CommandList,
+} from "@/components/ui/command";
+import {
+    Empty,
+    EmptyContent,
+    EmptyDescription,
+    EmptyHeader,
+    EmptyMedia,
+    EmptyTitle,
+} from "@/components/ui/empty";
+import {
+    Field,
+    FieldContent,
+    FieldDescription,
+    FieldGroup,
+    FieldTitle,
+} from "@/components/ui/field";
+import { Item, ItemContent, ItemGroup } from "@/components/ui/item";
+import { Kbd } from "@/components/ui/kbd";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import {
+    Select,
+    SelectContent,
+    SelectGroup,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
+} from "@/components/ui/select";
+import { Switch } from "@/components/ui/switch";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Input } from "@/components/ui/input";
+import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
+import { getSystemFonts, DB_FONT_MONO, DB_FONT_MONO_STACK, DB_FONT_SANS, DB_FONT_SANS_STACK } from "@/lib/fonts";
+import { licenseDeactivate, licenseGetStored, type StoredLicenseState } from "@/features/licensing/lib/license";
+import { tauriApi } from "@/lib/tauri-api";
+import { invoke } from "@tauri-apps/api/core";
+import { cn } from "@/lib/utils";
+import { toast } from "sonner";
+import {
+    useAppStore,
+    type AppSettings,
+    type EditorThemeOption,
+} from "@/stores/useAppStore";
+import packageJson from "../../../package.json";
+import type { UpdateInfo } from "@/features/updates/update-dialog";
+
+type Section = "appearance" | "editor" | "table" | "storage" | "privacy" | "license" | "experimental" | "about" | "keybindings";
+
+const NAV: { id: Section; label: string; description: string; icon: LucideIcon }[] = [
+    {
+        id: "appearance",
+        label: "Appearance",
+        description: "Tune the app theme, zoom level, and fonts used across the workspace.",
+        icon: Palette,
+    },
+    {
+        id: "editor",
+        label: "Editor",
+        description: "Choose editor typography and syntax highlighting for light and dark modes.",
+        icon: Code2,
+    },
+    {
+        id: "table",
+        label: "Table",
+        description: "Set sensible defaults for browsing large result sets and table pages.",
+        icon: Table2,
+    },
+    {
+        id: "storage",
+        label: "Storage",
+        description: "Review local data usage and clear saved client-side records.",
+        icon: HardDrive,
+    },
+    {
+        id: "privacy",
+        label: "Privacy",
+        description: "Control error reporting and anonymous product telemetry sent to our server.",
+        icon: ShieldCheck,
+    },
+    {
+        id: "license",
+        label: "License",
+        description: "Manage activation status for this device and review license metadata.",
+        icon: KeyRound,
+    },
+    {
+        id: "keybindings",
+        label: "Keybindings",
+        description: "Browse all available keyboard shortcuts to navigate and control DB Connect.",
+        icon: Keyboard,
+    },
+    {
+        id: "experimental",
+        label: "Experimental",
+        description: "Try out features that are still in development. Use at your own risk.",
+        icon: FlaskConical,
+    },
+    {
+        id: "about",
+        label: "About",
+        description: "See version information and the technologies powering DB Connect.",
+        icon: Info,
+    },
+];
+
+const EDITOR_DARK_THEMES: { value: EditorThemeOption; label: string }[] = [
+    { value: "dark-one-dark", label: "One Dark" },
+    { value: "dark-monokai", label: "Monokai" },
+    { value: "dark-palenight", label: "Palenight" },
+    { value: "dark-dracula", label: "Dracula" },
+];
+
+const EDITOR_LIGHT_THEMES: { value: EditorThemeOption; label: string }[] = [
+    { value: "light-github", label: "GitHub Light" },
+    { value: "light-solarized", label: "Solarized Light" },
+    { value: "light-white-pine", label: "White Pine" },
+    { value: "light-soft-white", label: "Soft White" },
+];
+
+const QUERY_SQL_SIZE_OPTIONS = [
+    { value: 262_144, label: "256 KB" },
+    { value: 524_288, label: "512 KB" },
+    { value: 1_048_576, label: "1 MB" },
+    { value: 5_242_880, label: "5 MB" },
+    { value: 10_485_760, label: "10 MB" },
+];
+
+const QUERY_ROW_LIMIT_OPTIONS = [1_000, 5_000, 10_000, 50_000, 100_000];
+
+function formatBytes(bytes: number): string {
+    const match = QUERY_SQL_SIZE_OPTIONS.find((option) => option.value === bytes);
+    if (match) return match.label;
+    if (bytes >= 1_048_576) return `${Number((bytes / 1_048_576).toFixed(1))} MB`;
+    if (bytes >= 1024) return `${Math.round(bytes / 1024)} KB`;
+    return `${bytes} bytes`;
+}
+
+const SETTINGS_FIELD_CLASS = "gap-4 border-b border-border/50 pb-4 last:border-0 last:pb-0";
+const SETTINGS_CONTROL_CLASS = "flex w-full min-w-0 shrink-0 justify-start";
+const SETTINGS_CONTENT_WIDTH_CLASS = "flex w-full min-w-0 flex-col gap-6";
+const SETTINGS_WIDE_CONTROL_CLASS = "w-full";
+
+function Card({ className, ...props }: React.ComponentProps<typeof BaseCard>) {
+    return (
+        <BaseCard
+            className={cn("w-full min-w-0 border border-border-subtle bg-surface-2 py-0 ring-0 shadow-none", className)}
+            {...props}
+        />
+    );
+}
+
+function CardHeader({ className, ...props }: React.ComponentProps<typeof BaseCardHeader>) {
+    return (
+        <BaseCardHeader
+            className={cn("border-b border-border-subtle px-4 py-5", className)}
+            {...props}
+        />
+    );
+}
+
+function CardContent({ className, ...props }: React.ComponentProps<typeof BaseCardContent>) {
+    return <BaseCardContent className={cn("px-4 py-5", className)} {...props} />;
+}
+
+function CardAction({ className, ...props }: React.ComponentProps<typeof BaseCardAction>) {
+    return <BaseCardAction className={cn("self-start", className)} {...props} />;
+}
+
+function getPlanBadgeClass(plan: string) {
+    switch (plan.toLowerCase()) {
+        case "pro":
+            return "border-primary/20 bg-primary/10 text-primary";
+        case "starter":
+            return "border-accent/30 bg-accent/50 text-accent-foreground";
+        case "lifetime":
+            return "border-warning/20 bg-warning/10 text-warning";
+        default:
+            return "border-border bg-muted text-muted-foreground";
+    }
+}
+
+function FontPicker({
+    fonts,
+    value,
+    fallbackStack,
+    defaultAlias,
+    defaultAliasStack,
+    placeholder,
+    onSelect,
+    className,
+}: {
+    fonts: { value: string; label: string; isMono: boolean }[];
+    value: string;
+    fallbackStack: string;
+    defaultAlias: string;
+    defaultAliasStack: string;
+    placeholder: string;
+    onSelect: (value: string) => void;
+    className?: string;
+}) {
+    const [open, setOpen] = useState(false);
+    const listRef = useRef<HTMLDivElement>(null);
+
+    useEffect(() => {
+        if (!open) {
+            return undefined;
+        }
+
+        const id = requestAnimationFrame(() => {
+            const selectedItem = listRef.current?.querySelector<HTMLElement>("[data-font-selected='true']");
+            selectedItem?.scrollIntoView({ block: "nearest" });
+        });
+
+        return () => cancelAnimationFrame(id);
+    }, [open]);
+
+    const displayLabel = value === defaultAlias
+        ? fonts.find((font) => font.value === defaultAlias)?.label ?? defaultAlias
+        : fonts.find((font) => font.value === value)?.label ?? value;
+
+    const displayStack = value === defaultAlias
+        ? defaultAliasStack
+        : `"${value}", ${fallbackStack}`;
+
+    return (
+        <Popover open={open} onOpenChange={setOpen}>
+            <PopoverTrigger asChild>
+                <Button variant="outline" className={cn("h-8 w-full justify-between text-sm font-normal", className)}>
+                    <span className="truncate" style={{ fontFamily: displayStack }}>
+                        {displayLabel}
+                    </span>
+                    <ChevronDown data-icon="inline-end" className="opacity-50" />
+                </Button>
+            </PopoverTrigger>
+            <PopoverContent align="start" className="w-72 max-w-[calc(100vw-2rem)] p-0">
+                <div ref={listRef}>
+                    <Command>
+                        <CommandInput placeholder={placeholder} />
+                        <CommandList className="max-h-60">
+                            <CommandEmpty>No fonts found.</CommandEmpty>
+                            <CommandGroup>
+                                {fonts.map((font) => {
+                                    const isSelected = value === font.value;
+                                    const fontStack = font.value === defaultAlias
+                                        ? defaultAliasStack
+                                        : `"${font.value}", ${fallbackStack}`;
+
+                                    return (
+                                        <CommandItem
+                                            key={font.value}
+                                            value={font.value}
+                                            onSelect={() => {
+                                                onSelect(font.value);
+                                                setOpen(false);
+                                            }}
+                                            data-font-selected={isSelected ? "true" : undefined}
+                                        >
+                                            <span style={{ fontFamily: fontStack }}>{font.label}</span>
+                                            {isSelected ? <Check className="ml-auto" /> : null}
+                                        </CommandItem>
+                                    );
+                                })}
+                            </CommandGroup>
+                        </CommandList>
+                    </Command>
+                </div>
+            </PopoverContent>
+        </Popover>
+    );
+}
+
+function AppearanceSection() {
+    const { theme, setTheme, appSettings, updateAppSetting } = useAppStore();
+    const [systemFonts, setSystemFonts] = useState<{ value: string; label: string; isMono: boolean }[]>([]);
+    const [loadingFonts, setLoadingFonts] = useState(true);
+
+    useEffect(() => {
+        let cancelled = false;
+
+        void getSystemFonts()
+            .then((fonts) => {
+                if (cancelled) {
+                    return;
+                }
+
+                setSystemFonts(fonts);
+                setLoadingFonts(false);
+            })
+            .catch(() => {
+                if (cancelled) {
+                    return;
+                }
+
+                setLoadingFonts(false);
+            });
+
+        return () => {
+            cancelled = true;
+        };
+    }, []);
+
+    const sansFonts = systemFonts.filter((font) => !font.isMono);
+    const monoFonts = systemFonts.filter((font) => font.isMono);
+
+    return (
+        <div className="flex flex-col gap-6">
+            <Card>
+                <CardHeader>
+                    <CardTitle>Theme and scale</CardTitle>
+                    <CardDescription>Match the app chrome to your preferred contrast and interface density.</CardDescription>
+                    <CardAction>
+                        <Badge variant="secondary" className="capitalize">
+                            {theme}
+                        </Badge>
+                    </CardAction>
+                </CardHeader>
+                <CardContent>
+                    <FieldGroup>
+                        <Field orientation="responsive" className={SETTINGS_FIELD_CLASS}>
+                            <FieldContent>
+                                <FieldTitle>App theme</FieldTitle>
+                                <FieldDescription>Choose your preferred colour scheme.</FieldDescription>
+                            </FieldContent>
+                            <div className={SETTINGS_CONTROL_CLASS}>
+                                <ToggleGroup
+                                    aria-label="App theme"
+                                    type="single"
+                                    variant="outline"
+                                    size="sm"
+                                    spacing={1}
+                                    value={theme}
+                                    onValueChange={(value) => {
+                                        if (!value) {
+                                            return;
+                                        }
+
+                                        setTheme(value as "dark" | "light");
+                                    }}
+                                >
+                                    <ToggleGroupItem value="dark">
+                                        <Moon data-icon="inline-start" />
+                                        Dark
+                                    </ToggleGroupItem>
+                                    <ToggleGroupItem value="light">
+                                        <Sun data-icon="inline-start" />
+                                        Light
+                                    </ToggleGroupItem>
+                                </ToggleGroup>
+                            </div>
+                        </Field>
+
+                        <Field orientation="responsive" className={SETTINGS_FIELD_CLASS}>
+                            <FieldContent>
+                                <FieldTitle>UI zoom</FieldTitle>
+                                <FieldDescription>Scale the entire workspace up or down.</FieldDescription>
+                            </FieldContent>
+                            <div className={SETTINGS_CONTROL_CLASS}>
+                                <ToggleGroup
+                                    type="single"
+                                    variant="outline"
+                                    size="sm"
+                                    spacing={1}
+                                    aria-label="UI zoom"
+                                    value={String(appSettings.uiZoom)}
+                                    onValueChange={(value) => {
+                                        if (!value) {
+                                            return;
+                                        }
+
+                                        updateAppSetting("uiZoom", Number(value) as AppSettings["uiZoom"]);
+                                    }}
+                                >
+                                    {[100, 110, 125, 140, 150].map((zoom) => (
+                                        <ToggleGroupItem key={zoom} value={String(zoom)}>
+                                            {zoom}%
+                                        </ToggleGroupItem>
+                                    ))}
+                                </ToggleGroup>
+                            </div>
+                        </Field>
+                    </FieldGroup>
+                </CardContent>
+            </Card>
+
+            <Card>
+                <CardHeader>
+                    <CardTitle>Typography</CardTitle>
+                    <CardDescription>Choose the fonts used for interface chrome and monospace data views.</CardDescription>
+                    <CardAction>
+                        <Badge variant="outline">{loadingFonts ? "Loading" : `${systemFonts.length} fonts`}</Badge>
+                    </CardAction>
+                </CardHeader>
+                <CardContent>
+                    <FieldGroup>
+                        <Field orientation="responsive" className={SETTINGS_FIELD_CLASS}>
+                            <FieldContent>
+                                <FieldTitle>Interface font</FieldTitle>
+                                <FieldDescription>Sans-serif font used for labels, tabs, and window chrome.</FieldDescription>
+                            </FieldContent>
+                            <div className={SETTINGS_CONTROL_CLASS}>
+                                {loadingFonts ? (
+                                    <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                                        <Loader2 className="animate-spin" />
+                                        Loading fonts
+                                    </div>
+                                ) : (
+                                    <FontPicker
+                                        fonts={sansFonts}
+                                        value={appSettings.uiFontFamily}
+                                        fallbackStack="sans-serif"
+                                        defaultAlias={DB_FONT_SANS}
+                                        defaultAliasStack={DB_FONT_SANS_STACK}
+                                        placeholder="Search font..."
+                                        className={SETTINGS_WIDE_CONTROL_CLASS}
+                                        onSelect={(value) => updateAppSetting("uiFontFamily", value)}
+                                    />
+                                )}
+                            </div>
+                        </Field>
+
+                        <Field orientation="responsive" className={SETTINGS_FIELD_CLASS}>
+                            <FieldContent>
+                                <FieldTitle>Monospace font</FieldTitle>
+                                <FieldDescription>Used in editors, query results, and schema details.</FieldDescription>
+                            </FieldContent>
+                            <div className={SETTINGS_CONTROL_CLASS}>
+                                {loadingFonts ? (
+                                    <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                                        <Loader2 className="animate-spin" />
+                                        Loading fonts
+                                    </div>
+                                ) : (
+                                    <FontPicker
+                                        fonts={monoFonts}
+                                        value={appSettings.monoFontFamily}
+                                        fallbackStack="monospace"
+                                        defaultAlias={DB_FONT_MONO}
+                                        defaultAliasStack={DB_FONT_MONO_STACK}
+                                        placeholder="Search font..."
+                                        className={SETTINGS_WIDE_CONTROL_CLASS}
+                                        onSelect={(value) => updateAppSetting("monoFontFamily", value)}
+                                    />
+                                )}
+                            </div>
+                        </Field>
+                    </FieldGroup>
+                </CardContent>
+            </Card>
+        </div>
+    );
+}
+
+function EditorSection() {
+    const { appSettings, updateAppSetting } = useAppStore();
+
+    return (
+        <div className="flex flex-col gap-6">
+            <Card>
+                <CardHeader>
+                    <CardTitle>Editor typography</CardTitle>
+                    <CardDescription>Keep SQL readable at the density you prefer.</CardDescription>
+                    <CardAction>
+                        <Badge variant="secondary">{appSettings.editorFontSize}px</Badge>
+                    </CardAction>
+                </CardHeader>
+                <CardContent>
+                    <FieldGroup>
+                        <Field orientation="responsive" className={SETTINGS_FIELD_CLASS}>
+                            <FieldContent>
+                                <FieldTitle>Font size</FieldTitle>
+                                <FieldDescription>Size of text in the SQL editor.</FieldDescription>
+                            </FieldContent>
+                            <div className={SETTINGS_CONTROL_CLASS}>
+                                <ToggleGroup
+                                    type="single"
+                                    variant="outline"
+                                    size="sm"
+                                    spacing={1}
+                                    aria-label="Editor font size"
+                                    value={String(appSettings.editorFontSize)}
+                                    onValueChange={(value) => {
+                                        if (!value) {
+                                            return;
+                                        }
+
+                                        updateAppSetting("editorFontSize", Number(value) as AppSettings["editorFontSize"]);
+                                    }}
+                                >
+                                    {[12, 13, 14, 16].map((size) => (
+                                        <ToggleGroupItem key={size} value={String(size)}>
+                                            {size}px
+                                        </ToggleGroupItem>
+                                    ))}
+                                </ToggleGroup>
+                            </div>
+                        </Field>
+                    </FieldGroup>
+                </CardContent>
+            </Card>
+
+            <Card>
+                <CardHeader>
+                    <CardTitle>Syntax highlighting</CardTitle>
+                    <CardDescription>Pick the CodeMirror theme used for each app appearance mode.</CardDescription>
+                </CardHeader>
+                <CardContent>
+                    <FieldGroup>
+                        <Field orientation="responsive" className={SETTINGS_FIELD_CLASS}>
+                            <FieldContent>
+                                <FieldTitle>Dark theme</FieldTitle>
+                                <FieldDescription>SQL syntax highlighting used when the app is in dark mode.</FieldDescription>
+                            </FieldContent>
+                            <div className={SETTINGS_CONTROL_CLASS}>
+                                <Select
+                                    value={appSettings.editorDarkTheme}
+                                    onValueChange={(value) => updateAppSetting("editorDarkTheme", value as EditorThemeOption)}
+                                >
+                                    <SelectTrigger aria-label="Dark editor theme" className={SETTINGS_WIDE_CONTROL_CLASS}>
+                                        <SelectValue />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        <SelectGroup>
+                                            {EDITOR_DARK_THEMES.map((option) => (
+                                                <SelectItem key={option.value} value={option.value}>
+                                                    {option.label}
+                                                </SelectItem>
+                                            ))}
+                                        </SelectGroup>
+                                    </SelectContent>
+                                </Select>
+                            </div>
+                        </Field>
+
+                        <Field orientation="responsive" className={SETTINGS_FIELD_CLASS}>
+                            <FieldContent>
+                                <FieldTitle>Light theme</FieldTitle>
+                                <FieldDescription>SQL syntax highlighting used when the app is in light mode.</FieldDescription>
+                            </FieldContent>
+                            <div className={SETTINGS_CONTROL_CLASS}>
+                                <Select
+                                    value={appSettings.editorLightTheme}
+                                    onValueChange={(value) => updateAppSetting("editorLightTheme", value as EditorThemeOption)}
+                                >
+                                    <SelectTrigger aria-label="Light editor theme" className={SETTINGS_WIDE_CONTROL_CLASS}>
+                                        <SelectValue />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        <SelectGroup>
+                                            {EDITOR_LIGHT_THEMES.map((option) => (
+                                                <SelectItem key={option.value} value={option.value}>
+                                                    {option.label}
+                                                </SelectItem>
+                                            ))}
+                                        </SelectGroup>
+                                    </SelectContent>
+                                </Select>
+                            </div>
+                        </Field>
+                    </FieldGroup>
+                </CardContent>
+            </Card>
+
+            <Card>
+                <CardHeader>
+                    <CardTitle>Editing behaviour</CardTitle>
+                    <CardDescription>Word wrap and indentation settings for the SQL editor.</CardDescription>
+                </CardHeader>
+                <CardContent>
+                    <FieldGroup>
+                        <Field orientation="responsive" className={SETTINGS_FIELD_CLASS}>
+                            <FieldContent>
+                                <FieldTitle>Word wrap</FieldTitle>
+                                <FieldDescription>Wrap long lines instead of scrolling horizontally.</FieldDescription>
+                            </FieldContent>
+                            <div className={SETTINGS_CONTROL_CLASS}>
+                                <Switch
+                                    aria-label="Word wrap"
+                                    checked={appSettings.editorWordWrap}
+                                    onCheckedChange={(v) => updateAppSetting("editorWordWrap", v)}
+                                />
+                            </div>
+                        </Field>
+                        <Field orientation="responsive" className={SETTINGS_FIELD_CLASS}>
+                            <FieldContent>
+                                <FieldTitle>Tab size</FieldTitle>
+                                <FieldDescription>Number of spaces inserted when pressing Tab.</FieldDescription>
+                            </FieldContent>
+                            <div className={SETTINGS_CONTROL_CLASS}>
+                                <ToggleGroup
+                                    type="single"
+                                    variant="outline"
+                                    size="sm"
+                                    spacing={1}
+                                    aria-label="Tab size"
+                                    value={String(appSettings.editorTabSize)}
+                                    onValueChange={(value) => {
+                                        if (!value) return;
+                                        updateAppSetting("editorTabSize", Number(value) as AppSettings["editorTabSize"]);
+                                    }}
+                                >
+                                    <ToggleGroupItem value="2">2</ToggleGroupItem>
+                                    <ToggleGroupItem value="4">4</ToggleGroupItem>
+                                </ToggleGroup>
+                            </div>
+                        </Field>
+                    </FieldGroup>
+                </CardContent>
+            </Card>
+            <Card>
+                <CardHeader>
+                    <CardTitle>Query safety limits</CardTitle>
+                    <CardDescription>Protect the app and connected databases from oversized SQL, long-running queries, and very large result sets.</CardDescription>
+                    <CardAction>
+                        <div className="flex flex-wrap gap-1.5">
+                            <Badge variant="secondary">{appSettings.queryTimeoutSecs}s</Badge>
+                            <Badge variant="secondary">{formatBytes(appSettings.queryMaxSqlBytes)}</Badge>
+                            <Badge variant="secondary">{appSettings.queryMaxResultRows.toLocaleString()} rows</Badge>
+                        </div>
+                    </CardAction>
+                </CardHeader>
+                <CardContent>
+                    <FieldGroup>
+                        <Field orientation="responsive" className={SETTINGS_FIELD_CLASS}>
+                            <FieldContent>
+                                <FieldTitle>Query timeout</FieldTitle>
+                                <FieldDescription>Maximum seconds a single query may run before timing out.</FieldDescription>
+                            </FieldContent>
+                            <div className={SETTINGS_CONTROL_CLASS}>
+                                <ToggleGroup
+                                    type="single"
+                                    variant="outline"
+                                    size="sm"
+                                    spacing={1}
+                                    aria-label="Query timeout"
+                                    value={String(appSettings.queryTimeoutSecs)}
+                                    onValueChange={(value) => {
+                                        if (!value) return;
+                                        updateAppSetting("queryTimeoutSecs", Number(value));
+                                    }}
+                                >
+                                    {[10, 30, 60, 120, 300].map((s) => (
+                                        <ToggleGroupItem key={s} value={String(s)}>{s}s</ToggleGroupItem>
+                                    ))}
+                                </ToggleGroup>
+                            </div>
+                        </Field>
+                        <Field orientation="responsive" className={SETTINGS_FIELD_CLASS}>
+                            <FieldContent>
+                                <FieldTitle>Max SQL size</FieldTitle>
+                                <FieldDescription>SQL editor queries larger than this are blocked before execution.</FieldDescription>
+                            </FieldContent>
+                            <div className={SETTINGS_CONTROL_CLASS}>
+                                <ToggleGroup
+                                    type="single"
+                                    variant="outline"
+                                    size="sm"
+                                    spacing={1}
+                                    aria-label="Max SQL size"
+                                    value={String(appSettings.queryMaxSqlBytes)}
+                                    onValueChange={(value) => {
+                                        if (!value) return;
+                                        updateAppSetting("queryMaxSqlBytes", Number(value));
+                                    }}
+                                >
+                                    {QUERY_SQL_SIZE_OPTIONS.map((option) => (
+                                        <ToggleGroupItem key={option.value} value={String(option.value)}>{option.label}</ToggleGroupItem>
+                                    ))}
+                                </ToggleGroup>
+                            </div>
+                        </Field>
+                        <Field orientation="responsive" className={SETTINGS_FIELD_CLASS}>
+                            <FieldContent>
+                                <FieldTitle>Max result rows</FieldTitle>
+                                <FieldDescription>Query and table results are capped to this many rows before rendering.</FieldDescription>
+                            </FieldContent>
+                            <div className={SETTINGS_CONTROL_CLASS}>
+                                <ToggleGroup
+                                    type="single"
+                                    variant="outline"
+                                    size="sm"
+                                    spacing={1}
+                                    aria-label="Max result rows"
+                                    value={String(appSettings.queryMaxResultRows)}
+                                    onValueChange={(value) => {
+                                        if (!value) return;
+                                        updateAppSetting("queryMaxResultRows", Number(value));
+                                    }}
+                                >
+                                    {QUERY_ROW_LIMIT_OPTIONS.map((rows) => (
+                                        <ToggleGroupItem key={rows} value={String(rows)}>{rows.toLocaleString()}</ToggleGroupItem>
+                                    ))}
+                                </ToggleGroup>
+                            </div>
+                        </Field>
+                    </FieldGroup>
+                </CardContent>
+            </Card>
+        </div>
+    );
+}
+
+function TableSection() {
+    const { appSettings, updateAppSetting } = useAppStore();
+
+    return (
+        <div className="flex flex-col gap-6">
+            <Card>
+                <CardHeader>
+                    <CardTitle>Grid defaults</CardTitle>
+                    <CardDescription>Keep pagination predictable when browsing tables and query results.</CardDescription>
+                    <CardAction>
+                        <Badge variant="secondary">{appSettings.tablePageSize} rows</Badge>
+                    </CardAction>
+                </CardHeader>
+                <CardContent>
+                    <FieldGroup>
+                        <Field orientation="responsive" className={SETTINGS_FIELD_CLASS}>
+                            <FieldContent>
+                                <FieldTitle>Rows per page</FieldTitle>
+                                <FieldDescription>Number of rows fetched per page in table view.</FieldDescription>
+                            </FieldContent>
+                            <div className={SETTINGS_CONTROL_CLASS}>
+                                <ToggleGroup
+                                    type="single"
+                                    variant="outline"
+                                    size="sm"
+                                    spacing={1}
+                                    aria-label="Rows per page"
+                                    value={String(appSettings.tablePageSize)}
+                                    onValueChange={(value) => {
+                                        if (!value) {
+                                            return;
+                                        }
+
+                                        updateAppSetting("tablePageSize", Number(value) as AppSettings["tablePageSize"]);
+                                    }}
+                                >
+                                    {[25, 50, 100, 200].map((size) => (
+                                        <ToggleGroupItem key={size} value={String(size)}>
+                                            {size}
+                                        </ToggleGroupItem>
+                                    ))}
+                                </ToggleGroup>
+                            </div>
+                        </Field>
+                    </FieldGroup>
+                </CardContent>
+            </Card>
+            <Card>
+                <CardHeader>
+                    <CardTitle>Row density</CardTitle>
+                    <CardDescription>Controls the height of rows in table and query result views.</CardDescription>
+                    <CardAction>
+                        <Badge variant="secondary" className="capitalize">{appSettings.rowDensity}</Badge>
+                    </CardAction>
+                </CardHeader>
+                <CardContent>
+                    <FieldGroup>
+                        <Field orientation="responsive" className={SETTINGS_FIELD_CLASS}>
+                            <FieldContent>
+                                <FieldTitle>Density</FieldTitle>
+                                <FieldDescription>Compact saves vertical space; comfortable gives more breathing room.</FieldDescription>
+                            </FieldContent>
+                            <div className={SETTINGS_CONTROL_CLASS}>
+                                <ToggleGroup
+                                    type="single"
+                                    variant="outline"
+                                    size="sm"
+                                    spacing={1}
+                                    aria-label="Row density"
+                                    value={appSettings.rowDensity}
+                                    onValueChange={(value) => {
+                                        if (!value) return;
+                                        updateAppSetting("rowDensity", value as AppSettings["rowDensity"]);
+                                    }}
+                                >
+                                    {(["compact", "default", "comfortable"] as const).map((d) => (
+                                        <ToggleGroupItem key={d} value={d} className="capitalize">
+                                            {d}
+                                        </ToggleGroupItem>
+                                    ))}
+                                </ToggleGroup>
+                            </div>
+                        </Field>
+                    </FieldGroup>
+                </CardContent>
+            </Card>
+        </div>
+    );
+}
+
+
+function StorageSection() {
+    const { clearAllHistory, clearAllSavedQueries, connections, queryHistory, savedQueries, appSettings, updateAppSetting } = useAppStore();
+    const [dataDir, setDataDir] = useState<string | null>(null);
+    const exportDir = appSettings.diagramExportDir;
+
+    const handlePickExportDir = async () => {
+        try {
+            const picked = await tauriApi.pickDirectory(exportDir || undefined);
+            if (picked) {
+                updateAppSetting("diagramExportDir", picked);
+                toast.success("Default export directory updated");
+            }
+        } catch (err) {
+            console.error(err);
+            toast.error("Failed to pick directory");
+        }
+    };
+
+    const handleResetExportDir = () => {
+        updateAppSetting("diagramExportDir", "");
+        toast.success("Default export directory cleared");
+    };
+
+    useEffect(() => {
+        let cancelled = false;
+
+        void tauriApi.getAppDataDir()
+            .then((path) => {
+                if (!cancelled) {
+                    setDataDir(path);
+                }
+            })
+            .catch(() => {
+                if (!cancelled) {
+                    setDataDir(null);
+                }
+            });
+
+        return () => {
+            cancelled = true;
+        };
+    }, []);
+
+    const totalHistory = queryHistory.length;
+
+    return (
+        <div className="flex flex-col gap-6">
+            <Card>
+                <CardHeader>
+                    <CardTitle>Local data</CardTitle>
+                    <CardDescription>Connections and saved queries are stored locally in an encrypted app directory.</CardDescription>
+                    <CardAction>
+                        <Badge variant="outline">Local only</Badge>
+                    </CardAction>
+                </CardHeader>
+                <CardContent>
+                    {dataDir ? (
+                        <Item variant="outline" className="items-start bg-muted/20">
+                            <FolderOpen className="mt-0.5 text-muted-foreground" />
+                            <ItemContent className="gap-1">
+                                <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">App data directory</p>
+                                <p className="break-all font-mono text-sm text-foreground/80">{dataDir}</p>
+                            </ItemContent>
+                        </Item>
+                    ) : (
+                        <Alert className="border-border/60 bg-muted/30">
+                            <Loader2 className="animate-spin" />
+                            <AlertTitle>Resolving local data directory</AlertTitle>
+                            <AlertDescription>
+                                The app is checking where encrypted settings and saved queries live on this device.
+                            </AlertDescription>
+                        </Alert>
+                    )}
+                </CardContent>
+            </Card>
+
+            <Card>
+                <CardHeader>
+                    <CardTitle>Exports</CardTitle>
+                    <CardDescription>Default location used when saving ER diagrams as PNG or SVG.</CardDescription>
+                </CardHeader>
+                <CardContent>
+                    <FieldGroup>
+                        <Field orientation="responsive" className={SETTINGS_FIELD_CLASS}>
+                            <FieldContent>
+                                <FieldTitle>Diagram export directory</FieldTitle>
+                                <FieldDescription>
+                                    {exportDir ? (
+                                        <span className="break-all font-mono text-xs">{exportDir}</span>
+                                    ) : (
+                                        "Not set — the Save dialog will start in the system default location."
+                                    )}
+                                </FieldDescription>
+                            </FieldContent>
+                            <div className={cn(SETTINGS_CONTROL_CLASS, "gap-2")}>
+                                <Button size="sm" variant="outline" onClick={() => { void handlePickExportDir(); }}>
+                                    <FolderOpen data-icon="inline-start" />
+                                    {exportDir ? "Change" : "Choose folder"}
+                                </Button>
+                                {exportDir ? (
+                                    <Button size="sm" variant="ghost" onClick={handleResetExportDir}>
+                                        Reset
+                                    </Button>
+                                ) : null}
+                            </div>
+                        </Field>
+                    </FieldGroup>
+                </CardContent>
+            </Card>
+
+            <Card>
+                <CardHeader>
+                    <CardTitle>Usage snapshot</CardTitle>
+                    <CardDescription>A quick summary of locally stored connections, queries, and history.</CardDescription>
+                </CardHeader>
+                <CardContent>
+                    <div className="grid gap-3 md:grid-cols-3">
+                        {[
+                            { label: "Connections", value: connections.length },
+                            { label: "Saved Queries", value: savedQueries.length },
+                            { label: "History Entries", value: totalHistory },
+                        ].map((stat) => (
+                            <div key={stat.label} className="flex flex-col gap-1 rounded-xl border border-border/60 bg-muted/20 px-4 py-4">
+                                <span className="text-2xl font-semibold tabular-nums text-foreground">{stat.value}</span>
+                                <span className="text-sm text-muted-foreground">{stat.label}</span>
+                            </div>
+                        ))}
+                    </div>
+                </CardContent>
+            </Card>
+
+            <Card>
+                <CardHeader>
+                    <CardTitle>Cleanup</CardTitle>
+                    <CardDescription>Remove local history or saved queries from this device.</CardDescription>
+                </CardHeader>
+                <CardContent className="flex flex-col gap-4">
+                    <Alert className="border-warning/20 bg-warning/10 text-warning">
+                        <Trash2 />
+                        <AlertTitle>Destructive actions</AlertTitle>
+                        <AlertDescription className="text-warning/80">
+                            These changes affect only local app data and cannot be undone.
+                        </AlertDescription>
+                    </Alert>
+
+                    <FieldGroup>
+                        <Field orientation="responsive" className={SETTINGS_FIELD_CLASS}>
+                            <FieldContent>
+                                <FieldTitle>Query history</FieldTitle>
+                                <FieldDescription>{totalHistory} entries across all connections.</FieldDescription>
+                            </FieldContent>
+                            <div className={SETTINGS_CONTROL_CLASS}>
+                                <AlertDialog>
+                                    <AlertDialogTrigger asChild>
+                                        <Button size="sm" variant="outline" disabled={totalHistory === 0}>
+                                            <Trash2 data-icon="inline-start" />
+                                            Clear history
+                                        </Button>
+                                    </AlertDialogTrigger>
+                                    <AlertDialogContent size="sm">
+                                        <AlertDialogHeader>
+                                            <AlertDialogMedia className="bg-destructive/10 text-destructive">
+                                                <Trash2 />
+                                            </AlertDialogMedia>
+                                            <AlertDialogTitle>Clear query history?</AlertDialogTitle>
+                                            <AlertDialogDescription>
+                                                Remove every saved history entry across all connections on this device.
+                                            </AlertDialogDescription>
+                                        </AlertDialogHeader>
+                                        <AlertDialogFooter>
+                                            <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                            <AlertDialogAction variant="destructive" onClick={clearAllHistory}>
+                                                Clear history
+                                            </AlertDialogAction>
+                                        </AlertDialogFooter>
+                                    </AlertDialogContent>
+                                </AlertDialog>
+                            </div>
+                        </Field>
+
+                        <Field orientation="responsive" className={SETTINGS_FIELD_CLASS}>
+                            <FieldContent>
+                                <FieldTitle>Saved queries</FieldTitle>
+                                <FieldDescription>{savedQueries.length} saved queries.</FieldDescription>
+                            </FieldContent>
+                            <div className={SETTINGS_CONTROL_CLASS}>
+                                <AlertDialog>
+                                    <AlertDialogTrigger asChild>
+                                        <Button size="sm" variant="outline" disabled={savedQueries.length === 0}>
+                                            <Trash2 data-icon="inline-start" />
+                                            Clear saved queries
+                                        </Button>
+                                    </AlertDialogTrigger>
+                                    <AlertDialogContent size="sm">
+                                        <AlertDialogHeader>
+                                            <AlertDialogMedia className="bg-destructive/10 text-destructive">
+                                                <Trash2 />
+                                            </AlertDialogMedia>
+                                            <AlertDialogTitle>Clear saved queries?</AlertDialogTitle>
+                                            <AlertDialogDescription>
+                                                Remove all stored saved queries from this device.
+                                            </AlertDialogDescription>
+                                        </AlertDialogHeader>
+                                        <AlertDialogFooter>
+                                            <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                            <AlertDialogAction variant="destructive" onClick={clearAllSavedQueries}>
+                                                Clear queries
+                                            </AlertDialogAction>
+                                        </AlertDialogFooter>
+                                    </AlertDialogContent>
+                                </AlertDialog>
+                            </div>
+                        </Field>
+                    </FieldGroup>
+                </CardContent>
+            </Card>
+        </div>
+    );
+}
+
+function LicenseSection({ onActivate }: { onActivate: () => void }) {
+    const [state, setState] = useState<StoredLicenseState | null | "loading">("loading");
+
+    useEffect(() => {
+        let cancelled = false;
+
+        void licenseGetStored()
+            .then((nextState) => {
+                if (!cancelled) {
+                    setState(nextState);
+                }
+            })
+            .catch(() => {
+                if (!cancelled) {
+                    setState(null);
+                }
+            });
+
+        return () => {
+            cancelled = true;
+        };
+    }, []);
+
+    if (state === "loading") {
+        return (
+            <div className="flex flex-col gap-6">
+                <Card>
+                    <CardContent className="flex items-center gap-2 py-8 text-muted-foreground">
+                        <RefreshCw className="animate-spin" />
+                        <span>Loading stored license information.</span>
+                    </CardContent>
+                </Card>
+            </div>
+        );
+    }
+
+    if (!state) {
+        return (
+            <div className="flex flex-col gap-6">
+                <Card>
+                    <CardHeader>
+                        <CardTitle>No active license</CardTitle>
+                        <CardDescription>Activate a key to unlock licensed features on this device.</CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                        <Empty className="border border-dashed border-border/70 bg-muted/20">
+                            <EmptyHeader>
+                                <EmptyMedia variant="icon" className="size-12 rounded-xl bg-muted text-muted-foreground">
+                                    <ShieldOff />
+                                </EmptyMedia>
+                                <EmptyTitle className="text-base">License not activated</EmptyTitle>
+                                <EmptyDescription>
+                                    Add your DB Connect license key to enable all paid features.
+                                </EmptyDescription>
+                            </EmptyHeader>
+                            <EmptyContent>
+                                <Button onClick={onActivate}>
+                                    <KeyRound data-icon="inline-start" />
+                                    Activate license
+                                </Button>
+                            </EmptyContent>
+                        </Empty>
+                    </CardContent>
+                </Card>
+            </div>
+        );
+    }
+
+    const { activation, license } = state;
+    const maskedKey = license.license_key.replace(
+        /^(DBK-[A-Z0-9]{4}-)([A-Z0-9]{4}-[A-Z0-9]{4}-[A-Z0-9]{4})$/,
+        (_, prefix) => `${prefix}****-****-****`,
+    );
+    const isExpired = new Date(license.expiry) < new Date();
+    const maskedDeviceId = activation.device_id.length > 8 ? `${activation.device_id.slice(0, 8)}...` : activation.device_id;
+
+    const formatDate = (iso: string) => {
+        try {
+            return new Date(iso).toLocaleDateString(undefined, {
+                year: "numeric",
+                month: "short",
+                day: "numeric",
+            });
+        } catch {
+            return iso;
+        }
+    };
+
+    const formatDateTime = (iso: string | null) => {
+        if (!iso) {
+            return "Never";
+        }
+
+        try {
+            return new Date(iso).toLocaleString(undefined, {
+                year: "numeric",
+                month: "short",
+                day: "numeric",
+                hour: "2-digit",
+                minute: "2-digit",
+            });
+        } catch {
+            return iso;
+        }
+    };
+
+    const details: { label: string; value: ReactNode }[] = [
+        {
+            label: "License key",
+            value: <p className="font-mono text-sm tracking-wider text-foreground/80">{maskedKey}</p>,
+        },
+        {
+            label: "Email",
+            value: <p className="font-mono text-sm text-foreground/80">{license.email}</p>,
+        },
+        {
+            label: "Expires",
+            value: (
+                <div className={cn("flex items-center gap-2 text-sm font-mono", isExpired ? "text-destructive" : "text-foreground/80")}>
+                    <CalendarClock className="shrink-0" />
+                    {formatDate(license.expiry)}
+                </div>
+            ),
+        },
+        {
+            label: "Max devices",
+            value: <p className="font-mono text-sm text-foreground/80">{license.max_devices}</p>,
+        },
+        {
+            label: "Device ID",
+            value: (
+                <div className="flex items-center gap-2 text-sm font-mono text-foreground/80">
+                    <Cpu className="shrink-0" />
+                    {maskedDeviceId}
+                </div>
+            ),
+        },
+        {
+            label: "Last validated",
+            value: <p className="text-sm text-foreground/80">{formatDateTime(activation.last_validated_at)}</p>,
+        },
+    ];
+
+    const handleDeactivate = async () => {
+        await licenseDeactivate().catch(() => { });
+        setState(null);
+    };
+
+    return (
+        <div className="flex flex-col gap-6">
+            <Card>
+                <CardHeader>
+                    <CardTitle>License status</CardTitle>
+                    <CardDescription>Activation and renewal state for this device.</CardDescription>
+                    <CardAction>
+                        <Badge variant="outline" className={cn("capitalize", getPlanBadgeClass(license.plan))}>
+                            {license.plan}
+                        </Badge>
+                    </CardAction>
+                </CardHeader>
+                <CardContent>
+                    <Alert className={cn(
+                        isExpired
+                            ? "border-destructive/20 bg-destructive/10 text-destructive"
+                            : "border-success/20 bg-success/10 text-success",
+                    )}>
+                        {isExpired ? <ShieldOff /> : <ShieldCheck />}
+                        <AlertTitle>{isExpired ? "License expired" : "License active"}</AlertTitle>
+                        <AlertDescription className={cn(isExpired ? "text-destructive/80" : "text-success/80")}>
+                            {isExpired
+                                ? `This license expired on ${formatDate(license.expiry)}.`
+                                : `This device is licensed through ${formatDate(license.expiry)}.`}
+                        </AlertDescription>
+                    </Alert>
+                </CardContent>
+            </Card>
+
+            <Card>
+                <CardHeader>
+                    <CardTitle>Activation details</CardTitle>
+                    <CardDescription>The currently stored license and device metadata.</CardDescription>
+                </CardHeader>
+                <CardContent>
+                    <ItemGroup className="gap-3">
+                        {details.map((detail) => (
+                            <Item key={detail.label} variant="outline" size="sm" className="items-start bg-muted/10">
+                                <ItemContent className="gap-1">
+                                    <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">{detail.label}</p>
+                                    {detail.value}
+                                </ItemContent>
+                            </Item>
+                        ))}
+                    </ItemGroup>
+                </CardContent>
+            </Card>
+
+            <Card>
+                <CardHeader>
+                    <CardTitle>Deactivate this device</CardTitle>
+                    <CardDescription>Free this activation slot so the license can be used on another machine.</CardDescription>
+                    <CardAction>
+                        <AlertDialog>
+                            <AlertDialogTrigger asChild>
+                                <Button size="sm" variant="outline">
+                                    <ShieldOff data-icon="inline-start" />
+                                    Deactivate
+                                </Button>
+                            </AlertDialogTrigger>
+                            <AlertDialogContent size="sm">
+                                <AlertDialogHeader>
+                                    <AlertDialogMedia className="bg-destructive/10 text-destructive">
+                                        <ShieldOff />
+                                    </AlertDialogMedia>
+                                    <AlertDialogTitle>Deactivate this device?</AlertDialogTitle>
+                                    <AlertDialogDescription>
+                                        This removes the local activation and frees one device slot for the same license.
+                                    </AlertDialogDescription>
+                                </AlertDialogHeader>
+                                <AlertDialogFooter>
+                                    <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                    <AlertDialogAction variant="destructive" onClick={handleDeactivate}>
+                                        Deactivate device
+                                    </AlertDialogAction>
+                                </AlertDialogFooter>
+                            </AlertDialogContent>
+                        </AlertDialog>
+                    </CardAction>
+                </CardHeader>
+                <CardContent>
+                    <Alert className="border-warning/20 bg-warning/10 text-warning">
+                        <ShieldOff />
+                        <AlertTitle>Device slot will be released</AlertTitle>
+                        <AlertDescription className="text-warning/80">
+                            You may need to reactivate the license key before using licensed features on this machine again.
+                        </AlertDescription>
+                    </Alert>
+                </CardContent>
+            </Card>
+        </div>
+    );
+}
+
+function ExperimentalSection() {
+    const appSettings = useAppStore((s) => s.appSettings);
+    const updateAppSetting = useAppStore((s) => s.updateAppSetting);
+
+    return (
+        <Card>
+            <CardHeader>
+                <CardTitle>Experimental Features</CardTitle>
+                <CardDescription>
+                    These features are under active development and may change or break. Enable at your own risk.
+                </CardDescription>
+            </CardHeader>
+            <CardContent>
+                <div className="space-y-6">
+                    <Field>
+                        <FieldContent>
+                            <div className="flex items-center gap-3">
+                                <div className="flex-1">
+                                    <FieldTitle>Schema Editor</FieldTitle>
+                                    <FieldDescription>
+                                        Enable the interactive schema editor in the ER Diagram view.
+                                        Allows creating, editing, and deleting tables, columns, indexes, and foreign keys
+                                        directly from the diagram, with migration preview and apply workflow.
+                                    </FieldDescription>
+                                </div>
+                                <Switch
+                                    aria-label="Schema editor"
+                                    checked={appSettings.experimentalSchemaEditor}
+                                    onCheckedChange={(v) => updateAppSetting("experimentalSchemaEditor", v)}
+                                />
+                            </div>
+                        </FieldContent>
+                    </Field>
+                </div>
+            </CardContent>
+        </Card>
+    );
+}
+
+function PrivacySection() {
+    const appSettings = useAppStore((s) => s.appSettings);
+    const updateAppSetting = useAppStore((s) => s.updateAppSetting);
+
+    return (
+        <Card>
+            <CardHeader>
+                <CardTitle>Error reporting and telemetry</CardTitle>
+                <CardDescription>
+                    Reporting is only active when a DSN is configured at build time. Anonymous telemetry never includes SQL,
+                    connection names, hosts, usernames, file paths, license keys, or query results.
+                </CardDescription>
+            </CardHeader>
+            <CardContent>
+                <FieldGroup>
+                    <Field orientation="responsive" className={SETTINGS_FIELD_CLASS}>
+                        <FieldContent>
+                            <FieldTitle>Error reporting</FieldTitle>
+                            <FieldDescription>
+                                Send frontend exceptions and native Tauri panics to our server so crashes can be fixed faster.
+                            </FieldDescription>
+                        </FieldContent>
+                        <div className={SETTINGS_CONTROL_CLASS}>
+                            <Switch
+                                aria-label="Error reporting"
+                                checked={appSettings.errorReportingEnabled}
+                                onCheckedChange={(v) => updateAppSetting("errorReportingEnabled", v)}
+                            />
+                        </div>
+                    </Field>
+
+                    <Field orientation="responsive" className={SETTINGS_FIELD_CLASS}>
+                        <FieldContent>
+                            <FieldTitle>Anonymous telemetry</FieldTitle>
+                            <FieldDescription>
+                                Send coarse usage events, such as app startup, without identifying the user or database.
+                            </FieldDescription>
+                        </FieldContent>
+                        <div className={SETTINGS_CONTROL_CLASS}>
+                            <Switch
+                                aria-label="Anonymous telemetry"
+                                checked={appSettings.anonymousTelemetryEnabled}
+                                onCheckedChange={(v) => updateAppSetting("anonymousTelemetryEnabled", v)}
+                            />
+                        </div>
+                    </Field>
+                </FieldGroup>
+            </CardContent>
+        </Card>
+    );
+}
+
+function AboutSection() {
+    const [updateStatus, setUpdateStatus] = useState<"idle" | "checking" | "available" | "uptodate" | "error">("idle");
+    const [updateInfo, setUpdateInfo] = useState<UpdateInfo | null>(null);
+    const [installing, setInstalling] = useState(false);
+
+    const handleCheckUpdate = async () => {
+        setUpdateStatus("checking");
+        setUpdateInfo(null);
+        try {
+            const info = await invoke<UpdateInfo>("check_for_updates");
+            if (info.available) {
+                setUpdateInfo(info);
+                setUpdateStatus("available");
+            } else {
+                setUpdateStatus("uptodate");
+            }
+        } catch {
+            setUpdateStatus("error");
+        }
+    };
+
+    const handleInstall = async () => {
+        setInstalling(true);
+        try {
+            await invoke("install_update");
+        } catch (err) {
+            console.error("Update install failed:", err);
+            toast.error("Update installation failed");
+            setInstalling(false);
+        }
+    };
+
+    const metadata = [
+        { label: "Built with", value: "Tauri 2 · React 19 · TypeScript" },
+        { label: "UI", value: "Tailwind CSS v4 · shadcn/ui" },
+        { label: "Database", value: "SQLx · sqlx-sqlite · AES-256-GCM" },
+        { label: "Editor", value: "CodeMirror 6" },
+        { label: "Grid", value: "TanStack Table v8" },
+    ];
+
+    return (
+        <div className="flex flex-col gap-6">
+            <Card>
+                <CardHeader>
+                    <CardTitle>DB Connect</CardTitle>
+                    <CardDescription>A desktop SQL workspace for connections, editing, and table exploration.</CardDescription>
+                    <CardAction>
+                        <Badge variant="secondary">Version {packageJson.version}</Badge>
+                    </CardAction>
+                </CardHeader>
+                <CardContent className="flex flex-col gap-4">
+                    <div className="flex flex-col gap-4 rounded-xl border border-border/60 bg-muted/20 p-4 sm:flex-row sm:items-start">
+                        <div className="flex size-12 items-center justify-center rounded-xl bg-primary/10 text-primary">
+                            <Table2 />
+                        </div>
+                        <div className="flex flex-col gap-1.5">
+                            <p className="text-sm font-medium text-foreground">Built for focused desktop database work</p>
+                            <p className="text-sm leading-6 text-muted-foreground">
+                                DB Connect combines connection management, SQL authoring, query history, and encrypted local storage in a single Tauri app.
+                            </p>
+                        </div>
+                    </div>
+
+                    {/* Check for updates */}
+                    <div className="flex items-center justify-between rounded-lg border border-border/60 px-4 py-3">
+                        <div className="flex flex-col gap-0.5">
+                            <span className="text-sm font-medium text-foreground">Updates</span>
+                            <span className="text-xs text-muted-foreground">
+                                {updateStatus === "idle" && "Check whether a newer version is available."}
+                                {updateStatus === "checking" && "Checking for updates…"}
+                                {updateStatus === "uptodate" && `You're on the latest version (${packageJson.version}).`}
+                                {updateStatus === "error" && "Unable to check for updates. Check your connection."}
+                                {updateStatus === "available" && updateInfo && (
+                                    <>Version <span className="font-mono font-semibold text-primary">{updateInfo.version}</span> is available</>
+                                )}
+                            </span>
+                        </div>
+                        <div className="flex items-center gap-2 shrink-0">
+                            {updateStatus === "available" && !installing && (
+                                <Button size="sm" className="h-7 gap-1.5 text-[11px]" onClick={handleInstall}>
+                                    <Download size={11} />
+                                    Update
+                                </Button>
+                            )}
+                            {installing && (
+                                <Button size="sm" className="h-7 gap-1.5 text-[11px]" disabled>
+                                    <Loader2 size={11} className="animate-spin" />
+                                    Installing…
+                                </Button>
+                            )}
+                            {updateStatus !== "checking" && !installing && (
+                                <Button
+                                    variant="outline"
+                                    size="sm"
+                                    className="h-7 text-[11px]"
+                                    onClick={handleCheckUpdate}
+                                >
+                                    {updateStatus === "idle" || updateStatus === "error" ? (
+                                        "Check"
+                                    ) : (
+                                        "Check again"
+                                    )}
+                                </Button>
+                            )}
+                            {updateStatus === "checking" && (
+                                <Button variant="outline" size="sm" className="h-7 text-[11px]" disabled>
+                                    <Loader2 size={11} className="animate-spin" />
+                                    Checking…
+                                </Button>
+                            )}
+                        </div>
+                    </div>
+                </CardContent>
+            </Card>
+
+            <Card>
+                <CardHeader>
+                    <CardTitle>Runtime stack</CardTitle>
+                    <CardDescription>The main platform pieces and libraries currently bundled with the app.</CardDescription>
+                </CardHeader>
+                <CardContent>
+                    <ItemGroup className="gap-3">
+                        {metadata.map((item) => (
+                            <Item key={item.label} variant="outline" size="sm" className="items-start bg-muted/10">
+                                <ItemContent className="gap-1">
+                                    <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">{item.label}</p>
+                                    <p className="text-sm text-foreground/80">{item.value}</p>
+                                </ItemContent>
+                            </Item>
+                        ))}
+                    </ItemGroup>
+                </CardContent>
+            </Card>
+        </div>
+    );
+}
+
+const KEYBINDINGS: { combo: string; action: string; category: string }[] = [
+    { combo: "⌘K", action: "Search / Command palette", category: "Global" },
+    { combo: "⌘T", action: "Open a new tab", category: "Global" },
+    { combo: "⌘W", action: "Close active tab", category: "Global" },
+    { combo: "⌘,", action: "Open Settings", category: "Global" },
+    { combo: "⌘B", action: "Show / hide sidebar", category: "Global" },
+    { combo: "⌘⇧L", action: "Show / hide query log", category: "Global" },
+    { combo: "⌘⇧M", action: "Manage connections", category: "Global" },
+    { combo: "⌘⇧D", action: "Switch to next database", category: "Global" },
+    { combo: "⌘↵", action: "Execute SQL query", category: "Editor" },
+    { combo: "⌘F", action: "Search cells in table", category: "Table" },
+    { combo: "⌘Z", action: "Undo cell edit", category: "Table" },
+    { combo: "⌘D", action: "Clone row", category: "Table" },
+    { combo: "⌘C", action: "Copy cell value", category: "Table" },
+    { combo: "⌘V", action: "Paste cell value", category: "Table" },
+];
+
+function KeybindingsSection() {
+    const grouped = KEYBINDINGS.reduce<Record<string, typeof KEYBINDINGS>>((acc, kb) => {
+        (acc[kb.category] ??= []).push(kb);
+        return acc;
+    }, {});
+
+    return (
+        <div className="flex flex-col gap-6">
+            {Object.entries(grouped).map(([category, bindings]) => (
+                <Card key={category}>
+                    <CardHeader>
+                        <CardTitle>{category}</CardTitle>
+                        <CardDescription>
+                            Keyboard shortcuts for {category.toLowerCase()} actions.
+                        </CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                        <div className="flex flex-col gap-1">
+                            {bindings.map((kb) => (
+                                <div
+                                    key={kb.combo}
+                                    className="flex items-center justify-between rounded-md px-3 py-2.5 transition-colors hover:bg-muted/50"
+                                >
+                                    <span className="text-sm text-foreground/80">{kb.action}</span>
+                                    <Kbd className="text-[11px]">{kb.combo}</Kbd>
+                                </div>
+                            ))}
+                        </div>
+                    </CardContent>
+                </Card>
+            ))}
+            <Card>
+                <CardHeader>
+                    <CardTitle>Note</CardTitle>
+                </CardHeader>
+                <CardContent>
+                    <p className="text-sm leading-6 text-muted-foreground">
+                        On Windows and Linux, use <Kbd className="text-[11px]">Ctrl</Kbd> in place of <Kbd className="text-[11px]">⌘</Kbd>.
+                        Keybindings are currently built-in and not user-customizable.
+                    </p>
+                </CardContent>
+            </Card>
+        </div>
+    );
+}
+
+export function SettingsPage({ onActivate }: { onActivate?: () => void }) {
+    const { setActiveView } = useAppStore();
+    const [activeSection, setActiveSection] = useState<Section>("appearance");
+    const [searchQuery, setSearchQuery] = useState("");
+    const filteredNav = useMemo(() => {
+        const q = searchQuery.trim().toLowerCase();
+        if (!q) return NAV;
+        return NAV.filter(
+            (item) =>
+                item.label.toLowerCase().includes(q) ||
+                item.description.toLowerCase().includes(q) ||
+                item.id.toLowerCase().includes(q),
+        );
+    }, [searchQuery]);
+    const activeNav = filteredNav.find((section) => section.id === activeSection) ?? filteredNav[0] ?? NAV[0];
+    const ActiveIcon = activeNav.icon;
+
+    const handleSectionChange = (value: string) => {
+        if (!value || value === activeSection) {
+            return;
+        }
+
+        startTransition(() => {
+            setActiveSection(value as Section);
+        });
+    };
+
+    return (
+        <div className="flex h-full min-h-0 w-full min-w-0 flex-1 flex-col overflow-hidden bg-app-bg">
+            <div className="flex w-full shrink-0 items-center gap-3 border-b border-border-subtle bg-surface-1 px-6 py-4">
+                <Button
+                    variant="ghost"
+                    size="icon-sm"
+                    aria-label="Back to workspace"
+                    onClick={() => setActiveView("main")}
+                    className="shrink-0"
+                >
+                    <ChevronDown className="rotate-90" />
+                </Button>
+
+                <div className="min-w-0 flex-1">
+                    <p className="text-[15px] font-semibold tracking-tight text-foreground">Settings</p>
+                    <p className="text-[12px] text-muted-foreground">
+                        Adjust appearance, editor behavior, AI, storage, licensing, and keybindings.
+                    </p>
+                </div>
+
+                <div className="hidden md:block w-64">
+                    <Input
+                        type="search"
+                        aria-label="Search settings"
+                        value={searchQuery}
+                        onChange={(e) => setSearchQuery(e.target.value)}
+                        placeholder="Search settings…"
+                        className="h-8 text-[12px]"
+                    />
+                </div>
+
+                <div className="w-48 md:hidden">
+                    <Select value={activeSection} onValueChange={handleSectionChange}>
+                        <SelectTrigger aria-label="Settings section" size="sm" className="w-full">
+                            <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                            <SelectGroup>
+                                {NAV.map((item) => (
+                                    <SelectItem key={item.id} value={item.id}>
+                                        {item.label}
+                                    </SelectItem>
+                                ))}
+                            </SelectGroup>
+                        </SelectContent>
+                    </Select>
+                </div>
+            </div>
+
+            <Tabs
+                value={activeSection}
+                onValueChange={handleSectionChange}
+                orientation="vertical"
+                className="min-h-0 flex-1 w-full min-w-0 flex-col gap-0 bg-app-bg md:flex-row"
+            >
+                <aside className="hidden w-56 shrink-0 border-r border-border-subtle bg-surface-1 md:flex md:flex-col">
+                    <div className="px-5 pb-2 pt-6">
+                        <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-muted-foreground">Categories</p>
+                    </div>
+
+                    <TabsList variant="line" className="h-auto w-full flex-col items-stretch gap-1 bg-transparent px-3 pb-4">
+                        {filteredNav.map((item) => {
+                            const Icon = item.icon;
+                            const isActive = activeSection === item.id;
+
+                            return (
+                                <TabsTrigger
+                                    key={item.id}
+                                    value={item.id}
+                                    asChild={false}
+                                    className={cn(
+                                        "h-10 w-full justify-start gap-3 rounded-md px-4 py-2.5 text-left text-[13px] font-medium after:hidden transition-colors",
+                                        "border",
+                                        isActive
+                                            ? "border-border bg-muted text-foreground shadow-sm"
+                                            : "border-transparent bg-transparent text-muted-foreground hover:bg-muted/50 hover:text-foreground",
+                                    )}
+                                >
+                                    <Icon
+                                        className={cn(
+                                            "size-4 shrink-0 transition-colors",
+                                            isActive ? "text-foreground" : "text-muted-foreground",
+                                        )}
+                                    />
+                                    {item.label}
+                                </TabsTrigger>
+                            );
+                        })}
+                    </TabsList>
+                </aside>
+
+                <ScrollArea className="min-h-0 flex-1 w-full min-w-0">
+                    <div className="min-h-full w-full bg-app-bg px-6 py-6">
+                        <div className={SETTINGS_CONTENT_WIDTH_CLASS}>
+                            <div className="flex flex-col gap-2">
+                            <div className="flex items-center gap-2 text-sm font-medium text-muted-foreground">
+                                <ActiveIcon />
+                                <span>{activeNav.label}</span>
+                            </div>
+                            <div className="flex flex-col gap-1">
+                                <h2 className="text-2xl font-semibold tracking-tight text-foreground">{activeNav.label}</h2>
+                                <p className="max-w-2xl text-sm leading-6 text-muted-foreground">{activeNav.description}</p>
+                            </div>
+                            </div>
+
+                        <TabsContent value="appearance" className="mt-0 flex w-full min-w-0 flex-col gap-6">
+                            <AppearanceSection />
+                        </TabsContent>
+                        <TabsContent value="editor" className="mt-0 flex w-full min-w-0 flex-col gap-6">
+                            <EditorSection />
+                        </TabsContent>
+                        <TabsContent value="table" className="mt-0 flex w-full min-w-0 flex-col gap-6">
+                            <TableSection />
+                        </TabsContent>
+                        <TabsContent value="storage" className="mt-0 flex w-full min-w-0 flex-col gap-6">
+                            <StorageSection />
+                        </TabsContent>
+                        <TabsContent value="privacy" className="mt-0 flex w-full min-w-0 flex-col gap-6">
+                            <PrivacySection />
+                        </TabsContent>
+                        <TabsContent value="license" className="mt-0 flex w-full min-w-0 flex-col gap-6">
+                            <LicenseSection
+                                onActivate={() => {
+                                    setActiveView("main");
+                                    onActivate?.();
+                                }}
+                            />
+                        </TabsContent>
+                        <TabsContent value="keybindings" className="mt-0 flex w-full min-w-0 flex-col gap-6">
+                            <KeybindingsSection />
+                        </TabsContent>
+                        <TabsContent value="experimental" className="mt-0 flex w-full min-w-0 flex-col gap-6">
+                            <ExperimentalSection />
+                        </TabsContent>
+                        <TabsContent value="about" className="mt-0 flex w-full min-w-0 flex-col gap-6">
+                            <AboutSection />
+                        </TabsContent>
+                        </div>
+                    </div>
+                </ScrollArea>
+            </Tabs>
+        </div>
+    );
+}

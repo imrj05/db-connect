@@ -3,7 +3,7 @@ import React from "react";
 import { describe, expect, it, vi } from "vitest";
 import { invoke } from "@tauri-apps/api/core";
 
-import ConnectionDialog from "@/components/layout/connection-dialog-modal";
+import ConnectionDialog from "@/features/connections/connection-dialog-modal";
 import { renderWithProviders, resetAppStore } from "./test-utils";
 
 vi.mock("framer-motion", () => ({

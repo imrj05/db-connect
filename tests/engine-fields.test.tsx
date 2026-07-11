@@ -1,7 +1,7 @@
 import { screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 
-import { EngineFields } from "@/components/layout/connection-dialog/engine-fields";
+import { EngineFields } from "@/features/connections/components/engine-fields";
 import { renderWithProviders } from "./test-utils";
 
 vi.mock("framer-motion", () => ({
