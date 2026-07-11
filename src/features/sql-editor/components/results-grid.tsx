@@ -35,7 +35,7 @@ function simplifyDataType(type: string): string {
 
 function NullPill() {
 	return (
-		<span className="inline-flex h-[18px] items-center rounded-sm border border-border-subtle bg-surface-1/70 px-1.5 font-mono text-[10px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">
+		<span className="inline-flex h-[18px] items-center rounded-sm border border-border bg-background/70 px-1.5 font-mono text-[10px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">
 			NULL
 		</span>
 	);
@@ -119,7 +119,7 @@ export function ResultsGrid({
 			{/* Drag handle */}
 			<div
 				onMouseDown={onResizeStart}
-				className="h-1.5 bg-border-table hover:bg-primary/40 active:bg-primary/60 cursor-row-resize transition-colors shrink-0 select-none"
+				className="h-1.5 bg-border hover:bg-primary/40 active:bg-primary/60 cursor-row-resize transition-colors shrink-0 select-none"
 				title="Drag to resize"
 			/>
 			{/* Results grid or explain plan */}
@@ -189,7 +189,7 @@ export function ResultsGrid({
 														)}
 													</div>
 													{colType && (
-														<div className="mt-1 inline-flex rounded-sm border border-border/60 bg-surface-1/60 px-1 py-0.5 text-[9px] font-mono font-semibold leading-none text-muted-foreground">
+														<div className="mt-1 inline-flex rounded-sm border border-border/60 bg-background/60 px-1 py-0.5 text-[9px] font-mono font-semibold leading-none text-muted-foreground">
 															{simplifyDataType(colType)}
 														</div>
 													)}
@@ -210,8 +210,8 @@ export function ResultsGrid({
 								<TableRow
 									key={row.id}
 									className={cn(
-										"hover:bg-row-hover transition-colors",
-										row.index % 2 === 0 ? "bg-table-bg" : "bg-row-alt",
+										"hover:bg-accent transition-colors",
+										row.index % 2 === 0 ? "bg-muted" : "bg-muted/40",
 									)}
 								>
 									{row.getVisibleCells().map((cell) => (

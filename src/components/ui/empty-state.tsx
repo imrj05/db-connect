@@ -33,7 +33,7 @@ export function EmptyState({
                     <EmptyMedia
                         variant="icon"
                         className={cn(
-                            "size-12 rounded-xl border border-border-subtle bg-surface-2 text-foreground/55",
+                            "size-12 rounded-xl border border-border bg-card text-foreground/55",
                             iconClassName,
                         )}
                     >

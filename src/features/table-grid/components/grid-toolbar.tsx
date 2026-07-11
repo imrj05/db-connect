@@ -59,7 +59,7 @@ function ColumnVisibilityPanel({
 	);
 	return (
 		<>
-			<div className="px-2.5 py-1.5 border-b border-border-subtle">
+			<div className="px-2.5 py-1.5 border-b border-border">
 				<input
 					autoFocus
 					value={search}
@@ -76,11 +76,11 @@ function ColumnVisibilityPanel({
 							key={colId}
 							type="button"
 							onClick={() => onToggleColumn(colId, !visible)}
-							className="flex items-center gap-2 w-full px-2 py-1.5 hover:bg-surface-2 cursor-pointer"
+							className="flex items-center gap-2 w-full px-2 py-1.5 hover:bg-card cursor-pointer"
 						>
 							<span
 								className={cn(
-									"w-3.5 h-3.5 flex items-center justify-center rounded border border-border-subtle shrink-0",
+									"w-3.5 h-3.5 flex items-center justify-center rounded border border-border shrink-0",
 									visible ? "bg-primary border-primary" : "bg-transparent",
 								)}
 							>
@@ -193,7 +193,7 @@ export function GridToolbar({
 	return (
 		<>
 			{/* Header */}
-			<div className="h-10 px-4 flex items-center justify-between border-b border-border-subtle bg-surface-2/92 shrink-0 gap-3 backdrop-blur-sm">
+			<div className="h-10 px-4 flex items-center justify-between border-b border-border bg-card/92 shrink-0 gap-3 backdrop-blur-sm">
 				<span className="text-[13px] font-semibold text-foreground truncate">
 					{fn.type === "table"
 						? fn.tableName
@@ -218,10 +218,10 @@ export function GridToolbar({
 								onClick={onApplyPendingEdits}
 								disabled={pendingEditCount === 0 || applyPendingLoading}
 								className={cn(
-									"h-7 px-3 text-[11px] font-medium border-border-subtle shadow-xs",
+									"h-7 px-3 text-[11px] font-medium border-border shadow-xs",
 									pendingEditCount > 0
 										? "bg-accent-green/14 text-accent-green border-accent-green/22 hover:bg-accent-green/18"
-										: "bg-surface-elevated text-foreground/70 hover:bg-surface-elevated",
+										: "bg-popover text-foreground/70 hover:bg-popover",
 								)}
 							>
 								<Check size={11} className="mr-1" />
@@ -233,10 +233,10 @@ export function GridToolbar({
 								onClick={onResetPendingEdits}
 								disabled={pendingEditCount === 0 || applyPendingLoading}
 								className={cn(
-									"h-7 px-3 text-[11px] font-medium border-border-subtle shadow-xs",
+									"h-7 px-3 text-[11px] font-medium border-border shadow-xs",
 									pendingEditCount > 0
 										? "bg-warning/10 text-warning border-warning/22 hover:bg-warning/14"
-										: "bg-surface-elevated text-foreground/70 hover:bg-surface-elevated",
+										: "bg-popover text-foreground/70 hover:bg-popover",
 								)}
 							>
 								<RotateCcw size={11} className="mr-1" />
@@ -265,7 +265,7 @@ export function GridToolbar({
 										variant="outline"
 										size="sm"
 										onClick={onUndo}
-										className="h-7 px-3 text-[11px] font-medium border-border-subtle bg-surface-elevated text-foreground/60 hover:bg-surface-2 shadow-xs"
+										className="h-7 px-3 text-[11px] font-medium border-border bg-popover text-foreground/60 hover:bg-card shadow-xs"
 									>
 										<RotateCcw size={11} className="mr-1" />
 										Undo ({undoCount})
@@ -307,10 +307,10 @@ export function GridToolbar({
 									}
 								}}
 								className={cn(
-									"h-7 gap-1.5 rounded-md border-border-subtle px-3 text-[11px] font-medium shadow-xs",
+									"h-7 gap-1.5 rounded-md border-border px-3 text-[11px] font-medium shadow-xs",
 									filtersActive
 										? "bg-accent-blue/12 text-accent-blue border-accent-blue/18 hover:bg-accent-blue/16"
-										: "bg-surface-elevated text-foreground/68 hover:bg-surface-2",
+										: "bg-popover text-foreground/68 hover:bg-card",
 								)}
 							>
 								<span className="relative">
@@ -337,7 +337,7 @@ export function GridToolbar({
 									variant="outline"
 									size="sm"
 									onClick={onRefresh}
-								className="h-7 rounded-md border-border-subtle bg-surface-elevated px-3 text-[11px] font-medium text-foreground/68 shadow-xs hover:bg-surface-2"
+								className="h-7 rounded-md border-border bg-popover px-3 text-[11px] font-medium text-foreground/68 shadow-xs hover:bg-card"
 								>
 									<RefreshCw size={11} />
 									Refresh
@@ -353,12 +353,12 @@ export function GridToolbar({
 								size="sm"
 								onClick={onToggleSearch}
 								className={cn(
-									"h-7 gap-1.5 rounded-md border-border-subtle px-3 text-[11px] font-medium shadow-xs",
+									"h-7 gap-1.5 rounded-md border-border px-3 text-[11px] font-medium shadow-xs",
 									cellSearch
 										? "bg-accent-purple/12 text-accent-purple border-accent-purple/18 hover:bg-accent-purple/16"
 										: showSearchBar
-											? "bg-surface-selected/72 text-foreground"
-											: "bg-surface-elevated text-foreground/68 hover:bg-surface-2",
+											? "bg-primary/15/72 text-foreground"
+											: "bg-popover text-foreground/68 hover:bg-card",
 								)}
 							>
 									<span className="relative">
@@ -381,7 +381,7 @@ export function GridToolbar({
 						<Button
 							variant="outline"
 							size="sm"
-							className="h-7 w-7 rounded-md border-border-subtle bg-surface-elevated shadow-xs hover:bg-surface-2"
+							className="h-7 w-7 rounded-md border-border bg-popover shadow-xs hover:bg-card"
 							aria-label="More actions"
 						>
 							<MoreHorizontal size={11} />
@@ -544,7 +544,7 @@ export function GridToolbar({
 			</div>
 			{/* Search bar */}
 			{showSearchBar && viewMode === "data" && (
-				<div className="shrink-0 border-b border-border-subtle bg-surface-2/86">
+				<div className="shrink-0 border-b border-border bg-card/86">
 					<div className="flex items-center gap-2.5 px-3 py-2">
 						{/* Search icon */}
 						<div className="w-8 h-8 flex items-center justify-center shrink-0">
@@ -563,7 +563,7 @@ export function GridToolbar({
 									}
 								}}
 								placeholder="Search in all columns…"
-								className="h-9 text-[12px] bg-surface-elevated/96 border-border-subtle pr-20"
+								className="h-9 text-[12px] bg-popover/96 border-border pr-20"
 							/>
 							{/* Result count badge */}
 							{cellSearch && (
@@ -579,7 +579,7 @@ export function GridToolbar({
 							size="icon-xs"
 							aria-label="Clear search"
 							onClick={onClearSearch}
-							className="h-8 w-8 text-foreground/70 hover:text-foreground hover:bg-surface-3"
+							className="h-8 w-8 text-foreground/70 hover:text-foreground hover:bg-muted"
 						>
 							<X size={14} />
 						</Button>

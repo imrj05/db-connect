@@ -60,7 +60,7 @@ const SIDEBAR_DEFAULT = 260;
 
 function LazyViewFallback() {
     return (
-        <div className="flex h-full w-full items-center justify-center bg-surface-1">
+        <div className="flex h-full w-full items-center justify-center bg-background">
             <Loader2 className="size-6 animate-spin text-primary/60" />
         </div>
     );
@@ -465,7 +465,7 @@ function App() {
     return (
         <ErrorBoundary>
             <>
-                <div id="app-wrapper" className="h-full flex flex-col bg-app-bg text-foreground overflow-hidden font-sans">
+                <div id="app-wrapper" className="h-full flex flex-col bg-background text-foreground overflow-hidden font-sans">
                     {/* Ambient Safety top border — always 2px, colored by the
                         active connection's environment via --env-color. Reads
                         neutral when no env is active (DESIGN.md §1, §7). */}
@@ -477,12 +477,12 @@ function App() {
                         isLicensed={licenseCheck?.ok ?? null}
                         onActivate={() => setLicenseDialogOpen(true)}
                     />
-                    <main className="relative z-0 flex flex-1 overflow-hidden bg-app-bg">
+                    <main className="relative z-0 flex flex-1 overflow-hidden bg-background">
                         {/* Sidebar — collapses smoothly; fully unmounted when there's no live connection */}
                         <div
                             ref={sidebarRef}
                             style={{ width: sidebarHidden ? 0 : sidebarWidth, minWidth: sidebarHidden ? 0 : sidebarWidth }}
-                            className="h-full shrink-0 overflow-hidden border-r border-border-subtle transition-[width,min-width] duration-200 ease-in-out"
+                            className="h-full shrink-0 overflow-hidden border-r border-border transition-[width,min-width] duration-200 ease-in-out"
                             aria-hidden={sidebarHidden}
                         >
                             {!sidebarHidden && <Sidebar />}
@@ -494,11 +494,11 @@ function App() {
                                 role="separator"
                                 aria-orientation="vertical"
                                 aria-label="Resize sidebar"
-                                className="relative z-10 h-full w-2 shrink-0 cursor-col-resize before:absolute before:inset-y-0 before:left-1/2 before:w-px before:-translate-x-1/2 before:bg-border-subtle before:transition-colors hover:before:bg-primary/35"
+                                className="relative z-10 h-full w-2 shrink-0 cursor-col-resize before:absolute before:inset-y-0 before:left-1/2 before:w-px before:-translate-x-1/2 before:bg-border before:transition-colors hover:before:bg-primary/35"
                             />
                         )}
                         {/* Main content */}
-                        <div className="flex h-full min-w-0 flex-1 overflow-hidden bg-surface-1">
+                        <div className="flex h-full min-w-0 flex-1 overflow-hidden bg-background">
                             {showOnboarding ? (
                                 <Onboarding
                                     onDone={() => setOnboardingDone(true)}

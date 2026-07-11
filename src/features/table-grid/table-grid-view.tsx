@@ -137,7 +137,7 @@ function simplifyDataType(type: string): string {
 
 function NullPill() {
     return (
-        <span className="inline-flex h-[18px] items-center rounded-sm border border-border-subtle bg-surface-1/70 px-1.5 font-mono text-[10px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">
+        <span className="inline-flex h-[18px] items-center rounded-sm border border-border bg-background/70 px-1.5 font-mono text-[10px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">
             NULL
         </span>
     );
@@ -1966,7 +1966,7 @@ export function TableGridView({
             <div className="flex h-full items-center justify-center bg-background p-6">
                 <Empty className="border-0 p-0">
                     <EmptyHeader>
-                        <EmptyMedia variant="icon" className="size-12 rounded-2xl bg-surface-3 text-foreground/70">
+                        <EmptyMedia variant="icon" className="size-12 rounded-2xl bg-muted text-foreground/70">
                             <Sparkles size={22} className="text-accent-green/60" />
                         </EmptyMedia>
                         <EmptyTitle className="text-[21px] font-semibold text-foreground">No rows to display</EmptyTitle>
@@ -1979,7 +1979,7 @@ export function TableGridView({
         );
     }
     return (
-        <div className="h-full flex flex-col bg-surface-2 overflow-hidden rounded-[inherit]">
+        <div className="h-full flex flex-col bg-card overflow-hidden rounded-[inherit]">
             <GridToolbar
                 fn={fn}
                 executionTimeMs={effectiveResult.executionTimeMs}
@@ -2127,20 +2127,20 @@ export function TableGridView({
             {viewMode === "data" && (
                 <div className="flex flex-col flex-1 min-h-0 overflow-hidden">
                 <div className="flex flex-1 min-h-0 overflow-hidden">
-                <div className="flex-1 overflow-auto scrollbar-thin bg-surface-3">
+                <div className="flex-1 overflow-auto scrollbar-thin bg-muted">
                     <div className="min-w-full block align-middle">
                         <Table
-                            className="border-collapse text-[12px] font-mono border-separate border-spacing-0 bg-surface-3"
+                            className="border-collapse text-[12px] font-mono border-separate border-spacing-0 bg-muted"
                             style={{ width: table.getTotalSize() }}
                         >
-                            <TableHeader className="sticky top-0 z-10 bg-surface-2/96 backdrop-blur-md shadow-[0_1px_0_var(--color-border-table)]">
+                            <TableHeader className="sticky top-0 z-10 bg-card/96 backdrop-blur-md shadow-[0_1px_0_var(--color-border)]">
                                 {table.getHeaderGroups().map((headerGroup) => (
                                     <TableRow
                                         key={headerGroup.id}
                                         className="hover:bg-transparent border-none"
                                     >
                                         <TableHead
-                                            className="w-11 h-8 px-2.5 text-center font-bold text-foreground/70 border-r border-border-subtle bg-surface-2 cursor-pointer hover:text-foreground/62 transition-colors sticky left-0 z-20"
+                                            className="w-11 h-8 px-2.5 text-center font-bold text-foreground/70 border-r border-border bg-card cursor-pointer hover:text-foreground/62 transition-colors sticky left-0 z-20"
                                             onClick={() => {
                                                 setSelectedColId(null);
                                                 setSelectedRowIdx(-1);
@@ -2162,12 +2162,12 @@ export function TableGridView({
                                                         position: "relative",
                                                     }}
                                                     className={cn(
-                                                        "h-8 px-4 text-left font-semibold border-r border-border-subtle last:border-r-0 cursor-pointer transition-colors select-none overflow-hidden group/th bg-surface-2/96",
+                                                        "h-8 px-4 text-left font-semibold border-r border-border last:border-r-0 cursor-pointer transition-colors select-none overflow-hidden group/th bg-card/96",
                                                         isColSelected
-                                                            ? "bg-surface-selected/82 text-foreground"
+                                                            ? "bg-primary/15/82 text-foreground"
                                                             : header.column.getIsSorted()
-                                                                ? "text-foreground border-b-2 border-b-primary/35 hover:bg-surface-3"
-                                                                : "text-foreground/68 hover:bg-surface-3",
+                                                                ? "text-foreground border-b-2 border-b-primary/35 hover:bg-muted"
+                                                                : "text-foreground/68 hover:bg-muted",
                                                     )}
                                                     onClick={(e) => {
                                                         setSelectedColId(
@@ -2228,7 +2228,7 @@ export function TableGridView({
                                                                     {col.isUnique && !col.isPrimary && (
                                                                         <span className="rounded-sm border border-accent-purple/45 bg-accent-purple/12 px-1 py-0.5 text-[9px] font-bold leading-none text-accent-purple">UQ</span>
                                                                     )}
-                                                                    <span className="rounded-sm border border-border/60 bg-surface-1/60 px-1 py-0.5 text-[9px] font-mono font-semibold leading-none text-muted-foreground">
+                                                                    <span className="rounded-sm border border-border/60 bg-background/60 px-1 py-0.5 text-[9px] font-mono font-semibold leading-none text-muted-foreground">
                                                                         {simplifyDataType(col.dataType)}
                                                                     </span>
                                                                 </span>
@@ -2271,7 +2271,7 @@ export function TableGridView({
                                 {/* Batch 9: Insert new row */}
                                 {showInsertRow && fn.tableName && (
                                     <TableRow className="bg-accent-green/6 hover:bg-accent-green/10 border-l-2 border-accent-green/50">
-                                        <TableCell className="w-11 px-2 text-center border-r border-border-subtle sticky left-0 z-20 bg-accent-green/8">
+                                        <TableCell className="w-11 px-2 text-center border-r border-border sticky left-0 z-20 bg-accent-green/8">
                                             <div className="flex items-center justify-center gap-1">
                                                 <button
                                                     onClick={() => void commitInsert()}
@@ -2293,7 +2293,7 @@ export function TableGridView({
                                             <TableCell
                                                 key={col.id}
                                                 style={{ width: col.getSize() }}
-                                                className="relative h-8 p-0 border-r border-border-subtle last:border-r-0"
+                                                className="relative h-8 p-0 border-r border-border last:border-r-0"
                                             >
                                                 <input
                                                     {...(ci === 0 ? { autoFocus: true } : {})}
@@ -2343,13 +2343,13 @@ export function TableGridView({
                                             <TableRow
                                                 key={row.id}
                                                 className={cn(
-                                                    "hover:bg-row-hover transition-colors group cursor-default",
+                                                    "hover:bg-accent transition-colors group cursor-default",
                                                     rowHeightClass,
                                                     isSelected || selectedRowIdxSet.has(idx)
-                                                        ? "bg-surface-selected/82 border-l-2 border-primary/70"
+                                                        ? "bg-primary/15/82 border-l-2 border-primary/70"
                                                         : idx % 2 === 0
-                                                            ? "bg-table-bg"
-                                                            : "bg-row-alt",
+                                                            ? "bg-muted"
+                                                            : "bg-muted/40",
                                                 )}
                                                 onDoubleClick={() => {
                                                     setSelectedRowIdx(idx);
@@ -2358,13 +2358,13 @@ export function TableGridView({
                                             >
                                                 <TableCell
                                                     className={cn(
-                                                        "w-11 px-2.5 text-center border-r border-border-subtle cursor-pointer select-none transition-colors sticky left-0 z-20 shadow-[1px_0_0_var(--color-border-table)]",
+                                                        "w-11 px-2.5 text-center border-r border-border cursor-pointer select-none transition-colors sticky left-0 z-20 shadow-[1px_0_0_var(--color-border)]",
                                                         rowHeightClass,
                                                         isSelected || selectedRowIdxSet.has(idx)
-                                                            ? "bg-surface-selected text-foreground font-bold"
+                                                            ? "bg-primary/15 text-foreground font-bold"
                                                             : idx % 2 === 0
-                                                                ? "bg-table-bg text-foreground/70 hover:bg-surface-selected/82 hover:text-foreground"
-                                                                : "bg-row-alt text-foreground/70 hover:bg-surface-selected/82 hover:text-foreground",
+                                                                ? "bg-muted text-foreground/70 hover:bg-primary/15/82 hover:text-foreground"
+                                                                : "bg-muted/40 text-foreground/70 hover:bg-primary/15/82 hover:text-foreground",
                                                     )}
                                                      onClick={(e) => {
                                                         if (e.shiftKey || e.metaKey || e.ctrlKey) {
@@ -2418,12 +2418,12 @@ export function TableGridView({
                                                                     width: cell.column.getSize(),
                                                                 }}
                                                                 className={cn(
-                                                                    "relative h-8 overflow-hidden border-r border-border-subtle px-4 text-foreground/92 whitespace-nowrap text-ellipsis last:border-r-0",
+                                                                    "relative h-8 overflow-hidden border-r border-border px-4 text-foreground/92 whitespace-nowrap text-ellipsis last:border-r-0",
                                                                     colorStyle && colorStyle.bg,
                                                                     colorStyle && colorStyle.text,
                                                                     pendingEdit && "bg-warning/14 text-warning ring-2 ring-inset ring-warning/55 after:absolute after:left-0 after:top-0 after:h-full after:w-0.5 after:bg-warning/80",
-                                                                    cell.column.id === selectedColId && "bg-surface-selected/58",
-                                                                    isCellSelected && "bg-surface-selected ring-2 ring-inset ring-primary/65 shadow-[inset_0_0_0_1px_var(--primary)]",
+                                                                    cell.column.id === selectedColId && "bg-primary/15/58",
+                                                                    isCellSelected && "bg-primary/15 ring-2 ring-inset ring-primary/65 shadow-[inset_0_0_0_1px_var(--primary)]",
                                                                 )}
                                                                 onClick={() => {
                                                                     const key = `${idx}:${cell.column.id}`;
@@ -2525,10 +2525,10 @@ export function TableGridView({
                             </TableBody>
                             {/* Feature 3: Aggregation footer row */}
                             {showAggFooter && (
-                                <tfoot className="sticky bottom-0 z-10 bg-surface-2/96 backdrop-blur-sm">
-                                    <tr className="border-t border-border-subtle shadow-[0_-1px_0_var(--color-border-subtle)]">
+                                <tfoot className="sticky bottom-0 z-10 bg-card/96 backdrop-blur-sm">
+                                    <tr className="border-t border-border shadow-[0_-1px_0_var(--color-border)]">
                                         {/* Row number cell */}
-                                        <td className="w-11 px-2.5 text-center border-r border-border-subtle sticky left-0 z-20 bg-surface-2/98">
+                                        <td className="w-11 px-2.5 text-center border-r border-border sticky left-0 z-20 bg-card/98">
                                             <span className="text-[8.5px] font-bold uppercase tracking-widest text-foreground/70">Σ</span>
                                         </td>
                                         {table.getVisibleLeafColumns().map((col) => {
@@ -2550,7 +2550,7 @@ export function TableGridView({
                                                 <td
                                                     key={col.id}
                                                     style={{ width: col.getSize() }}
-                                                    className="h-7 px-3 border-r border-border-subtle last:border-r-0 cursor-pointer select-none group/agg"
+                                                    className="h-7 px-3 border-r border-border last:border-r-0 cursor-pointer select-none group/agg"
                                                     onClick={() =>
                                                         setFooterMetrics((prev) => ({
                                                             ...prev,
@@ -2805,7 +2805,7 @@ export function TableGridView({
             </Suspense>
             {/* Content: Form view */}
             {viewMode === "form" && effectiveResult && (
-                <div className="flex-1 overflow-auto scrollbar-thin bg-surface-3">
+                <div className="flex-1 overflow-auto scrollbar-thin bg-muted">
                     {effectiveResult.rows.length === 0 ? (
                         <div className="h-full flex items-center justify-center text-foreground/70 text-[12px] font-mono">
                             0 rows
@@ -2824,8 +2824,8 @@ export function TableGridView({
                             ).length;
                             return (
                                 <div className="p-4 space-y-4">
-                                    <div className="sticky top-0 z-10 rounded-xl border border-border-subtle bg-surface-2/96 backdrop-blur-md shadow-sm">
-                                        <div className="flex flex-col gap-3 border-b border-border-subtle px-4 py-3 sm:flex-row sm:items-start sm:justify-between">
+                                    <div className="sticky top-0 z-10 rounded-xl border border-border bg-card/96 backdrop-blur-md shadow-sm">
+                                        <div className="flex flex-col gap-3 border-b border-border px-4 py-3 sm:flex-row sm:items-start sm:justify-between">
                                             <div className="space-y-2">
                                                 <div className="flex items-center gap-2">
                                                     <AlignLeft
@@ -2932,7 +2932,7 @@ export function TableGridView({
                                             </div>
                                         </div>
                                         <div className="grid grid-cols-2 gap-3 px-4 py-3 text-[11px] text-foreground/70 sm:grid-cols-4">
-                                            <div className="rounded-lg border border-border-subtle bg-surface-3 px-3 py-2">
+                                            <div className="rounded-lg border border-border bg-muted px-3 py-2">
                                                 <div className="text-[10px] uppercase tracking-wide text-foreground/70">
                                                     Current row
                                                 </div>
@@ -2940,7 +2940,7 @@ export function TableGridView({
                                                     {page * effectivePageSize + formRowIdx + 1} / {effectiveResult.rows.length}
                                                 </div>
                                             </div>
-                                            <div className="rounded-lg border border-border-subtle bg-surface-3 px-3 py-2">
+                                            <div className="rounded-lg border border-border bg-muted px-3 py-2">
                                                 <div className="text-[10px] uppercase tracking-wide text-foreground/70">
                                                     Visible fields
                                                 </div>
@@ -2948,7 +2948,7 @@ export function TableGridView({
                                                     {cols.length}
                                                 </div>
                                             </div>
-                                            <div className="rounded-lg border border-border-subtle bg-surface-3 px-3 py-2">
+                                            <div className="rounded-lg border border-border bg-muted px-3 py-2">
                                                 <div className="text-[10px] uppercase tracking-wide text-foreground/70">
                                                     Primary keys
                                                 </div>
@@ -2956,7 +2956,7 @@ export function TableGridView({
                                                     {primaryKeyColumns.length || 0}
                                                 </div>
                                             </div>
-                                            <div className="rounded-lg border border-border-subtle bg-surface-3 px-3 py-2">
+                                            <div className="rounded-lg border border-border bg-muted px-3 py-2">
                                                 <div className="text-[10px] uppercase tracking-wide text-foreground/70">
                                                     Pending changes
                                                 </div>
@@ -2987,7 +2987,7 @@ export function TableGridView({
                                                 <div
                                                     key={col}
                                                     className={cn(
-                                                        "rounded-xl border border-border-subtle bg-surface-2 shadow-sm transition-colors",
+                                                        "rounded-xl border border-border bg-card shadow-sm transition-colors",
                                                         pendingEdit &&
                                                         "border-warning/30 bg-warning/5",
                                                         colIdx % 2 === 0
@@ -3043,7 +3043,7 @@ export function TableGridView({
                                                             </div>
                                                         </div>
                                                         <div className="min-w-0 flex-1 space-y-3">
-                                                            <div className="rounded-lg border border-border-subtle bg-surface-3 px-3 py-2">
+                                                            <div className="rounded-lg border border-border bg-muted px-3 py-2">
                                                                 {isEditing ? (
                                                                     <input
                                                                         autoFocus
@@ -3202,7 +3202,7 @@ export function TableGridView({
             )}
             {/* Content: Structure view */}
             {viewMode === "structure" && (
-                <div className="flex-1 overflow-auto scrollbar-thin bg-surface-3">
+                <div className="flex-1 overflow-auto scrollbar-thin bg-muted">
                     {structureLoading ? (
                         <div className="flex h-full items-center justify-center p-6">
                             <div className="space-y-3 text-center">
@@ -3213,7 +3213,7 @@ export function TableGridView({
                     ) : structure ? (
                         <div className="space-y-4 p-4">
                             <div className="grid gap-3 sm:grid-cols-3">
-                                <div className="rounded-xl border border-border-subtle bg-surface-2 px-4 py-3 shadow-sm">
+                                <div className="rounded-xl border border-border bg-card px-4 py-3 shadow-sm">
                                     <div className="text-[10px] uppercase tracking-wide text-foreground/70">
                                         Table
                                     </div>
@@ -3221,7 +3221,7 @@ export function TableGridView({
                                         {fn.tableName ?? "Unknown"}
                                     </div>
                                 </div>
-                                <div className="rounded-xl border border-border-subtle bg-surface-2 px-4 py-3 shadow-sm">
+                                <div className="rounded-xl border border-border bg-card px-4 py-3 shadow-sm">
                                     <div className="text-[10px] uppercase tracking-wide text-foreground/70">
                                         Columns
                                     </div>
@@ -3229,7 +3229,7 @@ export function TableGridView({
                                         {structure.columns.length}
                                     </div>
                                 </div>
-                                <div className="rounded-xl border border-border-subtle bg-surface-2 px-4 py-3 shadow-sm">
+                                <div className="rounded-xl border border-border bg-card px-4 py-3 shadow-sm">
                                     <div className="text-[10px] uppercase tracking-wide text-foreground/70">
                                         Indexes
                                     </div>
@@ -3239,8 +3239,8 @@ export function TableGridView({
                                 </div>
                             </div>
 
-                            <div className="rounded-xl border border-border-subtle bg-surface-2 shadow-sm overflow-hidden">
-                                <div className="flex items-center justify-between gap-3 border-b border-border-subtle px-4 py-3">
+                            <div className="rounded-xl border border-border bg-card shadow-sm overflow-hidden">
+                                <div className="flex items-center justify-between gap-3 border-b border-border px-4 py-3">
                                     <div className="flex items-center gap-2">
                                         <Key size={12} className="text-foreground/70" />
                                         <span className="text-[12px] font-semibold text-foreground/72">
@@ -3272,7 +3272,7 @@ export function TableGridView({
                                         </Button>
                                     )}
                                 </div>
-                                <div className="divide-y divide-border-subtle">
+                                <div className="divide-y divide-border">
                                     {structure.columns.map((col) => (
                                         <div key={col.name} className="flex flex-col gap-3 px-4 py-4 lg:flex-row lg:items-start lg:justify-between">
                                             <div className="min-w-0 flex-1 space-y-2">
@@ -3339,8 +3339,8 @@ export function TableGridView({
                                 </div>
                             </div>
 
-                            <div className="rounded-xl border border-border-subtle bg-surface-2 shadow-sm overflow-hidden">
-                                <div className="flex items-center justify-between gap-3 border-b border-border-subtle px-4 py-3">
+                            <div className="rounded-xl border border-border bg-card shadow-sm overflow-hidden">
+                                <div className="flex items-center justify-between gap-3 border-b border-border px-4 py-3">
                                     <div className="flex items-center gap-2">
                                         <Hash size={12} className="text-foreground/70" />
                                         <span className="text-[12px] font-semibold text-foreground/72">
@@ -3377,7 +3377,7 @@ export function TableGridView({
                                         </EmptyHeader>
                                     </Empty>
                                 ) : (
-                                    <div className="divide-y divide-border-subtle">
+                                    <div className="divide-y divide-border">
                                         {structure.indexes.map((idx) => (
                                             <div key={idx.name} className="flex flex-col gap-3 px-4 py-4 lg:flex-row lg:items-start lg:justify-between">
                                                 <div className="min-w-0 flex-1 space-y-2">
@@ -3473,7 +3473,7 @@ export function TableGridView({
                             </Alert>
                         </div>
                     ) : schemaGraph && schemaGraph.tables.length > 0 ? (
-                        <Suspense fallback={<div className="flex h-full items-center justify-center bg-surface-2 text-foreground/70 text-xs">Loading diagram…</div>}>
+                        <Suspense fallback={<div className="flex h-full items-center justify-center bg-card text-foreground/70 text-xs">Loading diagram…</div>}>
                             <ERDiagramViewLazy
                                 graph={schemaGraph}
                                 currentTableName={fn.tableName}
@@ -3505,7 +3505,7 @@ export function TableGridView({
                 </Alert>
             )}
             {/* Footer toolbar */}
-            <div className="h-11 bg-surface-2/92 border-t border-border-subtle flex items-center justify-between px-3.5 shrink-0 gap-4 backdrop-blur-sm">
+            <div className="h-11 bg-card/92 border-t border-border flex items-center justify-between px-3.5 shrink-0 gap-4 backdrop-blur-sm">
                 <div className="flex items-stretch gap-0 h-full">
                     {(
                         isRelationalDb
@@ -3518,8 +3518,8 @@ export function TableGridView({
                             className={cn(
                                 "relative flex items-center px-3 text-[12px] font-medium transition-colors focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ring/40",
                                 viewMode === mode
-                                    ? "text-foreground bg-surface-3/92 rounded-md"
-                                    : "text-foreground/70 hover:text-foreground/72 hover:bg-surface-3/72 rounded-md",
+                                    ? "text-foreground bg-muted/92 rounded-md"
+                                    : "text-foreground/70 hover:text-foreground/72 hover:bg-muted/72 rounded-md",
                             )}
                         >
                             {mode}

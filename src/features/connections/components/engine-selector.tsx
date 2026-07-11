@@ -19,7 +19,7 @@ export function EngineSelector({
 	onSelect: (id: string) => void;
 }) {
 	return (
-		<div className="shrink-0 border-b border-border-subtle bg-card px-4 py-2">
+		<div className="shrink-0 border-b border-border bg-card px-4 py-2">
 			<div className="grid grid-cols-5 gap-1.5">
 			{DATABASE_ENGINES.map((engine) => {
 				const isActive = selectedType === engine.id;
@@ -33,7 +33,7 @@ export function EngineSelector({
 							"group relative flex min-w-0 items-center gap-1.5 rounded-md border px-2.5 py-1.5 text-left transition-colors",
 							isActive
 								? "border-primary/30 bg-primary/8 text-foreground"
-								: "border-border-subtle bg-surface-elevated text-muted-foreground/62 hover:border-border hover:bg-surface-hover hover:text-foreground/80",
+								: "border-border bg-popover text-muted-foreground/62 hover:border-border hover:bg-accent hover:text-foreground/80",
 						)}
 					>
 					<Logo

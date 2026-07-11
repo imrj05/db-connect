@@ -86,7 +86,7 @@ function ColumnIcon({ col }: { col: ColumnInfo }) {
 // ── Column row ─────────────────────────────────────────────────────────────────
 function ColumnRow({ col }: { col: ColumnInfo }) {
     return (
-        <div className="flex h-[22px] items-center gap-2 rounded-md pl-1.5 pr-2.5 text-foreground/62 transition-colors hover:bg-surface-2/72 hover:text-foreground/82">
+        <div className="flex h-[22px] items-center gap-2 rounded-md pl-1.5 pr-2.5 text-foreground/62 transition-colors hover:bg-card/72 hover:text-foreground/82">
             <ColumnIcon col={col} />
             <span className="text-[11px] font-mono truncate flex-1">{col.name}</span>
             <span className="text-[11px] font-mono text-foreground/38 shrink-0">
@@ -147,8 +147,8 @@ function TableRow({
                         className={cn(
                             "group flex h-7 w-full items-center gap-2.5 overflow-hidden rounded-md pl-1.5 pr-2.5 transition-colors focus-visible:ring-2 focus-visible:ring-ring/50 focus-visible:outline-none",
                             isActive
-                                ? "bg-surface-selected/82 text-foreground shadow-xs ring-1 ring-border-subtle"
-                                : "text-foreground/72 hover:bg-surface-2 hover:text-foreground",
+                                ? "bg-primary/15/82 text-foreground shadow-xs ring-1 ring-border"
+                                : "text-foreground/72 hover:bg-card hover:text-foreground",
                         )}
                     >
                         {/* expand chevron — always visible */}
@@ -250,7 +250,7 @@ function SchemaGroup({
             {showLabel && (
                 <button
                     onClick={() => setOpen((v) => !v)}
-                    className="flex h-[26px] w-full items-center gap-2 rounded-md pl-1.5 pr-2.5 text-foreground/60 transition-colors hover:bg-surface-2/72 hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring/50 focus-visible:outline-none"
+                    className="flex h-[26px] w-full items-center gap-2 rounded-md pl-1.5 pr-2.5 text-foreground/60 transition-colors hover:bg-card/72 hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring/50 focus-visible:outline-none"
                 >
                     <span className="flex items-center justify-center w-4 shrink-0 text-foreground/35">
                         {open ? <ChevronDown size={10} /> : <ChevronRight size={10} />}
@@ -478,12 +478,12 @@ function DatabaseNode({
     const schemaKeys = Object.keys(bySchema);
     const showSchemaLabels = schemaKeys.length > 1 || (schemaKeys.length === 1 && schemaKeys[0] !== "public");
     return (
-        <div className="overflow-hidden rounded-md border border-border-subtle bg-surface-2">
+        <div className="overflow-hidden rounded-md border border-border bg-card">
             {/* DB name row */}
             <button
                 onClick={() => isConnected ? setOpen((v) => !v) : onConnect()}
                 className={cn(
-                    "group flex h-9 w-full items-center gap-2.5 px-3 text-foreground transition-colors select-none hover:bg-surface-3 focus-visible:ring-2 focus-visible:ring-ring/50 focus-visible:outline-none",
+                    "group flex h-9 w-full items-center gap-2.5 px-3 text-foreground transition-colors select-none hover:bg-muted focus-visible:ring-2 focus-visible:ring-ring/50 focus-visible:outline-none",
                 )}
             >
                 <span className="text-foreground/38 shrink-0 w-3">
@@ -491,7 +491,7 @@ function DatabaseNode({
                         ? open ? <ChevronDown size={11} /> : <ChevronRight size={11} />
                         : <ChevronRight size={11} />}
                 </span>
-                <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md border border-border-subtle bg-surface-3">
+                <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md border border-border bg-muted">
                     <Logo className={cn("text-[14px] shrink-0", logoColor)} />
                 </div>
                 <span className="text-[13px] font-semibold flex-1 text-left truncate min-w-0">
@@ -555,7 +555,7 @@ function DatabaseNode({
                             <button
                                 aria-label="Add table"
                                 onClick={() => setAddTableOpen(true)}
-                                className="shell-icon-button flex h-5 w-5 items-center justify-center text-foreground/40 transition-colors hover:bg-surface-3 hover:text-foreground"
+                                className="shell-icon-button flex h-5 w-5 items-center justify-center text-foreground/40 transition-colors hover:bg-muted hover:text-foreground"
                             >
                                 <Plus size={11} />
                             </button>
@@ -568,7 +568,7 @@ function DatabaseNode({
                                 aria-label="Refresh tables"
                                 onClick={handleRefreshTables}
                                 disabled={isRefreshingTables}
-                                className="shell-icon-button flex h-5 w-5 items-center justify-center text-foreground/40 transition-colors hover:bg-surface-3 hover:text-foreground disabled:opacity-40"
+                                className="shell-icon-button flex h-5 w-5 items-center justify-center text-foreground/40 transition-colors hover:bg-muted hover:text-foreground disabled:opacity-40"
                             >
                                 <RefreshCw size={11} className={isRefreshingTables ? "animate-spin" : ""} />
                             </button>
@@ -581,7 +581,7 @@ function DatabaseNode({
                                 <button
                                     aria-label={expandAll === true ? "Collapse all" : "Expand all"}
                                     onClick={() => setExpandAll((v) => v === true ? false : true)}
-                                    className="shell-icon-button flex h-5 w-5 items-center justify-center text-foreground/40 transition-colors hover:bg-surface-3 hover:text-foreground"
+                                    className="shell-icon-button flex h-5 w-5 items-center justify-center text-foreground/40 transition-colors hover:bg-muted hover:text-foreground"
                                 >
                                     {expandAll === true ? <ChevronsUp size={11} /> : <ChevronsDown size={11} />}
                                 </button>
@@ -598,7 +598,7 @@ function DatabaseNode({
                                     aria-label="Dump database"
                                     onClick={() => setShowDumpDialog(true)}
                                     disabled={dumpDbLoading}
-                                    className="shell-icon-button flex h-5 w-5 items-center justify-center text-foreground/40 transition-colors hover:bg-surface-3 hover:text-foreground disabled:opacity-40"
+                                    className="shell-icon-button flex h-5 w-5 items-center justify-center text-foreground/40 transition-colors hover:bg-muted hover:text-foreground disabled:opacity-40"
                                 >
                                     {dumpDbLoading
                                         ? <Loader2 size={11} className="animate-spin" />
@@ -796,7 +796,7 @@ function SavedConnectionsList({
                                 <button
                                     key={conn.id}
                                     onClick={() => onEditConnection(conn)}
-                                    className="group w-full rounded-md border border-transparent px-2.5 py-2 text-left transition-colors hover:bg-surface-2 hover:border-border-subtle"
+                                    className="group w-full rounded-md border border-transparent px-2.5 py-2 text-left transition-colors hover:bg-card hover:border-border"
                                 >
                                     <div className="flex items-center justify-between gap-1.5 mb-0.5">
                                         <div className="flex items-center gap-1.5 min-w-0">
@@ -982,8 +982,8 @@ function DatabaseSection({
                         className={cn(
                             "group flex w-full items-center gap-1.5 rounded-md px-2 py-1.5 text-left transition-colors",
                             isSelected
-                                ? "bg-surface-elevated text-foreground"
-                                : "text-foreground/62 hover:bg-surface-2 hover:text-foreground",
+                                ? "bg-popover text-foreground"
+                                : "text-foreground/62 hover:bg-card hover:text-foreground",
                         )}
                     >
                         {/* Chevron: toggle expand/collapse only, do not activate the DB */}
@@ -991,7 +991,7 @@ function DatabaseSection({
                             role="button"
                             aria-label={expanded ? "Collapse" : "Expand"}
                             onClick={(e) => { e.stopPropagation(); setExpanded((v) => !v); }}
-                            className="-m-0.5 flex shrink-0 items-center justify-center rounded-md p-0.5 hover:bg-surface-3"
+                            className="-m-0.5 flex shrink-0 items-center justify-center rounded-md p-0.5 hover:bg-muted"
                         >
                             {expanded
                                 ? <ChevronDown size={11} className="text-foreground/40" />
@@ -1335,7 +1335,7 @@ const Sidebar = () => {
     // ── New-connection mode: show saved connections list inline in sidebar ──
     if (activeView === "new-connection") {
         return (
-            <div className="flex h-full min-h-0 overflow-hidden bg-surface-1">
+            <div className="flex h-full min-h-0 overflow-hidden bg-sidebar">
                 <SavedConnectionsList
                     connections={connections}
                     connectedIds={connectedIds}
@@ -1352,7 +1352,7 @@ const Sidebar = () => {
     const selectedDb = activeConn ? (selectedDatabases[activeConn.id] ?? null) : null;
 
     return (
-        <div className="flex h-full min-h-0 overflow-hidden bg-surface-1">
+        <div className="flex h-full min-h-0 overflow-hidden bg-sidebar">
 
             {/* ══ PANEL 1 — Connected connections (square tabs) ══ */}
             {connectedIds.length > 0 && (
@@ -1360,7 +1360,7 @@ const Sidebar = () => {
                     style={{ width: dbTabsCollapsed ? 0 : 88 }}
                     className="shrink-0 overflow-hidden transition-[width] duration-200 ease-in-out"
                 >
-                    <div className="flex h-full w-[88px] flex-col gap-1.5 overflow-y-auto border-r border-border-subtle bg-surface-1 px-2 py-2">
+                    <div className="flex h-full w-[88px] flex-col gap-1.5 overflow-y-auto border-r border-border bg-sidebar px-2 py-2">
                         {connectedIds.map((connId) => {
                             const conn = connections.find((c) => c.id === connId);
                             if (!conn) return null;
@@ -1379,15 +1379,15 @@ const Sidebar = () => {
                                                         className={cn(
                                                             "group relative flex w-full shrink-0 flex-col items-center gap-1.5 border px-2 py-3 transition-[color,background-color,border-color]",
                                                             isActive
-                                                                ? "border-border-subtle bg-surface-elevated text-foreground"
-                                                                : "border-transparent bg-surface-2 text-foreground/50 hover:border-border/55 hover:bg-surface-3 hover:text-foreground/72"
+                                                                ? "border-border bg-popover text-foreground"
+                                                                : "border-transparent bg-card text-foreground/50 hover:border-border/55 hover:bg-muted hover:text-foreground/72"
                                                         )}
                                                     >
                                                         <div className={cn(
                                                             "flex h-8 w-8 items-center justify-center rounded-md border border-transparent transition-colors",
                                                             isActive
-                                                                ? "border-border-subtle bg-surface-2"
-                                                                : "bg-transparent group-hover:bg-surface-3"
+                                                                ? "border-border bg-card"
+                                                                : "bg-transparent group-hover:bg-muted"
                                                         )}>
                                                             <DbLogo className={cn(
                                                                 "text-[18px] shrink-0 transition-colors",
@@ -1497,14 +1497,14 @@ const Sidebar = () => {
 
                 {/* Filter */}
                 {activeConn && connectedIds.includes(activeConn.id) && (
-                    <div className="shrink-0 border-b border-border-subtle bg-surface-1 px-3 py-2">
+                    <div className="shrink-0 border-b border-border bg-sidebar px-3 py-2">
                         <div className="relative">
                             <Search size={11} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-foreground/36 pointer-events-none" />
                             <Input
                                 value={filter}
                                 onChange={(e) => setFilter(e.target.value)}
                                 placeholder="Filter tables…"
-                                className="h-8 border-border-subtle bg-surface-2 pl-8 pr-3 text-[12px] font-mono placeholder:text-foreground/38 focus-visible:border-primary/35 focus-visible:ring-2 focus-visible:ring-ring/50"
+                                className="h-8 border-border bg-card pl-8 pr-3 text-[12px] font-mono placeholder:text-foreground/38 focus-visible:border-primary/35 focus-visible:ring-2 focus-visible:ring-ring/50"
                             />
                         </div>
                     </div>
@@ -1701,7 +1701,7 @@ const Sidebar = () => {
                                 "ml-auto shrink-0 rounded p-1 transition-colors",
                                 healthOpen
                                     ? "text-primary bg-primary/10"
-                                    : "text-foreground/36 hover:text-foreground/70 hover:bg-surface-3",
+                                    : "text-foreground/36 hover:text-foreground/70 hover:bg-muted",
                             )}
                             title="Connection health"
                         >

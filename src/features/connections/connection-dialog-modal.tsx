@@ -160,7 +160,7 @@ function ConnectionUrlPreview({
         return `${scheme}://${user || "user"}:****@${host || "localhost"}:${port || 5432}/${database || "db"}`;
     })();
     return (
-        <div className="flex items-center gap-2 rounded-md border border-border-subtle bg-surface-elevated px-2.5 py-1.5">
+        <div className="flex items-center gap-2 rounded-md border border-border bg-popover px-2.5 py-1.5">
             <span className="text-[10px] font-semibold uppercase tracking-widest text-fg-muted shrink-0">
                 Preview
             </span>
@@ -178,7 +178,7 @@ function StepBadge({ step, active }: { step: string; active: boolean }) {
                 "flex size-5 items-center justify-center rounded-sm border text-[10px] font-bold leading-none",
                 active
                     ? "border-primary/30 bg-primary/10 text-primary"
-                    : "border-border-subtle bg-transparent text-muted-foreground/55",
+                    : "border-border bg-transparent text-muted-foreground/55",
             )}
         >
             {step}
@@ -418,13 +418,13 @@ const ConnectionDialog = ({ onClose, initialData, mode = "modal" }: ConnectionDi
             value={activeTab}
             onValueChange={setActiveTab}
             className={cn(
-                "flex flex-col overflow-hidden bg-surface-1",
+                "flex flex-col overflow-hidden bg-background",
                 mode === "modal" ? "h-[600px]" : "h-full min-h-0",
             )}
         >
-            <div className="flex shrink-0 items-center justify-between gap-3 border-b border-border-subtle bg-card px-5 py-3">
+            <div className="flex shrink-0 items-center justify-between gap-3 border-b border-border bg-card px-5 py-3">
                 <div className="flex min-w-0 items-center gap-2.5">
-                    <div className="flex size-8 shrink-0 items-center justify-center rounded-md border border-border-subtle bg-surface-elevated">
+                    <div className="flex size-8 shrink-0 items-center justify-center rounded-md border border-border bg-popover">
                         <SelectedEngineLogo className={cn("text-lg", DB_COLOR[selectedEngine])} />
                     </div>
                     <div className="min-w-0">
@@ -454,14 +454,14 @@ const ConnectionDialog = ({ onClose, initialData, mode = "modal" }: ConnectionDi
                     a single surface, not a numbered wizard. */}
                 <TabsList
                     variant="line"
-                    className="grid h-8 auto-cols-fr grid-flow-col shrink-0 bg-surface-2 p-0.5"
+                    className="grid h-8 auto-cols-fr grid-flow-col shrink-0 bg-card p-0.5"
                 >
                     <TabsTrigger
                         value="quick-connect"
                         className={cn(
                             tabTriggerBaseClass,
                             activeTab === "quick-connect"
-                                ? "border-border-subtle bg-surface-elevated text-foreground [&_svg]:text-foreground"
+                                ? "border-border bg-popover text-foreground [&_svg]:text-foreground"
                                 : "border-transparent bg-transparent text-fg-muted hover:text-foreground/80 [&_svg]:text-muted-foreground/45",
                         )}
                     >
@@ -474,7 +474,7 @@ const ConnectionDialog = ({ onClose, initialData, mode = "modal" }: ConnectionDi
                         className={cn(
                             tabTriggerBaseClass,
                             activeTab === "details"
-                                ? "border-border-subtle bg-surface-elevated text-foreground [&_svg]:text-foreground"
+                                ? "border-border bg-popover text-foreground [&_svg]:text-foreground"
                                 : "border-transparent bg-transparent text-fg-muted hover:text-foreground/80 [&_svg]:text-muted-foreground/45",
                         )}
                     >
@@ -486,7 +486,7 @@ const ConnectionDialog = ({ onClose, initialData, mode = "modal" }: ConnectionDi
             </div>
 
             <TabsContent value="details" className="min-h-0 flex-1 overflow-hidden">
-                <div className="flex h-full min-h-0 flex-col bg-surface-1">
+                <div className="flex h-full min-h-0 flex-col bg-background">
                     <EngineSelector
                         selectedType={selectedEngine}
                         onSelect={handleEngineChange}
@@ -496,8 +496,8 @@ const ConnectionDialog = ({ onClose, initialData, mode = "modal" }: ConnectionDi
                         <div className={cn("mx-auto flex w-full flex-col gap-3", isPageMode ? "max-w-6xl" : "max-w-4xl")}>
                             <div className="grid gap-3 lg:grid-cols-[minmax(0,1fr)_240px]">
                                 <div className="flex min-w-0 flex-col gap-3">
-                                    <div className="rounded-md border border-border-subtle bg-card">
-                                        <div className="flex items-center justify-between gap-3 border-b border-border-subtle px-4 py-2.5">
+                                    <div className="rounded-md border border-border bg-card">
+                                        <div className="flex items-center justify-between gap-3 border-b border-border px-4 py-2.5">
                                             <div className="min-w-0">
                                                 <p className="shell-section-label">Details</p>
                                                 <p className="mt-0.5 truncate text-[11px] text-muted-foreground/64">
@@ -536,10 +536,10 @@ const ConnectionDialog = ({ onClose, initialData, mode = "modal" }: ConnectionDi
                                                             aria-invalid={showNameError}
                                                             placeholder="e.g. Production Analytics"
                                                             className={cn(
-                                                                "h-9 bg-surface-elevated text-xs",
+                                                                "h-9 bg-popover text-xs",
                                                                 showNameError
                                                                     ? "border-destructive focus-visible:ring-destructive/30"
-                                                                    : "border-border-subtle",
+                                                                    : "border-border",
                                                             )}
                                                         />
                                                         {showNameError && (
@@ -561,7 +561,7 @@ const ConnectionDialog = ({ onClose, initialData, mode = "modal" }: ConnectionDi
                                                                     patch({ prefix: e.target.value });
                                                                 }}
                                                                 placeholder="e.g. prod"
-                                                                className="h-9 flex-1 border-border-subtle bg-surface-elevated font-mono text-xs"
+                                                                className="h-9 flex-1 border-border bg-popover font-mono text-xs"
                                                             />
                                                             <Button
                                                                 type="button"
@@ -597,7 +597,7 @@ const ConnectionDialog = ({ onClose, initialData, mode = "modal" }: ConnectionDi
                                         </div>
                                     </div>
 
-                                    <div className="rounded-md border border-border-subtle bg-card">
+                                    <div className="rounded-md border border-border bg-card">
                                         <Collapsible open={advancedOpen} onOpenChange={setAdvancedOpen}>
                                             <CollapsibleTrigger asChild>
                                                 <button
@@ -605,7 +605,7 @@ const ConnectionDialog = ({ onClose, initialData, mode = "modal" }: ConnectionDi
                                                     className="flex w-full items-center justify-between gap-3 px-4 py-3 text-left"
                                                 >
                                                     <div className="flex min-w-0 items-center gap-2.5">
-                                                        <div className="flex size-7 shrink-0 items-center justify-center rounded-md border border-border-subtle bg-surface-elevated text-muted-foreground">
+                                                        <div className="flex size-7 shrink-0 items-center justify-center rounded-md border border-border bg-popover text-muted-foreground">
                                                             <Settings2 size={14} />
                                                         </div>
                                                         <div className="min-w-0">
@@ -626,7 +626,7 @@ const ConnectionDialog = ({ onClose, initialData, mode = "modal" }: ConnectionDi
                                             </CollapsibleTrigger>
 
                                             <CollapsibleContent>
-                                                <div className="flex flex-col gap-3 border-t border-border-subtle px-4 py-3">
+                                                <div className="flex flex-col gap-3 border-t border-border px-4 py-3">
                                                     {formData.type !== "sqlite" && (
                                                         // Outer element is a <div role="button">, NOT a <button>.
                                                         // The <Switch> renders a <button> internally, and nesting
@@ -645,7 +645,7 @@ const ConnectionDialog = ({ onClose, initialData, mode = "modal" }: ConnectionDi
                                                                     patch({ ssl: !formData.ssl });
                                                                 }
                                                             }}
-                                                            className="flex w-full cursor-pointer items-center justify-between gap-3 rounded-md border border-border-subtle bg-surface-elevated px-3 py-2.5 text-left transition-colors hover:bg-surface-2 focus-visible:ring-2 focus-visible:ring-ring/50 focus-visible:outline-none"
+                                                            className="flex w-full cursor-pointer items-center justify-between gap-3 rounded-md border border-border bg-popover px-3 py-2.5 text-left transition-colors hover:bg-card focus-visible:ring-2 focus-visible:ring-ring/50 focus-visible:outline-none"
                                                         >
                                                             <div className="min-w-0">
                                                                 <p className="text-[12px] font-semibold text-foreground">SSL / TLS Encryption</p>
@@ -680,7 +680,7 @@ const ConnectionDialog = ({ onClose, initialData, mode = "modal" }: ConnectionDi
                                                         <SshTunnelSection formData={formData} onPatch={patch} />
                                                     )}
 
-                                                    <div className="flex items-start gap-3 rounded-md border border-border-subtle bg-surface-elevated px-3 py-2.5">
+                                                    <div className="flex items-start gap-3 rounded-md border border-border bg-popover px-3 py-2.5">
                                                         <ShieldAlert size={14} className="mt-0.5 shrink-0 text-foreground/42" />
                                                         <div className="flex min-w-0 flex-1 flex-col gap-2">
                                                             <span className="text-[12px] font-medium text-foreground/82">Safety Mode</span>
@@ -699,8 +699,8 @@ const ConnectionDialog = ({ onClose, initialData, mode = "modal" }: ConnectionDi
                                                                                     ? "border-success/40 bg-success/15 text-success"
                                                                                     : mode === "warn"
                                                                                         ? "border-accent-orange/40 bg-accent-orange/15 text-accent-orange"
-                                                                                        : "border-border bg-surface-3 text-foreground"
-                                                                                : "border-border-subtle bg-transparent text-foreground/60 hover:border-border hover:text-foreground/80",
+                                                                                        : "border-border bg-muted text-foreground"
+                                                                                : "border-border bg-transparent text-foreground/60 hover:border-border hover:text-foreground/80",
                                                                         )}
                                                                     >
                                                                         {mode === "none" ? "None" : mode === "warn" ? "Warn on write" : "Read-only"}
@@ -725,7 +725,7 @@ const ConnectionDialog = ({ onClose, initialData, mode = "modal" }: ConnectionDi
                                 </div>
 
                                 <aside className="flex min-w-0 flex-col gap-3">
-                                    <div className="rounded-md border border-border-subtle bg-card p-3">
+                                    <div className="rounded-md border border-border bg-card p-3">
                                         <div className="flex items-center justify-between">
                                             <p className="shell-section-label">Group</p>
                                             {relevantEnvKind && (
@@ -755,10 +755,10 @@ const ConnectionDialog = ({ onClose, initialData, mode = "modal" }: ConnectionDi
                                         )}
                                     </div>
 
-                                    <div className="rounded-md border border-border-subtle bg-card p-3">
+                                    <div className="rounded-md border border-border bg-card p-3">
                                         <p className="shell-section-label">Connection Preview</p>
                                         <div className="mt-2 flex items-center gap-2.5">
-                                            <div className="flex size-8 shrink-0 items-center justify-center rounded-md border border-border-subtle bg-surface-elevated">
+                                            <div className="flex size-8 shrink-0 items-center justify-center rounded-md border border-border bg-popover">
                                                 <SelectedEngineLogo className={cn("text-lg", DB_COLOR[selectedEngine])} />
                                             </div>
                                             <div className="min-w-0">
@@ -784,8 +784,8 @@ const ConnectionDialog = ({ onClose, initialData, mode = "modal" }: ConnectionDi
             <TabsContent value="quick-connect" className="min-h-0 flex-1 overflow-hidden">
                     <div className="h-full min-h-0 overflow-y-auto p-4">
                         <div className={cn("mx-auto flex min-w-0 flex-col gap-3", isPageMode ? "max-w-6xl" : "max-w-4xl")}>
-                            <Card size="sm" className="!gap-0 border-border-subtle bg-card py-0 shadow-none ring-0">
-                                <CardHeader className="border-b border-border-subtle !py-2.5 !pb-2.5">
+                            <Card size="sm" className="!gap-0 border-border bg-card py-0 shadow-none ring-0">
+                                <CardHeader className="border-b border-border !py-2.5 !pb-2.5">
                                     <CardTitle className="flex items-center gap-2 text-sm">
                                         <Link2 className="size-4 text-muted-foreground" />
                                         Paste Connection URI
@@ -803,7 +803,7 @@ const ConnectionDialog = ({ onClose, initialData, mode = "modal" }: ConnectionDi
                                                     value={uriInput}
                                                     onChange={(e) => setUriInput(e.target.value)}
                                                     placeholder="postgresql://user:pass@host:5432/db"
-                                                    className="h-9 flex-1 border-border-subtle bg-surface-elevated font-mono text-[11px]"
+                                                    className="h-9 flex-1 border-border bg-popover font-mono text-[11px]"
                                                     onPaste={(e) => {
                                                         const pasted = e.clipboardData.getData("text").trim();
                                                         if (/^(postgresql|postgres|mysql|sqlite|mongodb|redis):/.test(pasted)) {
@@ -837,8 +837,8 @@ const ConnectionDialog = ({ onClose, initialData, mode = "modal" }: ConnectionDi
                                 </CardContent>
                             </Card>
 
-                            <Card size="sm" className="!gap-0 border-border-subtle bg-card py-0 shadow-none ring-0">
-                                <CardHeader className="border-b border-border-subtle !py-2.5 !pb-2.5">
+                            <Card size="sm" className="!gap-0 border-border bg-card py-0 shadow-none ring-0">
+                                <CardHeader className="border-b border-border !py-2.5 !pb-2.5">
                                     <CardTitle className="flex items-center gap-2 text-sm">
                                         <Zap className="size-4 text-muted-foreground" />
                                         Local Presets
@@ -856,9 +856,9 @@ const ConnectionDialog = ({ onClose, initialData, mode = "modal" }: ConnectionDi
                                                     key={preset.label}
                                                     type="button"
                                                     onClick={() => handlePreset(preset)}
-                                                    className="group flex min-h-[58px] items-center gap-2.5 rounded-md border border-border-subtle bg-surface-elevated p-2.5 text-left transition-colors hover:border-border hover:bg-surface-3"
+                                                    className="group flex min-h-[58px] items-center gap-2.5 rounded-md border border-border bg-popover p-2.5 text-left transition-colors hover:border-border hover:bg-muted"
                                                 >
-                                                    <div className="flex size-8 shrink-0 items-center justify-center rounded-md border border-border-subtle bg-surface-2">
+                                                    <div className="flex size-8 shrink-0 items-center justify-center rounded-md border border-border bg-card">
                                                         <Logo className={cn("text-lg", DB_COLOR[preset.engine])} />
                                                     </div>
                                                     <div className="min-w-0 flex-1">
@@ -884,7 +884,7 @@ const ConnectionDialog = ({ onClose, initialData, mode = "modal" }: ConnectionDi
                     </div>
                 </TabsContent>
 
-            <div className="shrink-0 border-t border-border-subtle bg-card px-5 py-2.5">
+            <div className="shrink-0 border-t border-border bg-card px-5 py-2.5">
                 <div className="flex h-full items-center justify-between gap-3">
                     <p className={cn("min-w-0 text-[11px] text-muted-foreground/68 text-pretty", isPageMode ? "max-w-[640px]" : "max-w-[390px]")}>
                         {isConnecting
@@ -1052,7 +1052,7 @@ const ConnectionDialog = ({ onClose, initialData, mode = "modal" }: ConnectionDi
 
     if (mode === "page") {
         return (
-            <div className="flex h-full min-h-0 flex-1 flex-col bg-app-bg">
+            <div className="flex h-full min-h-0 flex-1 flex-col bg-background">
                 {content}
                 {deleteConfirmDialog}
             </div>
@@ -1063,7 +1063,7 @@ const ConnectionDialog = ({ onClose, initialData, mode = "modal" }: ConnectionDi
         <Dialog open onOpenChange={(open) => !open && onClose()}>
             <DialogContent
                 showCloseButton={false}
-                className="!max-w-[920px] !w-[min(920px,calc(100vw-24px))] !p-0 !gap-0 overflow-hidden border border-border-subtle bg-card"
+                className="!max-w-[920px] !w-[min(920px,calc(100vw-24px))] !p-0 !gap-0 overflow-hidden border border-border bg-card"
             >
                 <DialogTitle className="sr-only">
                     {initialData ? "Edit Connection" : "New Connection"}

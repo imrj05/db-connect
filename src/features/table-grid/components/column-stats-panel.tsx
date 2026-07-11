@@ -111,7 +111,7 @@ export function ColumnStatsPanel({
 	const stats = useMemo(() => computeStats(colId, rows), [colId, rows]);
 
 	return (
-		<div className="shrink-0 border-t border-border bg-surface-2/96 backdrop-blur-sm px-3 h-11 flex items-center gap-3 overflow-x-auto scrollbar-thin">
+		<div className="shrink-0 border-t border-border bg-card/96 backdrop-blur-sm px-3 h-11 flex items-center gap-3 overflow-x-auto scrollbar-thin">
 			{/* Column name + close */}
 			<div className="flex items-center gap-1.5 shrink-0">
 				<BarChart2 size={12} className="text-accent-blue shrink-0" />
@@ -137,7 +137,7 @@ export function ColumnStatsPanel({
 			<div className="flex items-center gap-2 shrink-0">
 				<span className="text-[10px] text-foreground/70 uppercase tracking-wider font-medium">filled</span>
 				<div className="flex items-center gap-1.5">
-					<div className="w-16 h-1.5 rounded-full bg-surface-3 overflow-hidden">
+					<div className="w-16 h-1.5 rounded-full bg-muted overflow-hidden">
 						<div
 							className={cn(
 								"h-full rounded-full",
@@ -180,7 +180,7 @@ export function ColumnStatsPanel({
 					<span className="text-[10px] text-foreground/70 uppercase tracking-wider font-medium shrink-0">top</span>
 					<div className="flex items-center gap-2">
 						{stats.topValues.map(({ value, pct }) => (
-							<div key={value} className="flex items-center gap-1 shrink-0 rounded bg-surface-3 border border-border-subtle px-1.5 py-0.5">
+							<div key={value} className="flex items-center gap-1 shrink-0 rounded bg-muted border border-border px-1.5 py-0.5">
 								<span className="text-[11px] font-mono text-foreground/70 max-w-[100px] truncate">
 									{value}
 								</span>

@@ -68,9 +68,9 @@ export function ConnectionsHome({
 }) {
 	if (connections.length === 0) {
 		return (
-			<div className="flex h-full items-center justify-center overflow-auto bg-surface-2 px-6 py-10">
+			<div className="flex h-full items-center justify-center overflow-auto bg-card px-6 py-10">
 				<div className="grid w-full max-w-5xl gap-6 lg:grid-cols-[minmax(0,1fr)_320px]">
-					<div className="rounded-lg border border-border-subtle bg-surface-1 p-8">
+					<div className="rounded-lg border border-border bg-background p-8">
 						<div className="flex items-start justify-between gap-6">
 							<div className="min-w-0">
 								<p className="shell-section-label">Connection Console</p>
@@ -81,21 +81,21 @@ export function ConnectionsHome({
 									Save a local profile, test availability, and open your database workspace without leaving this screen.
 								</p>
 							</div>
-							<div className="hidden size-14 shrink-0 items-center justify-center rounded-md border border-border-subtle bg-surface-2 text-foreground/70 md:flex">
+							<div className="hidden size-14 shrink-0 items-center justify-center rounded-md border border-border bg-card text-foreground/70 md:flex">
 								<Database size={22} />
 							</div>
 						</div>
 
 						<div className="mt-8 grid gap-3 md:grid-cols-3">
-							<div className="rounded-md border border-border-subtle bg-surface-2 px-4 py-3">
+							<div className="rounded-md border border-border bg-card px-4 py-3">
 								<p className="text-[11px] font-medium text-muted-foreground">Profiles</p>
 								<p className="mt-1 text-lg font-semibold text-foreground">Local</p>
 							</div>
-							<div className="rounded-md border border-border-subtle bg-surface-2 px-4 py-3">
+							<div className="rounded-md border border-border bg-card px-4 py-3">
 								<p className="text-[11px] font-medium text-muted-foreground">Engines</p>
 								<p className="mt-1 text-lg font-semibold text-foreground">5 supported</p>
 							</div>
-							<div className="rounded-md border border-border-subtle bg-surface-2 px-4 py-3">
+							<div className="rounded-md border border-border bg-card px-4 py-3">
 								<p className="text-[11px] font-medium text-muted-foreground">Shortcuts</p>
 								<p className="mt-1 flex items-center gap-1.5 text-lg font-semibold text-foreground">
 									<Kbd className="text-[10px]">⌘N</Kbd>
@@ -115,15 +115,15 @@ export function ConnectionsHome({
 						</Button>
 					</div>
 
-					<div className="rounded-lg border border-border-subtle bg-surface-1 p-5">
+					<div className="rounded-lg border border-border bg-background p-5">
 						<p className="shell-section-label">Start With</p>
 						<div className="mt-4 flex flex-col gap-3">
 							{Object.entries(DB_LOGO).map(([type, Logo]) => (
 								<div
 									key={type}
-									className="flex items-center gap-3 rounded-md border border-border-subtle bg-surface-2 px-3 py-3"
+									className="flex items-center gap-3 rounded-md border border-border bg-card px-3 py-3"
 								>
-									<div className="flex size-9 items-center justify-center rounded-md border border-border-subtle bg-surface-elevated">
+									<div className="flex size-9 items-center justify-center rounded-md border border-border bg-popover">
 										<Logo className={cn("text-lg", DB_COLOR[type])} />
 									</div>
 									<div className="min-w-0">
@@ -143,11 +143,11 @@ export function ConnectionsHome({
 		);
 	}
 	return (
-		<div className="h-full overflow-auto scrollbar-thin bg-surface-2">
+		<div className="h-full overflow-auto scrollbar-thin bg-card">
 			{/* Header */}
-			<div className="sticky top-0 z-10 flex items-center justify-between gap-4 border-b border-border-subtle bg-surface-1 px-6 py-4">
+			<div className="sticky top-0 z-10 flex items-center justify-between gap-4 border-b border-border bg-background px-6 py-4">
 				<div className="flex min-w-0 items-center gap-3">
-					<div className="flex size-10 shrink-0 items-center justify-center rounded-md border border-border-subtle bg-surface-2 text-foreground/70">
+					<div className="flex size-10 shrink-0 items-center justify-center rounded-md border border-border bg-card text-foreground/70">
 						<Server size={18} />
 					</div>
 					<div className="min-w-0">
@@ -187,10 +187,10 @@ export function ConnectionsHome({
 					return (
 						<div
 							key={conn.id}
-							className="group grid grid-cols-[minmax(0,1fr)_auto] items-center gap-4 rounded-lg border border-border-subtle bg-surface-1 px-4 py-4 transition-colors hover:border-border/70 hover:bg-surface-elevated"
+							className="group grid grid-cols-[minmax(0,1fr)_auto] items-center gap-4 rounded-lg border border-border bg-background px-4 py-4 transition-colors hover:border-border/70 hover:bg-popover"
 						>
 							<div className="flex min-w-0 items-center gap-4">
-								<div className="flex size-11 shrink-0 items-center justify-center rounded-md border border-border-subtle bg-surface-2">
+								<div className="flex size-11 shrink-0 items-center justify-center rounded-md border border-border bg-card">
 									<Logo
 										className={cn(
 											"text-[22px]",
@@ -232,7 +232,7 @@ export function ConnectionsHome({
 										"h-7 shrink-0 gap-1.5 rounded-md px-2.5 text-[10px] font-bold uppercase",
 										isConnected
 											? "border-accent-green/30 bg-accent-green/10 text-accent-green"
-											: "border-border-subtle bg-surface-2 text-foreground/70",
+											: "border-border bg-card text-foreground/70",
 									)}
 								>
 									<span
@@ -348,7 +348,7 @@ function RecentTablesSection({ onOpenTable }: { onOpenTable?: (connectionId: str
                             onClick={() => {
                                 if (fn && onOpenTable) onOpenTable(entry.connectionId, entry.tableName, entry.schema);
                             }}
-                            className="group flex items-center gap-3 rounded-lg border border-border-subtle bg-surface-1 px-3 py-2.5 text-left transition-colors hover:border-border/70 hover:bg-surface-elevated disabled:opacity-50"
+                            className="group flex items-center gap-3 rounded-lg border border-border bg-background px-3 py-2.5 text-left transition-colors hover:border-border/70 hover:bg-popover disabled:opacity-50"
                         >
                             {Logo ? (
                                 <Logo className={cn("size-4 shrink-0", logoColor)} />

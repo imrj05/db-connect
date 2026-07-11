@@ -309,7 +309,7 @@ const FunctionOutput = () => {
 						.replace(/\(.*$/, "")
 				: "";
 			return (
-				<div className="h-full flex items-center justify-center bg-surface-2">
+				<div className="h-full flex items-center justify-center bg-card">
 					<div className="text-center space-y-3">
 						<Loader2 size={24} className="animate-spin text-primary mx-auto" />
 						{label && (
@@ -516,7 +516,7 @@ const FunctionOutput = () => {
 	const pendingDangerPhrase = pendingDangerSql ? getProductionConfirmationPhrase(pendingDangerSql) : "";
 	const pendingDangerCanRun = !pendingDangerRequiresPhrase || dangerConfirmInput.trim() === pendingDangerPhrase;
 	return (
-		<div className="flex h-full w-full flex-col overflow-hidden bg-surface-1">
+		<div className="flex h-full w-full flex-col overflow-hidden bg-background">
 			<TabBar
 				tabs={tabs}
 				activeTabId={activeTabId}
@@ -529,7 +529,7 @@ const FunctionOutput = () => {
 				onDuplicateTab={duplicateTab}
 				onReorderTabs={reorderTabs}
 			/>
-			<div className="flex-1 min-h-0 overflow-hidden bg-surface-2">{renderContent()}</div>
+			<div className="flex-1 min-h-0 overflow-hidden bg-card">{renderContent()}</div>
 			{/* Destructive query confirmation dialog */}
 			<AlertDialog
 				open={!!pendingDangerSql}

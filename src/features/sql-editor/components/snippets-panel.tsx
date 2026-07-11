@@ -145,7 +145,7 @@ export function SnippetsPanel({ onInsert }: { onInsert: (sql: string) => void })
 						value={search}
 						onChange={(e) => setSearch(e.target.value)}
 						placeholder="Search snippets…"
-						className="h-6 pl-7 text-[11px] bg-surface-3 border-border/60"
+						className="h-6 pl-7 text-[11px] bg-muted border-border/60"
 					/>
 				</div>
 				<Button
@@ -160,7 +160,7 @@ export function SnippetsPanel({ onInsert }: { onInsert: (sql: string) => void })
 
 			{/* Add snippet form */}
 			{showAdd && (
-				<div className="px-2 py-2 border-b border-border shrink-0 flex flex-col gap-1.5 bg-surface-2">
+				<div className="px-2 py-2 border-b border-border shrink-0 flex flex-col gap-1.5 bg-card">
 					<Input
 						value={form.label}
 						onChange={(e) => setForm((f) => ({ ...f, label: e.target.value }))}
@@ -184,7 +184,7 @@ export function SnippetsPanel({ onInsert }: { onInsert: (sql: string) => void })
 						onChange={(e) => setForm((f) => ({ ...f, sql: e.target.value }))}
 						placeholder="SQL *"
 						rows={4}
-						className="resize-none rounded-md border border-border/60 bg-surface-3 px-2 py-1.5 text-[11px] font-mono text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary/50"
+						className="resize-none rounded-md border border-border/60 bg-muted px-2 py-1.5 text-[11px] font-mono text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary/50"
 					/>
 					<div className="flex justify-end gap-1">
 						<Button size="sm" variant="ghost" className="h-6 text-[11px]" onClick={() => setShowAdd(false)}>Cancel</Button>
@@ -201,7 +201,7 @@ export function SnippetsPanel({ onInsert }: { onInsert: (sql: string) => void })
 					onClick={() => setActiveCategory(null)}
 					className={cn(
 						"px-1.5 py-0.5 rounded text-[9px] font-semibold uppercase tracking-wide transition-colors",
-						!activeCategory ? "bg-primary/10 text-primary" : "text-muted-foreground hover:text-foreground hover:bg-surface-3",
+						!activeCategory ? "bg-primary/10 text-primary" : "text-muted-foreground hover:text-foreground hover:bg-muted",
 					)}
 				>
 					All
@@ -212,7 +212,7 @@ export function SnippetsPanel({ onInsert }: { onInsert: (sql: string) => void })
 						onClick={() => setActiveCategory(cat === activeCategory ? null : cat)}
 						className={cn(
 							"px-1.5 py-0.5 rounded text-[9px] font-semibold uppercase tracking-wide transition-colors",
-							activeCategory === cat ? "bg-primary/10 text-primary" : "text-muted-foreground hover:text-foreground hover:bg-surface-3",
+							activeCategory === cat ? "bg-primary/10 text-primary" : "text-muted-foreground hover:text-foreground hover:bg-muted",
 						)}
 					>
 						{cat}
@@ -231,7 +231,7 @@ export function SnippetsPanel({ onInsert }: { onInsert: (sql: string) => void })
 						{filtered.map((snippet) => (
 							<div
 								key={snippet.id}
-								className="group relative w-full flex items-center justify-between gap-2 rounded-md px-2.5 py-2 hover:bg-surface-3 transition-colors"
+								className="group relative w-full flex items-center justify-between gap-2 rounded-md px-2.5 py-2 hover:bg-muted transition-colors"
 							>
 								<button
 									className="flex-1 text-left flex items-center justify-between gap-2 min-w-0"

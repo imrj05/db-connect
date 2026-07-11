@@ -51,7 +51,7 @@ export function getTypeOptions(engine: string): string[] {
 export function ColumnRow({ column, isEditing, isFK, onUpdate, onDelete, onStartFKDrag }: ColumnRowProps) {
 	if (!isEditing) {
 		return (
-			<div className="flex items-center gap-2 px-3 py-1.5 text-[10px] font-mono transition-colors hover:bg-row-hover">
+			<div className="flex items-center gap-2 px-3 py-1.5 text-[10px] font-mono transition-colors hover:bg-accent">
 				<span
 					className={cn(
 						"w-1.5 h-1.5 rounded-full shrink-0",

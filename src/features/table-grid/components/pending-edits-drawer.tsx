@@ -83,7 +83,7 @@ export function PendingEditsDrawer({
                 </DrawerHeader>
                 <div className="flex-1 min-h-0 overflow-auto scrollbar-thin px-4 pb-4 space-y-3">
                     {pendingEdits.length === 0 ? (
-                        <div className="rounded border border-dashed border-border-subtle bg-surface-1/60 px-4 py-8 text-center text-[12px] text-muted-foreground">
+                        <div className="rounded border border-dashed border-border bg-background/60 px-4 py-8 text-center text-[12px] text-muted-foreground">
                             No pending edits.
                         </div>
                     ) : (
@@ -116,7 +116,7 @@ export function PendingEditsDrawer({
                                         </Button>
                                     </div>
                                     <div className="grid grid-cols-2 gap-2 text-[11px]">
-                                        <div className="rounded border border-border-subtle bg-surface-1/70 p-2">
+                                        <div className="rounded border border-border bg-background/70 p-2">
                                             <div className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Original</div>
                                             <div className="mt-0.5 break-all font-mono text-foreground/80">
                                                 {formatValue(edit.originalValue)}
@@ -124,7 +124,7 @@ export function PendingEditsDrawer({
                                         </div>
                                         <div
                                             className={cn(
-                                                "rounded border bg-surface-1/70 p-2",
+                                                "rounded border bg-background/70 p-2",
                                                 edit.pendingValue === null
                                                     ? "border-warning/35"
                                                     : "border-accent-green/35",
@@ -136,7 +136,7 @@ export function PendingEditsDrawer({
                                             </div>
                                         </div>
                                     </div>
-                                    <pre className="max-h-32 overflow-auto rounded bg-surface-1/85 p-2 text-[11px] font-mono leading-relaxed text-foreground/70 scrollbar-thin">
+                                    <pre className="max-h-32 overflow-auto rounded bg-background/85 p-2 text-[11px] font-mono leading-relaxed text-foreground/70 scrollbar-thin">
                                         {sql}
                                     </pre>
                                 </div>
@@ -144,7 +144,7 @@ export function PendingEditsDrawer({
                         })
                     )}
                 </div>
-                <DrawerFooter className="border-t border-border-subtle bg-surface-1/60">
+                <DrawerFooter className="border-t border-border bg-background/60">
                     <div className="flex w-full items-center justify-between gap-2">
                         <DrawerClose asChild>
                             <Button variant="ghost" size="sm" className="gap-1 text-[11px]">

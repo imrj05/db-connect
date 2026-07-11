@@ -26,7 +26,7 @@ export function StatusBar({
 	const logoColor = connType ? DB_COLOR[connType] : "text-muted-foreground";
 	const activeTab = tabs.find((t) => t.id === activeTabId);
 	return (
-		<div className="h-7 bg-surface-1 border-t border-border-subtle flex items-center justify-between px-3.5 shrink-0 select-none">
+		<div className="h-7 bg-background border-t border-border flex items-center justify-between px-3.5 shrink-0 select-none">
 			{/* Left: connection indicator */}
 			<div className="flex items-center gap-3 min-w-0">
 				<div className="flex items-center gap-1.5">

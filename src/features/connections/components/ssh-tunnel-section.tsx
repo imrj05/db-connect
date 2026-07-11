@@ -25,7 +25,7 @@ function AuthMethodButton({
                 "flex items-center gap-2 rounded-md border px-2.5 py-1.5 text-left transition-colors",
                 active
                     ? "border-primary/24 bg-primary/5 text-foreground"
-                    : "border-border-subtle bg-surface-2 hover:border-border hover:bg-surface-3 text-muted-foreground/80",
+                    : "border-border bg-card hover:border-border hover:bg-muted text-muted-foreground/80",
             )}
         >
             <Icon size={12} className="shrink-0" />
@@ -47,7 +47,7 @@ export function SshTunnelSection({
     const tunnelEnabled = !!formData.sshEnabled;
 
     return (
-        <div className="rounded-md border border-border-subtle bg-surface-elevated px-3 py-2.5">
+        <div className="rounded-md border border-border bg-popover px-3 py-2.5">
             {/* Toggle row — <div role="button">, NOT a <button>.
                 The <Switch> renders a <button> internally; nesting <button>
                 inside <button> is invalid HTML and causes "Maximum update
@@ -94,7 +94,7 @@ export function SshTunnelSection({
                         transition={{ duration: 0.18, ease: "easeOut" }}
                         className="overflow-hidden"
                     >
-                        <div className="mt-3 flex flex-col gap-3 border-t border-border-subtle pt-3">
+                        <div className="mt-3 flex flex-col gap-3 border-t border-border pt-3">
                             {/* Host + Port */}
                             <div className="grid gap-3 md:grid-cols-[minmax(0,1fr)_96px]">
                                 <div>
@@ -103,7 +103,7 @@ export function SshTunnelSection({
                                         value={formData.sshHost ?? ""}
                                         onChange={(e) => onPatch({ sshHost: e.target.value })}
                                         placeholder="bastion.example.com"
-                                        className="h-9 border-border-subtle bg-surface-2 text-xs"
+                                        className="h-9 border-border bg-card text-xs"
                                     />
                                 </div>
                                 <div>
@@ -112,7 +112,7 @@ export function SshTunnelSection({
                                         type="number"
                                         value={formData.sshPort ?? 22}
                                         onChange={(e) => onPatch({ sshPort: parseInt(e.target.value) || 22 })}
-                                        className="h-9 border-border-subtle bg-surface-2 font-mono text-xs"
+                                        className="h-9 border-border bg-card font-mono text-xs"
                                     />
                                 </div>
                             </div>
@@ -124,7 +124,7 @@ export function SshTunnelSection({
                                     value={formData.sshUser ?? ""}
                                     onChange={(e) => onPatch({ sshUser: e.target.value })}
                                     placeholder="ubuntu"
-                                    className="h-9 border-border-subtle bg-surface-2 text-xs"
+                                    className="h-9 border-border bg-card text-xs"
                                 />
                             </div>
 
@@ -156,7 +156,7 @@ export function SshTunnelSection({
                                         value={formData.sshPassword ?? ""}
                                         onChange={(e) => onPatch({ sshPassword: e.target.value })}
                                         placeholder="SSH password"
-                                        className="h-9 border-border-subtle bg-surface-2 text-xs"
+                                        className="h-9 border-border bg-card text-xs"
                                     />
                                 </div>
                             )}
@@ -171,12 +171,12 @@ export function SshTunnelSection({
                                                 value={formData.sshKeyPath ?? ""}
                                                 onChange={(e) => onPatch({ sshKeyPath: e.target.value })}
                                                 placeholder="~/.ssh/id_rsa"
-                                                className="h-9 border-border-subtle bg-surface-2 pr-9 font-mono text-xs"
+                                                className="h-9 border-border bg-card pr-9 font-mono text-xs"
                                             />
                                             <button
                                                 type="button"
                                                 aria-label="Browse for SSH private key file"
-                                                className="absolute right-2 top-1/2 -translate-y-1/2 rounded-sm p-1 text-fg-muted transition-colors hover:bg-surface-2 hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring/50 focus-visible:outline-none"
+                                                className="absolute right-2 top-1/2 -translate-y-1/2 rounded-sm p-1 text-fg-muted transition-colors hover:bg-card hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring/50 focus-visible:outline-none"
                                                 onClick={async () => {
                                                     try {
                                                         const { open } = await import("@tauri-apps/plugin-dialog");
@@ -196,7 +196,7 @@ export function SshTunnelSection({
                                             value={formData.sshKeyPassphrase ?? ""}
                                             onChange={(e) => onPatch({ sshKeyPassphrase: e.target.value })}
                                             placeholder="Passphrase (optional)"
-                                            className="h-9 border-border-subtle bg-surface-2 text-xs"
+                                            className="h-9 border-border bg-card text-xs"
                                         />
                                     </div>
                                 </div>

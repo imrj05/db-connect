@@ -26,8 +26,8 @@ export function GroupSelector({
 					className={cn(
 						"min-w-0 justify-center gap-1.5 px-2 text-xs font-medium capitalize",
 						activeClass,
-						"data-[state=off]:border-border-subtle data-[state=off]:bg-transparent data-[state=off]:text-muted-foreground/60",
-						"data-[state=off]:hover:bg-surface-hover data-[state=off]:hover:border-border data-[state=off]:hover:text-foreground/80",
+						"data-[state=off]:border-border data-[state=off]:bg-transparent data-[state=off]:text-muted-foreground/60",
+						"data-[state=off]:hover:bg-accent data-[state=off]:hover:border-border data-[state=off]:hover:text-foreground/80",
 					)}
 				>
 					<Icon data-icon="inline-start" className="size-3" />

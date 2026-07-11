@@ -198,7 +198,7 @@ const SETTINGS_WIDE_CONTROL_CLASS = "w-full";
 function Card({ className, ...props }: React.ComponentProps<typeof BaseCard>) {
     return (
         <BaseCard
-            className={cn("w-full min-w-0 border border-border-subtle bg-surface-2 py-0 ring-0 shadow-none", className)}
+            className={cn("w-full min-w-0 border border-border bg-card py-0 ring-0 shadow-none", className)}
             {...props}
         />
     );
@@ -207,7 +207,7 @@ function Card({ className, ...props }: React.ComponentProps<typeof BaseCard>) {
 function CardHeader({ className, ...props }: React.ComponentProps<typeof BaseCardHeader>) {
     return (
         <BaseCardHeader
-            className={cn("border-b border-border-subtle px-4 py-5", className)}
+            className={cn("border-b border-border px-4 py-5", className)}
             {...props}
         />
     );
@@ -1626,8 +1626,8 @@ export function SettingsPage({ onActivate }: { onActivate?: () => void }) {
     };
 
     return (
-        <div className="flex h-full min-h-0 w-full min-w-0 flex-1 flex-col overflow-hidden bg-app-bg">
-            <div className="flex w-full shrink-0 items-center gap-3 border-b border-border-subtle bg-surface-1 px-6 py-4">
+        <div className="flex h-full min-h-0 w-full min-w-0 flex-1 flex-col overflow-hidden bg-background">
+            <div className="flex w-full shrink-0 items-center gap-3 border-b border-border bg-background px-6 py-4">
                 <Button
                     variant="ghost"
                     size="icon-sm"
@@ -1678,9 +1678,9 @@ export function SettingsPage({ onActivate }: { onActivate?: () => void }) {
                 value={activeSection}
                 onValueChange={handleSectionChange}
                 orientation="vertical"
-                className="min-h-0 flex-1 w-full min-w-0 flex-col gap-0 bg-app-bg md:flex-row"
+                className="min-h-0 flex-1 w-full min-w-0 flex-col gap-0 bg-background md:flex-row"
             >
-                <aside className="hidden w-56 shrink-0 border-r border-border-subtle bg-surface-1 md:flex md:flex-col">
+                <aside className="hidden w-56 shrink-0 border-r border-border bg-background md:flex md:flex-col">
                     <div className="px-5 pb-2 pt-6">
                         <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-muted-foreground">Categories</p>
                     </div>
@@ -1717,7 +1717,7 @@ export function SettingsPage({ onActivate }: { onActivate?: () => void }) {
                 </aside>
 
                 <ScrollArea className="min-h-0 flex-1 w-full min-w-0">
-                    <div className="min-h-full w-full bg-app-bg px-6 py-6">
+                    <div className="min-h-full w-full bg-background px-6 py-6">
                         <div className={SETTINGS_CONTENT_WIDTH_CLASS}>
                             <div className="flex flex-col gap-2">
                             <div className="flex items-center gap-2 text-sm font-medium text-muted-foreground">

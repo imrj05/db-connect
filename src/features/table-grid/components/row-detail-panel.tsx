@@ -56,7 +56,7 @@ export function RowDetailPanel({
 	const colMeta = (col: string) => structure?.columns.find((c) => c.name === col);
 
 	return (
-		<div className="w-[280px] shrink-0 border-l border-border flex flex-col bg-surface-2 overflow-hidden">
+		<div className="w-[280px] shrink-0 border-l border-border flex flex-col bg-card overflow-hidden">
 			{/* Header */}
 			<div className="h-9 px-3 flex items-center justify-between border-b border-border shrink-0 gap-2">
 				<div className="flex items-center gap-1.5 min-w-0">
@@ -124,7 +124,7 @@ export function RowDetailPanel({
 							<div
 								key={col}
 								className={cn(
-									"group rounded-md border border-border/60 bg-surface-3/60 px-2.5 py-1.5 hover:border-border",
+									"group rounded-md border border-border/60 bg-muted/60 px-2.5 py-1.5 hover:border-border",
 									isPk && "border-primary/20 bg-primary/5",
 								)}
 							>

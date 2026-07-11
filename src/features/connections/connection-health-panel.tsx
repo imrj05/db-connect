@@ -49,7 +49,7 @@ export function ConnectionHealthPanel({ onClose }: { onClose: () => void }) {
 	};
 
 	return (
-		<div className="absolute bottom-10 left-0 right-0 z-50 mx-3 mb-1 rounded-lg border border-border bg-surface-2 shadow-xl">
+		<div className="absolute bottom-10 left-0 right-0 z-50 mx-3 mb-1 rounded-lg border border-border bg-card shadow-xl">
 			{/* Header */}
 			<div className="flex items-center justify-between border-b px-3 py-2">
 				<div className="flex items-center gap-1.5">
@@ -99,7 +99,7 @@ export function ConnectionHealthPanel({ onClose }: { onClose: () => void }) {
 								const lat = connectionLatency[conn.id];
 								const connectedAt = connectionConnectedAt[conn.id];
 								return (
-									<tr key={conn.id} className="border-b border-border/40 last:border-0 hover:bg-surface-3/50 transition-colors">
+									<tr key={conn.id} className="border-b border-border/40 last:border-0 hover:bg-muted/50 transition-colors">
 										<td className="px-3 py-2">
 											<div className="flex items-center gap-2">
 												{isConnected
@@ -110,7 +110,7 @@ export function ConnectionHealthPanel({ onClose }: { onClose: () => void }) {
 													{conn.name}
 												</span>
 												{conn.group && (
-													<span className="rounded px-1 py-0.5 text-[9px] font-medium bg-surface-3 text-foreground/50">{conn.group}</span>
+													<span className="rounded px-1 py-0.5 text-[9px] font-medium bg-muted text-foreground/50">{conn.group}</span>
 												)}
 											</div>
 										</td>

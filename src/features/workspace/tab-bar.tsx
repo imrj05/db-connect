@@ -180,7 +180,7 @@ export function TabBar({
 		<div
 			role="tablist"
 			aria-label="Open tabs"
-			className="shell-toolbar no-scrollbar flex h-10 shrink-0 items-center gap-1 overflow-x-auto border-b border-border-subtle px-3 py-1"
+			className="shell-toolbar no-scrollbar flex h-10 shrink-0 items-center gap-1 overflow-x-auto border-b border-border px-3 py-1"
 		>
 			{tabs.map((tab) => {
 				const isActive = tab.id === activeTabId;
@@ -240,8 +240,8 @@ export function TabBar({
 										"group/tab flex h-8 shrink-0 items-center gap-2 rounded-md border border-transparent bg-transparent py-0 pl-3 pr-2 transition-[color,background-color,border-color]",
 										"outline-none focus-visible:ring-2 focus-visible:ring-ring/70",
 										isActive
-											? "border-border-subtle bg-surface-3 text-foreground"
-											: "border-border/42 text-foreground/60 hover:border-border/60 hover:bg-surface-2 hover:text-foreground/84",
+											? "border-border bg-muted text-foreground"
+											: "border-border/42 text-foreground/60 hover:border-border/60 hover:bg-card hover:text-foreground/84",
 									)}
 								>
 									<TabIcon
@@ -271,7 +271,7 @@ export function TabBar({
 												onCloseTab(tab.id);
 											}}
 											className={cn(
-												"shell-icon-button ml-1 flex size-6 items-center justify-center p-0 text-foreground/70 hover:bg-surface-2 hover:text-foreground",
+												"shell-icon-button ml-1 flex size-6 items-center justify-center p-0 text-foreground/70 hover:bg-card hover:text-foreground",
 												isActive
 													? "opacity-100"
 													: "opacity-0 group-hover/tab:opacity-100 focus-visible:opacity-100 group-focus-within/tab:opacity-100",
@@ -317,7 +317,7 @@ export function TabBar({
 				className="pointer-events-none fixed left-0 top-0 z-50 opacity-0 transition-opacity duration-100 will-change-transform"
 				style={{ transform: "translate(0px, 0px)" }}
 			>
-				<div className="flex h-8 items-center gap-2 rounded-md border border-primary/40 bg-surface-elevated px-3 shadow-xl ring-1 ring-primary/20 backdrop-blur-sm">
+				<div className="flex h-8 items-center gap-2 rounded-md border border-primary/40 bg-popover px-3 shadow-xl ring-1 ring-primary/20 backdrop-blur-sm">
 					{GhostIcon && (
 						<GhostIcon
 							size={13}
@@ -338,7 +338,7 @@ export function TabBar({
 							variant="outline"
 							size="sm"
 							onClick={onNewTab}
-							className="my-auto ml-2 h-8 shrink-0 gap-1.5 rounded-md border-border-subtle bg-surface-2 px-3.5 text-[12px] font-medium text-foreground/76 hover:bg-surface-3 hover:text-foreground"
+							className="my-auto ml-2 h-8 shrink-0 gap-1.5 rounded-md border-border bg-card px-3.5 text-[12px] font-medium text-foreground/76 hover:bg-muted hover:text-foreground"
 						>
 							<Plus size={12} />
 							New Tab

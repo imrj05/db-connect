@@ -6,7 +6,7 @@ import { EmptyState } from "@/components/ui/empty-state";
 
 export function IdleView({ onNewConnection }: { onNewConnection: () => void }) {
 	return (
-		<div className="flex h-full select-none flex-col items-center justify-center gap-6 bg-surface-2 px-6">
+		<div className="flex h-full select-none flex-col items-center justify-center gap-6 bg-card px-6">
 			<EmptyState
 				icon={Search}
 				title="Workspace ready"
@@ -18,7 +18,7 @@ export function IdleView({ onNewConnection }: { onNewConnection: () => void }) {
 							Add Connection
 							<Kbd className="text-[10px]">⌘N</Kbd>
 						</Button>
-						<div className="flex items-center gap-px overflow-hidden border border-border-subtle bg-surface-3">
+						<div className="flex items-center gap-px overflow-hidden border border-border bg-muted">
 							{[
 								{ key: "⌘K", label: "Search", Icon: Search },
 								{ key: "⌘T", label: "New tab", Icon: Play },
@@ -29,7 +29,7 @@ export function IdleView({ onNewConnection }: { onNewConnection: () => void }) {
 								<div
 									key={key}
 									className={cn(
-										"flex items-center gap-1.5 px-3.5 py-2 bg-surface-3 text-[11px] font-mono text-foreground/70",
+										"flex items-center gap-1.5 px-3.5 py-2 bg-muted text-[11px] font-mono text-foreground/70",
 										i < arr.length - 1 && "border-r border-border",
 									)}
 								>

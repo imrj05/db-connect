@@ -71,9 +71,9 @@ export function SqlEditorToolbar({
 					variant="outline"
 					size="sm"
 					className={cn(
-						"h-7 text-[11px] font-semibold gap-2 border-border/60 bg-surface-elevated/90",
+						"h-7 text-[11px] font-semibold gap-2 border-border/60 bg-popover/90",
 						!isLoading && hasSql
-							? "text-accent-green border-primary/40 hover:border-primary/70 hover:bg-surface-3 hover:text-accent-green"
+							? "text-accent-green border-primary/40 hover:border-primary/70 hover:bg-muted hover:text-accent-green"
 							: "text-muted-foreground",
 					)}
 				>
@@ -94,9 +94,9 @@ export function SqlEditorToolbar({
 						variant="outline"
 						size="sm"
 						className={cn(
-							"h-7 text-[11px] font-semibold gap-2 border-border/60 bg-surface-elevated/90",
+							"h-7 text-[11px] font-semibold gap-2 border-border/60 bg-popover/90",
 							!isLoading && hasSql
-								? "text-accent-blue border-accent-blue/40 hover:border-accent-blue/70 hover:bg-surface-3"
+								? "text-accent-blue border-accent-blue/40 hover:border-accent-blue/70 hover:bg-muted"
 								: "text-muted-foreground",
 						)}
 					>

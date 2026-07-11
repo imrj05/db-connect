@@ -529,7 +529,7 @@ export function ImportExportDialog({ onClose, onImportComplete }: ImportExportDi
     return (
         <Dialog open onOpenChange={onClose}>
             <DialogContent className="!max-w-[480px] overflow-hidden rounded-md p-0">
-                <DialogHeader className="border-b border-border-subtle bg-surface-2/72 px-4 pt-4 pb-3">
+                <DialogHeader className="border-b border-border bg-card/72 px-4 pt-4 pb-3">
                     <div className="flex items-center gap-2">
                         <ArrowUpDown size={14} className="text-muted-foreground/60" />
                         <DialogTitle className="text-[13px] font-semibold">{title}</DialogTitle>

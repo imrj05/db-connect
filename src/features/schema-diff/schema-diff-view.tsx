@@ -203,7 +203,7 @@ function SideSelector({
 		<div className="flex flex-col gap-1.5">
 			<span className="text-[10px] font-bold uppercase tracking-widest text-foreground/70">{label}</span>
 			<select
-				className="h-8 rounded border border-border bg-surface-2 px-2 text-[12px] text-foreground"
+				className="h-8 rounded border border-border bg-card px-2 text-[12px] text-foreground"
 				value={connectionId}
 				onChange={(e) => { onConnectionChange(e.target.value); onDatabaseChange(""); }}
 			>
@@ -214,7 +214,7 @@ function SideSelector({
 			</select>
 			{connectionId && (
 				<select
-					className="h-8 rounded border border-border bg-surface-2 px-2 text-[12px] text-foreground"
+					className="h-8 rounded border border-border bg-card px-2 text-[12px] text-foreground"
 					value={database}
 					onChange={(e) => onDatabaseChange(e.target.value)}
 				>
@@ -284,7 +284,7 @@ export function SchemaDiffView() {
 	);
 
 	return (
-		<div className="flex h-full flex-col bg-surface-1">
+		<div className="flex h-full flex-col bg-background">
 			{/* Header */}
 			<div className="shell-toolbar flex h-10 shrink-0 items-center gap-3 border-b px-4">
 				<Button variant="ghost" size="icon-xs" onClick={() => setActiveView("main")} className="h-7 w-7 text-foreground/60">
@@ -297,7 +297,7 @@ export function SchemaDiffView() {
 			</div>
 
 			{/* Picker row */}
-			<div className="shrink-0 border-b bg-surface-2 px-6 py-4">
+			<div className="shrink-0 border-b bg-card px-6 py-4">
 				<div className="flex items-end gap-4">
 					<SideSelector
 						label="Source (from)"
@@ -329,7 +329,7 @@ export function SchemaDiffView() {
 			{diff && (
 				<div className="flex min-h-0 flex-1 flex-col overflow-hidden">
 					{/* Summary bar */}
-					<div className="flex shrink-0 items-center gap-4 border-b bg-surface-2 px-6 py-2">
+					<div className="flex shrink-0 items-center gap-4 border-b bg-card px-6 py-2">
 						{diff.addedCount > 0 && <Badge variant="outline" className="gap-1 border-success/40 text-success"><Plus size={9} />{diff.addedCount} added</Badge>}
 						{diff.removedCount > 0 && <Badge variant="outline" className="gap-1 border-destructive/40 text-destructive"><Minus size={9} />{diff.removedCount} removed</Badge>}
 						{diff.changedCount > 0 && <Badge variant="outline" className="gap-1 border-warning/40 text-warning">{diff.changedCount} changed</Badge>}
@@ -361,7 +361,7 @@ export function SchemaDiffView() {
 
 						{/* Migration SQL panel */}
 						{migrationSql !== null && (
-							<div className="flex w-96 shrink-0 flex-col border-l bg-surface-2">
+							<div className="flex w-96 shrink-0 flex-col border-l bg-card">
 								<div className="flex shrink-0 items-center justify-between border-b px-3 py-2">
 									<span className="text-[11px] font-semibold text-foreground/70">Migration SQL</span>
 									<Button variant="ghost" size="icon-xs" className="h-6 w-6 text-foreground/70" onClick={handleCopySql}>

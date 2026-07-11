@@ -235,7 +235,7 @@ export function AddTableDialog({
         <Dialog open={open} onOpenChange={handleOpenChange}>
             <DialogContent className="flex flex-col gap-0 overflow-hidden rounded-md p-0" style={{ maxWidth: '80vw', maxHeight: '80vh', width: 'calc(100vw - 2rem)' }}>
                 {/* Header */}
-                <DialogHeader className="shrink-0 px-3 md:px-4 py-2 md:py-2.5 border-b border-border-subtle bg-surface-2/72">
+                <DialogHeader className="shrink-0 px-3 md:px-4 py-2 md:py-2.5 border-b border-border bg-card/72">
                     <div className="flex items-center gap-2">
                         <div className="size-7 rounded-md border border-primary/18 bg-primary/8 md:size-8 flex items-center justify-center shrink-0">
                             <Table2 size={14} className="text-primary" />
@@ -450,7 +450,7 @@ export function AddTableDialog({
                     )}
                 </div>
                 {/* Footer */}
-                <div className="shrink-0 flex flex-col sm:flex-row items-center justify-between gap-2 rounded-b-md border-t border-border-subtle bg-surface-2/72 px-3 py-2 md:px-4 md:py-3 sm:gap-4">
+                <div className="shrink-0 flex flex-col sm:flex-row items-center justify-between gap-2 rounded-b-md border-t border-border bg-card/72 px-3 py-2 md:px-4 md:py-3 sm:gap-4">
                     <div className="text-[8px] md:text-[9px] text-muted-foreground/50 hidden sm:block">
                         Press <kbd className="px-1 py-0.5 bg-muted rounded text-[7px] md:text-[8px] font-mono">Enter</kbd> to create
                     </div>

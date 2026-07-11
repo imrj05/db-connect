@@ -37,7 +37,7 @@ export function EngineFields({
 							value={formData.uri || ""}
 							onChange={(e) => onPatch({ uri: e.target.value })}
 							placeholder="mongodb+srv://user:pass@cluster0.example.net/db"
-							className="h-9 border-border-subtle bg-surface-elevated font-mono text-xs"
+							className="h-9 border-border bg-popover font-mono text-xs"
 							name="db-uri"
 							autoComplete="off"
 						/>
@@ -52,7 +52,7 @@ export function EngineFields({
 								value={formData.database || ""}
 								onChange={(e) => onPatch({ database: e.target.value })}
 								placeholder="/path/to/database.sqlite"
-								className="h-9 flex-1 border-border-subtle bg-surface-elevated font-mono text-xs"
+								className="h-9 flex-1 border-border bg-popover font-mono text-xs"
 								name="db-file"
 								autoComplete="off"
 							/>
@@ -83,7 +83,7 @@ export function EngineFields({
 									value={formData.host || ""}
 									onChange={(e) => onPatch({ host: e.target.value })}
 									placeholder={isSshTunnelEnabled ? "127.0.0.1 or private-db.internal" : "localhost"}
-									className="h-9 border-border-subtle bg-surface-elevated font-mono text-xs"
+									className="h-9 border-border bg-popover font-mono text-xs"
 									name="db-host"
 									autoComplete="off"
 								/>
@@ -100,7 +100,7 @@ export function EngineFields({
 									value={formData.port || ""}
 									onChange={(e) => onPatch({ port: parseInt(e.target.value) || 0 })}
 									placeholder="5432"
-									className="h-9 border-border-subtle bg-surface-elevated font-mono text-xs"
+									className="h-9 border-border bg-popover font-mono text-xs"
 									name="db-port"
 									autoComplete="off"
 								/>
@@ -115,7 +115,7 @@ export function EngineFields({
 									value={formData.user || ""}
 									onChange={(e) => onPatch({ user: e.target.value })}
 									placeholder={formData.type === "redis" ? "default" : "database_user"}
-									className="h-9 border-border-subtle bg-surface-elevated font-mono text-xs"
+									className="h-9 border-border bg-popover font-mono text-xs"
 									name="db-username"
 									autoComplete="username"
 								/>
@@ -128,7 +128,7 @@ export function EngineFields({
 										value={formData.password || ""}
 										onChange={(e) => onPatch({ password: e.target.value })}
 										placeholder="••••••••"
-										className="h-9 border-border-subtle bg-surface-elevated pr-8 font-mono text-xs"
+										className="h-9 border-border bg-popover pr-8 font-mono text-xs"
 										name="db-password"
 										autoComplete="current-password"
 									/>
@@ -152,7 +152,7 @@ export function EngineFields({
 								value={formData.database || ""}
 								onChange={(e) => onPatch({ database: e.target.value })}
 								placeholder={formData.type === "redis" ? "0" : "e.g. postgres"}
-								className="h-9 border-border-subtle bg-surface-elevated font-mono text-xs"
+								className="h-9 border-border bg-popover font-mono text-xs"
 								name="db-database"
 								autoComplete="off"
 							/>

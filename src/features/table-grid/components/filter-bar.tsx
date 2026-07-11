@@ -43,12 +43,12 @@ export function FilterBar({
   const allFiltersHaveColumns = filters.every((f) => f.col && f.col !== "");
 
   return (
-    <div className="shrink-0 border-b border-border-subtle bg-surface-2/82">
+    <div className="shrink-0 border-b border-border bg-card/82">
       <div className="flex flex-col">
         {filters.map((f, i) => (
           <div
             key={f.id}
-            className="flex items-center gap-2 px-3 py-2 hover:bg-surface-3/72 transition-colors"
+            className="flex items-center gap-2 px-3 py-2 hover:bg-muted/72 transition-colors"
           >
             {/* Join indicator for first row */}
             {i === 0 ? (
@@ -62,7 +62,7 @@ export function FilterBar({
                         join: filters[1].join === "AND" ? "OR" : "AND",
                       })
                     }
-                    className="size-8 text-foreground/60 hover:bg-surface-selected/82 hover:text-foreground"
+                    className="size-8 text-foreground/60 hover:bg-primary/15/82 hover:text-foreground"
                     title="Toggle AND/OR"
                     aria-label="Toggle first filter join"
                   >
@@ -152,7 +152,7 @@ export function FilterBar({
                 }
                 onKeyDown={(e) => e.key === "Enter" && onApply()}
                 placeholder="Enter value…"
-                className="h-8 text-[12px] flex-[2] min-w-[170px] bg-surface-elevated/94"
+                className="h-8 text-[12px] flex-[2] min-w-[170px] bg-popover/94"
               />
             ) : (
               <div className="h-8 flex-[2] min-w-[170px] flex items-center text-[12px] text-foreground/70 italic px-2.5">
@@ -177,7 +177,7 @@ export function FilterBar({
                   variant="ghost"
                   size="icon-xs"
                   onClick={onAddFilter}
-                  className="h-8 w-8 text-foreground/70 hover:text-foreground hover:bg-surface-3"
+                  className="h-8 w-8 text-foreground/70 hover:text-foreground hover:bg-muted"
                 >
                   <Plus size={14} />
                 </Button>

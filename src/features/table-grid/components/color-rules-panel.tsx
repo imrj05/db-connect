@@ -86,7 +86,7 @@ export function ColorRulesPanel({
 	onClose: () => void;
 }) {
 	return (
-		<div className="shrink-0 border-b border-border-subtle bg-surface-2/98 px-3 py-2.5 animate-in slide-in-from-top-1 duration-150">
+		<div className="shrink-0 border-b border-border bg-card/98 px-3 py-2.5 animate-in slide-in-from-top-1 duration-150">
 			<div className="flex items-center justify-between mb-2">
 				<span className="text-[10px] font-bold uppercase tracking-wider text-foreground/70">
 					Color Rules
@@ -108,7 +108,7 @@ export function ColorRulesPanel({
 						value={rule.col === "" ? "__all__" : rule.col}
 						onValueChange={(v) => onUpdate(rule.id, { col: v === "__all__" ? "" : v })}
 					>
-						<SelectTrigger size="xs" className="text-[11px] font-mono w-32 border-border-subtle bg-surface-3">
+						<SelectTrigger size="xs" className="text-[11px] font-mono w-32 border-border bg-muted">
 							<SelectValue placeholder="Column" />
 						</SelectTrigger>
 						<SelectContent className="text-[11px] font-mono">
@@ -123,7 +123,7 @@ export function ColorRulesPanel({
 						value={rule.op}
 						onValueChange={(v) => onUpdate(rule.id, { op: v as CellColorRuleOp })}
 					>
-						<SelectTrigger size="xs" className="text-[11px] font-mono w-20 border-border-subtle bg-surface-3">
+						<SelectTrigger size="xs" className="text-[11px] font-mono w-20 border-border bg-muted">
 							<SelectValue />
 						</SelectTrigger>
 						<SelectContent className="text-[11px] font-mono">
@@ -138,7 +138,7 @@ export function ColorRulesPanel({
 							value={rule.value}
 							onChange={(e) => onUpdate(rule.id, { value: e.target.value })}
 							placeholder="value"
-							className="h-6 py-0 px-2 text-[11px] font-mono w-28 border-border-subtle bg-surface-3 shadow-none"
+							className="h-6 py-0 px-2 text-[11px] font-mono w-28 border-border bg-muted shadow-none"
 						/>
 					)}
 						{/* Color swatches */}
@@ -151,7 +151,7 @@ export function ColorRulesPanel({
 										"h-5 w-5 rounded border transition-all",
 										c.bg, c.border,
 										rule.color === c.value
-											? "ring-2 ring-primary ring-offset-1 ring-offset-surface-2 scale-110"
+											? "ring-2 ring-primary ring-offset-1 ring-offset-card scale-110"
 											: "opacity-60 hover:opacity-100",
 									)}
 									title={c.value}

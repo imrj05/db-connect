@@ -187,7 +187,7 @@ export function LicenseActivationDialog({ open, reason, onActivated, onClose }: 
 						</Button>
 
 						{/* Advanced */}
-						<div className="border-t border-border-subtle pt-3">
+						<div className="border-t border-border pt-3">
 							<button
 								type="button"
 								onClick={() => setShowAdvanced((v) => !v)}
