@@ -103,7 +103,7 @@ function createCustomLightTheme(variant: string): Extension {
 			borderLeftColor: "var(--color-foreground)",
 		},
 		".cm-selectionBackground": {
-			backgroundColor: "var(--text-selection-bg) !important",
+			backgroundColor: "color-mix(in oklch, var(--color-primary) 38%, var(--color-card)) !important",
 		},
 		".cm-content": {
 			caretColor: "var(--color-foreground)",

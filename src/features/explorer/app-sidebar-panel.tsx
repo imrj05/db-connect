@@ -501,7 +501,7 @@ function DatabaseNode({
                     const preset = GROUP_PRESETS.find(p => p.id === connection.group);
                     return (
                         <span className={cn(
-                            "shell-badge shrink-0 px-1.5",
+                            "inline-flex h-[18px] items-center rounded-sm border px-1.5 text-[10px] font-bold uppercase tracking-[0.12em] leading-none shrink-0 px-1.5",
                             preset ? preset.activeClass : "bg-muted/50 border-border/50 text-muted-foreground/60"
                         )}>
                             {connection.group}
@@ -510,7 +510,7 @@ function DatabaseNode({
                 })()}
                 {connection.safetyMode && connection.safetyMode !== "none" && (
                     <span className={cn(
-                        "shell-badge shrink-0 px-1.5 flex items-center gap-0.5",
+                        "inline-flex h-[18px] items-center rounded-sm border px-1.5 text-[10px] font-bold uppercase tracking-[0.12em] leading-none shrink-0 px-1.5 flex items-center gap-0.5",
                         connection.safetyMode === "read-only"
                             ? "bg-destructive/12 border-destructive/30 text-destructive"
                             : "bg-warning/12 border-warning/30 text-warning"
@@ -540,9 +540,9 @@ function DatabaseNode({
             </button>
             {/* Tables header */}
             {isConnected && open && (
-                <div className="shell-toolbar flex h-8 shrink-0 items-center gap-1.5 border-y px-2.5">
+                <div className="bg-sidebar/95 border-border flex h-8 shrink-0 items-center gap-1.5 border-y px-2.5">
                     <TableProperties size={12} className="shrink-0 text-foreground/35" />
-                    <span className="shell-section-label flex-1 text-foreground/58">
+                    <span className="text-[11px] font-semibold uppercase tracking-[0.06em] text-muted-foreground/70 flex-1 text-foreground/58">
                         Tables
                     </span>
                     {!isLoading && tableFns.length > 0 && (
@@ -555,7 +555,7 @@ function DatabaseNode({
                             <button
                                 aria-label="Add table"
                                 onClick={() => setAddTableOpen(true)}
-                                className="shell-icon-button flex h-5 w-5 items-center justify-center text-foreground/40 transition-colors hover:bg-muted hover:text-foreground"
+                                className="rounded-md shadow-none flex h-5 w-5 items-center justify-center text-foreground/40 transition-colors hover:bg-muted hover:text-foreground"
                             >
                                 <Plus size={11} />
                             </button>
@@ -568,7 +568,7 @@ function DatabaseNode({
                                 aria-label="Refresh tables"
                                 onClick={handleRefreshTables}
                                 disabled={isRefreshingTables}
-                                className="shell-icon-button flex h-5 w-5 items-center justify-center text-foreground/40 transition-colors hover:bg-muted hover:text-foreground disabled:opacity-40"
+                                className="rounded-md shadow-none flex h-5 w-5 items-center justify-center text-foreground/40 transition-colors hover:bg-muted hover:text-foreground disabled:opacity-40"
                             >
                                 <RefreshCw size={11} className={isRefreshingTables ? "animate-spin" : ""} />
                             </button>
@@ -581,7 +581,7 @@ function DatabaseNode({
                                 <button
                                     aria-label={expandAll === true ? "Collapse all" : "Expand all"}
                                     onClick={() => setExpandAll((v) => v === true ? false : true)}
-                                    className="shell-icon-button flex h-5 w-5 items-center justify-center text-foreground/40 transition-colors hover:bg-muted hover:text-foreground"
+                                    className="rounded-md shadow-none flex h-5 w-5 items-center justify-center text-foreground/40 transition-colors hover:bg-muted hover:text-foreground"
                                 >
                                     {expandAll === true ? <ChevronsUp size={11} /> : <ChevronsDown size={11} />}
                                 </button>
@@ -598,7 +598,7 @@ function DatabaseNode({
                                     aria-label="Dump database"
                                     onClick={() => setShowDumpDialog(true)}
                                     disabled={dumpDbLoading}
-                                    className="shell-icon-button flex h-5 w-5 items-center justify-center text-foreground/40 transition-colors hover:bg-muted hover:text-foreground disabled:opacity-40"
+                                    className="rounded-md shadow-none flex h-5 w-5 items-center justify-center text-foreground/40 transition-colors hover:bg-muted hover:text-foreground disabled:opacity-40"
                                 >
                                     {dumpDbLoading
                                         ? <Loader2 size={11} className="animate-spin" />
@@ -767,8 +767,8 @@ function SavedConnectionsList({
     return (
         <div className="flex-1 flex flex-col overflow-hidden min-w-0">
             {/* Header */}
-            <div className="shell-toolbar flex h-10 shrink-0 items-center border-b px-4">
-                <span className="shell-section-label text-foreground/58">Saved Connections</span>
+            <div className="bg-sidebar/95 border-border flex h-10 shrink-0 items-center border-b px-4">
+                <span className="text-[11px] font-semibold uppercase tracking-[0.06em] text-muted-foreground/70 text-foreground/58">Saved Connections</span>
             </div>
             {connections.length === 0 ? (
                 <div className="flex-1 flex flex-col items-center justify-center gap-3 px-4 pb-10 text-center">
@@ -1435,8 +1435,8 @@ const Sidebar = () => {
             {/* ══ PANEL 2 — Databases & Tables for the active connection ══ */}
             <div className="flex flex-1 flex-col overflow-hidden min-w-0">
                 {/* Header */}
-                <div className="shell-toolbar flex h-10 shrink-0 items-center justify-between border-b px-4">
-                    <span className="shell-section-label text-foreground/58">Explorer</span>
+                <div className="bg-sidebar/95 border-border flex h-10 shrink-0 items-center justify-between border-b px-4">
+                    <span className="text-[11px] font-semibold uppercase tracking-[0.06em] text-muted-foreground/70 text-foreground/58">Explorer</span>
                     <div className="flex items-center gap-1">
                         {loadingIds.size > 0 && (
                             <Loader2 size={10} className="animate-spin text-foreground/40" />
@@ -1682,7 +1682,7 @@ const Sidebar = () => {
                 {/* Footer — status bar */}
                 <div className="relative">
                     {healthOpen && <ConnectionHealthPanel onClose={() => setHealthOpen(false)} />}
-                    <div className="shell-toolbar flex h-9 shrink-0 items-center gap-2 overflow-hidden border-t px-3">
+                    <div className="bg-sidebar/95 border-border flex h-9 shrink-0 items-center gap-2 overflow-hidden border-t px-3">
                         <CircleDot
                             size={8}
                             className={cn("shrink-0", connectedIds.length > 0 ? "text-primary" : "text-foreground/42")}

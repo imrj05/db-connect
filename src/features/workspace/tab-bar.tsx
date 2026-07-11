@@ -180,7 +180,7 @@ export function TabBar({
 		<div
 			role="tablist"
 			aria-label="Open tabs"
-			className="shell-toolbar no-scrollbar flex h-10 shrink-0 items-center gap-1 overflow-x-auto border-b border-border px-3 py-1"
+			className="bg-sidebar/95 border-border no-scrollbar flex h-10 shrink-0 items-center gap-1 overflow-x-auto border-b border-border px-3 py-1"
 		>
 			{tabs.map((tab) => {
 				const isActive = tab.id === activeTabId;
@@ -271,7 +271,7 @@ export function TabBar({
 												onCloseTab(tab.id);
 											}}
 											className={cn(
-												"shell-icon-button ml-1 flex size-6 items-center justify-center p-0 text-foreground/70 hover:bg-card hover:text-foreground",
+												"rounded-md shadow-none ml-1 flex size-6 items-center justify-center p-0 text-foreground/70 hover:bg-card hover:text-foreground",
 												isActive
 													? "opacity-100"
 													: "opacity-0 group-hover/tab:opacity-100 focus-visible:opacity-100 group-focus-within/tab:opacity-100",

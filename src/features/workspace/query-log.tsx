@@ -95,7 +95,7 @@ export function QueryLog({
 						onCheckedChange={(checked) => onSyntaxToggle(checked === true)}
 						className="size-3.5"
 					/>
-					<span className="text-[11px] font-label text-foreground/62">
+					<span className="text-[11px] text-foreground/62">
 						Enable Syntax highlighting
 					</span>
 				</label>

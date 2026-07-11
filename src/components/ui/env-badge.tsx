@@ -37,7 +37,7 @@ export function EnvBadge({ env, icon = false, label, className }: EnvBadgeProps)
 
     return (
         <span
-            className={cn("shell-badge shrink-0 px-2 font-bold", className)}
+            className={cn("inline-flex h-[18px] items-center rounded-sm border px-1.5 text-[10px] font-bold uppercase tracking-[0.12em] leading-none shrink-0 px-2 font-bold", className)}
             style={style}
             title={`${meta.label} environment`}
         >

@@ -73,7 +73,7 @@ export function ConnectionsHome({
 					<div className="rounded-lg border border-border bg-background p-8">
 						<div className="flex items-start justify-between gap-6">
 							<div className="min-w-0">
-								<p className="shell-section-label">Connection Console</p>
+								<p className="text-[11px] font-semibold uppercase tracking-[0.06em] text-muted-foreground/70">Connection Console</p>
 								<h2 className="mt-2 max-w-2xl text-3xl font-semibold tracking-tight text-foreground text-balance">
 									Create your first database connection
 								</h2>
@@ -116,7 +116,7 @@ export function ConnectionsHome({
 					</div>
 
 					<div className="rounded-lg border border-border bg-background p-5">
-						<p className="shell-section-label">Start With</p>
+						<p className="text-[11px] font-semibold uppercase tracking-[0.06em] text-muted-foreground/70">Start With</p>
 						<div className="mt-4 flex flex-col gap-3">
 							{Object.entries(DB_LOGO).map(([type, Logo]) => (
 								<div

@@ -130,7 +130,7 @@ export function SshTunnelSection({
 
                             {/* Auth method */}
                             <div>
-                                <p className="shell-section-label mb-1.5 text-muted-foreground/55">Auth Method</p>
+                                <p className="text-[11px] font-semibold uppercase tracking-[0.06em] text-muted-foreground/70 mb-1.5 text-muted-foreground/55">Auth Method</p>
                                 <div className="grid grid-cols-2 gap-2">
                                     <AuthMethodButton
                                         active={!isKeyAuth}

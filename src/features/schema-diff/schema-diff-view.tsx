@@ -286,7 +286,7 @@ export function SchemaDiffView() {
 	return (
 		<div className="flex h-full flex-col bg-background">
 			{/* Header */}
-			<div className="shell-toolbar flex h-10 shrink-0 items-center gap-3 border-b px-4">
+			<div className="bg-sidebar/95 border-border flex h-10 shrink-0 items-center gap-3 border-b px-4">
 				<Button variant="ghost" size="icon-xs" onClick={() => setActiveView("main")} className="h-7 w-7 text-foreground/60">
 					<ArrowLeft size={13} />
 				</Button>

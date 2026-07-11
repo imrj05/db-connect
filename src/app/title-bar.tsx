@@ -193,7 +193,7 @@ const TitleBar = ({ isLicensed, onActivate }: TitleBarProps) => {
                                 size="icon-xs"
                                 aria-label="Back"
                                 onClick={() => clearActiveFunction()}
-                                className="shell-icon-button size-7 text-muted-foreground hover:bg-card hover:text-foreground shrink-0"
+                                className="rounded-md shadow-none size-7 text-muted-foreground hover:bg-card hover:text-foreground shrink-0"
                             >
                                 <ChevronLeft size={13} />
                             </Button>
@@ -238,7 +238,7 @@ const TitleBar = ({ isLicensed, onActivate }: TitleBarProps) => {
                                         )}
                                         <span
                                             className={cn(
-                                                "shell-badge shrink-0 px-2",
+                                                "inline-flex h-[18px] items-center rounded-sm border px-1.5 text-[10px] font-bold uppercase tracking-[0.12em] leading-none shrink-0 px-2",
                                                 preset
                                                     ? preset.activeClass
                                                     : "bg-muted/50 border-border/50 text-muted-foreground/60",
@@ -260,7 +260,7 @@ const TitleBar = ({ isLicensed, onActivate }: TitleBarProps) => {
                                         setEditingConnection(activeConn);
                                         setConnectionDialogOpen(true);
                                     }}
-                                    className="shell-icon-button size-7 text-muted-foreground hover:bg-card hover:text-foreground shrink-0"
+                                    className="rounded-md shadow-none size-7 text-muted-foreground hover:bg-card hover:text-foreground shrink-0"
                                 >
                                     <Pencil size={11} />
                                 </Button>
@@ -437,7 +437,7 @@ const TitleBar = ({ isLicensed, onActivate }: TitleBarProps) => {
                                         {connectedConns.length} active
                                     </p>
                                 </div>
-                                <span className="shell-badge border-success/20 bg-success/10 px-1.5 text-success">
+                                <span className="inline-flex h-[18px] items-center rounded-sm border px-1.5 text-[10px] font-bold uppercase tracking-[0.12em] leading-none border-success/20 bg-success/10 px-1.5 text-success">
                                     Live
                                 </span>
                             </div>
@@ -477,7 +477,7 @@ const TitleBar = ({ isLicensed, onActivate }: TitleBarProps) => {
                                                         {conn.name}
                                                     </span>
                                                     {isActive && (
-                                                            <span className="shell-badge h-4 shrink-0 border-success/20 bg-success/10 px-1 text-[9px] leading-none text-success">
+                                                            <span className="inline-flex h-[18px] items-center rounded-sm border px-1.5 text-[10px] font-bold uppercase tracking-[0.12em] leading-none h-4 shrink-0 border-success/20 bg-success/10 px-1 text-[9px] leading-none text-success">
                                                                 Active
                                                             </span>
                                                     )}
@@ -485,7 +485,7 @@ const TitleBar = ({ isLicensed, onActivate }: TitleBarProps) => {
                                                         const preset = GROUP_PRESETS.find((p) => p.id === conn.group);
                                                         return (
                                                             <span className={cn(
-                                                                "shell-badge h-4 shrink-0 px-1.5 text-[9px] font-medium leading-none",
+                                                                "inline-flex h-[18px] items-center rounded-sm border px-1.5 text-[10px] font-bold uppercase tracking-[0.12em] leading-none h-4 shrink-0 px-1.5 text-[9px] font-medium leading-none",
                                                                 preset ? preset.activeClass : "bg-muted/50 border-border/50 text-muted-foreground/60",
                                                             )}>
                                                                 {conn.group}
