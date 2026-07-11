@@ -97,7 +97,7 @@ export function TableInfoPanel({
 								{col.isPrimary ? (
 									<Key size={9} className="shrink-0 text-accent-yellow" />
 								) : fkColumnNames.has(col.name) ? (
-									<Link2 size={9} className="shrink-0 text-accent-blue/70" />
+									<Link2 size={9} className="shrink-0 text-primary/70" />
 								) : (
 									<span className="w-[9px] shrink-0" />
 								)}
@@ -108,7 +108,7 @@ export function TableInfoPanel({
 										col.isPrimary
 											? "text-accent-yellow"
 											: fkColumnNames.has(col.name)
-											? "text-accent-blue/90"
+											? "text-primary/90"
 											: "text-foreground/85",
 									)}
 								>
@@ -122,19 +122,19 @@ export function TableInfoPanel({
 										</span>
 									)}
 									{fkColumnNames.has(col.name) && (
-                                        <span className="rounded-sm border border-accent-blue/30 bg-accent-blue/10 px-1 py-px text-[9px] font-bold text-accent-blue leading-none">
+                                        <span className="rounded-sm border border-primary/30 bg-primary/10 px-1 py-px text-[9px] font-bold text-primary leading-none">
 											FK
 										</span>
 									)}
 									{col.isUnique && !col.isPrimary && (
-                                        <span className="rounded-sm border border-accent-purple/30 bg-accent-purple/10 px-1 py-px text-[9px] font-bold text-accent-purple leading-none">
+                                        <span className="rounded-sm border border-chart-2/30 bg-chart-2/10 px-1 py-px text-[9px] font-bold text-chart-2 leading-none">
 											UQ
 										</span>
 									)}
 									{col.nullable ? (
 										<AlertCircle size={8} className="text-muted-foreground" />
 									) : (
-										<CheckCircle2 size={8} className="text-accent-green/50" />
+										<CheckCircle2 size={8} className="text-success/50" />
 									)}
 									<TypeBadge type={col.dataType} />
 								</div>
@@ -163,7 +163,7 @@ export function TableInfoPanel({
 											{idx.name}
 										</span>
 										{idx.unique && (
-                                            <span className="rounded-sm border border-accent-purple/30 bg-accent-purple/10 px-1 py-px text-[9px] font-bold text-accent-purple leading-none shrink-0">
+                                            <span className="rounded-sm border border-chart-2/30 bg-chart-2/10 px-1 py-px text-[9px] font-bold text-chart-2 leading-none shrink-0">
 												UNIQUE
 											</span>
 										)}
@@ -187,9 +187,9 @@ export function TableInfoPanel({
 							{outgoingFKs.map((fk) => (
 								<div
 									key={fk.name}
-									className="rounded-md border border-accent-blue/20 bg-accent-blue/5 px-2.5 py-1.5"
+									className="rounded-md border border-primary/20 bg-primary/5 px-2.5 py-1.5"
 								>
-									<div className="flex items-center gap-1 text-accent-blue/80 mb-0.5">
+									<div className="flex items-center gap-1 text-primary/80 mb-0.5">
 										<Link2 size={9} />
 										<span className="text-[9px] font-bold uppercase tracking-wider">
 											→ {fk.targetTable}

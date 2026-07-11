@@ -18,12 +18,12 @@ import { toast } from "sonner";
 import { useEffect, useRef, useState } from "react";
 
 const TYPE_META: Record<string, { icon: LucideIcon; iconClassName: string }> = {
-	list: { icon: List, iconClassName: "text-accent-purple" },
+	list: { icon: List, iconClassName: "text-chart-2" },
 	src: { icon: FileCode2, iconClassName: "text-foreground/70" },
-	query: { icon: Code2, iconClassName: "text-accent-blue" },
-	execute: { icon: Play, iconClassName: "text-accent-orange" },
-	tbl: { icon: Table2, iconClassName: "text-accent-blue" },
-	table: { icon: Table2, iconClassName: "text-accent-blue" },
+	query: { icon: Code2, iconClassName: "text-primary" },
+	execute: { icon: Play, iconClassName: "text-warning" },
+	tbl: { icon: Table2, iconClassName: "text-primary" },
+	table: { icon: Table2, iconClassName: "text-primary" },
 };
 
 export function TabBar({

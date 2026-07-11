@@ -57,7 +57,7 @@ export function IndexesSection({ indexes, columnNames, isEditing, onUpdate }: In
 					{!isEditing ? (
 						indexes.map((idx) => (
 							<div key={idx.id} className="flex items-center gap-1 text-[9px] font-mono text-muted-foreground pl-4">
-								<span className={cn(idx.unique ? "text-accent-orange" : "text-muted-foreground")}>
+								<span className={cn(idx.unique ? "text-warning" : "text-muted-foreground")}>
 									{idx.unique ? "UNIQUE " : ""}
 								</span>
 								<span className="font-semibold">{idx.name}</span>

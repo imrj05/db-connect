@@ -20,25 +20,25 @@ const ONBOARDING_KEY = "db_connect_onboarding_done";
 const FEATURES = [
     {
         icon: <Table2 size={16} />,
-        color: "text-accent-blue bg-accent-blue/10",
+        color: "text-primary bg-primary/10",
         title: "Browse Tables",
         desc: "Explore rows, sort columns, paginate large datasets.",
     },
     {
         icon: <TerminalSquare size={16} />,
-        color: "text-accent-green bg-accent-green/10",
+        color: "text-success bg-success/10",
         title: "SQL Editor",
         desc: "Write and run queries with syntax highlighting and autocomplete.",
     },
     {
         icon: <Filter size={16} />,
-        color: "text-accent-purple bg-accent-purple/10",
+        color: "text-chart-2 bg-chart-2/10",
         title: "Visual Filters",
         desc: "Build WHERE conditions without writing SQL.",
     },
     {
         icon: <Download size={16} />,
-        color: "text-accent-orange bg-accent-orange/10",
+        color: "text-warning bg-warning/10",
         title: "Import & Export",
         desc: "Load CSV / JSON into any table. Export results instantly.",
     },
@@ -50,7 +50,7 @@ const FEATURES = [
     },
     {
         icon: <Search size={16} />,
-        color: "text-accent-red bg-accent-red/10",
+        color: "text-destructive bg-destructive/10",
         title: "Command Palette",
         desc: "Jump to any table or query with ⌘K.",
     },
@@ -150,8 +150,8 @@ function StepFeatures() {
 function StepConnect({ onConnect }: { onConnect: () => void }) {
     return (
         <div className="flex flex-col items-center text-center gap-8">
-            <div className="size-20 rounded-2xl bg-accent-green/10 border border-accent-green/20 flex items-center justify-center">
-                <Plus size={32} className="text-accent-green" />
+            <div className="size-20 rounded-2xl bg-success/10 border border-success/20 flex items-center justify-center">
+                <Plus size={32} className="text-success" />
             </div>
 
             <div className="space-y-2">

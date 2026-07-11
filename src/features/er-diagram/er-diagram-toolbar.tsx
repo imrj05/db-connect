@@ -82,10 +82,10 @@ export function ERDiagramToolbar({
 		<div className="h-10 shrink-0 border-b border-border px-3 flex items-center justify-between bg-card/80 backdrop-blur-sm">
 			<div className="flex items-center gap-3 min-w-0">
 				<div className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-widest text-muted-foreground">
-					<Link2 size={11} className="text-accent-blue/60" />
+					<Link2 size={11} className="text-primary/60" />
 					ER Diagram
 					{isEditing && (
-						<span className="text-accent-orange/70 font-normal tracking-normal ml-1">
+						<span className="text-warning/70 font-normal tracking-normal ml-1">
 							· EDITING
 						</span>
 					)}
@@ -113,7 +113,7 @@ export function ERDiagramToolbar({
 									variant="ghost"
 									size="xs"
 									onClick={onAddTable}
-									className="h-6 px-2 gap-1 text-[10px] font-mono text-muted-foreground hover:text-accent-blue"
+									className="h-6 px-2 gap-1 text-[10px] font-mono text-muted-foreground hover:text-primary"
 									title="Add table"
 								>
 									<Plus size={11} />
@@ -126,7 +126,7 @@ export function ERDiagramToolbar({
 									className={cn(
 										"h-6 px-2 gap-1 text-[10px] font-mono",
 										hasChanges
-											? "text-accent-green hover:text-accent-green"
+											? "text-success hover:text-success"
 											: "text-muted-foreground",
 									)}
 									title="Review & save changes (Cmd/Ctrl+S)"
@@ -270,7 +270,7 @@ export function ERDiagramToolbar({
 							}}
 							className="text-[11px] font-mono"
 						>
-							<ImageIcon size={12} className="mr-2 text-accent-blue/70" />
+							<ImageIcon size={12} className="mr-2 text-primary/70" />
 							PNG image
 						</DropdownMenuItem>
 						<DropdownMenuItem
@@ -280,7 +280,7 @@ export function ERDiagramToolbar({
 							}}
 							className="text-[11px] font-mono"
 						>
-							<Download size={12} className="mr-2 text-accent-blue/70" />
+							<Download size={12} className="mr-2 text-primary/70" />
 							SVG vector
 						</DropdownMenuItem>
 					</DropdownMenuContent>

@@ -56,9 +56,9 @@ export function ColumnRow({ column, isEditing, isFK, onUpdate, onDelete, onStart
 					className={cn(
 						"w-1.5 h-1.5 rounded-full shrink-0",
 						column.isPrimary
-							? "bg-accent-orange"
+							? "bg-warning"
 							: isFK
-								? "bg-accent-blue"
+								? "bg-primary"
 								: "bg-border",
 					)}
 				/>
@@ -67,12 +67,12 @@ export function ColumnRow({ column, isEditing, isFK, onUpdate, onDelete, onStart
 				</span>
 				<div className="flex items-center gap-1 shrink-0">
 					{column.isPrimary && (
-						<span className="px-1 py-0.5 rounded bg-accent-orange/10 border border-accent-orange/20 text-[9px] font-black uppercase tracking-wider text-accent-orange">
+						<span className="px-1 py-0.5 rounded bg-warning/10 border border-warning/20 text-[9px] font-black uppercase tracking-wider text-warning">
 							PK
 						</span>
 					)}
 					{isFK && (
-						<span className="px-1 py-0.5 rounded bg-accent-blue/10 border border-accent-blue/20 text-[9px] font-black uppercase tracking-wider text-accent-blue">
+						<span className="px-1 py-0.5 rounded bg-primary/10 border border-primary/20 text-[9px] font-black uppercase tracking-wider text-primary">
 							FK
 						</span>
 					)}
@@ -101,9 +101,9 @@ export function ColumnRow({ column, isEditing, isFK, onUpdate, onDelete, onStart
 				className={cn(
 					"w-1.5 h-1.5 rounded-full shrink-0 transition-colors cursor-pointer",
 					column.isPrimary
-						? "bg-accent-orange ring-1 ring-accent-orange/40"
+						? "bg-warning ring-1 ring-warning/40"
 						: isFK
-							? "bg-accent-blue ring-1 ring-accent-blue/40"
+							? "bg-primary ring-1 ring-primary/40"
 							: "bg-border hover:bg-muted-foreground/40",
 				)}
 				title={column.isPrimary ? "Primary Key (click to remove)" : "Click to set as Primary Key"}
@@ -147,7 +147,7 @@ export function ColumnRow({ column, isEditing, isFK, onUpdate, onDelete, onStart
 			{/* FK drag affordance. The actual React Flow source handle is overlaid by TableNode. */}
 			{onStartFKDrag && (
 				<div
-					className="shrink-0 text-accent-blue/75 p-0.5 pointer-events-none"
+					className="shrink-0 text-primary/75 p-0.5 pointer-events-none"
 					title="Drag to create foreign key"
 				>
 					<svg width="10" height="10" viewBox="0 0 10 10" fill="currentColor">

@@ -52,8 +52,8 @@ function FkEdgeComponent({
 				markerEnd={markerEnd}
 				style={{
 					stroke: isActive
-						? "var(--color-accent-green)"
-						: "var(--color-accent-blue)",
+						? "var(--color-success)"
+						: "var(--color-primary)",
 					strokeWidth: isActive ? 2.5 : 1.8,
 					strokeLinecap: "round",
 				}}

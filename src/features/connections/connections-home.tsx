@@ -231,7 +231,7 @@ export function ConnectionsHome({
 									className={cn(
 										"h-7 shrink-0 gap-1.5 rounded-md px-2.5 text-[10px] font-bold uppercase",
 										isConnected
-											? "border-accent-green/30 bg-accent-green/10 text-accent-green"
+											? "border-success/30 bg-success/10 text-success"
 											: "border-border bg-card text-foreground/70",
 									)}
 								>
@@ -239,7 +239,7 @@ export function ConnectionsHome({
 										className={cn(
 											"size-1.5 rounded-full",
 											isConnected
-												? "bg-accent-green"
+												? "bg-success"
 												: "bg-muted-foreground/30",
 										)}
 									/>

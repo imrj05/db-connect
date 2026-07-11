@@ -21,12 +21,12 @@ import { filterFunctions } from "@/lib/db-functions";
 import { DB_LOGO as DB_ICON, DB_COLOR } from "@/components/shared/db-ui";
 // Unique icon + color per function type
 const TYPE_ICON: Record<string, { icon: React.FC<{ size?: number; className?: string }>; color: string }> = {
-    list: { icon: List, color: "text-accent-purple/70" },
+    list: { icon: List, color: "text-chart-2/70" },
     src: { icon: Info, color: "text-muted-foreground/40" },
     query: { icon: Code2, color: "text-primary/70" },
-    execute: { icon: Zap, color: "text-accent-orange/70" },
-    tbl: { icon: Table2, color: "text-accent-blue/70" },
-    table: { icon: LayoutGrid, color: "text-accent-blue/60" },
+    execute: { icon: Zap, color: "text-warning/70" },
+    tbl: { icon: Table2, color: "text-primary/70" },
+    table: { icon: LayoutGrid, color: "text-primary/60" },
 };
 export function CommandPalette() {
     const {
@@ -210,7 +210,7 @@ export function CommandPalette() {
                                             }}
                                         >
                                             {hit.type === "table"
-                                                ? <Table2 size={13} className="shrink-0 text-accent-blue/70" />
+                                                ? <Table2 size={13} className="shrink-0 text-primary/70" />
                                                 : <Columns3 size={13} className="shrink-0 text-foreground/40" />
                                             }
                                             <div className="flex flex-col flex-1 min-w-0">
@@ -337,7 +337,7 @@ export function CommandPalette() {
                                             {Icon ? (
                                                 <Icon className={`shrink-0 w-[13px] h-[13px] ${iconColor}`} />
                                             ) : (
-                                                <Table2 size={13} className="shrink-0 text-accent-blue/60" />
+                                                <Table2 size={13} className="shrink-0 text-primary/60" />
                                             )}
                                             <div className="flex flex-col flex-1 min-w-0">
                                                 <span className="text-[14px] font-semibold leading-tight tracking-tight">

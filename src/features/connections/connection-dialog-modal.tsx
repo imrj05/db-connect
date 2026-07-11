@@ -161,7 +161,7 @@ function ConnectionUrlPreview({
     })();
     return (
         <div className="flex items-center gap-2 rounded-md border border-border bg-popover px-2.5 py-1.5">
-            <span className="text-[10px] font-semibold uppercase tracking-widest text-fg-muted shrink-0">
+            <span className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground shrink-0">
                 Preview
             </span>
             <span className="text-[11px] font-mono text-muted-foreground/60 truncate">
@@ -436,7 +436,7 @@ const ConnectionDialog = ({ onClose, initialData, mode = "modal" }: ConnectionDi
                                 {selectedEngineLabel}
                             </Badge>
                         </div>
-                        <p className="mt-0.5 truncate text-[11px] text-fg-muted">
+                        <p className="mt-0.5 truncate text-[11px] text-muted-foreground">
                             {initialData
                                 ? activeTab === "quick-connect"
                                     ? "Paste a new URI to re-point this connection."
@@ -462,7 +462,7 @@ const ConnectionDialog = ({ onClose, initialData, mode = "modal" }: ConnectionDi
                             tabTriggerBaseClass,
                             activeTab === "quick-connect"
                                 ? "border-border bg-popover text-foreground [&_svg]:text-foreground"
-                                : "border-transparent bg-transparent text-fg-muted hover:text-foreground/80 [&_svg]:text-muted-foreground/45",
+                                : "border-transparent bg-transparent text-muted-foreground hover:text-foreground/80 [&_svg]:text-muted-foreground/45",
                         )}
                     >
                         {!initialData && <StepBadge step="1" active={activeTab === "quick-connect"} />}
@@ -475,7 +475,7 @@ const ConnectionDialog = ({ onClose, initialData, mode = "modal" }: ConnectionDi
                             tabTriggerBaseClass,
                             activeTab === "details"
                                 ? "border-border bg-popover text-foreground [&_svg]:text-foreground"
-                                : "border-transparent bg-transparent text-fg-muted hover:text-foreground/80 [&_svg]:text-muted-foreground/45",
+                                : "border-transparent bg-transparent text-muted-foreground hover:text-foreground/80 [&_svg]:text-muted-foreground/45",
                         )}
                     >
                         {!initialData && <StepBadge step="2" active={activeTab === "details"} />}
@@ -649,7 +649,7 @@ const ConnectionDialog = ({ onClose, initialData, mode = "modal" }: ConnectionDi
                                                         >
                                                             <div className="min-w-0">
                                                                 <p className="text-[12px] font-semibold text-foreground">SSL / TLS Encryption</p>
-                                                                <p className="mt-0.5 text-[11px] text-fg-muted">
+                                                                <p className="mt-0.5 text-[11px] text-muted-foreground">
                                                                     Encrypt traffic in transit for remote or managed databases.
                                                                 </p>
                                                             </div>
@@ -698,7 +698,7 @@ const ConnectionDialog = ({ onClose, initialData, mode = "modal" }: ConnectionDi
                                                                                     // destructive red. Red is reserved for intent that destroys data.
                                                                                     ? "border-success/40 bg-success/15 text-success"
                                                                                     : mode === "warn"
-                                                                                        ? "border-accent-orange/40 bg-accent-orange/15 text-accent-orange"
+                                                                                        ? "border-warning/40 bg-warning/15 text-warning"
                                                                                         : "border-border bg-muted text-foreground"
                                                                                 : "border-border bg-transparent text-foreground/60 hover:border-border hover:text-foreground/80",
                                                                         )}
@@ -765,7 +765,7 @@ const ConnectionDialog = ({ onClose, initialData, mode = "modal" }: ConnectionDi
                                                 <p className="truncate text-[13px] font-semibold text-foreground">
                                                     {formData.name || "Untitled"}
                                                 </p>
-                                                <p className="text-[11px] text-fg-muted">
+                                                <p className="text-[11px] text-muted-foreground">
                                                     {selectedEngineLabel}
                                                 </p>
                                             </div>

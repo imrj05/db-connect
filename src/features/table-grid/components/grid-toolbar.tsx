@@ -220,7 +220,7 @@ export function GridToolbar({
 								className={cn(
 									"h-7 px-3 text-[11px] font-medium border-border shadow-xs",
 									pendingEditCount > 0
-										? "bg-accent-green/14 text-accent-green border-accent-green/22 hover:bg-accent-green/18"
+										? "bg-success/14 text-success border-success/22 hover:bg-success/18"
 										: "bg-popover text-foreground/70 hover:bg-popover",
 								)}
 							>
@@ -309,7 +309,7 @@ export function GridToolbar({
 								className={cn(
 									"h-7 gap-1.5 rounded-md border-border px-3 text-[11px] font-medium shadow-xs",
 									filtersActive
-										? "bg-accent-blue/12 text-accent-blue border-accent-blue/18 hover:bg-accent-blue/16"
+										? "bg-primary/12 text-primary border-primary/18 hover:bg-primary/16"
 										: "bg-popover text-foreground/68 hover:bg-card",
 								)}
 							>
@@ -320,7 +320,7 @@ export function GridToolbar({
 											<Filter size={11} />
 										)}
 										{filtersActive && (
-											<span className="absolute -top-1.5 -right-1.5 min-w-[14px] h-[14px] rounded-full bg-accent-blue text-[9px] font-black text-accent-foreground flex items-center justify-center px-0.5 leading-none">
+											<span className="absolute -top-1.5 -right-1.5 min-w-[14px] h-[14px] rounded-full bg-primary text-[9px] font-black text-accent-foreground flex items-center justify-center px-0.5 leading-none">
 												{filterCount}
 											</span>
 										)}
@@ -355,7 +355,7 @@ export function GridToolbar({
 								className={cn(
 									"h-7 gap-1.5 rounded-md border-border px-3 text-[11px] font-medium shadow-xs",
 									cellSearch
-										? "bg-accent-purple/12 text-accent-purple border-accent-purple/18 hover:bg-accent-purple/16"
+										? "bg-chart-2/12 text-chart-2 border-chart-2/18 hover:bg-chart-2/16"
 										: showSearchBar
 											? "bg-primary/15/72 text-foreground"
 											: "bg-popover text-foreground/68 hover:bg-card",
@@ -364,7 +364,7 @@ export function GridToolbar({
 									<span className="relative">
 										<Search size={11} />
 										{cellSearch && (
-											<span className="absolute -top-1.5 -right-1.5 min-w-[14px] h-[14px] rounded-full bg-accent-blue text-[9px] font-black text-accent-foreground flex items-center justify-center px-0.5 leading-none">
+											<span className="absolute -top-1.5 -right-1.5 min-w-[14px] h-[14px] rounded-full bg-primary text-[9px] font-black text-accent-foreground flex items-center justify-center px-0.5 leading-none">
 												{searchedRowCount}
 											</span>
 										)}
@@ -463,12 +463,12 @@ export function GridToolbar({
 									<span className="relative">
 										<Timer size={11} />
 										{autoRefreshInterval && (
-											<span className="absolute -top-1 -right-1 w-1.5 h-1.5 rounded-full bg-accent-green animate-pulse" />
+											<span className="absolute -top-1 -right-1 w-1.5 h-1.5 rounded-full bg-success animate-pulse" />
 										)}
 									</span>
 									Auto-refresh
 									{autoRefreshInterval && (
-										<span className="ml-auto text-[10px] text-accent-green font-medium">
+										<span className="ml-auto text-[10px] text-success font-medium">
 											{autoRefreshInterval < 60 ? `${autoRefreshInterval}s` : `${autoRefreshInterval / 60}m`}
 										</span>
 									)}
@@ -509,7 +509,7 @@ export function GridToolbar({
 								{onToggleInfo && (
 									<DropdownMenuItem
 										onClick={onToggleInfo}
-										className={cn("text-[11px] gap-2", showInfo && "text-accent-blue")}
+										className={cn("text-[11px] gap-2", showInfo && "text-primary")}
 									>
 										<Info size={11} />
 										{showInfo ? "Hide table info" : "Table info"}
@@ -518,7 +518,7 @@ export function GridToolbar({
 								{onToggleRowDetail && (
 									<DropdownMenuItem
 										onClick={onToggleRowDetail}
-										className={cn("text-[11px] gap-2", showRowDetail && "text-accent-blue")}
+										className={cn("text-[11px] gap-2", showRowDetail && "text-primary")}
 									>
 										{showRowDetail ? <PanelRightClose size={11} /> : <PanelRightOpen size={11} />}
 										{showRowDetail ? "Close row detail" : "Row detail"}

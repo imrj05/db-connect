@@ -137,7 +137,7 @@ export function EngineFields({
 										variant="ghost"
 										size="icon-xs"
 										onClick={onTogglePassword}
-									className="absolute right-1.5 top-1/2 -translate-y-1/2 rounded-sm text-fg-muted hover:text-fg"
+									className="absolute right-1.5 top-1/2 -translate-y-1/2 rounded-sm text-muted-foreground hover:text-foreground/80"
 								>
 										{showPassword ? <EyeOff size={13} /> : <Eye size={13} />}
 									</Button>

@@ -603,7 +603,7 @@ function App() {
                                                             key={c.id}
                                                             className="flex items-center gap-2 px-2 py-1 rounded bg-muted text-[11px] font-mono text-foreground/80"
                                                         >
-                                                            <span className="w-1.5 h-1.5 rounded-full bg-accent-green shrink-0" />
+                                                            <span className="w-1.5 h-1.5 rounded-full bg-success shrink-0" />
                                                             {c.name ?? c.host}
                                                         </li>
                                                     ))}

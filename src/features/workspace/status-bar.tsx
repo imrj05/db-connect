@@ -36,23 +36,23 @@ export function StatusBar({
 							"fill-current shrink-0",
 							isConnected
 								? "text-primary animate-pulse"
-								: "text-fg-muted",
+								: "text-muted-foreground",
 						)}
 					/>
-					<span className="text-[11px] font-semibold text-fg-muted uppercase tracking-[0.14em]">
+					<span className="text-[11px] font-semibold text-muted-foreground uppercase tracking-[0.14em]">
 						{isConnected ? "Connected" : "Disconnected"}
 					</span>
 				</div>
 				{Logo && (
 					<Logo className={cn("size-3 shrink-0", logoColor)} aria-hidden />
 				)}
-				<span className="text-[11px] font-mono text-fg-muted truncate max-w-[160px]">
-					<span className="text-fg">{conn?.name ?? connectionId}</span>
+				<span className="text-[11px] font-mono text-muted-foreground truncate max-w-[160px]">
+					<span className="text-foreground/80">{conn?.name ?? connectionId}</span>
 				</span>
-				<span className="text-fg-muted text-[10px]">·</span>
-				<span className="text-[11px] font-mono text-fg-muted truncate">
+				<span className="text-muted-foreground text-[10px]">·</span>
+				<span className="text-[11px] font-mono text-muted-foreground truncate">
 					DB:{" "}
-					<span className="text-fg">{dbName}</span>
+					<span className="text-foreground/80">{dbName}</span>
 				</span>
 			</div>
 			{/* Right: timing + row count + pending edits + status */}
@@ -63,30 +63,30 @@ export function StatusBar({
 						title="Pending cell edits queued for apply"
 					>
 						<AlertTriangle size={10} className="inline -translate-y-px mr-1" />
-						<span className="text-fg">{pendingEditCount}</span>
-						<span className="text-fg-muted"> pending</span>
+						<span className="text-foreground/80">{pendingEditCount}</span>
+						<span className="text-muted-foreground"> pending</span>
 					</span>
 				)}
 				{isRunning ? (
 					<span className="text-[11px] font-mono text-primary">
-						<span className="text-fg-muted">Status:</span>{" "}
+						<span className="text-muted-foreground">Status:</span>{" "}
 						<span className="font-semibold uppercase tracking-[0.14em]">Running</span>
 					</span>
 				) : executionTimeMs > 0 ? (
-					<span className="text-[11px] font-mono text-fg-muted">
+					<span className="text-[11px] font-mono text-muted-foreground">
 						Execution:{" "}
-						<span className="text-fg">{executionTimeMs}ms</span>
+						<span className="text-foreground/80">{executionTimeMs}ms</span>
 					</span>
 				) : null}
-				<span className="text-[11px] font-mono text-fg-muted">
+				<span className="text-[11px] font-mono text-muted-foreground">
 					Rows:{" "}
-					<span className="text-fg">
+					<span className="text-foreground/80">
 						{rowCount}
 						{activeTab?.filteredResult ? ` / ${activeTab.filteredResult.rows.length}` : ""}
 					</span>
 				</span>
 				{!isRunning && executionTimeMs > 0 && (
-					<span className="flex items-center gap-1 text-[11px] font-mono text-accent-green/80">
+					<span className="flex items-center gap-1 text-[11px] font-mono text-success/80">
 						<CheckCheck size={11} />
 						OK
 					</span>

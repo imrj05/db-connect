@@ -299,7 +299,7 @@ export function SqlEditorView({
 			className={cn(
 				"h-full px-3 rounded-none gap-1.5 text-[11px] font-bold uppercase tracking-widest border-b-2 border-transparent",
 				panel === id
-					? "text-accent-blue border-primary"
+					? "text-primary border-primary"
 					: "text-muted-foreground hover:text-muted-foreground",
 			)}
 		>
@@ -320,13 +320,13 @@ export function SqlEditorView({
 			{/* Header */}
 			<div className="h-9 flex items-center justify-between bg-background border-b border-border px-4 shrink-0">
 				<div className="flex items-center gap-2 min-w-0">
-					<span className="font-mono text-[11px] text-accent-blue font-bold shrink-0">
+					<span className="font-mono text-[11px] text-primary font-bold shrink-0">
 						{fn.callSignature
 							.slice(fn.prefix.length + 1)
 							.replace(/\(.*$/, "")}
 					</span>
 					{selectedDatabases[fn.connectionId] && (
-						<span className="inline-flex items-center gap-1 px-1.5 h-4 rounded text-[9px] font-mono font-bold uppercase tracking-wider border border-accent-green/30 bg-accent-green/8 text-accent-green shrink-0">
+						<span className="inline-flex items-center gap-1 px-1.5 h-4 rounded text-[9px] font-mono font-bold uppercase tracking-wider border border-success/30 bg-success/8 text-success shrink-0">
 							{selectedDatabases[fn.connectionId]}
 						</span>
 					)}

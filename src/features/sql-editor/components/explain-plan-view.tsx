@@ -45,12 +45,12 @@ function PgTextPlan({ rows }: { rows: Record<string, unknown>[] }) {
 						style={{ paddingLeft: indent + 4 }}
 					>
 						{isNode && (
-							<ChevronRight size={10} className="mt-0.5 shrink-0 text-accent-blue/60" />
+							<ChevronRight size={10} className="mt-0.5 shrink-0 text-primary/60" />
 						)}
 						<span
 							className={cn(
 								"break-all",
-								indexScan && "text-accent-green/90",
+								indexScan && "text-success/90",
 								seqScan && "text-warning",
 								isWarning && "font-semibold",
 							)}
@@ -63,7 +63,7 @@ function PgTextPlan({ rows }: { rows: Record<string, unknown>[] }) {
 							</span>
 						)}
 						{indexScan && (
-                            <span className="ml-auto shrink-0 rounded-sm border border-accent-green/30 bg-accent-green/10 px-1 py-px text-[9px] font-bold text-accent-green leading-none">
+                            <span className="ml-auto shrink-0 rounded-sm border border-success/30 bg-success/10 px-1 py-px text-[9px] font-bold text-success leading-none">
 								INDEX
 							</span>
 						)}
@@ -94,8 +94,8 @@ function MySQLExplainTable({
 		const s = String(t ?? "").toUpperCase();
 		if (s === "ALL" || s === "FULLTEXT") return "text-destructive font-bold";
 		if (s === "INDEX") return "text-warning font-semibold";
-		if (s.startsWith("REF") || s === "EQ_REF") return "text-accent-blue";
-		if (s === "CONST" || s === "SYSTEM") return "text-accent-green font-semibold";
+		if (s.startsWith("REF") || s === "EQ_REF") return "text-primary";
+		if (s === "CONST" || s === "SYSTEM") return "text-success font-semibold";
 		return "";
 	};
 
@@ -168,7 +168,7 @@ function SQLiteExplainTable({
 						className={cn(
 							"flex items-start gap-2 px-3 py-1.5 rounded-md",
 							isScan && !isIndex && "bg-warning/8 border border-warning/20",
-							isSearch && "bg-accent-green/8 border border-accent-green/20",
+							isSearch && "bg-success/8 border border-success/20",
 						)}
 					>
 						<span className="text-muted-foreground shrink-0 tabular-nums w-4">
@@ -178,7 +178,7 @@ function SQLiteExplainTable({
 							className={cn(
 								"flex-1",
 								isScan && !isIndex && "text-warning",
-								isIndex && "text-accent-green/90",
+								isIndex && "text-success/90",
 							)}
 						>
 							{detail}
@@ -189,7 +189,7 @@ function SQLiteExplainTable({
 							</span>
 						)}
 						{isIndex && (
-                            <span className="shrink-0 rounded-sm border border-accent-green/30 bg-accent-green/10 px-1 py-px text-[9px] font-bold text-accent-green leading-none">
+                            <span className="shrink-0 rounded-sm border border-success/30 bg-success/10 px-1 py-px text-[9px] font-bold text-success leading-none">
 								INDEX
 							</span>
 						)}
@@ -237,7 +237,7 @@ export function ExplainPlanView({
 		<div className="flex flex-col h-full overflow-hidden">
 			{/* Header */}
 			<div className="shrink-0 flex items-center gap-2 px-4 py-2 border-b border-border bg-muted/30">
-				<Zap size={12} className="text-accent-blue/70" />
+				<Zap size={12} className="text-primary/70" />
 				<span className="text-[10px] font-bold uppercase tracking-[0.12em] text-muted-foreground">
 					Query Plan
 				</span>
@@ -248,7 +248,7 @@ export function ExplainPlanView({
 					</span>
 				)}
 				{seqScanCount === 0 && (
-                    <span className="flex items-center gap-1 rounded-sm border border-accent-green/30 bg-accent-green/10 px-1.5 py-0.5 text-[9px] font-bold text-accent-green leading-none ml-auto">
+                    <span className="flex items-center gap-1 rounded-sm border border-success/30 bg-success/10 px-1.5 py-0.5 text-[9px] font-bold text-success leading-none ml-auto">
 						<Table2 size={9} />
 						No full scans
 					</span>

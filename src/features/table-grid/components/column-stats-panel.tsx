@@ -92,7 +92,7 @@ function StatChip({ label, value, accent }: { label: string; value: string; acce
 	return (
 		<div className="flex items-baseline gap-1.5 shrink-0">
 			<span className="text-[10px] text-foreground/70 uppercase tracking-wider font-medium">{label}</span>
-			<span className={cn("text-[12px] font-mono font-semibold tabular-nums", accent ? "text-accent-blue" : "text-foreground/80")}>
+			<span className={cn("text-[12px] font-mono font-semibold tabular-nums", accent ? "text-primary" : "text-foreground/80")}>
 				{value}
 			</span>
 		</div>
@@ -114,7 +114,7 @@ export function ColumnStatsPanel({
 		<div className="shrink-0 border-t border-border bg-card/96 backdrop-blur-sm px-3 h-11 flex items-center gap-3 overflow-x-auto scrollbar-thin">
 			{/* Column name + close */}
 			<div className="flex items-center gap-1.5 shrink-0">
-				<BarChart2 size={12} className="text-accent-blue shrink-0" />
+				<BarChart2 size={12} className="text-primary shrink-0" />
 				<span className="text-[11px] font-semibold font-mono text-foreground">{colId}</span>
 				<Button
 					variant="ghost"
@@ -141,7 +141,7 @@ export function ColumnStatsPanel({
 						<div
 							className={cn(
 								"h-full rounded-full",
-								stats.fillPct >= 90 ? "bg-accent-green" : stats.fillPct >= 50 ? "bg-accent-blue" : "bg-warning",
+								stats.fillPct >= 90 ? "bg-success" : stats.fillPct >= 50 ? "bg-primary" : "bg-warning",
 							)}
 							style={{ width: `${stats.fillPct}%` }}
 						/>

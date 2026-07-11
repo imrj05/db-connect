@@ -419,7 +419,7 @@ export function ImportSqlDialog({
                                 <div className="flex items-start gap-2 rounded-lg px-3 py-2.5 border border-border bg-muted/20">
                                     <CheckCircle2
                                         size={14}
-                                        className="shrink-0 text-accent-green mt-0.5"
+                                        className="shrink-0 text-success mt-0.5"
                                     />
                                     <div className="flex flex-col gap-0.5">
                                         <p className="text-[11px] font-semibold">

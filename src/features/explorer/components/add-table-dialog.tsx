@@ -307,7 +307,7 @@ export function AddTableDialog({
                                             </span>
                                             <span className={cn(
                                                 "text-[8px] md:text-[9px] font-bold uppercase tracking-wider px-1 py-0.5 rounded shrink-0",
-                                                index === 0 ? "bg-accent-blue/10 text-accent-blue" : "bg-muted text-muted-foreground"
+                                                index === 0 ? "bg-primary/10 text-primary" : "bg-muted text-muted-foreground"
                                             )}>
                                                 #{index + 1}
                                             </span>
@@ -364,7 +364,7 @@ export function AddTableDialog({
                                                                 className={cn(
                                                                     "flex items-center gap-0.5 px-1 py-0.5 rounded text-[8px] md:text-[9px] font-medium transition-all shrink-0",
                                                                     col.nullable
-                                                                        ? "bg-accent-green/10 text-accent-green border border-accent-green/20"
+                                                                        ? "bg-success/10 text-success border border-success/20"
                                                                         : "bg-muted text-muted-foreground/60 border border-transparent hover:border-border"
                                                                 )}
                                                             >
@@ -437,14 +437,14 @@ export function AddTableDialog({
                     </div>
                     {/* SQL Preview - Bottom */}
                     {showPreview && (
-                        <div className="flex flex-col min-h-[20vh] flex-1 overflow-hidden rounded border border-border/60 bg-code-preview-bg">
-                            <div className="shrink-0 px-2 py-1.5 border-b border-border/50 bg-code-preview-header-bg">
+                        <div className="flex flex-col min-h-[20vh] flex-1 overflow-hidden rounded border border-border/60 bg-card">
+                            <div className="shrink-0 px-2 py-1.5 border-b border-border/50 bg-muted">
                                 <Label className="text-[9px] md:text-[10px] font-bold uppercase tracking-widest text-muted-foreground">
                                     SQL Preview
                                 </Label>
                             </div>
-                            <div className="flex-1 overflow-auto p-2 md:p-3 bg-code-preview-bg">
-                                <pre className="text-[9px] md:text-[10px] font-mono leading-relaxed whitespace-pre-wrap text-code-preview-text">{sqlPreview}</pre>
+                            <div className="flex-1 overflow-auto p-2 md:p-3 bg-card">
+                                <pre className="text-[9px] md:text-[10px] font-mono leading-relaxed whitespace-pre-wrap text-foreground">{sqlPreview}</pre>
                             </div>
                         </div>
                     )}

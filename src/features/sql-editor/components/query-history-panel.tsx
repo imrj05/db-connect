@@ -121,7 +121,7 @@ export function QueryHistoryPanel({
 								"text-[9px] uppercase tracking-widest font-bold px-1.5 py-0.5 rounded transition-colors focus-visible:ring-2 focus-visible:ring-ring/50 focus-visible:outline-none",
 									statusFilter === s
 										? s === "error" ? "bg-destructive/20 text-destructive"
-											: s === "success" ? "bg-accent-green/20 text-accent-green"
+											: s === "success" ? "bg-success/20 text-success"
 												: "bg-primary/20 text-primary"
 										: "text-muted-foreground hover:text-muted-foreground"
 								)}
@@ -170,7 +170,7 @@ export function QueryHistoryPanel({
 								<div className="flex items-center gap-1.5 mb-1 min-w-0">
 									{/* Status icon */}
 									{entry.status === "success" && (
-										<CheckCircle2 size={9} className="text-accent-green shrink-0" />
+										<CheckCircle2 size={9} className="text-success shrink-0" />
 									)}
 									{entry.status === "error" && (
 										<XCircle size={9} className="text-destructive shrink-0" />
@@ -221,7 +221,7 @@ export function QueryHistoryPanel({
 								<button
 									title={isCopied ? "Copied!" : "Copy SQL"}
 									onClick={() => handleCopy(entry.id, entry.sql)}
-									className={cn("p-0.5 transition-colors focus-visible:ring-2 focus-visible:ring-ring/50 focus-visible:outline-none", isCopied ? "text-accent-green" : "text-muted-foreground hover:text-primary")}
+									className={cn("p-0.5 transition-colors focus-visible:ring-2 focus-visible:ring-ring/50 focus-visible:outline-none", isCopied ? "text-success" : "text-muted-foreground hover:text-primary")}
 								>
 										<Copy size={9} />
 									</button>

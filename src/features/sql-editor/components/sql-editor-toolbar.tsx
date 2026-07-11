@@ -73,7 +73,7 @@ export function SqlEditorToolbar({
 					className={cn(
 						"h-7 text-[11px] font-semibold gap-2 border-border/60 bg-popover/90",
 						!isLoading && hasSql
-							? "text-accent-green border-primary/40 hover:border-primary/70 hover:bg-muted hover:text-accent-green"
+							? "text-success border-primary/40 hover:border-primary/70 hover:bg-muted hover:text-success"
 							: "text-muted-foreground",
 					)}
 				>
@@ -96,7 +96,7 @@ export function SqlEditorToolbar({
 						className={cn(
 							"h-7 text-[11px] font-semibold gap-2 border-border/60 bg-popover/90",
 							!isLoading && hasSql
-								? "text-accent-blue border-accent-blue/40 hover:border-accent-blue/70 hover:bg-muted"
+								? "text-primary border-primary/40 hover:border-primary/70 hover:bg-muted"
 								: "text-muted-foreground",
 						)}
 					>
@@ -146,7 +146,7 @@ export function SqlEditorToolbar({
 							size="icon-xs"
 							onClick={onSaveConfirm}
 							disabled={!saveName.trim() || !hasSql}
-							className="size-6 text-accent-green"
+							className="size-6 text-success"
 						>
 							<Check size={10} />
 						</Button>

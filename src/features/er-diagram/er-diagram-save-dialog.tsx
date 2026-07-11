@@ -117,8 +117,8 @@ export function ERDiagramSaveDialog({
 					<Sections
 						label="Create"
 						count={categorized.creates.length}
-						color="text-accent-green"
-						bg="bg-accent-green/10"
+						color="text-success"
+						bg="bg-success/10"
 						items={categorized.creates.map((c) => c.description)}
 					/>
 					<Sections
@@ -131,15 +131,15 @@ export function ERDiagramSaveDialog({
 					<Sections
 						label="Alter"
 						count={categorized.alters.length}
-						color="text-accent-blue"
-						bg="bg-accent-blue/10"
+						color="text-primary"
+						bg="bg-primary/10"
 						items={categorized.alters.map((c) => c.description)}
 					/>
 					<Sections
 						label="Rename"
 						count={categorized.renames.length}
-						color="text-accent-orange"
-						bg="bg-accent-orange/10"
+						color="text-warning"
+						bg="bg-warning/10"
 						items={categorized.renames.map((c) => c.description)}
 					/>
 
@@ -165,7 +165,7 @@ export function ERDiagramSaveDialog({
 									className="absolute top-2 right-2"
 									title="Copy SQL"
 								>
-									{copied ? <Check size={12} className="text-accent-green" /> : <Copy size={12} />}
+									{copied ? <Check size={12} className="text-success" /> : <Copy size={12} />}
 								</Button>
 							</div>
 						)}

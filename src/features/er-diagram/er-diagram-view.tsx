@@ -125,10 +125,10 @@ function readPalette(reference: HTMLElement): ExportPalette {
 		foreground: get("var(--foreground)"),
 		mutedForeground: get(mix("--muted-foreground", 55)),
 		primary: get("var(--primary)"),
-		accentBlue: get("var(--color-accent-blue)"),
-		accentOrange: get("var(--color-accent-orange)"),
-		relationStroke: get("var(--color-accent-blue)"),
-		relationStrokeActive: get("var(--color-accent-green)"),
+		accentBlue: get("var(--color-primary)"),
+		accentOrange: get("var(--color-warning)"),
+		relationStroke: get("var(--color-primary)"),
+		relationStrokeActive: get("var(--color-success)"),
 	};
 	reference.removeChild(probe);
 	return palette;
@@ -482,7 +482,7 @@ export function ERDiagramView({
 				...(targetColumn ? { targetHandle: `col-target-${columnHandleId(r.targetTable, r.targetSchema, targetColumn.name)}` } : {}),
 				type: "fk-edge",
 				animated: false,
-				markerEnd: { type: MarkerType.ArrowClosed, color: "var(--color-accent-blue)" },
+				markerEnd: { type: MarkerType.ArrowClosed, color: "var(--color-primary)" },
 				data: { label: r.name, isSelected: false },
 			};
 		});
@@ -584,7 +584,7 @@ export function ERDiagramView({
 					targetHandle: `col-target-${tgtT?.columns.find((c) => c.name === fk.targetColumns[0])?.id ?? ""}`,
 					type: "fk-edge",
 					animated: false,
-					markerEnd: { type: MarkerType.ArrowClosed, color: "var(--color-accent-blue)" },
+					markerEnd: { type: MarkerType.ArrowClosed, color: "var(--color-primary)" },
 					data: { label: fk.name, isSelected: false },
 				};
 			}),
@@ -845,7 +845,7 @@ export function ERDiagramView({
 					targetHandle,
 					type: "fk-edge",
 					animated: false,
-					markerEnd: { type: MarkerType.ArrowClosed, color: "var(--color-accent-blue)" },
+					markerEnd: { type: MarkerType.ArrowClosed, color: "var(--color-primary)" },
 					data: { label: fkName, isSelected: false },
 				},
 			]);
@@ -1075,7 +1075,7 @@ export function ERDiagramView({
 						animated: false,
 					}}
 					connectionLineStyle={{
-						stroke: "var(--color-accent-blue)",
+						stroke: "var(--color-primary)",
 						strokeWidth: 2,
 						strokeDasharray: "6 3",
 					}}
@@ -1094,7 +1094,7 @@ export function ERDiagramView({
 						nodeColor={(n) => {
 							const data = n.data as TableNodeData | undefined;
 							if (data?.isCurrent) return "var(--primary)";
-							return "var(--color-accent-blue)";
+							return "var(--color-primary)";
 						}}
 					/>
 				</ReactFlow>

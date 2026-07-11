@@ -41,7 +41,7 @@ function InfoCard({
 					"text-[12px] font-semibold",
 					mono ? "font-mono" : "",
 					accent === "emerald"
-						? "text-accent-green"
+						? "text-success"
 						: accent === "zinc"
 							? "text-muted-foreground"
 							: "text-foreground",
@@ -63,7 +63,7 @@ export function ConnectionSrcView({
 	return (
 		<div className="h-full flex flex-col bg-background overflow-hidden">
 			<div className="h-9 px-4 flex items-center border-b border-border shrink-0">
-				<span className="font-mono text-[11px] text-accent-blue font-bold">
+				<span className="font-mono text-[11px] text-primary font-bold">
 					{fn.callSignature
 						.slice(fn.prefix.length + 1)
 						.replace(/\(.*$/, "")}

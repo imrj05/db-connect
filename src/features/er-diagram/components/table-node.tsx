@@ -126,7 +126,7 @@ function TableNodeComponent({ data, selected, id }: NodeProps<TableNodeType>) {
 				)}
 				<Database
 					size={12}
-					className={cn(isCurrent ? "text-primary" : "text-accent-blue/65")}
+					className={cn(isCurrent ? "text-primary" : "text-primary/65")}
 				/>
 				<div className="min-w-0 flex-1">
 					{isEditing && onUpdateTable ? (
@@ -187,7 +187,7 @@ function TableNodeComponent({ data, selected, id }: NodeProps<TableNodeType>) {
 								id={`col-source-${column.id}`}
 								isConnectable={isEditing}
 								className={cn(
-									"!z-20 !w-3 !h-3 !bg-accent-blue !border-2 !border-background transition-opacity cursor-crosshair",
+									"!z-20 !w-3 !h-3 !bg-primary !border-2 !border-background transition-opacity cursor-crosshair",
 									isEditing ? "!opacity-90 hover:!opacity-100" : "!opacity-0",
 								)}
 								style={{ top: 11, right: 20 }}
@@ -198,7 +198,7 @@ function TableNodeComponent({ data, selected, id }: NodeProps<TableNodeType>) {
 								id={`col-target-${column.id}`}
 								isConnectable={isEditing}
 								className={cn(
-									"!z-20 !w-3 !h-3 !bg-accent-blue !border-2 !border-background transition-opacity",
+									"!z-20 !w-3 !h-3 !bg-primary !border-2 !border-background transition-opacity",
 									isEditing ? "!opacity-70 hover:!opacity-100" : "!opacity-0",
 								)}
 								style={{ top: 11, left: -4 }}

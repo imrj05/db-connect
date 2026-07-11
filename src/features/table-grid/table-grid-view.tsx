@@ -1888,7 +1888,7 @@ export function TableGridView({
                                         pendingEdit
                                             ? "text-warning"
                                             : showFkIcon
-                                                ? "text-accent-blue"
+                                                ? "text-primary"
                                                 : "",
                                         showFkIcon && "pr-3",
                                     )}
@@ -1901,7 +1901,7 @@ export function TableGridView({
                             {showFkIcon && (
                                 <button
                                     aria-label={`Open related row in ${fkRel.targetTable}`}
-                                    className="absolute right-1 top-1/2 shrink-0 rounded p-0.5 text-accent-blue/60 opacity-0 transition-opacity hover:bg-accent-blue/15 hover:text-accent-blue group-hover/fk:opacity-100 focus-visible:opacity-100"
+                                    className="absolute right-1 top-1/2 shrink-0 rounded p-0.5 text-primary/60 opacity-0 transition-opacity hover:bg-primary/15 hover:text-primary group-hover/fk:opacity-100 focus-visible:opacity-100"
                                     title={`Go to ${fkRel.targetTable}.${fkRel.targetColumns[0]}`}
                                     onClick={(e) => {
                                         e.stopPropagation();
@@ -1967,7 +1967,7 @@ export function TableGridView({
                 <Empty className="border-0 p-0">
                     <EmptyHeader>
                         <EmptyMedia variant="icon" className="size-12 rounded-2xl bg-muted text-foreground/70">
-                            <Sparkles size={22} className="text-accent-green/60" />
+                            <Sparkles size={22} className="text-success/60" />
                         </EmptyMedia>
                         <EmptyTitle className="text-[21px] font-semibold text-foreground">No rows to display</EmptyTitle>
                         <EmptyDescription className="max-w-md text-[14px] text-foreground/60">
@@ -2223,10 +2223,10 @@ export function TableGridView({
                                                                         <span className="rounded-sm border border-warning/45 bg-warning/12 px-1 py-0.5 text-[9px] font-bold leading-none text-warning">PK</span>
                                                                     )}
                                                                     {fkNames.has(col.name) && (
-                                                                        <span className="rounded-sm border border-accent-blue/45 bg-accent-blue/12 px-1 py-0.5 text-[9px] font-bold leading-none text-accent-blue">FK</span>
+                                                                        <span className="rounded-sm border border-primary/45 bg-primary/12 px-1 py-0.5 text-[9px] font-bold leading-none text-primary">FK</span>
                                                                     )}
                                                                     {col.isUnique && !col.isPrimary && (
-                                                                        <span className="rounded-sm border border-accent-purple/45 bg-accent-purple/12 px-1 py-0.5 text-[9px] font-bold leading-none text-accent-purple">UQ</span>
+                                                                        <span className="rounded-sm border border-chart-2/45 bg-chart-2/12 px-1 py-0.5 text-[9px] font-bold leading-none text-chart-2">UQ</span>
                                                                     )}
                                                                     <span className="rounded-sm border border-border/60 bg-background/60 px-1 py-0.5 text-[9px] font-mono font-semibold leading-none text-muted-foreground">
                                                                         {simplifyDataType(col.dataType)}
@@ -2270,13 +2270,13 @@ export function TableGridView({
                             <TableBody>
                                 {/* Batch 9: Insert new row */}
                                 {showInsertRow && fn.tableName && (
-                                    <TableRow className="bg-accent-green/6 hover:bg-accent-green/10 border-l-2 border-accent-green/50">
-                                        <TableCell className="w-11 px-2 text-center border-r border-border sticky left-0 z-20 bg-accent-green/8">
+                                    <TableRow className="bg-success/6 hover:bg-success/10 border-l-2 border-success/50">
+                                        <TableCell className="w-11 px-2 text-center border-r border-border sticky left-0 z-20 bg-success/8">
                                             <div className="flex items-center justify-center gap-1">
                                                 <button
                                                     onClick={() => void commitInsert()}
                                                     title="Save row (Enter)"
-                                                    className="text-accent-green hover:opacity-80 text-[14px] font-bold leading-none"
+                                                    className="text-success hover:opacity-80 text-[14px] font-bold leading-none"
                                                 >
                                                     ✓
                                                 </button>
@@ -2316,7 +2316,7 @@ export function TableGridView({
                                                         }
                                                     }}
                                                     placeholder="NULL"
-                                                    className="absolute inset-0 w-full h-full px-3 bg-transparent text-[12px] font-mono text-foreground/90 border-0 rounded-sm outline-none focus:bg-accent-green/8 focus-visible:ring-2 focus-visible:ring-ring/50 placeholder:text-muted-foreground"
+                                                    className="absolute inset-0 w-full h-full px-3 bg-transparent text-[12px] font-mono text-foreground/90 border-0 rounded-sm outline-none focus:bg-success/8 focus-visible:ring-2 focus-visible:ring-ring/50 placeholder:text-muted-foreground"
                                                 />
                                             </TableCell>
                                         ))}
@@ -2568,7 +2568,7 @@ export function TableGridView({
                                                         <span className={cn(
                                                             "text-[11px] font-mono tabular-nums",
                                                             displayVal
-                                                                ? "text-accent-blue"
+                                                                ? "text-primary"
                                                                 : "text-foreground/70 group-hover/agg:text-foreground",
                                                         )}>
                                                             {displayVal ?? "—"}
@@ -3280,7 +3280,7 @@ export function TableGridView({
                                                     <span className="text-[12px] font-mono font-semibold text-foreground break-all">
                                                         {col.name}
                                                     </span>
-                                                    <span className="rounded-md border border-accent-orange/15 bg-accent-orange/8 px-1.5 py-0.5 text-[10px] font-mono text-accent-orange/78">
+                                                    <span className="rounded-md border border-warning/15 bg-warning/8 px-1.5 py-0.5 text-[10px] font-mono text-warning/78">
                                                         {col.dataType}
                                                     </span>
                                                     {col.isPrimary && (
@@ -3382,11 +3382,11 @@ export function TableGridView({
                                             <div key={idx.name} className="flex flex-col gap-3 px-4 py-4 lg:flex-row lg:items-start lg:justify-between">
                                                 <div className="min-w-0 flex-1 space-y-2">
                                                     <div className="flex flex-wrap items-center gap-2">
-                                                        <span className="text-[12px] font-mono font-semibold text-accent-blue/78 break-all">
+                                                        <span className="text-[12px] font-mono font-semibold text-primary/78 break-all">
                                                             {idx.name}
                                                         </span>
                                                         {idx.unique && (
-                                                            <Badge variant="outline" className="h-4 rounded-md border-accent-green/20 bg-accent-green/10 px-1 text-[9px] text-accent-green">
+                                                            <Badge variant="outline" className="h-4 rounded-md border-success/20 bg-success/10 px-1 text-[9px] text-success">
                                                                 UNIQUE
                                                             </Badge>
                                                         )}
@@ -3535,7 +3535,7 @@ export function TableGridView({
                             {cellEditLoading ? (
                                 <Loader2
                                     size={10}
-                                    className="animate-spin text-accent-blue"
+                                    className="animate-spin text-primary"
                                 />
                             ) : (
                                 <span className="flex items-center gap-1.5 text-[11px] text-foreground/70 hidden sm:flex select-none">

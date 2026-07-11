@@ -72,7 +72,7 @@ import {
 function ColumnIcon({ col }: { col: ColumnInfo }) {
     const t = col.dataType?.toLowerCase() ?? "";
     if (col.isPrimary)
-        return <Key size={9} className="shrink-0 text-accent-orange/70" />;
+        return <Key size={9} className="shrink-0 text-warning/70" />;
     if (t.includes("timestamp") || t.includes("date") || t.includes("time"))
         return <Clock size={9} className="shrink-0 text-muted-foreground/40" />;
     if (t.includes("int") || t.includes("numeric") || t.includes("float") || t.includes("decimal") || t.includes("serial"))
@@ -513,7 +513,7 @@ function DatabaseNode({
                         "shell-badge shrink-0 px-1.5 flex items-center gap-0.5",
                         connection.safetyMode === "read-only"
                             ? "bg-destructive/12 border-destructive/30 text-destructive"
-                            : "bg-accent-orange/12 border-accent-orange/30 text-accent-orange"
+                            : "bg-warning/12 border-warning/30 text-warning"
                     )}>
                         <ShieldAlert size={9} />
                         {connection.safetyMode === "read-only" ? "RO" : "WARN"}

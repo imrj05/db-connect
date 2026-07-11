@@ -67,7 +67,7 @@ export function SshTunnelSection({
             >
                 <div className="min-w-0">
                     <p className="text-[12px] font-semibold text-foreground">SSH Tunnel</p>
-                    <p className="mt-0.5 text-[11px] text-fg-muted">
+                    <p className="mt-0.5 text-[11px] text-muted-foreground">
                         Route the connection through a bastion host.
                     </p>
                 </div>
@@ -176,7 +176,7 @@ export function SshTunnelSection({
                                             <button
                                                 type="button"
                                                 aria-label="Browse for SSH private key file"
-                                                className="absolute right-2 top-1/2 -translate-y-1/2 rounded-sm p-1 text-fg-muted transition-colors hover:bg-card hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring/50 focus-visible:outline-none"
+                                                className="absolute right-2 top-1/2 -translate-y-1/2 rounded-sm p-1 text-muted-foreground transition-colors hover:bg-card hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring/50 focus-visible:outline-none"
                                                 onClick={async () => {
                                                     try {
                                                         const { open } = await import("@tauri-apps/plugin-dialog");

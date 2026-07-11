@@ -13,7 +13,7 @@ export function TableListView({
 	return (
 		<div className="h-full flex flex-col bg-background overflow-hidden">
 			<div className="h-9 px-4 flex items-center border-b border-border shrink-0">
-				<span className="font-mono text-[11px] text-accent-blue font-bold">
+				<span className="font-mono text-[11px] text-primary font-bold">
 					{fn.callSignature
 						.slice(fn.prefix.length + 1)
 						.replace(/\(.*$/, "")}
@@ -45,9 +45,9 @@ export function TableListView({
 									<div className="flex items-center gap-2">
 										<Database
 											size={11}
-											className="text-accent-blue/50 shrink-0"
+											className="text-primary/50 shrink-0"
 										/>
-										<span className="group-hover:text-accent-blue transition-colors">
+										<span className="group-hover:text-primary transition-colors">
 											{t.name}
 										</span>
 									</div>

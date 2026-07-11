@@ -127,7 +127,7 @@ export function PendingEditsDrawer({
                                                 "rounded border bg-background/70 p-2",
                                                 edit.pendingValue === null
                                                     ? "border-warning/35"
-                                                    : "border-accent-green/35",
+                                                    : "border-success/35",
                                             )}
                                         >
                                             <div className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">New</div>

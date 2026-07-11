@@ -131,8 +131,8 @@ export function ResultsGrid({
 			)}
 			<div ref={scrollRef} className="flex-1 border-t border-border overflow-auto scrollbar-thin min-h-0">
 				{queryResult.rows.length === 0 && queryResult.columns.length === 0 ? (
-					<div className="flex flex-col items-center justify-center h-full text-accent-green p-8 text-center">
-						<Sparkles size={24} className="mb-3 text-accent-green/40" />
+					<div className="flex flex-col items-center justify-center h-full text-success p-8 text-center">
+						<Sparkles size={24} className="mb-3 text-success/40" />
 						<p className="text-xs font-bold uppercase tracking-widest">
 							Executed successfully · {queryResult.executionTimeMs}ms
 						</p>
@@ -183,7 +183,7 @@ export function ResultsGrid({
 															)}
 														</span>
 														{sortDir && (
-															<span aria-hidden="true" className="text-accent-blue text-[10px]">
+															<span aria-hidden="true" className="text-primary text-[10px]">
 																{sortDir === "asc" ? "↑" : "↓"}
 															</span>
 														)}

@@ -138,7 +138,7 @@ export function SavedQueriesPanel({
 								)}
 							>
 								{selectedFolder === folder ? (
-									<FolderOpen size={10} className="shrink-0 text-accent-blue" />
+									<FolderOpen size={10} className="shrink-0 text-primary" />
 								) : (
 									<Folder size={10} className="shrink-0" />
 								)}
