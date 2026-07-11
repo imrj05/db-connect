@@ -30,7 +30,7 @@ CARGO_VERSION=$(grep '^version = ' src-tauri/Cargo.toml | head -1 | sed 's/versi
 
 if [ "$VERSION" != "$CARGO_VERSION" ]; then
   echo "pre-commit: syncing version $CARGO_VERSION → $VERSION in Cargo.toml"
-  sed -i.bak "0,/^version = \"[^\"]*\"/s/^version = \"[^\"]*\"/version = \"$VERSION\"/" src-tauri/Cargo.toml
-  rm -f src-tauri/Cargo.toml.bak
+  # perl, not sed: the GNU-only `0,/re/` sed address silently no-ops on macOS BSD sed
+  VERSION="$VERSION" perl -pi -e 'if (!$done && s/^version = "[^"]*"/version = "$ENV{VERSION}"/) { $done = 1 }' src-tauri/Cargo.toml
   git add src-tauri/Cargo.toml
 fi
