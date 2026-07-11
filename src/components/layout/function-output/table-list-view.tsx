@@ -18,7 +18,7 @@ export function TableListView({
 						.slice(fn.prefix.length + 1)
 						.replace(/\(.*$/, "")}
 				</span>
-				<span className="ml-auto text-[10px] font-mono text-muted-foreground/40">
+				<span className="ml-auto text-[10px] font-mono text-muted-foreground">
 					{tables.length} tables
 				</span>
 			</div>
@@ -52,7 +52,7 @@ export function TableListView({
 										</span>
 									</div>
 								</td>
-								<td className="h-8 px-4 text-muted-foreground/50">
+								<td className="h-8 px-4 text-muted-foreground">
 									{t.schema ?? "—"}
 								</td>
 							</tr>

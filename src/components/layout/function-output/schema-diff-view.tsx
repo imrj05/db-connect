@@ -141,18 +141,18 @@ function TableDiffRow({ td }: { td: TableDiff }) {
 				onClick={() => setOpen((v) => !v)}
 				className="flex w-full items-center gap-2 px-3 py-2 text-left"
 			>
-				{open ? <ChevronDown size={11} className="shrink-0 text-foreground/40" /> : <ChevronRight size={11} className="shrink-0 text-foreground/40" />}
+				{open ? <ChevronDown size={11} className="shrink-0 text-foreground/70" /> : <ChevronRight size={11} className="shrink-0 text-foreground/70" />}
 				<span className="flex-1 text-[12px] font-medium font-mono">{td.name}</span>
 				<StatusBadge status={td.status} />
 				{td.status === "changed" && (
-					<span className="text-[10px] text-foreground/50">{changedCols.length} column{changedCols.length !== 1 ? "s" : ""} changed</span>
+					<span className="text-[10px] text-foreground/70">{changedCols.length} column{changedCols.length !== 1 ? "s" : ""} changed</span>
 				)}
 			</button>
 			{open && td.columnDiffs.length > 0 && (
 				<div className="border-t border-border/30 px-3 pb-2 pt-1">
 					<table className="w-full text-[11px]">
 						<thead>
-							<tr className="text-foreground/40">
+							<tr className="text-foreground/70">
 								<th className="py-1 text-left font-medium">Column</th>
 								<th className="py-1 text-left font-medium">Source type</th>
 								<th className="py-1 text-left font-medium">Target type</th>
@@ -201,7 +201,7 @@ function SideSelector({
 	const dbs = connectionId ? (connectionDatabases[connectionId] ?? []) : [];
 	return (
 		<div className="flex flex-col gap-1.5">
-			<span className="text-[10px] font-bold uppercase tracking-widest text-foreground/50">{label}</span>
+			<span className="text-[10px] font-bold uppercase tracking-widest text-foreground/70">{label}</span>
 			<select
 				className="h-8 rounded border border-border bg-surface-2 px-2 text-[12px] text-foreground"
 				value={connectionId}
@@ -290,10 +290,10 @@ export function SchemaDiffView() {
 				<Button variant="ghost" size="icon-xs" onClick={() => setActiveView("main")} className="h-7 w-7 text-foreground/60">
 					<ArrowLeft size={13} />
 				</Button>
-				<ArrowRightLeft size={13} className="text-foreground/50" />
+				<ArrowRightLeft size={13} className="text-foreground/70" />
 				<span className="text-[13px] font-semibold">Schema Diff</span>
-				<span className="text-foreground/30">·</span>
-				<span className="text-[11px] text-foreground/50">Compare two databases and generate a migration script</span>
+				<span className="text-foreground/70">·</span>
+				<span className="text-[11px] text-foreground/70">Compare two databases and generate a migration script</span>
 			</div>
 
 			{/* Picker row */}
@@ -306,7 +306,7 @@ export function SchemaDiffView() {
 						onConnectionChange={setSrcConnId}
 						onDatabaseChange={setSrcDb}
 					/>
-					<div className="mb-2 text-foreground/30"><ArrowRightLeft size={14} /></div>
+					<div className="mb-2 text-foreground/70"><ArrowRightLeft size={14} /></div>
 					<SideSelector
 						label="Target (to)"
 						connectionId={tgtConnId}
@@ -352,7 +352,7 @@ export function SchemaDiffView() {
 						<ScrollArea className="flex-1 border-r">
 							<div className="flex flex-col gap-2 p-4">
 								{visibleDiffs.length === 0 ? (
-									<p className="text-center text-[12px] text-foreground/40 py-8">No differences found</p>
+									<p className="text-center text-[12px] text-foreground/70 py-8">No differences found</p>
 								) : (
 									visibleDiffs.map((td) => <TableDiffRow key={td.name} td={td} />)
 								)}
@@ -364,7 +364,7 @@ export function SchemaDiffView() {
 							<div className="flex w-96 shrink-0 flex-col border-l bg-surface-2">
 								<div className="flex shrink-0 items-center justify-between border-b px-3 py-2">
 									<span className="text-[11px] font-semibold text-foreground/70">Migration SQL</span>
-									<Button variant="ghost" size="icon-xs" className="h-6 w-6 text-foreground/50" onClick={handleCopySql}>
+									<Button variant="ghost" size="icon-xs" className="h-6 w-6 text-foreground/70" onClick={handleCopySql}>
 										{copied ? <Check size={10} className="text-success" /> : <Copy size={10} />}
 									</Button>
 								</div>
@@ -381,7 +381,7 @@ export function SchemaDiffView() {
 
 			{!diff && !loading && (
 				<div className="flex flex-1 items-center justify-center">
-					<p className="text-[12px] text-foreground/40">Select source and target databases, then click Compare</p>
+					<p className="text-[12px] text-foreground/70">Select source and target databases, then click Compare</p>
 				</div>
 			)}
 		</div>

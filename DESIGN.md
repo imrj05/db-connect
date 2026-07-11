@@ -42,23 +42,12 @@ These are the semantic core of the safety system. They are deliberately warm-hue
 | **Prod Red** | `#EF4444` | `--env-prod` | Production env badge, destructive CTAs, DELETE/DROP keywords |
 | **Staging Amber** | `#F59E0B` | `--env-staging` | Staging env badge, UPDATE/INSERT keywords, pending edits |
 | **Local Green** | `#10B981` | `--env-local` | Local env badge, success states, connection confirmed |
-| **Brand Yellow** | `#FACC15` | `--env-brand` | SELECT keyword highlight ("safe read") |
 
 **Environmental CTA Rule:** The primary action button always inherits the active environment color.
 
 ### 2.3 SQL Syntax Highlighting
 
-SQL syntax colors extend the Ambient Safety system into the code editor.
-
-| SQL Token | Color | Hex | Semantic Meaning |
-|-----------|-------|-----|-----------------|
-| `DELETE`, `DROP`, `TRUNCATE` | Prod Red | `#EF4444` | Destructive, irreversible |
-| `UPDATE`, `INSERT` | Staging Amber | `#F59E0B` | Modifying, cautious |
-| `SELECT` | Brand Yellow | `#FACC15` | Read-only, safe |
-| Keywords (`FROM`, `WHERE`, `AND`, `ON`) | Primary Text | `#dce0e5` | Structural, neutral |
-| String literals (`'value'`) | Soft Teal | `#5EEAD4` | Data content |
-| Column/table names | Primary Text | `#dce0e5` | Identifiers |
-| Type annotations (`uuid`, `varchar`) | Muted Text | `#a9afbc` | Metadata, secondary |
+SQL syntax colors in the editor come from the user-selected CodeMirror theme (Editor → Syntax highlighting settings, one theme per appearance mode). They are intentionally not driven by app tokens. The Ambient Safety semantics (destructive red, modifying amber) still apply outside the editor — in confirmation dialogs, badges, and CTAs — via `--env-prod` / `--env-staging` / `--env-local`.
 
 ### 2.4 Light Mode
 
@@ -140,11 +129,15 @@ SQL syntax colors extend the Ambient Safety system into the code editor.
 
 ### 4.2 Radius Scale
 
-| Radius | Value | Use |
-|--------|-------|-----|
-| Default | `0.25rem` (4px) | Buttons, inputs, badges, tabs, cards |
-| Sharp | `0.125rem` (2px) | Env badges, table headers (intentional signal) |
-| Rounded | `0.5rem` (8px) | Tooltips, large modals |
+Stepped scale derived from `--radius: 0.5rem` via the shadcn formula (`sm = −4px`, `md = −2px`, `lg = base`, `xl = +4px`, `2xl = +8px`). Small controls stay crisp; containers get progressively softer.
+
+| Utility | Value | Use |
+|---------|-------|-----|
+| `rounded-sm` | 4px | Badges, chips, env badges, small controls |
+| `rounded-md` | 6px | Buttons, inputs, menu items, tabs |
+| `rounded-lg` / `var(--radius)` | 8px | Toolbars, icon buttons, panels |
+| `rounded-xl` | 12px | Cards, dialogs, popovers |
+| `rounded-2xl` | 16px | Large feature surfaces (rare) |
 
 ### 4.3 Tabs
 
@@ -199,17 +192,17 @@ SQL syntax colors extend the Ambient Safety system into the code editor.
 
 ## 5. Surface Hierarchy
 
-Surfaces increase in lightness as they stack upward in the visual hierarchy (in dark mode).
+Surfaces step in lightness as they stack upward. In dark mode the ladder ascends (background L 0.141 → sidebar 0.18 → card 0.21 → popover 0.245 → muted 0.274); in light mode the canvas is a soft gray (L 0.985) and cards/toolbars lift to pure white, so content surfaces read as raised planes.
 
 ```
---surface-0   background           deepest
---surface-1   sidebar, panels
---surface-2   toolbars, cards
---surface-3   hover, active cells
---surface-elevated   modals, inputs   lightest
+--surface-0   background (canvas)        deepest
+--surface-1   sidebar, panels            = --sidebar
+--surface-2   toolbars, cards            = --card
+--surface-elevated   modals, menus       = --popover
+--surface-3   hover, active cells        = --muted
 ```
 
-Surfaces are separated by **structural borders** (`--border-subtle`) — a cool slate at 30% opacity — rather than shadows. This matches Zed's flat, border-defined layering.
+**Elevation rule:** surfaces at rest are flat, separated by structural borders (`--border-subtle`). Shadows exist only on floating elements — menus and popovers carry `shadow-md`/`shadow-lg`, dialogs `shadow-xl` — via a restrained black-alpha ramp that is heavier in dark mode so it registers against dark surfaces. Never add shadows to in-flow panels, cards at rest, or table chrome.
 
 ---
 
@@ -238,34 +231,29 @@ The `--env-color` CSS variable resolves to the active environment's color and is
 
 ## 8. Shared Component Primitives
 
-Use the following from `src/components/ui/app-ui.tsx`:
+The shared layer lives in `src/components/ui/` (shadcn-based, Radix-backed) plus a small set of shell utility classes in `src/App.css`. Reach for these before hand-rolling:
 
-- `SectionHeading` — section label + optional action
-- `SettingRow` — label + description + control
-- `MetadataRow` — monospace key/value pair
-- `StatusBadge` — env or status badge
-- `IconAction` — icon-only button with tooltip
-- `ToolbarButton` — toolbar ghost button
-- `InlineStatus` — inline status dot + label
-- `EmptyState` — icon + title + description + optional CTA
-- `LoadingState` — spinner + label, preserves layout
-- `ErrorState` — human-readable title first, technical detail second
-- `SettingsShell` — unified settings layout (dialog or full-page)
+**Custom primitives**
+
+- `EmptyState` (`empty-state.tsx`) — icon + title + description + optional action + optional keyboard shortcut hint. The only sanctioned empty-state treatment; do not hand-roll centered muted-text placeholders.
+- `Field` / `FieldContent` / `FieldTitle` / `FieldDescription` (`field.tsx`) — settings and form rows: label + description + control. Used throughout the settings page.
+- `Kbd` / `KbdGroup` (`kbd.tsx`) — keyboard shortcut chips (shortcuts help, empty-state hints).
+- `Skeleton` (`skeleton.tsx`) — loading placeholders that preserve layout; prefer over centered spinners for full-view loads.
+
+**Shell utility classes** (`src/App.css`)
+
+- `shell-toolbar` — `surface-1` toolbar strip with bottom border
+- `shell-section-label` — 11px uppercase section label (0.06em tracking, muted)
+- `shell-icon-button` — 24–28px icon button, hover surface
+
+**Standard shadcn set**: `Button`, `Badge`, `Dialog`, `AlertDialog`, `Select`, `Switch`, `ToggleGroup`, `Tabs`, `Table`, `Tooltip`, `ContextMenu`, `DropdownMenu`, `Card`, `Input`, `Textarea`, `Popover`, `Command`, `Sidebar`, and the rest of `src/components/ui/`. All carry the focus-ring and state conventions of §6; use their variants rather than overriding styles inline.
+
+Status badges for env/diff states are currently local one-offs (e.g. `StatusBadge` inside `schema-diff-view.tsx`); promote to a shared primitive if a third usage appears.
 
 ---
 
-## 9. Named Theme Variants
+## 9. Theming Model
 
-The default dark/light theme uses the Zed-inspired palette documented above. Users can select from 30+ named variants in settings. Key named variants:
+The app ships exactly two themes: **light** (`:root`) and **dark** (`.dark` on the root element), both expressed in the standard shadcn token vocabulary (`--background`, `--foreground`, `--card`, `--popover`, `--primary`, `--secondary`, `--muted`, `--accent`, `--destructive`, `--warning`, `--success`, `--border`, `--input`, `--ring`, `--chart-1..5`, `--sidebar-*`). The app-specific layers — the surface scale (`--surface-0..3`, `--surface-elevated/hover/selected`), env safety tokens (`--env-prod/staging/local/color`), semantic accents (`--color-accent-blue/green/orange/purple/red`), and a small set of data-grid aliases (`--color-table-bg`, `--color-row-hover`, `--color-row-alt`, `--color-border-table`) — are defined as derivations of the shadcn tokens, so both themes stay in lockstep by construction.
 
-| Class | Description |
-|-------|-------------|
-| `.ui-dark-ember` | Original warm charcoal, amber accent — the previous default |
-| `.ui-dark-dim` | Warm charcoal, indigo accent |
-| `.ui-dark-midnight` | Deep blue-black, blue accent |
-| `.ui-dark-one-dark` | Classic One Dark (Atom) |
-| `.ui-dark-cursor` | Cursor editor aesthetic |
-| `.ui-light-ember` | Clean zinc light, amber accent |
-| `.ui-light-cursor` | Cursor warm cream light |
-
-All variants override only the color tokens they change. The structural token mappings (`--color-app-bg`, `--color-sidebar-bg`, etc.) and env safety tokens are defined once and cascade through all themes.
+There are no named theme variants. SQL editor syntax colors come from the selected CodeMirror theme (Editor settings), not from app tokens.

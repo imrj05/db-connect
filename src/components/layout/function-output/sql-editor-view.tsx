@@ -31,6 +31,7 @@ import {
 	TableInfo,
 	QueryHistoryEntry,
 	SavedQuery,
+	QueryResult,
 } from "@/types";
 import { QueryLog } from "@/components/layout/function-output/query-log";
 import { QueryHistoryPanel } from "@/components/layout/function-output/sql-editor/query-history-panel";
@@ -124,15 +125,19 @@ export function SqlEditorView({
 	onSqlChange,
 	onExecute,
 	onExplain,
+	onCancel,
+	canCancel,
 	tables,
 }: {
 	fn: ConnectionFunction;
-	queryResult?: { columns: string[]; rows: any[]; executionTimeMs: number; error?: string };
+	queryResult?: QueryResult;
 	isLoading: boolean;
 	pendingSql: string;
 	onSqlChange: (sql: string) => void;
 	onExecute: (sql?: string) => void;
 	onExplain: () => void;
+	onCancel: () => void | Promise<void>;
+	canCancel: boolean;
 	tables: TableInfo[];
 }) {
 	const {
@@ -295,7 +300,7 @@ export function SqlEditorView({
 				"h-full px-3 rounded-none gap-1.5 text-[11px] font-bold uppercase tracking-widest border-b-2 border-transparent",
 				panel === id
 					? "text-accent-blue border-primary"
-					: "text-muted-foreground/50 hover:text-muted-foreground",
+					: "text-muted-foreground hover:text-muted-foreground",
 			)}
 		>
 			{icon}
@@ -326,7 +331,7 @@ export function SqlEditorView({
 						</span>
 					)}
 				</div>
-				<span className="text-[10px] font-mono text-muted-foreground/30 uppercase tracking-widest">
+				<span className="text-[10px] font-mono text-muted-foreground uppercase tracking-widest">
 					{fn.type === "execute" ? "DDL / DML" : "SELECT"}
 				</span>
 			</div>
@@ -439,6 +444,8 @@ export function SqlEditorView({
 						onExecute={onExecute}
 						onRunAll={() => onExecute()}
 						onExplain={onExplain}
+						onCancel={onCancel}
+						canCancel={canCancel}
 						onFormat={() => {
 							try {
 								const formatted = formatSql(pendingSql, {

@@ -67,16 +67,16 @@ export function ColumnRow({ column, isEditing, isFK, onUpdate, onDelete, onStart
 				</span>
 				<div className="flex items-center gap-1 shrink-0">
 					{column.isPrimary && (
-						<span className="px-1 py-0.5 rounded bg-accent-orange/10 border border-accent-orange/20 text-[8px] font-black uppercase tracking-wider text-accent-orange">
+						<span className="px-1 py-0.5 rounded bg-accent-orange/10 border border-accent-orange/20 text-[9px] font-black uppercase tracking-wider text-accent-orange">
 							PK
 						</span>
 					)}
 					{isFK && (
-						<span className="px-1 py-0.5 rounded bg-accent-blue/10 border border-accent-blue/20 text-[8px] font-black uppercase tracking-wider text-accent-blue">
+						<span className="px-1 py-0.5 rounded bg-accent-blue/10 border border-accent-blue/20 text-[9px] font-black uppercase tracking-wider text-accent-blue">
 							FK
 						</span>
 					)}
-					<span className="text-[9px] text-muted-foreground/40">
+					<span className="text-[9px] text-muted-foreground">
 						{column.dataType}
 					</span>
 				</div>
@@ -88,7 +88,7 @@ export function ColumnRow({ column, isEditing, isFK, onUpdate, onDelete, onStart
 		<div className="flex items-center gap-1 px-2 py-1 text-[10px] font-mono group hover:bg-primary/5">
 			{/* Drag handle for reordering */}
 			<div
-				className="shrink-0 cursor-grab text-muted-foreground/20 hover:text-muted-foreground/60"
+				className="shrink-0 cursor-grab text-muted-foreground hover:text-muted-foreground/60"
 				title="Drag to reorder"
 			>
 				<GripVertical size={10} />
@@ -123,7 +123,7 @@ export function ColumnRow({ column, isEditing, isFK, onUpdate, onDelete, onStart
 				type="text"
 				value={column.dataType}
 				onChange={(e) => onUpdate({ dataType: e.target.value })}
-				className="w-16 bg-transparent border border-transparent focus:border-primary/40 rounded px-1 py-0.5 text-[9px] text-muted-foreground/70 outline-none text-right"
+				className="w-16 bg-transparent border border-transparent focus:border-primary/40 rounded px-1 py-0.5 text-[9px] text-muted-foreground outline-none text-right"
 				placeholder="type"
 				list="col-types"
 			/>
@@ -135,7 +135,7 @@ export function ColumnRow({ column, isEditing, isFK, onUpdate, onDelete, onStart
 
 			{/* Nullable toggle */}
 			<div className="flex items-center gap-0.5 shrink-0">
-				<label className="text-[8px] text-muted-foreground/40 cursor-pointer select-none" title="Nullable">
+				<label className="text-[9px] text-muted-foreground cursor-pointer select-none" title="Nullable">
 					<Switch
 						checked={column.nullable}
 						onCheckedChange={(v) => onUpdate({ nullable: v })}
@@ -165,7 +165,7 @@ export function ColumnRow({ column, isEditing, isFK, onUpdate, onDelete, onStart
 					e.stopPropagation();
 					onDelete();
 				}}
-				className="shrink-0 text-muted-foreground/20 hover:text-destructive/70 opacity-0 group-hover:opacity-100 transition-opacity p-0.5"
+				className="shrink-0 text-muted-foreground hover:text-destructive/70 opacity-0 group-hover:opacity-100 transition-opacity p-0.5"
 				title="Delete column"
 			>
 				<Trash2 size={10} />

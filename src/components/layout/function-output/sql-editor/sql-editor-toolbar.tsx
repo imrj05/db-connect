@@ -1,5 +1,5 @@
 import { useRef } from "react";
-import { Play, Loader2, Search, AlignLeft, BookmarkPlus, Check, X, Eye, ListOrdered } from "lucide-react";
+import { Play, Loader2, Search, AlignLeft, BookmarkPlus, Check, X, Eye, ListOrdered, Square } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
@@ -14,6 +14,8 @@ export function SqlEditorToolbar({
 	onExecute,
 	onRunAll,
 	onExplain,
+	onCancel,
+	canCancel,
 	onFormat,
 	onSaveOpen,
 	onSaveNameChange,
@@ -29,6 +31,8 @@ export function SqlEditorToolbar({
 	onExecute: (sql?: string) => void | Promise<void>;
 	onRunAll?: () => void | Promise<void>;
 	onExplain: () => void | Promise<void>;
+	onCancel: () => void | Promise<void>;
+	canCancel: boolean;
 	onFormat: () => void;
 	onSaveOpen: () => void;
 	onSaveNameChange: (name: string) => void;
@@ -45,11 +49,22 @@ export function SqlEditorToolbar({
 					size="sm"
 					disabled={!hasSql}
 					onClick={onPreview}
-					className="h-7 text-[11px] font-medium gap-1.5 text-muted-foreground/60 hover:text-foreground"
+					className="h-7 text-[11px] font-medium gap-1.5 text-muted-foreground hover:text-foreground"
 				>
 					<Eye size={11} />
 					Preview
 				</Button>
+				{isLoading && canCancel ? (
+					<Button
+						onClick={() => void onCancel()}
+						variant="outline"
+						size="sm"
+						className="h-7 text-[11px] font-semibold gap-2 border-destructive/40 bg-destructive/10 text-destructive hover:bg-destructive/15 hover:text-destructive"
+					>
+						<Square size={10} className="fill-current" />
+						Cancel
+					</Button>
+				) : (
 				<Button
 					onClick={() => onExecute()}
 					disabled={isLoading || !hasSql}
@@ -59,7 +74,7 @@ export function SqlEditorToolbar({
 						"h-7 text-[11px] font-semibold gap-2 border-border/60 bg-surface-elevated/90",
 						!isLoading && hasSql
 							? "text-accent-green border-primary/40 hover:border-primary/70 hover:bg-surface-3 hover:text-accent-green"
-							: "text-muted-foreground/40",
+							: "text-muted-foreground",
 					)}
 				>
 					{isLoading ? (
@@ -68,8 +83,9 @@ export function SqlEditorToolbar({
 						<Play size={11} className="fill-current" />
 					)}
 					Run
-					<span className="text-[10px] font-mono text-muted-foreground/60">Cmd+Enter</span>
+					<span className="text-[10px] font-mono text-muted-foreground">Cmd+Enter</span>
 				</Button>
+				)}
 				{/* Feature 5: Run All button for multi-statement SQL */}
 				{(statementCount ?? 0) > 1 && onRunAll && (
 					<Button
@@ -81,7 +97,7 @@ export function SqlEditorToolbar({
 							"h-7 text-[11px] font-semibold gap-2 border-border/60 bg-surface-elevated/90",
 							!isLoading && hasSql
 								? "text-accent-blue border-accent-blue/40 hover:border-accent-blue/70 hover:bg-surface-3"
-								: "text-muted-foreground/40",
+								: "text-muted-foreground",
 						)}
 					>
 						<ListOrdered size={11} />
@@ -93,7 +109,7 @@ export function SqlEditorToolbar({
 					size="sm"
 					disabled={isLoading || !hasSql}
 					onClick={onExplain}
-					className="h-7 text-[11px] font-medium gap-1.5 text-muted-foreground/60 hover:text-foreground"
+					className="h-7 text-[11px] font-medium gap-1.5 text-muted-foreground hover:text-foreground"
 				>
 					<Search size={11} />
 					Explain
@@ -103,7 +119,7 @@ export function SqlEditorToolbar({
 					size="sm"
 					disabled={!hasSql}
 					onClick={onFormat}
-					className="h-7 text-[11px] font-medium gap-1.5 text-muted-foreground/60 hover:text-foreground"
+					className="h-7 text-[11px] font-medium gap-1.5 text-muted-foreground hover:text-foreground"
 				>
 					<AlignLeft size={11} />
 					Format
@@ -138,7 +154,7 @@ export function SqlEditorToolbar({
 							variant="ghost"
 							size="icon-xs"
 							onClick={onSaveCancel}
-							className="size-6 text-muted-foreground/40"
+							className="size-6 text-muted-foreground"
 						>
 							<X size={10} />
 						</Button>
@@ -149,7 +165,7 @@ export function SqlEditorToolbar({
 						size="xs"
 						onClick={onSaveOpen}
 						disabled={!hasSql}
-						className="h-6 text-[10px] font-medium text-muted-foreground/55 gap-1"
+						className="h-6 text-[10px] font-medium text-muted-foreground gap-1"
 					>
 						<BookmarkPlus size={10} />
 						Save

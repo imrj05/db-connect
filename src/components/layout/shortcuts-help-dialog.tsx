@@ -21,6 +21,10 @@ const SECTIONS: Section[] = [
         items: [
             { combo: ["⌘", "T"], label: "New tab" },
             { combo: ["⌘", "W"], label: "Close active tab" },
+            { combo: ["⌘", "1–9"], label: "Go to tab (9 = last)" },
+            { combo: ["⌃", "Tab"], label: "Next tab" },
+            { combo: ["⌃", "⇧", "Tab"], label: "Previous tab" },
+            { combo: ["←", "→"], label: "Move between tabs (when focused)" },
             { combo: ["⌘", "N"], label: "New connection" },
         ],
     },

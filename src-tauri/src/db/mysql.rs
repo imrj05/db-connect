@@ -34,7 +34,11 @@ impl DatabaseDriver for MySqlDriver {
                 .username(config.user.as_deref().unwrap_or("root"))
                 .database(database);
 
-            match config.password.as_deref().filter(|password| !password.is_empty()) {
+            match config
+                .password
+                .as_deref()
+                .filter(|password| !password.is_empty())
+            {
                 Some(password) => options.password(password),
                 None => options,
             }
@@ -311,6 +315,7 @@ impl DatabaseDriver for MySqlDriver {
                 columns: vec![],
                 rows: vec![],
                 execution_time_ms: duration,
+                ..Default::default()
             });
         }
 
@@ -378,6 +383,7 @@ impl DatabaseDriver for MySqlDriver {
             columns,
             rows: result_rows,
             execution_time_ms: duration,
+            ..Default::default()
         })
     }
 

@@ -81,7 +81,7 @@ export function ERDiagramToolbar({
 	return (
 		<div className="h-10 shrink-0 border-b border-border px-3 flex items-center justify-between bg-card/80 backdrop-blur-sm">
 			<div className="flex items-center gap-3 min-w-0">
-				<div className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-widest text-muted-foreground/55">
+				<div className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-widest text-muted-foreground">
 					<Link2 size={11} className="text-accent-blue/60" />
 					ER Diagram
 					{isEditing && (
@@ -90,15 +90,15 @@ export function ERDiagramToolbar({
 						</span>
 					)}
 				</div>
-				<span className="text-[10px] font-mono text-muted-foreground/40">
+				<span className="text-[10px] font-mono text-muted-foreground">
 					{filteredTables}
 					{isFiltered ? `/${totalTables}` : ""} tables
 				</span>
-				<span className="text-[10px] font-mono text-muted-foreground/30">
+				<span className="text-[10px] font-mono text-muted-foreground">
 					{totalRelations} relations
 				</span>
 				{totalRelations === 0 && (
-					<span className="text-[10px] font-mono text-muted-foreground/45 truncate hidden sm:inline">
+					<span className="text-[10px] font-mono text-muted-foreground truncate hidden sm:inline">
 						No foreign keys found. Showing schema map only.
 					</span>
 				)}
@@ -113,7 +113,7 @@ export function ERDiagramToolbar({
 									variant="ghost"
 									size="xs"
 									onClick={onAddTable}
-									className="h-6 px-2 gap-1 text-[10px] font-mono text-muted-foreground/60 hover:text-accent-blue"
+									className="h-6 px-2 gap-1 text-[10px] font-mono text-muted-foreground hover:text-accent-blue"
 									title="Add table"
 								>
 									<Plus size={11} />
@@ -127,7 +127,7 @@ export function ERDiagramToolbar({
 										"h-6 px-2 gap-1 text-[10px] font-mono",
 										hasChanges
 											? "text-accent-green hover:text-accent-green"
-											: "text-muted-foreground/40",
+											: "text-muted-foreground",
 									)}
 									title="Review & save changes (Cmd/Ctrl+S)"
 									disabled={!hasChanges}
@@ -139,7 +139,7 @@ export function ERDiagramToolbar({
 									variant="ghost"
 									size="xs"
 									onClick={onDiscard}
-									className="h-6 px-2 gap-1 text-[10px] font-mono text-muted-foreground/50 hover:text-destructive"
+									className="h-6 px-2 gap-1 text-[10px] font-mono text-muted-foreground hover:text-destructive"
 									title="Discard all changes"
 								>
 									<X size={11} />
@@ -156,7 +156,7 @@ export function ERDiagramToolbar({
 								"h-6 px-2 gap-1 text-[10px] font-mono",
 								isEditing
 									? ""
-									: "text-muted-foreground/50 hover:text-foreground",
+									: "text-muted-foreground hover:text-foreground",
 							)}
 							title="Toggle schema editor"
 						>
@@ -187,7 +187,7 @@ export function ERDiagramToolbar({
 									"h-6 px-2 gap-1.5 text-[10px] font-mono",
 									isFiltered
 										? "text-primary hover:text-primary"
-										: "text-muted-foreground/60 hover:text-foreground",
+										: "text-muted-foreground hover:text-foreground",
 								)}
 							>
 								<Filter size={11} />
@@ -199,7 +199,7 @@ export function ERDiagramToolbar({
 							</Button>
 						</DropdownMenuTrigger>
 						<DropdownMenuContent align="end" className="min-w-[200px]">
-							<DropdownMenuLabel className="text-[10px] uppercase tracking-wider text-muted-foreground/60">
+							<DropdownMenuLabel className="text-[10px] uppercase tracking-wider text-muted-foreground">
 								Filter by schema
 							</DropdownMenuLabel>
 							<DropdownMenuSeparator />
@@ -252,14 +252,14 @@ export function ERDiagramToolbar({
 						<Button
 							variant="ghost"
 							size="icon-xs"
-							className="text-muted-foreground/50 hover:text-foreground"
+							className="text-muted-foreground hover:text-foreground"
 							title="Export diagram"
 						>
 							<Download size={11} />
 						</Button>
 					</DropdownMenuTrigger>
 					<DropdownMenuContent align="end" className="min-w-[180px]">
-						<DropdownMenuLabel className="text-[10px] uppercase tracking-wider text-muted-foreground/60">
+						<DropdownMenuLabel className="text-[10px] uppercase tracking-wider text-muted-foreground">
 							Export diagram
 						</DropdownMenuLabel>
 						<DropdownMenuSeparator />
@@ -291,7 +291,7 @@ export function ERDiagramToolbar({
 					variant="ghost"
 					size="icon-xs"
 					onClick={onZoomIn}
-					className="text-muted-foreground/50 hover:text-foreground"
+					className="text-muted-foreground hover:text-foreground"
 				>
 					<ZoomIn size={11} />
 				</Button>
@@ -299,7 +299,7 @@ export function ERDiagramToolbar({
 					variant="ghost"
 					size="icon-xs"
 					onClick={onZoomOut}
-					className="text-muted-foreground/50 hover:text-foreground"
+					className="text-muted-foreground hover:text-foreground"
 				>
 					<ZoomOut size={11} />
 				</Button>
@@ -307,7 +307,7 @@ export function ERDiagramToolbar({
 					variant="ghost"
 					size="icon-xs"
 					onClick={onFit}
-					className="text-muted-foreground/50 hover:text-foreground"
+					className="text-muted-foreground hover:text-foreground"
 					title="Fit diagram"
 				>
 					<LocateFixed size={11} />
@@ -316,7 +316,7 @@ export function ERDiagramToolbar({
 					variant="ghost"
 					size="icon-xs"
 					onClick={onResetLayout}
-					className="text-muted-foreground/50 hover:text-foreground"
+					className="text-muted-foreground hover:text-foreground"
 					title="Reset saved layout"
 				>
 					<RefreshCcw size={11} />
@@ -326,7 +326,7 @@ export function ERDiagramToolbar({
 					size="icon-xs"
 					onClick={onRetry}
 					disabled={isRefreshing}
-					className="text-muted-foreground/50 hover:text-foreground"
+					className="text-muted-foreground hover:text-foreground"
 				>
 					<RefreshCcw size={11} className={cn(isRefreshing && "animate-spin")} />
 				</Button>

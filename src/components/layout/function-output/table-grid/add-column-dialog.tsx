@@ -102,7 +102,7 @@ export function AddColumnDialog({
 							className="flex flex-col gap-0.5 cursor-pointer flex-1"
 						>
 							<span className="text-[11px] font-semibold">Allow null</span>
-							<span className="text-[10px] text-muted-foreground/60 font-normal">
+							<span className="text-[10px] text-muted-foreground font-normal">
 								Column accepts NULL values
 							</span>
 						</Label>

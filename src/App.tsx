@@ -1,4 +1,4 @@
-import { useEffect, useLayoutEffect, useState, useRef, useCallback } from "react";
+import { useEffect, useLayoutEffect, useState, useRef, useCallback, Suspense, lazy } from "react";
 import Sidebar from "./components/layout/app-sidebar-panel";
 import TitleBar from "./components/layout/title-bar";
 import FunctionOutput from "./components/layout/function-output-panel";
@@ -9,14 +9,24 @@ import {
     Onboarding,
     shouldShowOnboarding,
 } from "./components/layout/app-onboarding-screen";
-import { SettingsPage } from "./components/layout/function-output/settings-page";
-import { SchemaDiffView } from "./components/layout/function-output/schema-diff-view";
 import { Toaster } from "@/components/ui/sonner";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { invoke } from "@tauri-apps/api/core";
-import { UpdateDialog, type UpdateInfo } from "./components/layout/update-dialog";
-import { LicenseActivationDialog } from "./components/layout/license-activation-dialog";
+import type { UpdateInfo } from "./components/layout/update-dialog";
 import { ShortcutsHelpDialog } from "./components/layout/shortcuts-help-dialog";
+
+const SettingsPage = lazy(() =>
+    import("./components/layout/function-output/settings-page").then((m) => ({ default: m.SettingsPage })),
+);
+const SchemaDiffView = lazy(() =>
+    import("./components/layout/function-output/schema-diff-view").then((m) => ({ default: m.SchemaDiffView })),
+);
+const UpdateDialog = lazy(() =>
+    import("./components/layout/update-dialog").then((m) => ({ default: m.UpdateDialog })),
+);
+const LicenseActivationDialog = lazy(() =>
+    import("./components/layout/license-activation-dialog").then((m) => ({ default: m.LicenseActivationDialog })),
+);
 import {
     AlertDialog,
     AlertDialogCancel,
@@ -40,12 +50,21 @@ import {
 import { licenseCheckOffline, syncLicenseInBackground, type OfflineCheckResult } from "@/lib/license";
 import { ErrorBoundary } from "./components/layout/error-boundary";
 import { DB_FONT_SANS, DB_FONT_MONO, DB_FONT_SANS_STACK, DB_FONT_MONO_STACK } from "@/lib/fonts";
+import { resolveEnv, envColorValue, type EnvKind } from "@/lib/env-safety";
 import { captureTelemetry, syncTauriMonitoringPreferences } from "@/lib/monitoring";
 import packageJson from "../package.json";
 
 const SIDEBAR_MIN = 180;
 const SIDEBAR_MAX = 480;
 const SIDEBAR_DEFAULT = 260;
+
+function LazyViewFallback() {
+    return (
+        <div className="flex h-full w-full items-center justify-center bg-surface-1">
+            <Loader2 className="size-6 animate-spin text-primary/60" />
+        </div>
+    );
+}
 
 function App() {
     const {
@@ -61,6 +80,8 @@ function App() {
         setEditingConnection,
         setActiveView,
         activeTabId,
+        tabs,
+        switchToTab,
         closeTab,
         openNewTab,
         sidebarCollapsed,
@@ -114,6 +135,21 @@ function App() {
     const databaseSwitcherSelected = databaseSwitcherConnectionId
         ? selectedDatabases[databaseSwitcherConnectionId]
         : undefined;
+
+    // ── Ambient Safety System (DESIGN.md §7) ──────────────────────────────────
+    // Resolve the active connection's environment and drive the `--env-color`
+    // token. null when no live connection → the env bar reads neutral, never
+    // the misleading default green.
+    const activeEnvConn = databaseSwitcherConnection;
+    const activeEnvKind: EnvKind | null = activeEnvConn
+        ? resolveEnv(activeEnvConn.group)
+        : null;
+    useEffect(() => {
+        document.documentElement.style.setProperty(
+            "--env-color",
+            envColorValue(activeEnvKind),
+        );
+    }, [activeEnvKind]);
     const [isLoading, setIsLoading] = useState(true);
 
     useEffect(() => {
@@ -177,23 +213,9 @@ function App() {
     }, []);
 
     useLayoutEffect(() => {
-        // Remove all UI sub-theme variant classes by prefix (NOT "dark" — managed by setTheme directly)
-        const toRemove = [...document.documentElement.classList].filter(
-            (c) => c.startsWith("ui-dark-") || c.startsWith("ui-light-")
-        );
-        document.documentElement.classList.remove(...toRemove);
-
-        if (theme === "dark") {
-            if (appSettings.uiDarkTheme !== "dark") {
-                document.documentElement.classList.add(`ui-dark-${appSettings.uiDarkTheme}`);
-            }
-        } else if (appSettings.uiLightTheme !== "light") {
-            document.documentElement.classList.add(`ui-light-${appSettings.uiLightTheme}`);
-        }
-
         const editorTheme = theme === "dark" ? appSettings.editorDarkTheme : appSettings.editorLightTheme;
         document.documentElement.dataset.editorTheme = editorTheme;
-    }, [theme, appSettings.uiDarkTheme, appSettings.uiLightTheme, appSettings.editorDarkTheme, appSettings.editorLightTheme]);
+    }, [theme, appSettings.editorDarkTheme, appSettings.editorLightTheme]);
 
     useEffect(() => {
         const scale = appSettings.uiZoom / 100;
@@ -263,6 +285,35 @@ function App() {
         window.addEventListener("keydown", handler);
         return () => window.removeEventListener("keydown", handler);
     }, [activeTabId, closeTab]);
+
+    // ⌘1–9 / Ctrl+Tab — switch between result tabs
+    useEffect(() => {
+        const handler = (e: KeyboardEvent) => {
+            if (tabs.length === 0) return;
+
+            // Ctrl+Tab / Ctrl+Shift+Tab — cycle through tabs
+            if (e.ctrlKey && !e.metaKey && !e.altKey && e.key === "Tab") {
+                e.preventDefault();
+                const idx = tabs.findIndex((t) => t.id === activeTabId);
+                const next = e.shiftKey
+                    ? (idx - 1 + tabs.length) % tabs.length
+                    : (idx + 1) % tabs.length;
+                switchToTab(tabs[next].id);
+                return;
+            }
+
+            // ⌘1–8 — jump to tab N; ⌘9 — last tab (browser convention)
+            if ((e.metaKey || e.ctrlKey) && !e.shiftKey && !e.altKey) {
+                const digit = Number(e.key);
+                if (!Number.isInteger(digit) || digit < 1 || digit > 9) return;
+                e.preventDefault();
+                const target = digit === 9 ? tabs[tabs.length - 1] : tabs[digit - 1];
+                if (target) switchToTab(target.id);
+            }
+        };
+        window.addEventListener("keydown", handler);
+        return () => window.removeEventListener("keydown", handler);
+    }, [tabs, activeTabId, switchToTab]);
 
     // "?" — open keyboard shortcuts help (when not typing in an input)
     useEffect(() => {
@@ -415,6 +466,13 @@ function App() {
         <ErrorBoundary>
             <>
                 <div id="app-wrapper" className="h-full flex flex-col bg-app-bg text-foreground overflow-hidden font-sans">
+                    {/* Ambient Safety top border — always 2px, colored by the
+                        active connection's environment via --env-color. Reads
+                        neutral when no env is active (DESIGN.md §1, §7). */}
+                    <div
+                        aria-hidden="true"
+                        className="h-0.5 w-full shrink-0 bg-[var(--env-color)] transition-colors duration-300"
+                    />
                     <TitleBar
                         isLicensed={licenseCheck?.ok ?? null}
                         onActivate={() => setLicenseDialogOpen(true)}
@@ -450,14 +508,18 @@ function App() {
                                     }}
                                 />
                             ) : activeView === "settings" ? (
-                                <SettingsPage onActivate={() => setLicenseDialogOpen(true)} />
+                                <Suspense fallback={<LazyViewFallback />}>
+                                    <SettingsPage onActivate={() => setLicenseDialogOpen(true)} />
+                                </Suspense>
                             ) : activeView === "new-connection" ? (
                                 <ConnectionDialog
                                     mode="page"
                                     onClose={() => setActiveView("main")}
                                 />
                             ) : activeView === "schema-diff" ? (
-                                <SchemaDiffView />
+                                <Suspense fallback={<LazyViewFallback />}>
+                                    <SchemaDiffView />
+                                </Suspense>
                             ) : (
                                 <FunctionOutput />
                             )}
@@ -581,22 +643,26 @@ function App() {
                         </AlertDialogContent>
                     </AlertDialog>
                     {updateInfo && (
-                        <UpdateDialog
-                            open={showUpdateDialog}
-                            updateInfo={updateInfo}
-                            onSkip={() => setShowUpdateDialog(false)}
-                        />
+                        <Suspense fallback={null}>
+                            <UpdateDialog
+                                open={showUpdateDialog}
+                                updateInfo={updateInfo}
+                                onSkip={() => setShowUpdateDialog(false)}
+                            />
+                        </Suspense>
                     )}
                     <ShortcutsHelpDialog open={showShortcutsHelp} onOpenChange={setShowShortcutsHelp} />
-                    <LicenseActivationDialog
-                        open={licenseDialogOpen}
-                        reason={licenseCheck?.reason}
-                        onActivated={(result) => {
-                            setLicenseCheck(result);
-                            setLicenseDialogOpen(false);
-                        }}
-                        onClose={() => setLicenseDialogOpen(false)}
-                    />
+                    <Suspense fallback={null}>
+                        <LicenseActivationDialog
+                            open={licenseDialogOpen}
+                            reason={licenseCheck?.reason}
+                            onActivated={(result) => {
+                                setLicenseCheck(result);
+                                setLicenseDialogOpen(false);
+                            }}
+                            onClose={() => setLicenseDialogOpen(false)}
+                        />
+                    </Suspense>
                 </div>
                 <Toaster position="top-center" richColors theme={theme} />
             </>

@@ -30,7 +30,7 @@ function InfoCard({
 }) {
 	return (
 		<div className="bg-card rounded-xl p-3 border border-border flex flex-col gap-1.5">
-			<div className="flex items-center gap-1.5 text-muted-foreground/50">
+			<div className="flex items-center gap-1.5 text-muted-foreground">
 				{icon}
 				<span className="text-[9px] font-bold uppercase tracking-widest">
 					{label}
@@ -80,7 +80,7 @@ export function ConnectionSrcView({
 							<h2 className="text-base font-bold text-foreground tracking-tight">
 								{info.name}
 							</h2>
-							<p className="text-[10px] font-mono text-muted-foreground/60 uppercase tracking-widest">
+							<p className="text-[10px] font-mono text-muted-foreground uppercase tracking-widest">
 								{info.type}
 							</p>
 						</div>
@@ -123,7 +123,7 @@ export function ConnectionSrcView({
 					</div>
 					{/* Generated functions preview */}
 					<div className="pt-2">
-						<p className="text-[9px] font-bold uppercase tracking-widest text-muted-foreground/40 mb-2">
+						<p className="text-[9px] font-bold uppercase tracking-widest text-muted-foreground mb-2">
 							Generated Functions
 						</p>
 						<div className="bg-background rounded-xl p-4 border border-border">
@@ -138,7 +138,7 @@ export function ConnectionSrcView({
 								].map((fnStr) => (
 									<span
 										key={fnStr}
-										className="text-[11px] font-mono text-muted-foreground/60"
+										className="text-[11px] font-mono text-muted-foreground"
 									>
 										{fnStr}
 									</span>

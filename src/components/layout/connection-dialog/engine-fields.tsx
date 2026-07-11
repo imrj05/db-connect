@@ -2,23 +2,8 @@ import { Eye, EyeOff } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { Label } from "@/components/ui/label";
+import { ControlLabel } from "@/components/ui/control-label";
 import { ConnectionConfig } from "@/types";
-
-function FormLabel({
-	children,
-	required,
-}: {
-	children: React.ReactNode;
-	required?: boolean;
-}) {
-	return (
-		<Label className="mb-1 block text-[10px] font-label font-bold uppercase tracking-[0.1em] text-muted-foreground/70">
-			{children}
-			{required && <span className="text-destructive ml-0.5">*</span>}
-		</Label>
-	);
-}
 
 export function EngineFields({
 	formData,
@@ -45,9 +30,9 @@ export function EngineFields({
 			>
 				{formData.type === "mongodb" ? (
 					<div>
-						<FormLabel>
+						<ControlLabel>
 							Connection URI
-						</FormLabel>
+						</ControlLabel>
 						<Input
 							value={formData.uri || ""}
 							onChange={(e) => onPatch({ uri: e.target.value })}
@@ -59,9 +44,9 @@ export function EngineFields({
 					</div>
 				) : formData.type === "sqlite" ? (
 					<div>
-						<FormLabel>
+						<ControlLabel>
 							Database File Path
-						</FormLabel>
+						</ControlLabel>
 						<div className="flex gap-2">
 							<Input
 								value={formData.database || ""}
@@ -93,7 +78,7 @@ export function EngineFields({
 						{/* Host + Port */}
 						<div className="grid gap-3 md:grid-cols-[minmax(0,1fr)_108px]">
 							<div>
-								<FormLabel>{isSshTunnelEnabled ? "Database Host from SSH Server" : "Host"}</FormLabel>
+								<ControlLabel>{isSshTunnelEnabled ? "Database Host from SSH Server" : "Host"}</ControlLabel>
 								<Input
 									value={formData.host || ""}
 									onChange={(e) => onPatch({ host: e.target.value })}
@@ -109,7 +94,7 @@ export function EngineFields({
 								)}
 							</div>
 							<div>
-								<FormLabel>Port</FormLabel>
+								<ControlLabel>Port</ControlLabel>
 								<Input
 									type="number"
 									value={formData.port || ""}
@@ -125,7 +110,7 @@ export function EngineFields({
 						{/* User + Password */}
 						<div className="grid gap-3 md:grid-cols-2">
 							<div>
-								<FormLabel>{formData.type === "redis" ? "Username (optional)" : "Username"}</FormLabel>
+								<ControlLabel>{formData.type === "redis" ? "Username (optional)" : "Username"}</ControlLabel>
 								<Input
 									value={formData.user || ""}
 									onChange={(e) => onPatch({ user: e.target.value })}
@@ -136,7 +121,7 @@ export function EngineFields({
 								/>
 							</div>
 							<div>
-								<FormLabel>{formData.type === "redis" ? "Password (optional)" : "Password"}</FormLabel>
+								<ControlLabel>{formData.type === "redis" ? "Password (optional)" : "Password"}</ControlLabel>
 								<div className="relative">
 									<Input
 										type={showPassword ? "text" : "password"}
@@ -152,7 +137,7 @@ export function EngineFields({
 										variant="ghost"
 										size="icon-xs"
 										onClick={onTogglePassword}
-									className="absolute right-1.5 top-1/2 -translate-y-1/2 rounded-sm text-muted-foreground/40 hover:text-muted-foreground"
+									className="absolute right-1.5 top-1/2 -translate-y-1/2 rounded-sm text-fg-muted hover:text-fg"
 								>
 										{showPassword ? <EyeOff size={13} /> : <Eye size={13} />}
 									</Button>
@@ -162,7 +147,7 @@ export function EngineFields({
 
 						{/* Default database */}
 						<div>
-							<FormLabel>{formData.type === "redis" ? "DB Index" : "Database Name"}</FormLabel>
+							<ControlLabel>{formData.type === "redis" ? "DB Index" : "Database Name"}</ControlLabel>
 							<Input
 								value={formData.database || ""}
 								onChange={(e) => onPatch({ database: e.target.value })}

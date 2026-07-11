@@ -2,17 +2,9 @@ import { Key, FileText, FolderOpen } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Switch } from "@/components/ui/switch";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
+import { ControlLabel } from "@/components/ui/control-label";
 import { cn } from "@/lib/utils";
 import { ConnectionConfig } from "@/types";
-
-function FormLabel({ children }: { children: React.ReactNode }) {
-    return (
-        <Label className="mb-1 block text-[10px] font-label font-bold uppercase tracking-[0.1em] text-muted-foreground/65">
-            {children}
-        </Label>
-    );
-}
 
 function AuthMethodButton({
     active,
@@ -56,23 +48,40 @@ export function SshTunnelSection({
 
     return (
         <div className="rounded-md border border-border-subtle bg-surface-elevated px-3 py-2.5">
-            {/* Toggle row */}
+            {/* Toggle row — <div role="button">, NOT a <button>.
+                The <Switch> renders a <button> internally; nesting <button>
+                inside <button> is invalid HTML and causes "Maximum update
+                depth exceeded" via DOM/vDOM mismatch. */}
             <div
-                className="flex cursor-pointer items-center justify-between gap-3"
+                role="button"
+                tabIndex={0}
+                aria-pressed={tunnelEnabled}
                 onClick={() => onPatch({ sshEnabled: !tunnelEnabled })}
+                onKeyDown={(e) => {
+                    if (e.key === "Enter" || e.key === " ") {
+                        e.preventDefault();
+                        onPatch({ sshEnabled: !tunnelEnabled });
+                    }
+                }}
+                className="flex w-full cursor-pointer items-center justify-between gap-3 text-left transition-colors hover:opacity-90 focus-visible:ring-2 focus-visible:ring-ring/50 focus-visible:outline-none rounded-sm -mx-1 px-1 py-0.5"
             >
                 <div className="min-w-0">
                     <p className="text-[12px] font-semibold text-foreground">SSH Tunnel</p>
-                    <p className="mt-0.5 text-[11px] text-muted-foreground/60">
+                    <p className="mt-0.5 text-[11px] text-fg-muted">
                         Route the connection through a bastion host.
                     </p>
                 </div>
-                <Switch
-                    checked={tunnelEnabled}
-                    onCheckedChange={(checked) => onPatch({ sshEnabled: checked })}
+                <span
                     onClick={(e) => e.stopPropagation()}
                     className="shrink-0"
-                />
+                >
+                    <Switch
+                        checked={tunnelEnabled}
+                        aria-hidden="true"
+                        tabIndex={-1}
+                        className="pointer-events-none"
+                    />
+                </span>
             </div>
 
             {/* Expanded fields */}
@@ -89,7 +98,7 @@ export function SshTunnelSection({
                             {/* Host + Port */}
                             <div className="grid gap-3 md:grid-cols-[minmax(0,1fr)_96px]">
                                 <div>
-                                    <FormLabel>SSH Host</FormLabel>
+                                    <ControlLabel>SSH Host</ControlLabel>
                                     <Input
                                         value={formData.sshHost ?? ""}
                                         onChange={(e) => onPatch({ sshHost: e.target.value })}
@@ -98,7 +107,7 @@ export function SshTunnelSection({
                                     />
                                 </div>
                                 <div>
-                                    <FormLabel>Port</FormLabel>
+                                    <ControlLabel>Port</ControlLabel>
                                     <Input
                                         type="number"
                                         value={formData.sshPort ?? 22}
@@ -110,7 +119,7 @@ export function SshTunnelSection({
 
                             {/* SSH User */}
                             <div>
-                                <FormLabel>SSH User</FormLabel>
+                                <ControlLabel>SSH User</ControlLabel>
                                 <Input
                                     value={formData.sshUser ?? ""}
                                     onChange={(e) => onPatch({ sshUser: e.target.value })}
@@ -141,7 +150,7 @@ export function SshTunnelSection({
                             {/* Password input */}
                             {!isKeyAuth && (
                                 <div>
-                                    <FormLabel>Password</FormLabel>
+                                    <ControlLabel>Password</ControlLabel>
                                     <Input
                                         type="password"
                                         value={formData.sshPassword ?? ""}
@@ -156,7 +165,7 @@ export function SshTunnelSection({
                             {isKeyAuth && (
                                 <div className="flex flex-col gap-2.5">
                                     <div>
-                                        <FormLabel>Private Key Path</FormLabel>
+                                        <ControlLabel>Private Key Path</ControlLabel>
                                         <div className="relative">
                                             <Input
                                                 value={formData.sshKeyPath ?? ""}
@@ -166,7 +175,8 @@ export function SshTunnelSection({
                                             />
                                             <button
                                                 type="button"
-                                                className="absolute right-2 top-1/2 -translate-y-1/2 rounded-sm p-1 text-muted-foreground/50 transition-colors hover:bg-surface-2 hover:text-foreground"
+                                                aria-label="Browse for SSH private key file"
+                                                className="absolute right-2 top-1/2 -translate-y-1/2 rounded-sm p-1 text-fg-muted transition-colors hover:bg-surface-2 hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring/50 focus-visible:outline-none"
                                                 onClick={async () => {
                                                     try {
                                                         const { open } = await import("@tauri-apps/plugin-dialog");
@@ -180,7 +190,7 @@ export function SshTunnelSection({
                                         </div>
                                     </div>
                                     <div>
-                                        <FormLabel>Key Passphrase</FormLabel>
+                                        <ControlLabel>Key Passphrase</ControlLabel>
                                         <Input
                                             type="password"
                                             value={formData.sshKeyPassphrase ?? ""}

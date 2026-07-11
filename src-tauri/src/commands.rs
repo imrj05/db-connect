@@ -9,6 +9,7 @@ use crate::ssh::{SshAuth, SshTunnel};
 use crate::storage::AppStorage;
 use crate::types::*;
 use anyhow::Result;
+use futures::future::{AbortHandle, Abortable};
 use std::sync::Arc;
 use std::time::Duration;
 use tauri_plugin_updater::UpdaterExt;
@@ -18,6 +19,14 @@ use crate::db::mongodb::MongoDriver;
 use crate::db::redis_driver::RedisDriver;
 
 // System databases/schemas to always exclude
+const DEFAULT_QUERY_TIMEOUT_SECS: u64 = 30;
+const MIN_QUERY_TIMEOUT_SECS: u64 = 1;
+const MAX_QUERY_TIMEOUT_SECS: u64 = 300;
+const DEFAULT_MAX_SQL_BYTES: usize = 1_048_576;
+const MAX_ALLOWED_SQL_BYTES: usize = 10 * 1_048_576;
+const DEFAULT_MAX_RESULT_ROWS: u32 = 10_000;
+const MAX_ALLOWED_RESULT_ROWS: u32 = 100_000;
+
 const SYSTEM_DATABASES: &[&str] = &[
     // MySQL / MariaDB
     "information_schema",
@@ -43,7 +52,10 @@ fn validate_connection_config(config: &ConnectionConfig) -> Result<(), String> {
     }
     for ch in &['/', '\\', '\0', '\n', '\r'] {
         if config.id.contains(*ch) {
-            return Err(format!("Connection ID contains invalid character: {:?}", ch));
+            return Err(format!(
+                "Connection ID contains invalid character: {:?}",
+                ch
+            ));
         }
     }
 
@@ -141,6 +153,36 @@ fn route_config_through_ssh_tunnel(
     Ok(())
 }
 
+fn normalize_timeout_secs(timeout_secs: Option<u64>) -> u64 {
+    timeout_secs
+        .unwrap_or(DEFAULT_QUERY_TIMEOUT_SECS)
+        .clamp(MIN_QUERY_TIMEOUT_SECS, MAX_QUERY_TIMEOUT_SECS)
+}
+
+fn normalize_max_sql_bytes(max_sql_bytes: Option<u64>) -> usize {
+    max_sql_bytes
+        .map(|n| n.clamp(1, MAX_ALLOWED_SQL_BYTES as u64) as usize)
+        .unwrap_or(DEFAULT_MAX_SQL_BYTES)
+}
+
+fn normalize_max_result_rows(max_result_rows: Option<u32>) -> u32 {
+    max_result_rows
+        .map(|n| n.clamp(1, MAX_ALLOWED_RESULT_ROWS))
+        .unwrap_or(DEFAULT_MAX_RESULT_ROWS)
+}
+
+fn apply_result_row_limit(result: &mut QueryResult, max_result_rows: u32) {
+    let limit = max_result_rows as usize;
+    if result.rows.len() > limit {
+        result.rows.truncate(limit);
+        result.limited = Some(true);
+        result.row_limit = Some(max_result_rows);
+        result.limit_warning = Some(format!(
+            "Results limited to {max_result_rows} rows by Query safety settings."
+        ));
+    }
+}
+
 fn default_database_port(db_type: &DatabaseType) -> u16 {
     match db_type {
         DatabaseType::Postgresql => 5432,
@@ -220,9 +262,10 @@ pub async fn connect_database(mut config: ConnectionConfig) -> Result<(), String
         // drivers still need the original URI target for the SSH forward.
         let (db_host, db_port) = resolve_ssh_tunnel_target(&config)?;
 
-        let tunnel = SshTunnel::establish(&ssh_host, ssh_port, &ssh_user, auth, db_host, db_port, None)
-            .await
-            .map_err(|e| format!("SSH tunnel failed: {e}"))?;
+        let tunnel =
+            SshTunnel::establish(&ssh_host, ssh_port, &ssh_user, auth, db_host, db_port, None)
+                .await
+                .map_err(|e| format!("SSH tunnel failed: {e}"))?;
 
         // Redirect the driver to connect via the local tunnel port.
         if let Err(e) = route_config_through_ssh_tunnel(&mut config, tunnel.local_port) {
@@ -344,7 +387,18 @@ pub async fn execute_query(
     query: String,
     timeout_secs: Option<u64>,
     database: Option<String>,
+    max_sql_bytes: Option<u64>,
+    max_result_rows: Option<u32>,
+    query_id: Option<String>,
 ) -> Result<QueryResult, String> {
+    let sql_limit = normalize_max_sql_bytes(max_sql_bytes);
+    let query_bytes = query.as_bytes().len();
+    if query_bytes > sql_limit {
+        return Err(format!(
+            "Query is too large: {query_bytes} bytes exceeds the configured limit of {sql_limit} bytes"
+        ));
+    }
+
     // Ensure the driver context is set to the correct database before executing
     if let Some(ref db) = database {
         let registries = REGISTRY.configs.get(&id);
@@ -376,12 +430,42 @@ pub async fn execute_query(
         .get(&id)
         .ok_or_else(|| "Not connected".to_string())?;
 
-    let secs = timeout_secs.unwrap_or(30);
+    let secs = normalize_timeout_secs(timeout_secs);
+    let row_limit = normalize_max_result_rows(max_result_rows);
     let duration = std::time::Duration::from_secs(secs);
-    tokio_timeout(duration, driver.run_query(&query))
-        .await
-        .map_err(|_| format!("Query timed out after {}s", secs))?
-        .map_err(|e| e.to_string())
+
+    let mut result = if let Some(query_id) = query_id.filter(|q| !q.trim().is_empty()) {
+        let (abort_handle, abort_registration) = AbortHandle::new_pair();
+        REGISTRY
+            .running_queries
+            .insert(query_id.clone(), abort_handle);
+        let run = Abortable::new(driver.run_query(&query), abort_registration);
+        let outcome = tokio_timeout(duration, run).await;
+        REGISTRY.running_queries.remove(&query_id);
+        match outcome {
+            Err(_) => return Err(format!("Query timed out after {}s", secs)),
+            Ok(Err(_aborted)) => return Err("Query cancelled".to_string()),
+            Ok(Ok(result)) => result.map_err(|e| e.to_string())?,
+        }
+    } else {
+        tokio_timeout(duration, driver.run_query(&query))
+            .await
+            .map_err(|_| format!("Query timed out after {}s", secs))?
+            .map_err(|e| e.to_string())?
+    };
+
+    apply_result_row_limit(&mut result, row_limit);
+    Ok(result)
+}
+
+#[tauri::command]
+pub async fn cancel_query(query_id: String) -> Result<(), String> {
+    if let Some((_, handle)) = REGISTRY.running_queries.remove(&query_id) {
+        handle.abort();
+        Ok(())
+    } else {
+        Err("Query is not running or already finished".to_string())
+    }
 }
 
 #[tauri::command]
@@ -403,16 +487,21 @@ pub async fn get_table_data(
     table: String,
     page: u32,
     page_size: u32,
+    max_result_rows: Option<u32>,
 ) -> Result<QueryResult, String> {
     let driver = REGISTRY
         .connections
         .get(&id)
         .ok_or_else(|| "Not connected".to_string())?;
 
+    let row_limit = normalize_max_result_rows(max_result_rows);
+    let effective_page_size = page_size.clamp(1, row_limit);
     let mut result = driver
-        .get_table_data(&database, &table, page, page_size)
+        .get_table_data(&database, &table, page, effective_page_size)
         .await
         .map_err(|e| e.to_string())?;
+
+    apply_result_row_limit(&mut result, row_limit);
 
     // If table is empty, still return column names so the UI can show headers
     if result.rows.is_empty() && result.columns.is_empty() {

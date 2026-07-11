@@ -16,7 +16,10 @@ This document defines the baseline UI rules used across DB Connect so new screen
 Rules:
 
 - Use sentence case for buttons, settings rows, toolbars, and empty states.
-- Reserve uppercase text for compact badges and small metadata only.
+- Reserve uppercase text for compact badges, small metadata, and short status/tab
+  labels rendered at ≤11px with wide tracking (e.g. the status-bar state label
+  “Connected”/“Running” and compact editor tab triggers). These read as compact
+  metadata, not as control or heading text.
 - Prefer `font-medium` or `font-semibold` over `font-black` for standard UI controls.
 
 ## Color Semantics

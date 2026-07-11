@@ -48,7 +48,7 @@ export function QueryLog({
 				className="flex-1 overflow-auto scrollbar-thin px-3.5 py-2.5"
 			>
 				{entries.length === 0 ? (
-					<p className="text-[11px] font-mono text-foreground/42 py-1">
+					<p className="text-[11px] font-mono text-foreground/70 py-1">
 						No queries executed yet
 					</p>
 				) : showSyntax ? (
@@ -79,13 +79,13 @@ export function QueryLog({
 				<Button
 					variant="ghost"
 					size="icon-xs"
-					className="size-6 text-foreground/46 hover:text-foreground"
+					className="size-6 text-foreground/70 hover:text-foreground"
 					title="Clear logs"
 					onClick={onClear}
 				>
 					<Trash2 size={11} />
 				</Button>
-				<span className="text-[11px] font-mono text-foreground/44">
+				<span className="text-[11px] font-mono text-foreground/70">
 					{entries.length}{" "}
 					{entries.length === 1 ? "query" : "queries"}
 				</span>

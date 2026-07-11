@@ -63,16 +63,50 @@ export const tauriApi = {
     return await invoke("get_tables", { id, database, schema });
   },
 
-  async executeQuery(id: string, query: string, timeoutSecs?: number, database?: string): Promise<QueryResult> {
-    return await invoke("execute_query", { id, query, timeoutSecs, database: database ?? null });
+  async executeQuery(
+    id: string,
+    query: string,
+    timeoutSecs?: number,
+    database?: string,
+    maxSqlBytes?: number,
+    maxResultRows?: number,
+    queryId?: string,
+  ): Promise<QueryResult> {
+    return await invoke("execute_query", {
+      id,
+      query,
+      timeoutSecs,
+      database: database ?? null,
+      maxSqlBytes: maxSqlBytes ?? null,
+      maxResultRows: maxResultRows ?? null,
+      queryId: queryId ?? null,
+    });
+  },
+
+  async cancelQuery(queryId: string): Promise<void> {
+    await invoke("cancel_query", { queryId });
   },
 
   async pingConnection(id: string): Promise<number> {
     return await invoke("ping_connection", { id });
   },
 
-  async getTableData(id: string, database: string, table: string, page: number = 0, pageSize: number = 50): Promise<QueryResult> {
-    return await invoke("get_table_data", { id, database, table, page, pageSize });
+  async getTableData(
+    id: string,
+    database: string,
+    table: string,
+    page: number = 0,
+    pageSize: number = 50,
+    maxResultRows?: number,
+  ): Promise<QueryResult> {
+    return await invoke("get_table_data", {
+      id,
+      database,
+      table,
+      page,
+      pageSize,
+      maxResultRows: maxResultRows ?? null,
+    });
   },
 
   async listAllTables(id: string, database?: string): Promise<TableInfo[]> {

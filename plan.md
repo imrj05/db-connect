@@ -1,255 +1,505 @@
-# DB Connect Roadmap
+# DB Connect Improvement Plan
 
-## High-Impact Features To Add
+_Last updated: 2026-06-07_
 
-1. Connection Health Dashboard
-   - Show active connections, latency, database size, table count, and last query time.
-   - Add quick actions: reconnect, disconnect, refresh schema.
-   - This helps the app feel more professional and operationally useful.
+This plan is based on a static review of the app, README, current roadmap, UI files, and basic checks.
 
-2. Pinned/Favorite Tables
-   - Let users star frequently used tables.
-   - Show pinned tables at the top of the sidebar or command palette.
-   - Useful for large databases with many tables.
+## Current Health Check
 
-3. Recent Tables & Queries
-   - Add a “Recently Opened” section.
-   - Include recent tables, SQL files, saved queries, and databases.
-   - Helps users resume work quickly.
+- `npm run build` passes.
+- `npm test` passes: 2 test files / 3 tests.
+- Build warning: main JS chunk is large: ~2.53 MB / ~775 KB gzip.
+- CSS bundle is large: ~399 KB.
+- Several files are too large and should be split over time:
+  - `src/components/layout/function-output/table-grid-view.tsx` — ~3600+ lines
+  - `src/store/useAppStore.ts` — ~1500+ lines
+  - `src/components/layout/app-sidebar-panel.tsx` — ~1800+ lines
 
-4. Better Query History
-   - Add search, filters, status, duration, row count, and error/success badges.
-   - Allow rerun, copy SQL, save query, and delete entry.
-   - Current history can become a strong productivity feature.
+## Product Direction
 
-5. Saved Query Folders
-   - Let users organize saved queries by folder or group.
-   - Example folders: Reports, Debugging, Migrations, Admin.
-   - Add command palette access.
+DB Connect should lean into this positioning:
 
-6. Schema Search
-   - Global search across tables, columns, indexes, and relationships.
-   - Example: search `user_id` and see every table or column using it.
-   - Very valuable in real database work.
+> A safe, fast, native database client for developers who work across local, staging, and production databases.
 
-7. Table Detail Sidebar
-   - When viewing a table, show metadata: columns, primary keys, indexes, foreign keys, row count, and nullable fields.
-   - This can reduce context-menu usage and make table browsing faster.
+The app already has many features. The next improvements should focus on:
 
-8. Inline Column Type Badges
-   - In table grid headers, show subtle badges like `PK`, `FK`, `TEXT`, `INT`, `JSON`.
-   - Makes table browsing easier at a glance.
+- Safety
+- Performance
+- Better hierarchy
+- Better discoverability
+- Clearer table/data workflows
+- More confidence when editing production data
 
-9. Data Export Presets
-   - Export current result or table as CSV, JSON, SQL inserts, Markdown table, or clipboard content.
-   - Include “export selected rows”.
+---
 
-10. Import Preview & Validation
-    - Before importing CSV or JSON, show detected columns, types, invalid rows, and mapping.
-    - Prevents bad imports.
+# Priority Roadmap
 
-11. Query Explain UI
-    - Build a visual plan viewer around `EXPLAIN`.
-    - Show cost, scan type, rows, warnings, and missing index suggestions.
-    - This could become an advanced flagship feature.
+## P0 — Critical Safety and Reliability
 
-12. ER Diagram Polish
-    - Make ER diagrams interactive: click table to open, filter by schema, highlight relationships, export diagram image.
-    - This can become a flagship feature.
+### 1. Add query limits and cancellation
 
-13. Diff / Migration Preview
-    - When editing rows or schema, show generated SQL before applying.
-    - Let users copy or save migration SQL.
-    - Especially useful for production safety.
+Add safeguards for expensive or accidental queries.
 
-14. Safe Mode For Production
-    - If connection group is `prod`, require confirmation for DELETE, DROP, TRUNCATE, and UPDATE without WHERE.
-    - Add a visual production warning in the title bar.
+Tasks:
 
-15. Connection Groups Workspace
-    - Improve group management for Local, Dev, Staging, and Production.
-    - Add group colors, icons, and filters.
+- Add max query text size.
+- Add max returned rows.
+- Add configurable query timeout per connection.
+- Add a visible **Cancel query** button while queries are running.
+- Warn before loading very large result sets.
+- Show partial/limited result state clearly: “Showing first 10,000 rows”.
 
-16. Multiple Result Tabs Per Query
-    - Allow running multiple SQL statements and showing separate result tabs.
-    - Example: one editor run returns 3 result grids.
+Why:
 
-17. Keyboard Shortcut Settings
-    - Add shortcut customization.
-    - Show available shortcuts in settings.
-    - Developer tools benefit heavily from keyboard control.
+- Prevents app freezes.
+- Protects production databases.
+- Makes the app feel more professional and safe.
 
-18. Command Palette Upgrade
-    - Add actions like open table, run saved query, switch connection, export current result, toggle theme, and open settings section.
-    - Make it the central launcher.
+---
 
-19. Better Error UX
-    - Add error summary, exact SQL line if available, copy error, and database-specific hints.
+### 2. Strengthen production safety mode
 
-## UI/UX Polish To Add
+Production connections should be visually and functionally safer than local/dev connections.
 
-1. Loading Skeletons
-   - Replace centered spinners with skeleton rows/cards.
-   - Especially useful for table loading and connection manager loading.
+Tasks:
 
-2. Empty State System
-   - Create consistent empty states for no tables, no search results, no query result, no saved queries, no history, and disconnected state.
+- Block or strongly warn for `UPDATE` without `WHERE`.
+- Block or strongly warn for `DELETE` without `WHERE`.
+- Require typing the table name for `DROP`, `TRUNCATE`, and destructive bulk operations.
+- Add optional read-only mode per connection.
+- Add “unlock writes for 5 minutes” flow for production.
+- Show the active environment permanently in the title bar.
+- Use a red top border or persistent production indicator when connected to prod.
 
-3. Status Bar Improvements
-   - Show active connection, selected database, query duration, row count, pending edits, and connection status.
+Why:
 
-4. Toast Action Buttons
-   - Examples: “Query copied” with Undo, “Rows exported” with Open file, “Connection failed” with Edit connection.
+- Prevents dangerous mistakes.
+- Makes DB Connect trustworthy for production work.
 
-5. Resizable Layout Persistence
-   - Save sidebar width, editor split height, and query log state.
-   - Users expect desktop apps to remember layout.
+---
 
-6. Theme Preview Cards
-   - In settings, show small previews for UI and editor themes.
-   - Better than a plain select list.
+### 3. Remove remaining security gaps
 
-7. Compact / Comfortable Density Mode
-   - Add UI density setting: Compact, Default, Comfortable.
-   - Good fit for a database client.
+Known security items to keep tracking:
 
-## Detailed UI/UX Suggestions
+- Remove key-file fallback for encryption key; require OS keychain or user-provided password.
+- Zero credentials from memory after connection setup using `zeroize` or `secrecy`.
+- Avoid holding SSH passphrases as plain `String`.
+- Add rate limiting for connection attempts and heavy commands.
+- Make license/backend errors user-safe while logging technical details internally.
 
-1. Create a Clear Visual Hierarchy
-   - Make primary actions visually stronger than secondary actions.
-   - `Run Query`, `Connect`, and `Apply Changes` should stand out more than `Format`, `Explain`, `Refresh`, and `Import`.
+---
 
-2. Reduce Tiny Uppercase Text
-   - The app uses many `9px` to `11px` uppercase labels.
-   - Keep uppercase for badges and metadata only.
-   - Use normal sentence/title case for buttons, settings rows, empty states, and toolbar actions.
+## P1 — High-Impact UX and Workflow
 
-3. Add Density Modes
-   - Add a setting for Compact, Default, and Comfortable modes.
-   - Database tools need density, but different users prefer different spacing.
+### 4. Improve table grid readability
 
-4. Improve Table Grid Readability
-   - Add clearer row hover, selected row, active cell, and edited cell states.
-   - Show column type badges in headers: `PK`, `FK`, `TEXT`, `INT`, `JSON`.
-   - Optionally freeze the first column.
-   - Add row numbers.
+The table grid is the core of the app and should receive the most UI polish.
 
-5. Make Empty States Consistent
-   - Use one reusable empty-state component.
-   - Include an icon, title, description, primary action, and optional shortcut hint.
+Tasks:
 
-6. Polish Loading States
-   - Replace full-screen spinners with skeleton rows/cards.
-   - Tables should show skeleton rows.
-   - Connection manager should show skeleton cards.
-   - SQL result loading should preserve layout instead of blanking the screen.
+- Add sticky first column / row number column.
+- Add column type badges in headers: `PK`, `FK`, `TEXT`, `JSON`, `INT`, etc.
+- Improve active cell, selected row, selected column, and edited cell states.
+- Make `NULL` values visually distinct but not distracting.
+- Add density modes: Compact, Default, Comfortable.
+- Add “Resize all columns to fit”.
+- Add column search/filter popover from headers.
+- Add optional zebra striping toggle.
 
-7. Improve Error States
-   - Show a short summary first.
-   - Include technical detail below in a collapsible block.
-   - Add actions: Copy Error, Copy SQL, Try Again.
+Why:
 
-8. Improve Connection Safety UX
-   - Production connections should look visually different.
-   - Add a `Production` warning badge in the title bar.
-   - Require stronger confirmation for destructive actions on production groups.
+- Users spend most of their time reading/editing data.
+- Better grid clarity improves the entire product.
 
-9. Improve Command Palette UX
-   - Add categories for Tables, Queries, Connections, Actions, and Settings.
-   - Add keyboard shortcuts in a right column.
-   - Add recent and favorite items at the top.
+---
 
-10. Better Sidebar UX
-    - Add pinned tables.
-    - Add recent tables.
-    - Separate “Connections” from “Current Database”.
-    - Make search global across table names and column names.
+### 5. Add structured error panel
 
-11. Improve Settings Page
-    - Add search inside settings.
-    - Add theme preview cards instead of plain dropdowns.
-    - Group advanced options under collapsible sections.
-    - Add “Reset to Default” per section.
+Replace generic error-only experiences with a useful debugging panel.
 
-12. Make Tabs More Informative
-    - Show table/query icon, connection color, and pending edit dot.
-    - Add a right-click menu: Close, Close Others, Duplicate, Copy Table Name / Query.
-    - Show tooltip with full connection, database, and table info.
+Tasks:
 
-13. Improve SQL Editor UX
-    - Add query snippets.
-    - Add format options.
-    - Improve schema autocomplete.
-    - Add a “Run selected SQL” affordance.
-    - Show result summary after execution: rows, duration, affected rows.
+- Show short human summary first.
+- Show database error code/message.
+- Show SQL line/column when available.
+- Add actions: Copy error, Copy SQL, Retry, Open connection settings.
+- Add collapsible technical details.
+- Add database-specific hints where possible.
 
-14. Improve Data Editing UX
-    - Mark edited cells clearly.
-    - Add an edit review drawer before applying changes.
-    - Show generated SQL diff.
-    - Add undo for pending edits.
+Example:
 
-15. Improve Mobile/Small Window Behavior
-    - Even as a desktop app, users may resize windows.
-    - Add responsive behavior for title bar overflow, command palette, connection dialog, and table toolbar.
+> Column `user_idd` does not exist. Did you mean `user_id`?
 
-16. Use More Semantic Status Indicators
-    - Green: connected/success.
-    - Amber: warning/pending.
-    - Red: destructive/error.
-    - Blue/accent: selected/current.
-    - Avoid using accent colors decoratively unless they mean something.
+Why:
 
-17. Add Microcopy Improvements
-    - Replace generic labels with specific labels.
-    - Examples: `Apply` to `Apply 3 Edits`, `Reset` to `Discard Edits`, `Connect now` to `Connect`, `No match` to `No tables match this filter`.
-    - Good microcopy makes the app feel polished.
+- Developers need actionable error messages.
+- Reduces frustration when queries fail.
 
-18. Add Workspace Persistence
-    - Restore open tabs, active connection, selected database, sidebar width, editor height, and query log state.
-    - This is a major desktop-app UX win.
+---
 
-19. Add Onboarding After First Connection
-    - After connecting, show a small guided hint: “Open a table from the sidebar”, “Press Cmd+K to search”, “Use Cmd+Enter to run SQL”.
-    - Keep it subtle and dismissible.
+### 6. Add global schema search
 
-20. Create a Unified Design System Pass
-    - Define reusable patterns for toolbar buttons, icon buttons, badges, empty states, section headers, table states, and destructive confirmations.
-    - This will make future features look consistent by default.
+Create a powerful search across the database structure.
 
-## Top 5 UX Improvements To Prioritize
+Search targets:
 
-1. Table grid readability and edited-cell states
-2. Better command palette categories and recents
-3. Consistent empty/loading/error states
-4. Production safe mode visuals
-5. Workspace/layout persistence
+- Tables
+- Columns
+- Indexes
+- Foreign keys
+- Saved queries
+- Query history
 
-## Developer/Product Features
+Example search: `user_id`
 
-1. Connection Backup & Restore
-   - Export encrypted connection backups.
-   - Restore on another machine.
+Should show:
 
-2. Workspace Profiles
-   - Save workspace state: open tabs, selected connection, database, and sidebar state.
-   - Restore on launch.
+- `orders.user_id`
+- `payments.user_id`
+- FK: `orders.user_id -> users.id`
+- Saved queries containing `user_id`
 
-3. Update Release Notes
-   - When update dialog appears, show changelog.
-   - Makes updates feel trustworthy.
+Why:
 
-4. License/Plan Page Polish
-   - Show plan, status, expiry, activated devices, and upgrade CTA.
+- Very useful for large databases.
+- Helps users understand unfamiliar schemas quickly.
 
-5. Crash/Error Report Export
-   - Let users copy diagnostic info: app version, OS, database type, and error stack.
-   - Useful for debugging.
+---
 
-## Recommended Next 5 To Build
+### 7. Upgrade Command Palette
 
-1. Pinned tables
-2. Better query history
-3. Schema search
-4. Production safe mode
-5. Layout persistence
+Make `⌘K` the central launcher for the app.
+
+Tasks:
+
+- Group results by:
+  - Tables
+  - Columns
+  - Queries
+  - Connections
+  - Actions
+  - Settings
+  - Recent
+  - Favorites
+- Show keyboard shortcuts in a right column.
+- Add actions like:
+  - Open table
+  - Run saved query
+  - Switch connection
+  - Export current result
+  - Toggle theme
+  - Open settings section
+- Put recent and pinned items at the top.
+
+Why:
+
+- Improves discoverability.
+- Makes advanced users faster.
+
+---
+
+### 8. Add edit review and undo workflow
+
+Inline editing is powerful but risky. Add a safer editing model.
+
+Tasks:
+
+- Track pending cell edits before committing.
+- Add review drawer showing generated SQL.
+- Allow revert single cell.
+- Allow revert all pending edits.
+- Support batch apply.
+- Optionally wrap changes in a transaction.
+- Show production warnings inside the review drawer.
+
+Why:
+
+- Safer data editing.
+- Better confidence before applying changes.
+
+---
+
+### 9. Split multi-statement query results
+
+Improve query execution for multiple SQL statements.
+
+Example:
+
+```sql
+SELECT * FROM users;
+SELECT * FROM orders;
+```
+
+Expected behavior:
+
+- Result tab 1: users
+- Result tab 2: orders
+- Show per-statement duration.
+- Show affected rows per statement.
+- Show individual errors without hiding successful statements.
+
+Why:
+
+- Matches developer expectations from database clients.
+- Makes SQL editor more useful for scripts.
+
+---
+
+## P2 — Product Differentiators
+
+### 10. Add index recommendations
+
+Build on the existing query plan viewer.
+
+Tasks:
+
+- Detect sequential scans.
+- Detect joins on unindexed columns.
+- Detect filters on unindexed columns.
+- Show missing index suggestions.
+- Add “Create index” action with SQL preview.
+- Show confidence level and risk notes.
+
+Why:
+
+- Could become a flagship feature.
+- Helps developers optimize databases without leaving the app.
+
+---
+
+### 11. Improve ER diagram polish
+
+Tasks:
+
+- Click table to open table view.
+- Filter by schema.
+- Highlight relationships on hover/select.
+- Export diagram as image/SVG.
+- Save layout positions per database.
+- Add minimap for large diagrams.
+
+Why:
+
+- ER diagrams are a strong visual feature but need polish to feel premium.
+
+---
+
+### 12. Add recent workspace section
+
+Tasks:
+
+- Recently opened tables.
+- Recently used queries.
+- Recently connected databases.
+- Recently imported/exported files.
+- Surface recent items in home screen and command palette.
+
+Why:
+
+- Helps users resume work quickly.
+
+---
+
+# UI / Design Improvements
+
+## 1. Make empty/loading/error states consistent
+
+Create a reusable empty state system.
+
+Every empty state should include:
+
+- Icon
+- Title
+- Description
+- Primary action
+- Optional shortcut hint
+
+Use for:
+
+- No connections
+- No tables
+- No query results
+- No saved queries
+- No history
+- Search with no matches
+- Disconnected state
+
+For loading states:
+
+- Prefer skeleton rows/cards over centered spinners.
+- Preserve layout while loading.
+- Show progress/status for long operations.
+
+---
+
+## 2. Improve visual hierarchy
+
+Tasks:
+
+- Make primary actions stronger: Run, Connect, Apply, Import, Export.
+- Make secondary actions quieter: Format, Explain, Refresh.
+- Reduce excessive tiny uppercase labels.
+- Keep uppercase mainly for metadata, badges, and environment labels.
+- Keep data dense, but make toolbars easier to scan.
+
+---
+
+## 3. Make production visually impossible to miss
+
+For production connections:
+
+- Persistent title-bar badge: `PRODUCTION`.
+- Red 2px top app border.
+- Red-tinted destructive dialogs.
+- Clear connection/database/table name in confirmations.
+- Require stronger confirmation for destructive operations.
+
+---
+
+## 4. Improve Settings UX
+
+Tasks:
+
+- Add settings search.
+- Use theme preview cards instead of plain dropdowns.
+- Add “Reset to default” per section.
+- Add keyboard shortcut editor.
+- Add import/export settings.
+- Collapse advanced sections by default.
+
+---
+
+# Performance and Architecture
+
+## 1. Code-split heavy features
+
+Current build has a large main JS chunk. Use dynamic imports for heavy views.
+
+Candidates:
+
+- ER diagram
+- Schema diff
+- Settings page
+- SQL editor
+- Import/export dialogs
+- Charts/statistics panels
+- License/update dialogs
+
+Goal:
+
+- Faster startup.
+- Smaller initial JS bundle.
+- Load advanced tools only when needed.
+
+---
+
+## 2. Split large components
+
+Refactor large files gradually.
+
+### `table-grid-view.tsx`
+
+Suggested structure:
+
+```txt
+table-grid-view/
+  table-grid-view.tsx
+  use-table-data.ts
+  use-cell-editing.ts
+  use-column-visibility.ts
+  use-row-actions.ts
+  use-filter-state.ts
+  table-grid-header.tsx
+  table-grid-body.tsx
+  table-grid-footer.tsx
+  table-grid-empty-state.tsx
+```
+
+### `useAppStore.ts`
+
+Split into Zustand slices:
+
+```txt
+store/
+  connection-slice.ts
+  query-slice.ts
+  ui-slice.ts
+  settings-slice.ts
+  table-slice.ts
+  workspace-slice.ts
+```
+
+### `app-sidebar-panel.tsx`
+
+Split into:
+
+```txt
+app-sidebar/
+  app-sidebar-panel.tsx
+  connection-group.tsx
+  connection-row.tsx
+  database-tabs.tsx
+  table-tree.tsx
+  table-row.tsx
+  column-row.tsx
+  sidebar-actions.tsx
+```
+
+---
+
+# Testing Improvements
+
+Current test coverage is very small. Add tests around high-risk logic.
+
+Priority test areas:
+
+- SQL safety detection.
+- Query splitting.
+- Import/export parsing.
+- Connection config validation.
+- Table edit SQL generation.
+- Filter builder SQL generation.
+- Schema diff logic.
+- License edge cases.
+- Production-mode destructive query blocking.
+
+Also fix the current Vitest warning:
+
+> `HTMLCanvasElement.getContext()` not implemented
+
+Possible fixes:
+
+- Mock canvas in `tests/setup.tsx`.
+- Or install/use a canvas mock package.
+
+---
+
+# Recommended Execution Order
+
+1. Query limits + cancel running query.
+2. Strong production safety mode.
+3. Table grid readability polish.
+4. Better structured error panel.
+5. Global schema search.
+6. Command palette upgrade.
+7. Edit review / undo drawer.
+8. Code splitting for heavy views.
+9. More tests around risky logic.
+10. Settings and empty/loading state polish.
+
+---
+
+# Success Metrics
+
+Track these to know whether improvements work:
+
+- Time to first usable screen.
+- Query execution cancellation success rate.
+- Number of prevented destructive production actions.
+- Average time to find a table/column.
+- Average time to open recent table/query.
+- Error copy/retry usage.
+- Import failure rate.
+- Crash/error reports per release.
+- Bundle size over time.

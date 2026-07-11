@@ -63,7 +63,7 @@ export function RowContextMenu({
 
 	return createPortal(
 		<div
-			className="fixed inset-0 z-[9999]"
+			className="fixed inset-0 z-50"
 			onClick={() => {
 				onClose();
 				setShowQFSubmenu(false);
@@ -148,7 +148,7 @@ export function RowContextMenu({
 					: [];
 				return (
 					<div
-						className="absolute z-[9999] min-w-[14rem] rounded-lg bg-popover text-popover-foreground shadow-md ring-1 ring-foreground/10 p-1 text-[13px] animate-in fade-in-0 zoom-in-95 duration-100"
+						className="absolute z-50 min-w-[14rem] rounded-lg bg-popover text-popover-foreground shadow-md ring-1 ring-foreground/10 p-1 text-[13px] animate-in fade-in-0 zoom-in-95 duration-100"
 						style={{ left, top }}
 						onClick={(e) => e.stopPropagation()}
 					>

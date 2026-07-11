@@ -19,7 +19,7 @@ import { useEffect, useRef, useState } from "react";
 
 const TYPE_META: Record<string, { icon: LucideIcon; iconClassName: string }> = {
 	list: { icon: List, iconClassName: "text-accent-purple" },
-	src: { icon: FileCode2, iconClassName: "text-foreground/58" },
+	src: { icon: FileCode2, iconClassName: "text-foreground/70" },
 	query: { icon: Code2, iconClassName: "text-accent-blue" },
 	execute: { icon: Play, iconClassName: "text-accent-orange" },
 	tbl: { icon: Table2, iconClassName: "text-accent-blue" },
@@ -59,6 +59,7 @@ export function TabBar({
 	}>({ fromId: null, toId: null, dragging: false, startX: 0, startY: 0 });
 
 	const tabRefs = useRef<Map<string, HTMLDivElement>>(new Map());
+	const tabButtonRefs = useRef<Map<string, HTMLDivElement>>(new Map());
 	const ghostRef = useRef<HTMLDivElement>(null);
 	const tabsRef = useRef(tabs);
 	useEffect(() => { tabsRef.current = tabs; });
@@ -136,6 +137,38 @@ export function TabBar({
 		navigator.clipboard.writeText(sql).then(() => toast.success("SQL copied"));
 	};
 
+	// Roving-tabindex keyboard navigation: arrows move + select, Home/End jump
+	const handleTabKeyDown = (e: React.KeyboardEvent, tabId: string) => {
+		const idx = tabs.findIndex((t) => t.id === tabId);
+		let targetIdx: number;
+		switch (e.key) {
+			case "ArrowRight":
+				targetIdx = (idx + 1) % tabs.length;
+				break;
+			case "ArrowLeft":
+				targetIdx = (idx - 1 + tabs.length) % tabs.length;
+				break;
+			case "Home":
+				targetIdx = 0;
+				break;
+			case "End":
+				targetIdx = tabs.length - 1;
+				break;
+			case "Enter":
+			case " ":
+				e.preventDefault();
+				onSwitchTab(tabId);
+				return;
+			default:
+				return;
+		}
+		e.preventDefault();
+		const target = tabs[targetIdx];
+		if (!target) return;
+		onSwitchTab(target.id);
+		tabButtonRefs.current.get(target.id)?.focus();
+	};
+
 	if (tabs.length === 0) return null;
 
 	// Find the dragged tab's metadata for the ghost label
@@ -144,7 +177,11 @@ export function TabBar({
 	const GhostIcon = ghostMeta?.icon ?? null;
 
 	return (
-		<div className="shell-toolbar no-scrollbar flex h-10 shrink-0 items-center gap-1 overflow-x-auto border-b border-border-subtle px-3 py-1">
+		<div
+			role="tablist"
+			aria-label="Open tabs"
+			className="shell-toolbar no-scrollbar flex h-10 shrink-0 items-center gap-1 overflow-x-auto border-b border-border-subtle px-3 py-1"
+		>
 			{tabs.map((tab) => {
 				const isActive = tab.id === activeTabId;
 				const hasPendingEdits = tab.pendingEdits.length > 0;
@@ -188,11 +225,20 @@ export function TabBar({
 						<ContextMenu>
 							<ContextMenuTrigger asChild>
 								<div
+									role="tab"
+									aria-selected={isActive}
+									tabIndex={isActive ? 0 : -1}
+									ref={(el) => {
+										if (el) tabButtonRefs.current.set(tab.id, el);
+										else tabButtonRefs.current.delete(tab.id);
+									}}
 									onClick={() => {
 										if (!dragState.current.dragging) onSwitchTab(tab.id);
 									}}
+									onKeyDown={(e) => handleTabKeyDown(e, tab.id)}
 									className={cn(
 										"group/tab flex h-8 shrink-0 items-center gap-2 rounded-md border border-transparent bg-transparent py-0 pl-3 pr-2 transition-[color,background-color,border-color]",
+										"outline-none focus-visible:ring-2 focus-visible:ring-ring/70",
 										isActive
 											? "border-border-subtle bg-surface-3 text-foreground"
 											: "border-border/42 text-foreground/60 hover:border-border/60 hover:bg-surface-2 hover:text-foreground/84",
@@ -225,8 +271,10 @@ export function TabBar({
 												onCloseTab(tab.id);
 											}}
 											className={cn(
-												"shell-icon-button ml-1 flex size-6 items-center justify-center p-0 text-foreground/36 hover:bg-surface-2 hover:text-foreground",
-												isActive ? "opacity-100" : "opacity-0 group-hover/tab:opacity-100",
+												"shell-icon-button ml-1 flex size-6 items-center justify-center p-0 text-foreground/70 hover:bg-surface-2 hover:text-foreground",
+												isActive
+													? "opacity-100"
+													: "opacity-0 group-hover/tab:opacity-100 focus-visible:opacity-100 group-focus-within/tab:opacity-100",
 											)}
 										>
 											<X className="size-3" />
@@ -266,7 +314,7 @@ export function TabBar({
 			{/* Floating ghost tab — follows the cursor, position set via direct DOM */}
 			<div
 				ref={ghostRef}
-				className="pointer-events-none fixed left-0 top-0 z-[9999] opacity-0 transition-opacity duration-100 will-change-transform"
+				className="pointer-events-none fixed left-0 top-0 z-50 opacity-0 transition-opacity duration-100 will-change-transform"
 				style={{ transform: "translate(0px, 0px)" }}
 			>
 				<div className="flex h-8 items-center gap-2 rounded-md border border-primary/40 bg-surface-elevated px-3 shadow-xl ring-1 ring-primary/20 backdrop-blur-sm">

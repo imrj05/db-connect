@@ -91,7 +91,7 @@ function Divider() {
 function StatChip({ label, value, accent }: { label: string; value: string; accent?: boolean }) {
 	return (
 		<div className="flex items-baseline gap-1.5 shrink-0">
-			<span className="text-[10px] text-foreground/40 uppercase tracking-wider font-medium">{label}</span>
+			<span className="text-[10px] text-foreground/70 uppercase tracking-wider font-medium">{label}</span>
 			<span className={cn("text-[12px] font-mono font-semibold tabular-nums", accent ? "text-accent-blue" : "text-foreground/80")}>
 				{value}
 			</span>
@@ -120,7 +120,7 @@ export function ColumnStatsPanel({
 					variant="ghost"
 					size="icon-xs"
 					onClick={onClose}
-					className="h-5 w-5 text-foreground/30 hover:text-foreground ml-0.5"
+					className="h-5 w-5 text-foreground/70 hover:text-foreground ml-0.5"
 				>
 					<X size={11} />
 				</Button>
@@ -135,7 +135,7 @@ export function ColumnStatsPanel({
 
 			{/* Fill rate bar + pct */}
 			<div className="flex items-center gap-2 shrink-0">
-				<span className="text-[10px] text-foreground/40 uppercase tracking-wider font-medium">filled</span>
+				<span className="text-[10px] text-foreground/70 uppercase tracking-wider font-medium">filled</span>
 				<div className="flex items-center gap-1.5">
 					<div className="w-16 h-1.5 rounded-full bg-surface-3 overflow-hidden">
 						<div
@@ -177,14 +177,14 @@ export function ColumnStatsPanel({
 			{stats.topValues.length > 0 && (
 				<>
 					<Divider />
-					<span className="text-[10px] text-foreground/40 uppercase tracking-wider font-medium shrink-0">top</span>
+					<span className="text-[10px] text-foreground/70 uppercase tracking-wider font-medium shrink-0">top</span>
 					<div className="flex items-center gap-2">
 						{stats.topValues.map(({ value, pct }) => (
 							<div key={value} className="flex items-center gap-1 shrink-0 rounded bg-surface-3 border border-border-subtle px-1.5 py-0.5">
 								<span className="text-[11px] font-mono text-foreground/70 max-w-[100px] truncate">
 									{value}
 								</span>
-								<span className="text-[10px] text-foreground/40 tabular-nums">{pct}%</span>
+								<span className="text-[10px] text-foreground/70 tabular-nums">{pct}%</span>
 							</div>
 						))}
 					</div>

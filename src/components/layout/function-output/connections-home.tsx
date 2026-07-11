@@ -1,7 +1,8 @@
-import { ArrowRight, Database, Loader2, Pencil, Plus, Server, WifiOff } from "lucide-react";
+import { ArrowRight, Clock, Database, Loader2, Pencil, Plus, Server, Table2, WifiOff, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Kbd } from "@/components/ui/kbd";
+import { useAppStore } from "@/store/useAppStore";
 import {
 	Tooltip,
 	TooltipContent,
@@ -49,6 +50,7 @@ export function ConnectionsHome({
 	onEdit,
 	onConnect,
 	onDisconnect,
+	onOpenTable,
 	connectingIds = [],
 	cancellingIds = [],
 	onCancelConnect,
@@ -59,6 +61,7 @@ export function ConnectionsHome({
 	onEdit: (conn: ConnectionConfig) => void;
 	onConnect: (id: string) => void | Promise<void>;
 	onDisconnect?: (id: string) => void;
+	onOpenTable?: (connectionId: string, tableName: string, schema?: string) => void;
 	connectingIds?: string[];
 	cancellingIds?: string[];
 	onCancelConnect?: (id: string) => void;
@@ -78,22 +81,22 @@ export function ConnectionsHome({
 									Save a local profile, test availability, and open your database workspace without leaving this screen.
 								</p>
 							</div>
-							<div className="hidden size-14 shrink-0 items-center justify-center rounded-md border border-border-subtle bg-surface-2 text-foreground/40 md:flex">
+							<div className="hidden size-14 shrink-0 items-center justify-center rounded-md border border-border-subtle bg-surface-2 text-foreground/70 md:flex">
 								<Database size={22} />
 							</div>
 						</div>
 
 						<div className="mt-8 grid gap-3 md:grid-cols-3">
 							<div className="rounded-md border border-border-subtle bg-surface-2 px-4 py-3">
-								<p className="text-[11px] font-medium text-muted-foreground/66">Profiles</p>
+								<p className="text-[11px] font-medium text-muted-foreground">Profiles</p>
 								<p className="mt-1 text-lg font-semibold text-foreground">Local</p>
 							</div>
 							<div className="rounded-md border border-border-subtle bg-surface-2 px-4 py-3">
-								<p className="text-[11px] font-medium text-muted-foreground/66">Engines</p>
+								<p className="text-[11px] font-medium text-muted-foreground">Engines</p>
 								<p className="mt-1 text-lg font-semibold text-foreground">5 supported</p>
 							</div>
 							<div className="rounded-md border border-border-subtle bg-surface-2 px-4 py-3">
-								<p className="text-[11px] font-medium text-muted-foreground/66">Shortcuts</p>
+								<p className="text-[11px] font-medium text-muted-foreground">Shortcuts</p>
 								<p className="mt-1 flex items-center gap-1.5 text-lg font-semibold text-foreground">
 									<Kbd className="text-[10px]">⌘N</Kbd>
 									New
@@ -127,7 +130,7 @@ export function ConnectionsHome({
 										<p className="text-sm font-semibold text-foreground">
 											{getEngineLabel(type)}
 										</p>
-										<p className="text-[11px] text-muted-foreground/58">
+										<p className="text-[11px] text-muted-foreground">
 											URI or manual fields
 										</p>
 									</div>
@@ -144,14 +147,14 @@ export function ConnectionsHome({
 			{/* Header */}
 			<div className="sticky top-0 z-10 flex items-center justify-between gap-4 border-b border-border-subtle bg-surface-1 px-6 py-4">
 				<div className="flex min-w-0 items-center gap-3">
-					<div className="flex size-10 shrink-0 items-center justify-center rounded-md border border-border-subtle bg-surface-2 text-foreground/45">
+					<div className="flex size-10 shrink-0 items-center justify-center rounded-md border border-border-subtle bg-surface-2 text-foreground/70">
 						<Server size={18} />
 					</div>
 					<div className="min-w-0">
 						<h2 className="text-[15px] font-semibold text-foreground">
 							Connections
 						</h2>
-						<p className="mt-0.5 truncate text-[12px] text-foreground/54">
+						<p className="mt-0.5 truncate text-[12px] text-foreground/70">
 						{connectedIds.length > 0
 							? `${connectedIds.length} of ${connections.length} connected`
 							: `${connections.length} saved — not connected`}
@@ -168,6 +171,9 @@ export function ConnectionsHome({
 					<Kbd className="ml-1 text-[10px]">⌘N</Kbd>
 				</Button>
 			</div>
+			{/* Recent tables */}
+			<RecentTablesSection onOpenTable={onOpenTable} />
+
 			{/* Connection list */}
 			<div className="mx-auto flex max-w-5xl flex-col gap-2 px-6 py-5">
 				{connections.map((conn) => {
@@ -204,7 +210,7 @@ export function ConnectionsHome({
 													variant="outline"
 													className={cn(
 														"h-[18px] shrink-0 rounded-sm px-1.5 text-[9px] font-bold uppercase",
-														preset ? preset.activeClass : "bg-muted/50 border-border/50 text-muted-foreground/60",
+														preset ? preset.activeClass : "bg-muted/50 border-border/50 text-muted-foreground",
 													)}
 												>
 													{conn.group}
@@ -212,7 +218,7 @@ export function ConnectionsHome({
 											);
 										})()}
 									</div>
-									<p className="mt-1 truncate font-mono text-[12px] text-foreground/52">
+									<p className="mt-1 truncate font-mono text-[12px] text-foreground/70">
 										{url}
 									</p>
 								</div>
@@ -226,7 +232,7 @@ export function ConnectionsHome({
 										"h-7 shrink-0 gap-1.5 rounded-md px-2.5 text-[10px] font-bold uppercase",
 										isConnected
 											? "border-accent-green/30 bg-accent-green/10 text-accent-green"
-											: "border-border-subtle bg-surface-2 text-foreground/54",
+											: "border-border-subtle bg-surface-2 text-foreground/70",
 									)}
 								>
 									<span
@@ -245,7 +251,7 @@ export function ConnectionsHome({
 										variant="ghost"
 										size="icon-xs"
 										aria-label={`Edit ${conn.name || conn.host || "connection"}`}
-									className="size-7 rounded-sm text-foreground/46 hover:text-foreground"
+									className="size-7 rounded-sm text-foreground/70 hover:text-foreground"
 									onClick={() => onEdit(conn)}
 										>
 											<Pencil size={12} />
@@ -262,7 +268,7 @@ export function ConnectionsHome({
 										variant="ghost"
 										size="icon-xs"
 										aria-label={`Disconnect ${conn.name || conn.host || "connection"}`}
-									className="size-7 rounded-sm text-foreground/46 transition-colors hover:bg-destructive/10 hover:text-destructive"
+									className="size-7 rounded-sm text-foreground/70 transition-colors hover:bg-destructive/10 hover:text-destructive"
 									onClick={() =>
 												onDisconnect(conn.id)
 											}
@@ -305,4 +311,61 @@ export function ConnectionsHome({
 			</div>
 		</div>
 	);
+}
+
+function RecentTablesSection({ onOpenTable }: { onOpenTable?: (connectionId: string, tableName: string, schema?: string) => void }) {
+    const { recentTables, clearRecentTables, connectionFunctions } = useAppStore();
+    if (recentTables.length === 0) return null;
+    return (
+        <div className="mx-auto flex max-w-5xl flex-col gap-2 px-6 pt-5">
+            <div className="flex items-center justify-between gap-2">
+                <div className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-[0.14em] text-muted-foreground">
+                    <Clock size={11} />
+                    Recent tables
+                </div>
+                <Button
+                    variant="ghost"
+                    size="xs"
+                    onClick={clearRecentTables}
+                    className="h-5 text-[10px] text-muted-foreground hover:text-foreground"
+                >
+                    <X size={10} />
+                    Clear
+                </Button>
+            </div>
+            <div className="grid grid-cols-1 gap-2 md:grid-cols-2">
+                {recentTables.map((entry) => {
+                    const conn = useAppStore.getState().connections.find((c) => c.id === entry.connectionId);
+                    const Logo = conn ? DB_LOGO[conn.type] : undefined;
+                    const logoColor = conn ? DB_COLOR[conn.type] : "text-muted-foreground";
+                    const fn = Object.values(connectionFunctions[entry.connectionId] ?? {}).flat().find(
+                        (f) => f.type === "table" && f.tableName === entry.tableName && f.schema === entry.schema,
+                    );
+                    return (
+                        <button
+                            key={`${entry.connectionId}-${entry.tableName}-${entry.schema ?? ""}`}
+                            disabled={!fn || !onOpenTable}
+                            onClick={() => {
+                                if (fn && onOpenTable) onOpenTable(entry.connectionId, entry.tableName, entry.schema);
+                            }}
+                            className="group flex items-center gap-3 rounded-lg border border-border-subtle bg-surface-1 px-3 py-2.5 text-left transition-colors hover:border-border/70 hover:bg-surface-elevated disabled:opacity-50"
+                        >
+                            {Logo ? (
+                                <Logo className={cn("size-4 shrink-0", logoColor)} />
+                            ) : (
+                                <Table2 size={14} className="shrink-0 text-muted-foreground" />
+                            )}
+                            <div className="min-w-0 flex-1">
+                                <p className="truncate text-[13px] font-semibold text-foreground">{entry.tableName}</p>
+                                <p className="truncate text-[11px] text-muted-foreground">
+                                    {conn?.name ?? entry.connectionId}
+                                    {entry.schema ? <> · <span className="font-mono">{entry.schema}</span></> : null}
+                                </p>
+                            </div>
+                        </button>
+                    );
+                })}
+            </div>
+        </div>
+    );
 }

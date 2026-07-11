@@ -81,14 +81,14 @@ export function ImportPanel({
 			onDrop={handleDrop}
 		>
 			<div className="flex items-center justify-between">
-				<span className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground/50">
+				<span className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">
 					Import data into {tableName}
 				</span>
 				<Button
 					variant="ghost"
 					size="icon-xs"
 					onClick={onClose}
-					className="text-muted-foreground/40 hover:text-foreground"
+					className="text-muted-foreground hover:text-foreground"
 				>
 					<X size={10} />
 				</Button>
@@ -101,7 +101,7 @@ export function ImportPanel({
 						"flex flex-col items-center justify-center gap-1.5 rounded-md border-2 border-dashed py-4 transition-colors cursor-pointer",
 						isDragging
 							? "border-primary/50 bg-primary/5 text-primary"
-							: "border-border/60 text-muted-foreground/40 hover:border-border hover:text-muted-foreground/60",
+							: "border-border/60 text-muted-foreground hover:border-border hover:text-muted-foreground/60",
 					)}
 					onClick={() => fileRef.current?.click()}
 				>
@@ -116,7 +116,7 @@ export function ImportPanel({
 			)}
 
 			<div className="flex items-center gap-2">
-				<span className="text-[10px] font-mono text-muted-foreground/60">
+				<span className="text-[10px] font-mono text-muted-foreground">
 					Format:
 				</span>
 				<ToggleGroup
@@ -173,7 +173,7 @@ export function ImportPanel({
 				</span>
 			)}
 			{importPreview && (
-				<div className="text-[10px] font-mono text-muted-foreground/60">
+				<div className="text-[10px] font-mono text-muted-foreground">
 					Preview: {importPreview.rows.length} row(s), columns:{" "}
 					{importPreview.headers.join(", ")}
 				</div>

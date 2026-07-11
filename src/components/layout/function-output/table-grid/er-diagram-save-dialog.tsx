@@ -148,7 +148,7 @@ export function ERDiagramSaveDialog({
 						<button
 							type="button"
 							onClick={() => setShowSql(!showSql)}
-							className="flex items-center gap-1 text-[11px] font-semibold text-muted-foreground/70 hover:text-foreground transition-colors"
+							className="flex items-center gap-1 text-[11px] font-semibold text-muted-foreground hover:text-foreground transition-colors"
 						>
 							{showSql ? <ChevronDown size={12} /> : <ChevronRight size={12} />}
 							Generated SQL ({ddlStatements.length} statement{ddlStatements.length === 1 ? "" : "s"})
@@ -237,12 +237,12 @@ function Sections({
 				<span className={cn("rounded px-1.5 py-0.5 text-[10px]", bg, color)}>
 					{label}
 				</span>
-				<span className="text-muted-foreground/60">{count} change{count === 1 ? "" : "s"}</span>
+				<span className="text-muted-foreground">{count} change{count === 1 ? "" : "s"}</span>
 			</button>
 			{expanded && (
 				<ul className="mt-1 ml-5 space-y-0.5">
 					{items.map((item, i) => (
-						<li key={i} className="text-[10px] font-mono text-muted-foreground/70">
+						<li key={i} className="text-[10px] font-mono text-muted-foreground">
 							{item}
 						</li>
 					))}

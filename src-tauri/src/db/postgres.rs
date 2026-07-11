@@ -32,7 +32,11 @@ impl DatabaseDriver for PostgresDriver {
                 .username(config.user.as_deref().unwrap_or("postgres"))
                 .database(config.database.as_deref().unwrap_or("postgres"));
 
-            match config.password.as_deref().filter(|password| !password.is_empty()) {
+            match config
+                .password
+                .as_deref()
+                .filter(|password| !password.is_empty())
+            {
                 Some(password) => options.password(password),
                 None => options,
             }
@@ -351,6 +355,7 @@ impl DatabaseDriver for PostgresDriver {
                 columns: vec![],
                 rows: vec![],
                 execution_time_ms: duration,
+                ..Default::default()
             });
         }
 
@@ -362,6 +367,7 @@ impl DatabaseDriver for PostgresDriver {
                 columns: vec![],
                 rows: vec![],
                 execution_time_ms: duration,
+                ..Default::default()
             });
         }
 
@@ -409,6 +415,60 @@ impl DatabaseDriver for PostgresDriver {
                     serde_json::Value::String(dt.to_rfc3339())
                 } else if let Ok(json) = row.try_get::<serde_json::Value, _>(i) {
                     json
+                } else if let Ok(arr) = row.try_get::<Vec<serde_json::Value>, _>(i) {
+                    serde_json::Value::Array(arr)
+                } else if let Ok(arr) = row.try_get::<Vec<String>, _>(i) {
+                    serde_json::Value::Array(
+                        arr.into_iter().map(serde_json::Value::String).collect(),
+                    )
+                } else if let Ok(arr) = row.try_get::<Vec<i64>, _>(i) {
+                    serde_json::Value::Array(
+                        arr.into_iter()
+                            .map(|n| serde_json::Value::Number(n.into()))
+                            .collect(),
+                    )
+                } else if let Ok(arr) = row.try_get::<Vec<i32>, _>(i) {
+                    serde_json::Value::Array(
+                        arr.into_iter()
+                            .map(|n| serde_json::Value::Number(n.into()))
+                            .collect(),
+                    )
+                } else if let Ok(arr) = row.try_get::<Vec<i16>, _>(i) {
+                    serde_json::Value::Array(
+                        arr.into_iter()
+                            .map(|n| serde_json::Value::Number(n.into()))
+                            .collect(),
+                    )
+                } else if let Ok(arr) = row.try_get::<Vec<f64>, _>(i) {
+                    serde_json::Value::Array(
+                        arr.into_iter()
+                            .map(|f| {
+                                serde_json::Number::from_f64(f)
+                                    .map(serde_json::Value::Number)
+                                    .unwrap_or(serde_json::Value::Null)
+                            })
+                            .collect(),
+                    )
+                } else if let Ok(arr) = row.try_get::<Vec<f32>, _>(i) {
+                    serde_json::Value::Array(
+                        arr.into_iter()
+                            .map(|f| {
+                                serde_json::Number::from_f64(f as f64)
+                                    .map(serde_json::Value::Number)
+                                    .unwrap_or(serde_json::Value::Null)
+                            })
+                            .collect(),
+                    )
+                } else if let Ok(arr) = row.try_get::<Vec<bool>, _>(i) {
+                    serde_json::Value::Array(
+                        arr.into_iter().map(serde_json::Value::Bool).collect(),
+                    )
+                } else if let Ok(arr) = row.try_get::<Vec<uuid::Uuid>, _>(i) {
+                    serde_json::Value::Array(
+                        arr.into_iter()
+                            .map(|u| serde_json::Value::String(u.to_string()))
+                            .collect(),
+                    )
                 } else {
                     serde_json::Value::Null
                 };
@@ -421,6 +481,7 @@ impl DatabaseDriver for PostgresDriver {
             columns,
             rows: result_rows,
             execution_time_ms: duration,
+            ..Default::default()
         })
     }
 

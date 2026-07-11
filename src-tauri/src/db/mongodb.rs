@@ -327,6 +327,7 @@ impl DatabaseDriver for MongoDriver {
                     columns: vec!["result".to_string()],
                     rows: vec![serde_json::json!({"result": "OK"})],
                     execution_time_ms: duration,
+                    ..Default::default()
                 });
             }
         }
@@ -348,6 +349,7 @@ impl DatabaseDriver for MongoDriver {
                     columns: vec!["result".to_string()],
                     rows: vec![serde_json::json!({"result": "OK"})],
                     execution_time_ms: duration,
+                    ..Default::default()
                 });
             }
         }
@@ -405,6 +407,9 @@ impl DatabaseDriver for MongoDriver {
             columns,
             rows,
             execution_time_ms: start.elapsed().as_millis() as u64,
+            limit_warning: None,
+            limited: None,
+            row_limit: None,
         })
     }
 
@@ -476,6 +481,9 @@ impl DatabaseDriver for MongoDriver {
             columns,
             rows,
             execution_time_ms: start.elapsed().as_millis() as u64,
+            limit_warning: None,
+            limited: None,
+            row_limit: None,
         })
     }
 }

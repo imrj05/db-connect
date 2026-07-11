@@ -110,6 +110,9 @@ export interface QueryResult {
   rows: any[];
   executionTimeMs: number;
   error?: string;
+  limitWarning?: string;
+  limited?: boolean;
+  rowLimit?: number;
 }
 
 // ---------- dbcooper function registry types ----------

@@ -60,11 +60,11 @@ export function RowDetailPanel({
 			{/* Header */}
 			<div className="h-9 px-3 flex items-center justify-between border-b border-border shrink-0 gap-2">
 				<div className="flex items-center gap-1.5 min-w-0">
-					<span className="text-[9px] font-bold uppercase tracking-[0.12em] text-muted-foreground/50 shrink-0">
+					<span className="text-[9px] font-bold uppercase tracking-[0.12em] text-muted-foreground shrink-0">
 						Row {rowIndex + 1}
 					</span>
 					{tableName && (
-						<span className="text-[9px] text-muted-foreground/40 truncate font-mono">
+						<span className="text-[9px] text-muted-foreground truncate font-mono">
 							— {tableName}
 						</span>
 					)}
@@ -75,7 +75,7 @@ export function RowDetailPanel({
 						size="icon-xs"
 						disabled={!hasPrev}
 						onClick={onPrev}
-						className="h-5 w-5 text-muted-foreground/50 hover:text-foreground"
+						className="h-5 w-5 text-muted-foreground hover:text-foreground"
 						title="Previous row"
 					>
 						<ChevronUp size={10} />
@@ -85,7 +85,7 @@ export function RowDetailPanel({
 						size="icon-xs"
 						disabled={!hasNext}
 						onClick={onNext}
-						className="h-5 w-5 text-muted-foreground/50 hover:text-foreground"
+						className="h-5 w-5 text-muted-foreground hover:text-foreground"
 						title="Next row"
 					>
 						<ChevronDown size={10} />
@@ -94,7 +94,7 @@ export function RowDetailPanel({
 						variant="ghost"
 						size="icon-xs"
 						onClick={copyRow}
-						className="h-5 w-5 text-muted-foreground/50 hover:text-foreground"
+						className="h-5 w-5 text-muted-foreground hover:text-foreground"
 						title="Copy all fields"
 					>
 						<Copy size={9} />
@@ -103,7 +103,7 @@ export function RowDetailPanel({
 						variant="ghost"
 						size="icon-xs"
 						onClick={onClose}
-						className="h-5 w-5 text-muted-foreground/40 hover:text-foreground"
+						className="h-5 w-5 text-muted-foreground hover:text-foreground"
 					>
 						<X size={9} />
 					</Button>
@@ -132,20 +132,20 @@ export function RowDetailPanel({
 								<div className="flex items-center justify-between gap-1 mb-0.5">
 									<div className="flex items-center gap-1 min-w-0">
 										{isPk && (
-											<Key size={8} className="shrink-0 text-amber-500/70" />
+											<Key size={8} className="shrink-0 text-warning/70" />
 										)}
 										<span className="text-[10px] font-mono font-semibold text-foreground/70 truncate">
 											{col}
 										</span>
 										{meta?.dataType && (
-                                            <span className="shrink-0 rounded-sm border border-border/50 bg-muted/40 px-1 py-px text-[8px] font-mono text-muted-foreground/50 leading-none">
+                                            <span className="shrink-0 rounded-sm border border-border/50 bg-muted/40 px-1 py-px text-[9px] font-mono text-muted-foreground leading-none">
 												{meta.dataType.replace(/\(.*\)/, "").toUpperCase().slice(0, 8)}
 											</span>
 										)}
 									</div>
 									<button
 										onClick={() => copyField(col)}
-										className="shrink-0 opacity-0 group-hover:opacity-100 transition-opacity text-muted-foreground/50 hover:text-foreground"
+										className="shrink-0 opacity-0 group-hover:opacity-100 transition-opacity text-muted-foreground hover:text-foreground"
 										title={`Copy ${col}`}
 									>
 										<Copy size={9} />
@@ -153,7 +153,7 @@ export function RowDetailPanel({
 								</div>
 								{/* Value */}
 								{isNull ? (
-									<span className="text-[11px] font-mono italic text-muted-foreground/35">
+									<span className="text-[11px] font-mono italic text-muted-foreground">
 										NULL
 									</span>
 								) : (
@@ -174,7 +174,7 @@ export function RowDetailPanel({
 
 			{/* Footer row count */}
 			<div className="h-7 px-3 flex items-center border-t border-border shrink-0">
-				<span className="text-[9px] text-muted-foreground/40 font-mono">
+				<span className="text-[9px] text-muted-foreground font-mono">
 					{rowIndex + 1} / {totalRows} rows on page
 				</span>
 			</div>

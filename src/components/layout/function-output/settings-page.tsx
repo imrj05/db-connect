@@ -1,4 +1,4 @@
-import { startTransition, type ReactNode, useEffect, useRef, useState } from "react";
+import { startTransition, type ReactNode, useEffect, useMemo, useRef, useState } from "react";
 import {
     CalendarClock,
     Check,
@@ -83,6 +83,7 @@ import {
 } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Input } from "@/components/ui/input";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { getSystemFonts, DB_FONT_MONO, DB_FONT_MONO_STACK, DB_FONT_SANS, DB_FONT_SANS_STACK } from "@/lib/fonts";
 import { licenseDeactivate, licenseGetStored, type StoredLicenseState } from "@/lib/license";
@@ -94,8 +95,6 @@ import {
     useAppStore,
     type AppSettings,
     type EditorThemeOption,
-    type UiDarkThemeOption,
-    type UiLightThemeOption,
 } from "@/store/useAppStore";
 import packageJson from "../../../../package.json";
 import type { UpdateInfo } from "@/components/layout/update-dialog";
@@ -159,45 +158,6 @@ const NAV: { id: Section; label: string; description: string; icon: LucideIcon }
     },
 ];
 
-const UI_DARK_THEMES: { value: UiDarkThemeOption; label: string }[] = [
-    { value: "dark", label: "Dark" },
-    { value: "dim", label: "Dim" },
-    { value: "midnight", label: "Midnight" },
-    { value: "catppuccin-mocha", label: "Catppuccin Mocha" },
-    { value: "nord", label: "Nord" },
-    { value: "dracula", label: "Dracula" },
-    { value: "one-dark", label: "One Dark" },
-    { value: "github-dark", label: "GitHub Dark" },
-    { value: "slack-dark", label: "Slack Dark" },
-    { value: "linear", label: "Linear" },
-    { value: "voyage", label: "Voyage" },
-    { value: "astro", label: "Astro" },
-    { value: "night-owl", label: "Night Owl" },
-    { value: "borland", label: "Borland" },
-    { value: "metals", label: "Metals" },
-    { value: "cursor-dark", label: "Cursor Dark" },
-    { value: "ember", label: "Ember" },
-];
-
-const UI_LIGHT_THEMES: { value: UiLightThemeOption; label: string }[] = [
-    { value: "light", label: "Light" },
-    { value: "sunrise", label: "Sunrise" },
-    { value: "cream", label: "Cream" },
-    { value: "catppuccin-latte", label: "Catppuccin Latte" },
-    { value: "nord-light", label: "Nord Light" },
-    { value: "github-light", label: "GitHub Light" },
-    { value: "slack-zen", label: "Slack Zen" },
-    { value: "linear-light", label: "Linear Light" },
-    { value: "voyage-light", label: "Voyage Light" },
-    { value: "astro-light", label: "Astro Light" },
-    { value: "spring", label: "Spring" },
-    { value: "monokai-light", label: "Monokai Light" },
-    { value: "solarized-light", label: "Solarized Light" },
-    { value: "dracula-light", label: "Dracula Light" },
-    { value: "cursor", label: "Cursor" },
-    { value: "ember", label: "Ember" },
-];
-
 const EDITOR_DARK_THEMES: { value: EditorThemeOption; label: string }[] = [
     { value: "dark-one-dark", label: "One Dark" },
     { value: "dark-monokai", label: "Monokai" },
@@ -211,6 +171,24 @@ const EDITOR_LIGHT_THEMES: { value: EditorThemeOption; label: string }[] = [
     { value: "light-white-pine", label: "White Pine" },
     { value: "light-soft-white", label: "Soft White" },
 ];
+
+const QUERY_SQL_SIZE_OPTIONS = [
+    { value: 262_144, label: "256 KB" },
+    { value: 524_288, label: "512 KB" },
+    { value: 1_048_576, label: "1 MB" },
+    { value: 5_242_880, label: "5 MB" },
+    { value: 10_485_760, label: "10 MB" },
+];
+
+const QUERY_ROW_LIMIT_OPTIONS = [1_000, 5_000, 10_000, 50_000, 100_000];
+
+function formatBytes(bytes: number): string {
+    const match = QUERY_SQL_SIZE_OPTIONS.find((option) => option.value === bytes);
+    if (match) return match.label;
+    if (bytes >= 1_048_576) return `${Number((bytes / 1_048_576).toFixed(1))} MB`;
+    if (bytes >= 1024) return `${Math.round(bytes / 1024)} KB`;
+    return `${bytes} bytes`;
+}
 
 const SETTINGS_FIELD_CLASS = "gap-4 border-b border-border/50 pb-4 last:border-0 last:pb-0";
 const SETTINGS_CONTROL_CLASS = "flex w-full min-w-0 shrink-0 justify-start";
@@ -378,7 +356,6 @@ function AppearanceSection() {
 
     const sansFonts = systemFonts.filter((font) => !font.isMono);
     const monoFonts = systemFonts.filter((font) => font.isMono);
-    const surfaceThemes = theme === "dark" ? UI_DARK_THEMES : UI_LIGHT_THEMES;
 
     return (
         <div className="flex flex-col gap-6">
@@ -401,6 +378,7 @@ function AppearanceSection() {
                             </FieldContent>
                             <div className={SETTINGS_CONTROL_CLASS}>
                                 <ToggleGroup
+                                    aria-label="App theme"
                                     type="single"
                                     variant="outline"
                                     size="sm"
@@ -428,41 +406,6 @@ function AppearanceSection() {
 
                         <Field orientation="responsive" className={SETTINGS_FIELD_CLASS}>
                             <FieldContent>
-                                <FieldTitle>{theme === "dark" ? "Dark mode theme" : "Light mode theme"}</FieldTitle>
-                                <FieldDescription>
-                                    Pick the {theme === "dark" ? "dark" : "light"} surface variant used throughout the app.
-                                </FieldDescription>
-                            </FieldContent>
-                            <div className={SETTINGS_CONTROL_CLASS}>
-                                <Select
-                                    value={theme === "dark" ? appSettings.uiDarkTheme : appSettings.uiLightTheme}
-                                    onValueChange={(value) => {
-                                        if (theme === "dark") {
-                                            updateAppSetting("uiDarkTheme", value as UiDarkThemeOption);
-                                            return;
-                                        }
-
-                                        updateAppSetting("uiLightTheme", value as UiLightThemeOption);
-                                    }}
-                                >
-                                    <SelectTrigger className={SETTINGS_WIDE_CONTROL_CLASS}>
-                                        <SelectValue />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                        <SelectGroup>
-                                            {surfaceThemes.map((option) => (
-                                                <SelectItem key={option.value} value={option.value}>
-                                                    {option.label}
-                                                </SelectItem>
-                                            ))}
-                                        </SelectGroup>
-                                    </SelectContent>
-                                </Select>
-                            </div>
-                        </Field>
-
-                        <Field orientation="responsive" className={SETTINGS_FIELD_CLASS}>
-                            <FieldContent>
                                 <FieldTitle>UI zoom</FieldTitle>
                                 <FieldDescription>Scale the entire workspace up or down.</FieldDescription>
                             </FieldContent>
@@ -472,6 +415,7 @@ function AppearanceSection() {
                                     variant="outline"
                                     size="sm"
                                     spacing={1}
+                                    aria-label="UI zoom"
                                     value={String(appSettings.uiZoom)}
                                     onValueChange={(value) => {
                                         if (!value) {
@@ -587,6 +531,7 @@ function EditorSection() {
                                     variant="outline"
                                     size="sm"
                                     spacing={1}
+                                    aria-label="Editor font size"
                                     value={String(appSettings.editorFontSize)}
                                     onValueChange={(value) => {
                                         if (!value) {
@@ -625,7 +570,7 @@ function EditorSection() {
                                     value={appSettings.editorDarkTheme}
                                     onValueChange={(value) => updateAppSetting("editorDarkTheme", value as EditorThemeOption)}
                                 >
-                                    <SelectTrigger className={SETTINGS_WIDE_CONTROL_CLASS}>
+                                    <SelectTrigger aria-label="Dark editor theme" className={SETTINGS_WIDE_CONTROL_CLASS}>
                                         <SelectValue />
                                     </SelectTrigger>
                                     <SelectContent>
@@ -651,7 +596,7 @@ function EditorSection() {
                                     value={appSettings.editorLightTheme}
                                     onValueChange={(value) => updateAppSetting("editorLightTheme", value as EditorThemeOption)}
                                 >
-                                    <SelectTrigger className={SETTINGS_WIDE_CONTROL_CLASS}>
+                                    <SelectTrigger aria-label="Light editor theme" className={SETTINGS_WIDE_CONTROL_CLASS}>
                                         <SelectValue />
                                     </SelectTrigger>
                                     <SelectContent>
@@ -684,6 +629,7 @@ function EditorSection() {
                             </FieldContent>
                             <div className={SETTINGS_CONTROL_CLASS}>
                                 <Switch
+                                    aria-label="Word wrap"
                                     checked={appSettings.editorWordWrap}
                                     onCheckedChange={(v) => updateAppSetting("editorWordWrap", v)}
                                 />
@@ -700,6 +646,7 @@ function EditorSection() {
                                     variant="outline"
                                     size="sm"
                                     spacing={1}
+                                    aria-label="Tab size"
                                     value={String(appSettings.editorTabSize)}
                                     onValueChange={(value) => {
                                         if (!value) return;
@@ -716,10 +663,14 @@ function EditorSection() {
             </Card>
             <Card>
                 <CardHeader>
-                    <CardTitle>Query execution</CardTitle>
-                    <CardDescription>Timeout applied to every query. Long-running queries are cancelled after this threshold.</CardDescription>
+                    <CardTitle>Query safety limits</CardTitle>
+                    <CardDescription>Protect the app and connected databases from oversized SQL, long-running queries, and very large result sets.</CardDescription>
                     <CardAction>
-                        <Badge variant="secondary">{appSettings.queryTimeoutSecs}s</Badge>
+                        <div className="flex flex-wrap gap-1.5">
+                            <Badge variant="secondary">{appSettings.queryTimeoutSecs}s</Badge>
+                            <Badge variant="secondary">{formatBytes(appSettings.queryMaxSqlBytes)}</Badge>
+                            <Badge variant="secondary">{appSettings.queryMaxResultRows.toLocaleString()} rows</Badge>
+                        </div>
                     </CardAction>
                 </CardHeader>
                 <CardContent>
@@ -727,7 +678,7 @@ function EditorSection() {
                         <Field orientation="responsive" className={SETTINGS_FIELD_CLASS}>
                             <FieldContent>
                                 <FieldTitle>Query timeout</FieldTitle>
-                                <FieldDescription>Maximum seconds a single query may run before being cancelled.</FieldDescription>
+                                <FieldDescription>Maximum seconds a single query may run before timing out.</FieldDescription>
                             </FieldContent>
                             <div className={SETTINGS_CONTROL_CLASS}>
                                 <ToggleGroup
@@ -735,6 +686,7 @@ function EditorSection() {
                                     variant="outline"
                                     size="sm"
                                     spacing={1}
+                                    aria-label="Query timeout"
                                     value={String(appSettings.queryTimeoutSecs)}
                                     onValueChange={(value) => {
                                         if (!value) return;
@@ -743,6 +695,54 @@ function EditorSection() {
                                 >
                                     {[10, 30, 60, 120, 300].map((s) => (
                                         <ToggleGroupItem key={s} value={String(s)}>{s}s</ToggleGroupItem>
+                                    ))}
+                                </ToggleGroup>
+                            </div>
+                        </Field>
+                        <Field orientation="responsive" className={SETTINGS_FIELD_CLASS}>
+                            <FieldContent>
+                                <FieldTitle>Max SQL size</FieldTitle>
+                                <FieldDescription>SQL editor queries larger than this are blocked before execution.</FieldDescription>
+                            </FieldContent>
+                            <div className={SETTINGS_CONTROL_CLASS}>
+                                <ToggleGroup
+                                    type="single"
+                                    variant="outline"
+                                    size="sm"
+                                    spacing={1}
+                                    aria-label="Max SQL size"
+                                    value={String(appSettings.queryMaxSqlBytes)}
+                                    onValueChange={(value) => {
+                                        if (!value) return;
+                                        updateAppSetting("queryMaxSqlBytes", Number(value));
+                                    }}
+                                >
+                                    {QUERY_SQL_SIZE_OPTIONS.map((option) => (
+                                        <ToggleGroupItem key={option.value} value={String(option.value)}>{option.label}</ToggleGroupItem>
+                                    ))}
+                                </ToggleGroup>
+                            </div>
+                        </Field>
+                        <Field orientation="responsive" className={SETTINGS_FIELD_CLASS}>
+                            <FieldContent>
+                                <FieldTitle>Max result rows</FieldTitle>
+                                <FieldDescription>Query and table results are capped to this many rows before rendering.</FieldDescription>
+                            </FieldContent>
+                            <div className={SETTINGS_CONTROL_CLASS}>
+                                <ToggleGroup
+                                    type="single"
+                                    variant="outline"
+                                    size="sm"
+                                    spacing={1}
+                                    aria-label="Max result rows"
+                                    value={String(appSettings.queryMaxResultRows)}
+                                    onValueChange={(value) => {
+                                        if (!value) return;
+                                        updateAppSetting("queryMaxResultRows", Number(value));
+                                    }}
+                                >
+                                    {QUERY_ROW_LIMIT_OPTIONS.map((rows) => (
+                                        <ToggleGroupItem key={rows} value={String(rows)}>{rows.toLocaleString()}</ToggleGroupItem>
                                     ))}
                                 </ToggleGroup>
                             </div>
@@ -780,6 +780,7 @@ function TableSection() {
                                     variant="outline"
                                     size="sm"
                                     spacing={1}
+                                    aria-label="Rows per page"
                                     value={String(appSettings.tablePageSize)}
                                     onValueChange={(value) => {
                                         if (!value) {
@@ -821,6 +822,7 @@ function TableSection() {
                                     variant="outline"
                                     size="sm"
                                     spacing={1}
+                                    aria-label="Row density"
                                     value={appSettings.rowDensity}
                                     onValueChange={(value) => {
                                         if (!value) return;
@@ -1331,6 +1333,7 @@ function ExperimentalSection() {
                                     </FieldDescription>
                                 </div>
                                 <Switch
+                                    aria-label="Schema editor"
                                     checked={appSettings.experimentalSchemaEditor}
                                     onCheckedChange={(v) => updateAppSetting("experimentalSchemaEditor", v)}
                                 />
@@ -1367,6 +1370,7 @@ function PrivacySection() {
                         </FieldContent>
                         <div className={SETTINGS_CONTROL_CLASS}>
                             <Switch
+                                aria-label="Error reporting"
                                 checked={appSettings.errorReportingEnabled}
                                 onCheckedChange={(v) => updateAppSetting("errorReportingEnabled", v)}
                             />
@@ -1382,6 +1386,7 @@ function PrivacySection() {
                         </FieldContent>
                         <div className={SETTINGS_CONTROL_CLASS}>
                             <Switch
+                                aria-label="Anonymous telemetry"
                                 checked={appSettings.anonymousTelemetryEnabled}
                                 onCheckedChange={(v) => updateAppSetting("anonymousTelemetryEnabled", v)}
                             />
@@ -1596,7 +1601,18 @@ function KeybindingsSection() {
 export function SettingsPage({ onActivate }: { onActivate?: () => void }) {
     const { setActiveView } = useAppStore();
     const [activeSection, setActiveSection] = useState<Section>("appearance");
-    const activeNav = NAV.find((section) => section.id === activeSection) ?? NAV[0];
+    const [searchQuery, setSearchQuery] = useState("");
+    const filteredNav = useMemo(() => {
+        const q = searchQuery.trim().toLowerCase();
+        if (!q) return NAV;
+        return NAV.filter(
+            (item) =>
+                item.label.toLowerCase().includes(q) ||
+                item.description.toLowerCase().includes(q) ||
+                item.id.toLowerCase().includes(q),
+        );
+    }, [searchQuery]);
+    const activeNav = filteredNav.find((section) => section.id === activeSection) ?? filteredNav[0] ?? NAV[0];
     const ActiveIcon = activeNav.icon;
 
     const handleSectionChange = (value: string) => {
@@ -1624,14 +1640,25 @@ export function SettingsPage({ onActivate }: { onActivate?: () => void }) {
 
                 <div className="min-w-0 flex-1">
                     <p className="text-[15px] font-semibold tracking-tight text-foreground">Settings</p>
-                    <p className="text-[12px] text-muted-foreground/70">
+                    <p className="text-[12px] text-muted-foreground">
                         Adjust appearance, editor behavior, AI, storage, licensing, and keybindings.
                     </p>
                 </div>
 
+                <div className="hidden md:block w-64">
+                    <Input
+                        type="search"
+                        aria-label="Search settings"
+                        value={searchQuery}
+                        onChange={(e) => setSearchQuery(e.target.value)}
+                        placeholder="Search settings…"
+                        className="h-8 text-[12px]"
+                    />
+                </div>
+
                 <div className="w-48 md:hidden">
                     <Select value={activeSection} onValueChange={handleSectionChange}>
-                        <SelectTrigger size="sm" className="w-full">
+                        <SelectTrigger aria-label="Settings section" size="sm" className="w-full">
                             <SelectValue />
                         </SelectTrigger>
                         <SelectContent>
@@ -1655,11 +1682,11 @@ export function SettingsPage({ onActivate }: { onActivate?: () => void }) {
             >
                 <aside className="hidden w-56 shrink-0 border-r border-border-subtle bg-surface-1 md:flex md:flex-col">
                     <div className="px-5 pb-2 pt-6">
-                        <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-muted-foreground/50">Categories</p>
+                        <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-muted-foreground">Categories</p>
                     </div>
 
                     <TabsList variant="line" className="h-auto w-full flex-col items-stretch gap-1 bg-transparent px-3 pb-4">
-                        {NAV.map((item) => {
+                        {filteredNav.map((item) => {
                             const Icon = item.icon;
                             const isActive = activeSection === item.id;
 
@@ -1679,7 +1706,7 @@ export function SettingsPage({ onActivate }: { onActivate?: () => void }) {
                                     <Icon
                                         className={cn(
                                             "size-4 shrink-0 transition-colors",
-                                            isActive ? "text-foreground" : "text-muted-foreground/60",
+                                            isActive ? "text-foreground" : "text-muted-foreground",
                                         )}
                                     />
                                     {item.label}

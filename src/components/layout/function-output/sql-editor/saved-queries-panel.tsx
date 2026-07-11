@@ -25,6 +25,7 @@ import {
 import { SavedQuery } from "@/types";
 import { useAppStore } from "@/store/useAppStore";
 import { cn } from "@/lib/utils";
+import { EmptyState } from "@/components/ui/empty-state";
 
 const ALL = "__all__";
 const NONE = "__none__";
@@ -83,7 +84,7 @@ export function SavedQueriesPanel({
 			{/* Folder sidebar */}
 			<div className="w-[120px] shrink-0 border-r border-border flex flex-col overflow-hidden">
 				<div className="px-2 py-1.5 border-b border-border">
-					<span className="text-[9px] font-bold uppercase tracking-[0.12em] text-muted-foreground/50">
+					<span className="text-[9px] font-bold uppercase tracking-[0.12em] text-muted-foreground">
 						Folders
 					</span>
 				</div>
@@ -175,15 +176,16 @@ export function SavedQueriesPanel({
 			{/* Query list */}
 			<div className="flex-1 flex flex-col min-w-0 overflow-hidden">
 				{displayed.length === 0 ? (
-					<div className="flex flex-col items-center justify-center h-full text-muted-foreground/30 gap-2">
-						<Bookmark size={20} className="opacity-30" />
-						<p className="text-[10px] font-mono">No saved queries</p>
-						<p className="text-[9px] text-muted-foreground/50 text-center px-4">
-							{selectedFolder === ALL
+					<EmptyState
+						icon={Bookmark}
+						title="No saved queries"
+						description={
+							selectedFolder === ALL
 								? "Use the save button in the Editor tab"
-								: "No queries in this folder"}
-						</p>
-					</div>
+								: "No queries in this folder"
+						}
+						className="min-h-0"
+					/>
 				) : (
 					<div className="flex-1 overflow-auto scrollbar-thin">
 						{displayed.map((sq) => (
@@ -226,7 +228,7 @@ export function SavedQueriesPanel({
 												<Button
 													variant="ghost"
 													size="icon-xs"
-													className="size-5 text-muted-foreground/40 hover:text-foreground"
+													className="size-5 text-muted-foreground hover:text-foreground"
 												>
 													<MoreHorizontal size={10} />
 												</Button>
@@ -278,13 +280,13 @@ export function SavedQueriesPanel({
 								</div>
 								{sq.folder && selectedFolder === ALL && (
 									<div className="flex items-center gap-1 mb-0.5">
-										<ChevronRight size={8} className="text-muted-foreground/30" />
-										<span className="text-[9px] text-muted-foreground/40 font-medium">
+										<ChevronRight size={8} className="text-muted-foreground" />
+										<span className="text-[9px] text-muted-foreground font-medium">
 											{sq.folder}
 										</span>
 									</div>
 								)}
-								<pre className="text-[10px] font-mono text-muted-foreground/50 truncate">
+								<pre className="text-[10px] font-mono text-muted-foreground truncate">
 									{sq.sql.slice(0, 120)}
 								</pre>
 							</div>

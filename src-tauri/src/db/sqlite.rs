@@ -248,6 +248,7 @@ impl DatabaseDriver for SqliteDriver {
                 columns: vec![],
                 rows: vec![],
                 execution_time_ms: duration,
+                ..Default::default()
             });
         }
 
@@ -283,6 +284,7 @@ impl DatabaseDriver for SqliteDriver {
             columns,
             rows: result_rows,
             execution_time_ms: duration,
+            ..Default::default()
         })
     }
 

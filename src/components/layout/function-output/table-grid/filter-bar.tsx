@@ -155,7 +155,7 @@ export function FilterBar({
                 className="h-8 text-[12px] flex-[2] min-w-[170px] bg-surface-elevated/94"
               />
             ) : (
-              <div className="h-8 flex-[2] min-w-[170px] flex items-center text-[12px] text-foreground/52 italic px-2.5">
+              <div className="h-8 flex-[2] min-w-[170px] flex items-center text-[12px] text-foreground/70 italic px-2.5">
                 No value needed
               </div>
             )}
@@ -168,7 +168,7 @@ export function FilterBar({
                     variant="ghost"
                     size="icon-xs"
                     onClick={() => onRemoveFilter(f.id)}
-                  className="h-8 w-8 text-foreground/56 hover:text-destructive hover:bg-destructive/10"
+                  className="h-8 w-8 text-foreground/70 hover:text-destructive hover:bg-destructive/10"
                   >
                     <X size={14} />
                   </Button>
@@ -177,7 +177,7 @@ export function FilterBar({
                   variant="ghost"
                   size="icon-xs"
                   onClick={onAddFilter}
-                  className="h-8 w-8 text-foreground/56 hover:text-foreground hover:bg-surface-3"
+                  className="h-8 w-8 text-foreground/70 hover:text-foreground hover:bg-surface-3"
                 >
                   <Plus size={14} />
                 </Button>
@@ -202,7 +202,7 @@ export function FilterBar({
                   variant="ghost"
                   size="icon-xs"
                   onClick={() => onRemoveFilter(f.id)}
-                  className="h-8 w-8 text-foreground/56 hover:text-destructive hover:bg-destructive/10"
+                  className="h-8 w-8 text-foreground/70 hover:text-destructive hover:bg-destructive/10"
                 >
                   <X size={14} />
                 </Button>

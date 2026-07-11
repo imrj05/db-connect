@@ -22,6 +22,30 @@ import { tauriApi } from "@/lib/tauri-api";
 import { toast } from "sonner";
 import { DB_FONT_SANS, DB_FONT_MONO } from "@/lib/fonts";
 
+export interface RecentTable {
+  connectionId: string;
+  tableName: string;
+  schema?: string;
+  openedAt: number;
+}
+
+const RECENT_TABLES_KEY = "db_connect_recent_tables_v1";
+const RECENT_TABLES_MAX = 10;
+
+function loadRecentTables(): RecentTable[] {
+  try {
+    const raw = localStorage.getItem(RECENT_TABLES_KEY);
+    if (raw) return JSON.parse(raw) as RecentTable[];
+  } catch { /* ignore */ }
+  return [];
+}
+
+function saveRecentTables(tables: RecentTable[]) {
+  try {
+    localStorage.setItem(RECENT_TABLES_KEY, JSON.stringify(tables.slice(0, RECENT_TABLES_MAX)));
+  } catch { /* ignore */ }
+}
+
 // Helper to create a default empty filter
 function createDefaultFilter(): FilterCondition {
   return {
@@ -75,43 +99,6 @@ export type EditorThemeOption =
   | "light-white-pine"
   | "light-soft-white";
 
-export type UiDarkThemeOption =
-  | "dark"
-  | "dim"
-  | "midnight"
-  | "catppuccin-mocha"
-  | "nord"
-  | "dracula"
-  | "one-dark"
-  | "github-dark"
-  | "slack-dark"
-  | "linear"
-  | "voyage"
-  | "astro"
-  | "night-owl"
-  | "borland"
-  | "metals"
-  | "cursor-dark"
-  | "ember";
-
-export type UiLightThemeOption =
-  | "light"
-  | "sunrise"
-  | "cream"
-  | "catppuccin-latte"
-  | "nord-light"
-  | "github-light"
-  | "slack-zen"
-  | "linear-light"
-  | "voyage-light"
-  | "astro-light"
-  | "spring"
-  | "monokai-light"
-  | "solarized-light"
-  | "dracula-light"
-  | "cursor"
-  | "ember";
-
 export interface AppSettings {
   editorFontSize: 12 | 13 | 14 | 16;
   editorWordWrap: boolean;
@@ -120,12 +107,12 @@ export interface AppSettings {
   uiZoom: 100 | 110 | 125 | 140 | 150;
   editorDarkTheme: EditorThemeOption;
   editorLightTheme: EditorThemeOption;
-  uiDarkTheme: UiDarkThemeOption;
-  uiLightTheme: UiLightThemeOption;
   uiFontFamily: string;
   monoFontFamily: string;
   rowDensity: "compact" | "default" | "comfortable";
   queryTimeoutSecs: number;
+  queryMaxSqlBytes: number;
+  queryMaxResultRows: number;
   /** Default directory used as the starting location in the Save dialog when exporting diagrams/images. Empty string means "no preference" (use OS default). */
   diagramExportDir: string;
   /** Enable experimental schema editor in the ER diagram view. */
@@ -144,12 +131,12 @@ const DEFAULT_SETTINGS: AppSettings = {
   uiZoom: 125,
   editorDarkTheme: "dark-one-dark",
   editorLightTheme: "light-github",
-  uiDarkTheme: "dark",
-  uiLightTheme: "light",
   uiFontFamily: DB_FONT_SANS,
   monoFontFamily: DB_FONT_MONO,
   rowDensity: "default",
   queryTimeoutSecs: 30,
+  queryMaxSqlBytes: 1_048_576,
+  queryMaxResultRows: 10_000,
   diagramExportDir: "",
   experimentalSchemaEditor: false,
   errorReportingEnabled: true,
@@ -166,8 +153,6 @@ function loadSettings(): AppSettings {
         ...parsed,
         editorDarkTheme: parsed.editorDarkTheme ?? DEFAULT_SETTINGS.editorDarkTheme,
         editorLightTheme: parsed.editorLightTheme ?? DEFAULT_SETTINGS.editorLightTheme,
-        uiDarkTheme: parsed.uiDarkTheme ?? DEFAULT_SETTINGS.uiDarkTheme,
-        uiLightTheme: parsed.uiLightTheme ?? DEFAULT_SETTINGS.uiLightTheme,
       };
     }
   } catch { /* ignore */ }
@@ -176,6 +161,21 @@ function loadSettings(): AppSettings {
 
 function saveSettings(s: AppSettings) {
   localStorage.setItem(SETTINGS_KEY, JSON.stringify(s));
+}
+
+const textEncoder = new TextEncoder();
+
+function formatBytes(bytes: number): string {
+  if (bytes >= 1_048_576) return `${Number((bytes / 1_048_576).toFixed(1))} MB`;
+  if (bytes >= 1024) return `${Math.round(bytes / 1024)} KB`;
+  return `${bytes} bytes`;
+}
+
+function validateSqlSize(sql: string, maxBytes: number): boolean {
+  const actualBytes = textEncoder.encode(sql).length;
+  if (actualBytes <= maxBytes) return true;
+  toast.error(`Query is ${formatBytes(actualBytes)}, above your ${formatBytes(maxBytes)} safety limit.`);
+  return false;
 }
 
 interface LayoutState { sidebarCollapsed: boolean; dbTabsCollapsed: boolean; queryLogOpen: boolean; }
@@ -219,6 +219,7 @@ interface AppState {
   openDatabases: Record<string, string[]>; // connectionId → explicitly opened databases (shown as tabs)
   connectionLatency: Record<string, number | null>; // connectionId → last ping ms (null = unknown)
   connectionConnectedAt: Record<string, number>; // connectionId → timestamp (ms) when connected
+  recentTables: RecentTable[]; // recently opened tables, persisted
 
   // ---- Active function invocation ----
   activeFunction: ConnectionFunction | null;
@@ -236,6 +237,7 @@ interface AppState {
   editingConnection: ConnectionConfig | null;
   theme: "dark" | "light";
   isLoading: boolean;
+  runningQueryIds: Record<string, string>;
 
   // ---- Actions: persistence ----
   loadConnections: () => Promise<void>;
@@ -252,6 +254,8 @@ interface AppState {
   refreshDatabases: (connectionId: string) => Promise<void>;
   refreshTables: (connectionId: string, database?: string) => Promise<void>;
   loadTableColumns: (connectionId: string, tableName: string) => Promise<void>;
+  recordRecentTable: (connectionId: string, tableName: string, schema?: string) => void;
+  clearRecentTables: () => void;
 
   // ---- Result tabs ----
   tabs: ResultTab[];
@@ -287,6 +291,7 @@ interface AppState {
   setActiveConnection: (connectionId: string) => void;
   setPendingSql: (sql: string) => void;
   clearInvocationError: () => void;
+  cancelActiveQuery: () => Promise<void>;
 
   runMultiStatementSql: (fn: ConnectionFunction, sql: string) => Promise<void>;
   pingConnectionHealth: (connectionId: string) => Promise<void>;
@@ -366,6 +371,7 @@ export const useAppStore = create<AppState>((set, get) => ({
   showConnectionsManager: false,
   theme: (localStorage.getItem(THEME_KEY) as "dark" | "light") ?? "dark",
   isLoading: false,
+  runningQueryIds: {},
   activeView: "main",
   tabs: [],
   activeTabId: null,
@@ -373,6 +379,7 @@ export const useAppStore = create<AppState>((set, get) => ({
   savedQueries: [],
   userSnippets: [],
   pinnedTables: loadPinnedTables(),
+  recentTables: loadRecentTables(),
   appSettings: loadSettings(),
   _pendingWorkspaceSnapshot: null,
 
@@ -804,9 +811,14 @@ export const useAppStore = create<AppState>((set, get) => ({
         tabs: s.tabs.map((t) => (t.id === s.activeTabId ? { ...t, result, fn: result.fn } : t)),
       }));
 
-    // Set loading state with the active function
+    // Set loading state with the active function. Keep the SQL editor visible so users can cancel running queries.
     set({ activeFunction: fn, showConnectionsManager: false, activeView: "main" });
-    setResult({ fn, outputType: "idle", isLoading: true, invokedAt: Date.now() });
+    setResult({
+      fn,
+      outputType: fn.type === "query" || fn.type === "execute" ? "sql-editor" : "idle",
+      isLoading: true,
+      invokedAt: Date.now(),
+    });
 
     try {
       switch (fn.type) {
@@ -858,7 +870,31 @@ export const useAppStore = create<AppState>((set, get) => ({
             }
           }
           const selectedDb = get().selectedDatabases[fn.connectionId];
-          const result = await tauriApi.executeQuery(fn.connectionId, args.sql, get().appSettings.queryTimeoutSecs, selectedDb);
+          const settings = get().appSettings;
+          if (!validateSqlSize(args.sql, settings.queryMaxSqlBytes)) {
+            setResult({ fn, outputType: "sql-editor", isLoading: false, invokedAt: Date.now() });
+            break;
+          }
+          const queryId = `query-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+          const tabIdForQuery = get().activeTabId;
+          if (tabIdForQuery) {
+            set((s) => ({ runningQueryIds: { ...s.runningQueryIds, [tabIdForQuery]: queryId } }));
+          }
+          const result = await tauriApi.executeQuery(
+            fn.connectionId,
+            args.sql,
+            settings.queryTimeoutSecs,
+            selectedDb,
+            settings.queryMaxSqlBytes,
+            settings.queryMaxResultRows,
+            queryId,
+          );
+          if (tabIdForQuery) {
+            set((s) => {
+              const { [tabIdForQuery]: _done, ...rest } = s.runningQueryIds;
+              return { runningQueryIds: rest };
+            });
+          }
           const sqlResult: FunctionInvocationResult = {
             fn, outputType: "sql-editor", queryResult: result, isLoading: false, invokedAt: Date.now(),
           };
@@ -883,8 +919,12 @@ export const useAppStore = create<AppState>((set, get) => ({
           // with the same name in different databases always use the correct one.
           const database = fn.schema ?? connections.find((c) => c.id === fn.connectionId)?.database ?? "default";
           const page = args.page ?? 0;
-          const ps = args.pageSize ?? get().appSettings.tablePageSize;
-          const result = await tauriApi.getTableData(fn.connectionId, database, fn.tableName!, page, ps);
+          const settings = get().appSettings;
+          if (fn.tableName) {
+            get().recordRecentTable(fn.connectionId, fn.tableName, fn.schema);
+          }
+          const ps = args.pageSize ?? settings.tablePageSize;
+          const result = await tauriApi.getTableData(fn.connectionId, database, fn.tableName!, page, ps, settings.queryMaxResultRows);
           const isMysqlTable = connections.find((c) => c.id === fn.connectionId)?.type === "mysql";
           const qiTable = (n: string) => isMysqlTable ? `\`${n}\`` : `"${n}"`;
           const tableEntry: QueryHistoryEntry = {
@@ -914,8 +954,12 @@ export const useAppStore = create<AppState>((set, get) => ({
           const tables = getTablesForConn(fn.connectionId);
           const tableInfo = tables.find((t) => t.name === args.tableName);
           const database = tableInfo?.schema ?? get().selectedDatabases[fn.connectionId] ?? connections.find((c) => c.id === fn.connectionId)?.database ?? "default";
-          const ps2 = args.pageSize ?? get().appSettings.tablePageSize;
-          const result = await tauriApi.getTableData(fn.connectionId, database, args.tableName, args.page ?? 0, ps2);
+          const settings = get().appSettings;
+          if (args.tableName) {
+            get().recordRecentTable(fn.connectionId, args.tableName, tableInfo?.schema);
+          }
+          const ps2 = args.pageSize ?? settings.tablePageSize;
+          const result = await tauriApi.getTableData(fn.connectionId, database, args.tableName, args.page ?? 0, ps2, settings.queryMaxResultRows);
           const isMysqlTbl = connections.find((c) => c.id === fn.connectionId)?.type === "mysql";
           const qiTbl = (n: string) => isMysqlTbl ? `\`${n}\`` : `"${n}"`;
           const tblEntry: QueryHistoryEntry = {
@@ -936,6 +980,13 @@ export const useAppStore = create<AppState>((set, get) => ({
         }
       }
     } catch (error) {
+      const activeTabIdForError = get().activeTabId;
+      if (activeTabIdForError) {
+        set((s) => {
+          const { [activeTabIdForError]: _done, ...rest } = s.runningQueryIds;
+          return { runningQueryIds: rest };
+        });
+      }
       const errorMessage = error instanceof Error ? error.message : String(error);
       const fallbackOutputType =
         fn.type === "table" || fn.type === "tbl"
@@ -1038,6 +1089,31 @@ export const useAppStore = create<AppState>((set, get) => ({
     });
   },
 
+  cancelActiveQuery: async () => {
+    const { activeTabId, runningQueryIds } = get();
+    if (!activeTabId) return;
+    const queryId = runningQueryIds[activeTabId];
+    if (!queryId) return;
+    try {
+      await tauriApi.cancelQuery(queryId);
+      toast.success("Query cancelled");
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : String(error));
+    } finally {
+      set((s) => {
+        const { [activeTabId]: _done, ...rest } = s.runningQueryIds;
+        const cleared = s.invocationResult
+          ? { ...s.invocationResult, isLoading: false, error: undefined }
+          : s.invocationResult;
+        return {
+          runningQueryIds: rest,
+          invocationResult: cleared,
+          tabs: s.tabs.map((t) => t.id === activeTabId && cleared ? { ...t, result: cleared } : t),
+        };
+      });
+    }
+  },
+
   runMultiStatementSql: async (fn, sql) => {
     // Split on semicolons, strip comments, filter blanks
     const stmts = sql
@@ -1085,7 +1161,25 @@ export const useAppStore = create<AppState>((set, get) => ({
     const runStmt = async (stmt: string, tabId: string) => {
       try {
         const selDb = get().selectedDatabases[fn.connectionId];
-        const result = await tauriApi.executeQuery(fn.connectionId, stmt, get().appSettings.queryTimeoutSecs, selDb);
+        const settings = get().appSettings;
+        if (!validateSqlSize(stmt, settings.queryMaxSqlBytes)) {
+          throw new Error(`Query exceeds the configured ${formatBytes(settings.queryMaxSqlBytes)} safety limit.`);
+        }
+        const queryId = `query-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+        set((s) => ({ runningQueryIds: { ...s.runningQueryIds, [tabId]: queryId } }));
+        const result = await tauriApi.executeQuery(
+          fn.connectionId,
+          stmt,
+          settings.queryTimeoutSecs,
+          selDb,
+          settings.queryMaxSqlBytes,
+          settings.queryMaxResultRows,
+          queryId,
+        );
+        set((s) => {
+          const { [tabId]: _done, ...rest } = s.runningQueryIds;
+          return { runningQueryIds: rest };
+        });
         const sqlResult: FunctionInvocationResult = {
           fn, outputType: "sql-editor", queryResult: result, isLoading: false, invokedAt: Date.now(),
         };
@@ -1104,6 +1198,10 @@ export const useAppStore = create<AppState>((set, get) => ({
           tabs: s.tabs.map((t) => t.id === tabId ? { ...t, result: sqlResult } : t),
         }));
       } catch (err) {
+        set((s) => {
+          const { [tabId]: _done, ...rest } = s.runningQueryIds;
+          return { runningQueryIds: rest };
+        });
         const errResult: FunctionInvocationResult = {
           fn, outputType: "sql-editor", isLoading: false, invokedAt: Date.now(),
           error: err instanceof Error ? err.message : String(err),
@@ -1468,6 +1566,24 @@ export const useAppStore = create<AppState>((set, get) => ({
       savePinnedTables(updated);
       return { pinnedTables: updated };
     }),
+
+  recordRecentTable: (connectionId, tableName, schema) => {
+    set((state) => {
+      const filtered = state.recentTables.filter(
+        (r) => !(r.connectionId === connectionId && r.tableName === tableName && r.schema === schema),
+      );
+      const next: RecentTable[] = [
+        { connectionId, tableName, schema, openedAt: Date.now() },
+        ...filtered,
+      ].slice(0, RECENT_TABLES_MAX);
+      saveRecentTables(next);
+      return { recentTables: next };
+    });
+  },
+  clearRecentTables: () => {
+    saveRecentTables([]);
+    set({ recentTables: [] });
+  },
 
   isTablePinned: (connectionId, tableName) =>
     get().pinnedTables.some((p) => p.connectionId === connectionId && p.tableName === tableName),

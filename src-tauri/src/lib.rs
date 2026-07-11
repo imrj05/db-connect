@@ -44,6 +44,7 @@ pub fn run() {
             commands::create_database,
             commands::get_tables,
             commands::execute_query,
+            commands::cancel_query,
             commands::ping_connection,
             commands::get_table_data,
             commands::list_all_tables,

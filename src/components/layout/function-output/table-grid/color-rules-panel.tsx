@@ -88,14 +88,14 @@ export function ColorRulesPanel({
 	return (
 		<div className="shrink-0 border-b border-border-subtle bg-surface-2/98 px-3 py-2.5 animate-in slide-in-from-top-1 duration-150">
 			<div className="flex items-center justify-between mb-2">
-				<span className="text-[10px] font-bold uppercase tracking-wider text-foreground/50">
+				<span className="text-[10px] font-bold uppercase tracking-wider text-foreground/70">
 					Color Rules
 				</span>
 				<Button
 					variant="ghost"
 					size="icon-xs"
 					onClick={onClose}
-					className="h-5 w-5 text-foreground/38 hover:text-foreground"
+					className="h-5 w-5 text-foreground/70 hover:text-foreground"
 				>
 					<X size={11} />
 				</Button>
@@ -174,7 +174,7 @@ export function ColorRulesPanel({
 				variant="ghost"
 				size="xs"
 				onClick={onAdd}
-				className="mt-2 h-6 text-[11px] text-foreground/50 hover:text-foreground gap-1"
+				className="mt-2 h-6 text-[11px] text-foreground/70 hover:text-foreground gap-1"
 			>
 				<Plus size={10} />
 				Add rule

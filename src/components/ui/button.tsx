@@ -46,6 +46,7 @@ function Button({
   variant = "default",
   size = "default",
   asChild = false,
+  type = "button",
   ...props
 }: React.ComponentProps<"button"> &
   VariantProps<typeof buttonVariants> & {
@@ -58,6 +59,12 @@ function Button({
       data-slot="button"
       data-variant={variant}
       data-size={size}
+      // Default to type="button" so <Button> is never an implicit form submit.
+      // The only <form> in the app (connection dialog) uses an explicit
+      // type="submit" on its primary action; every other Button is an action,
+      // so defaulting to submit (the HTML default) caused non-submit Buttons
+      // inside a form to trigger handleConnect on click.
+      type={type}
       className={cn(buttonVariants({ variant, size, className }))}
       {...props}
     />

@@ -23,6 +23,7 @@ import {
 } from "lucide-react";
 import { ConnectionConfig } from "@/types";
 import { useAppStore } from "@/store/useAppStore";
+import { useShallow } from "zustand/react/shallow";
 import { tauriApi } from "@/lib/tauri-api";
 import { toast } from "sonner";
 import {
@@ -31,6 +32,16 @@ import {
     DialogDescription,
     DialogTitle,
 } from "@/components/ui/dialog";
+import {
+    AlertDialog,
+    AlertDialogAction,
+    AlertDialogCancel,
+    AlertDialogContent,
+    AlertDialogDescription,
+    AlertDialogFooter,
+    AlertDialogHeader,
+    AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { Switch } from "@/components/ui/switch";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -66,6 +77,8 @@ import { EngineSelector } from "@/components/layout/connection-dialog/engine-sel
 import { GroupSelector } from "@/components/layout/connection-dialog/group-selector";
 import { EngineFields } from "@/components/layout/connection-dialog/engine-fields";
 import { SshTunnelSection } from "@/components/layout/connection-dialog/ssh-tunnel-section";
+import { resolveEnv } from "@/lib/env-safety";
+import { EnvBadge } from "@/components/ui/env-badge";
 // ── Types ──────────────────────────────────────────────────────────────────────
 interface ConnectionDialogProps {
     onClose: () => void;
@@ -148,7 +161,7 @@ function ConnectionUrlPreview({
     })();
     return (
         <div className="flex items-center gap-2 rounded-md border border-border-subtle bg-surface-elevated px-2.5 py-1.5">
-            <span className="text-[9px] font-bold uppercase tracking-widest text-muted-foreground/40 shrink-0">
+            <span className="text-[10px] font-semibold uppercase tracking-widest text-fg-muted shrink-0">
                 Preview
             </span>
             <span className="text-[11px] font-mono text-muted-foreground/60 truncate">
@@ -181,11 +194,21 @@ const ConnectionDialog = ({ onClose, initialData, mode = "modal" }: ConnectionDi
         updateConnection,
         deleteConnection,
         connectAndInit,
-    } = useAppStore();
+    } = useAppStore(
+        useShallow((s) => ({
+            connections: s.connections,
+            addConnection: s.addConnection,
+            updateConnection: s.updateConnection,
+            deleteConnection: s.deleteConnection,
+            connectAndInit: s.connectAndInit,
+        })),
+    );
     const [isTesting, setIsTesting] = useState(false);
     const [isConnecting, setIsConnecting] = useState(false);
     const [isCancellingConnect, setIsCancellingConnect] = useState(false);
     const [testStatus, setTestStatus] = useState<"idle" | "success" | "error">("idle");
+    // Delete confirmation — was a one-click destructive action with no guard (P2).
+    const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
     const connectCancelRef = useRef(false);
     const [showPassword, setShowPassword] = useState(false);
     const [prefixManuallyEdited, setPrefixManuallyEdited] = useState(!!initialData?.prefix);
@@ -210,12 +233,22 @@ const ConnectionDialog = ({ onClose, initialData, mode = "modal" }: ConnectionDi
             )
             : null,
     );
+    // Auto-suggest a function prefix from the connection name. The guard
+    // (prev.prefix === suggested) is critical: without it, setFormData creates a
+    // NEW object every time the effect runs, even when the prefix value is
+    // identical. In React 19 + StrictMode the effect is double-invoked on mount,
+    // and combined with unrelated store updates (the component previously
+    // subscribed to the entire store via useAppStore()), the cascade of
+    // unnecessary re-renders exceeded React's "Maximum update depth" limit.
+    // Returning `prev` (same reference) lets React bail out of the re-render.
     useEffect(() => {
         if (!prefixManuallyEdited && formData.name) {
-            setFormData((prev) => ({
-                ...prev,
-                prefix: suggestPrefix(formData.name || ""),
-            }));
+            const suggested = suggestPrefix(formData.name || "");
+            setFormData((prev) =>
+                prev.prefix === suggested
+                    ? prev
+                    : { ...prev, prefix: suggested },
+            );
         }
     }, [formData.name, prefixManuallyEdited]);
     const currentConfig = buildConnectionConfig(
@@ -345,12 +378,42 @@ const ConnectionDialog = ({ onClose, initialData, mode = "modal" }: ConnectionDi
             onClose();
         }
     };
+    // Whether the connection we're editing is currently connected — surfaced in
+    // the delete confirm so the user knows deletion also drops the live session.
+    const isCurrentlyConnected = useAppStore(
+        (s) => !!initialData?.id && s.connectedIds.includes(initialData.id),
+    );
     // ── Render ───────────────────────────────────────────────────────────────────
     const selectedEngine = formData.type ?? "postgresql";
     const SelectedEngineLogo = DB_LOGOS[selectedEngine] ?? DB_LOGOS.postgresql;
     const selectedEngineLabel = ENGINE_LABELS[selectedEngine] ?? "Database";
+    // Ambient-safety consistency (P4): resolve the group → env and surface a
+    // nudge when a prod/staging connection has no write guardrail. The env-safety
+    // system in the title bar (App.tsx) and this dialog must agree.
+    const envKind = resolveEnv(formData.group);
+    const relevantEnvKind = envKind && envKind !== "local" ? envKind : null;
+    const isUnguardedEnv =
+        !!relevantEnvKind && (formData.safetyMode ?? "none") === "none";
+    const showEnvNudge = isUnguardedEnv;
+
+    // ── Form semantics (P10) ──────────────────────────────────────────────
+    // Wrap the dialog body in a <form> (display:contents so layout is unaffected).
+    // Enter anywhere submits → Connect now (the primary action). Test/Save/Delete/
+    // Close/Cancel are explicitly type="button" so they don't steal submit.
+    const [nameTouched, setNameTouched] = useState(false);
+    const nameMissing = !formData.name?.trim();
+    const showNameError = nameTouched && nameMissing;
+    const handleFormSubmit = (e: React.FormEvent) => {
+        e.preventDefault();
+        if (nameMissing) {
+            setNameTouched(true);
+            return;
+        }
+        void handleConnect();
+    };
 
     const content = (
+        <form onSubmit={handleFormSubmit} className="contents">
         <Tabs
             value={activeTab}
             onValueChange={setActiveTab}
@@ -373,9 +436,11 @@ const ConnectionDialog = ({ onClose, initialData, mode = "modal" }: ConnectionDi
                                 {selectedEngineLabel}
                             </Badge>
                         </div>
-                        <p className="mt-0.5 truncate text-[11px] text-muted-foreground/68">
+                        <p className="mt-0.5 truncate text-[11px] text-fg-muted">
                             {initialData
-                                ? `Editing ${initialData.name}`
+                                ? activeTab === "quick-connect"
+                                    ? "Paste a new URI to re-point this connection."
+                                    : `Editing ${initialData.name}`
                                 : activeTab === "quick-connect"
                                     ? "Start from a URI or local preset."
                                     : "Review details, security, and connect."}
@@ -383,39 +448,41 @@ const ConnectionDialog = ({ onClose, initialData, mode = "modal" }: ConnectionDi
                     </div>
                 </div>
 
-                {!initialData && (
-                    <TabsList
-                        variant="line"
-                        className="grid h-8 auto-cols-fr grid-flow-col shrink-0 bg-surface-2 p-0.5"
+                {/* Tabs available in BOTH new and edit mode (P6): previously the
+                    stepper was hidden in edit mode, so edit couldn’t reach Quick
+                    Connect / URI re-parse. Step badges are only shown for new — edit is
+                    a single surface, not a numbered wizard. */}
+                <TabsList
+                    variant="line"
+                    className="grid h-8 auto-cols-fr grid-flow-col shrink-0 bg-surface-2 p-0.5"
+                >
+                    <TabsTrigger
+                        value="quick-connect"
+                        className={cn(
+                            tabTriggerBaseClass,
+                            activeTab === "quick-connect"
+                                ? "border-border-subtle bg-surface-elevated text-foreground [&_svg]:text-foreground"
+                                : "border-transparent bg-transparent text-fg-muted hover:text-foreground/80 [&_svg]:text-muted-foreground/45",
+                        )}
                     >
-                        <TabsTrigger
-                            value="quick-connect"
-                            className={cn(
-                                tabTriggerBaseClass,
-                                activeTab === "quick-connect"
-                                    ? "border-border-subtle bg-surface-elevated text-foreground [&_svg]:text-foreground"
-                                    : "border-transparent bg-transparent text-muted-foreground/60 hover:text-foreground/80 [&_svg]:text-muted-foreground/45",
-                            )}
-                        >
-                            <StepBadge step="1" active={activeTab === "quick-connect"} />
-                            <WandSparkles data-icon="inline-start" />
-                            Quick Connect
-                        </TabsTrigger>
-                        <TabsTrigger
-                            value="details"
-                            className={cn(
-                                tabTriggerBaseClass,
-                                activeTab === "details"
-                                    ? "border-border-subtle bg-surface-elevated text-foreground [&_svg]:text-foreground"
-                                    : "border-transparent bg-transparent text-muted-foreground/60 hover:text-foreground/80 [&_svg]:text-muted-foreground/45",
-                            )}
-                        >
-                            <StepBadge step="2" active={activeTab === "details"} />
-                            <LayoutTemplate data-icon="inline-start" />
-                            Details
-                        </TabsTrigger>
-                    </TabsList>
-                )}
+                        {!initialData && <StepBadge step="1" active={activeTab === "quick-connect"} />}
+                        <WandSparkles data-icon="inline-start" />
+                        {initialData ? "Re-parse URI" : "Quick Connect"}
+                    </TabsTrigger>
+                    <TabsTrigger
+                        value="details"
+                        className={cn(
+                            tabTriggerBaseClass,
+                            activeTab === "details"
+                                ? "border-border-subtle bg-surface-elevated text-foreground [&_svg]:text-foreground"
+                                : "border-transparent bg-transparent text-fg-muted hover:text-foreground/80 [&_svg]:text-muted-foreground/45",
+                        )}
+                    >
+                        {!initialData && <StepBadge step="2" active={activeTab === "details"} />}
+                        <LayoutTemplate data-icon="inline-start" />
+                        Details
+                    </TabsTrigger>
+                </TabsList>
             </div>
 
             <TabsContent value="details" className="min-h-0 flex-1 overflow-hidden">
@@ -461,10 +528,25 @@ const ConnectionDialog = ({ onClose, initialData, mode = "modal" }: ConnectionDi
                                                         </FieldLabel>
                                                         <Input
                                                             value={formData.name || ""}
-                                                            onChange={(e) => patch({ name: e.target.value })}
+                                                            onChange={(e) => {
+                                                                patch({ name: e.target.value });
+                                                                if (e.target.value.trim()) setNameTouched(false);
+                                                            }}
+                                                            onBlur={() => setNameTouched(true)}
+                                                            aria-invalid={showNameError}
                                                             placeholder="e.g. Production Analytics"
-                                                            className="h-9 border-border-subtle bg-surface-elevated text-xs"
+                                                            className={cn(
+                                                                "h-9 bg-surface-elevated text-xs",
+                                                                showNameError
+                                                                    ? "border-destructive focus-visible:ring-destructive/30"
+                                                                    : "border-border-subtle",
+                                                            )}
                                                         />
+                                                        {showNameError && (
+                                                            <p className="text-[11px] text-destructive">
+                                                                Name is required to save or connect.
+                                                            </p>
+                                                        )}
                                                     </Field>
                                                     <Field className="gap-1.5">
                                                         <FieldLabel className="text-xs">
@@ -546,22 +628,51 @@ const ConnectionDialog = ({ onClose, initialData, mode = "modal" }: ConnectionDi
                                             <CollapsibleContent>
                                                 <div className="flex flex-col gap-3 border-t border-border-subtle px-4 py-3">
                                                     {formData.type !== "sqlite" && (
+                                                        // Outer element is a <div role="button">, NOT a <button>.
+                                                        // The <Switch> renders a <button> internally, and nesting
+                                                        // <button> inside <button> is invalid HTML — the browser
+                                                        // auto-closes the outer button, creating a DOM mismatch
+                                                        // with React's vDOM that causes "Maximum update depth
+                                                        // exceeded" via infinite reconciliation.
                                                         <div
-                                                            className="flex cursor-pointer items-center justify-between gap-3 rounded-md border border-border-subtle bg-surface-elevated px-3 py-2.5"
+                                                            role="button"
+                                                            tabIndex={0}
+                                                            aria-pressed={!!formData.ssl}
                                                             onClick={() => patch({ ssl: !formData.ssl })}
+                                                            onKeyDown={(e) => {
+                                                                if (e.key === "Enter" || e.key === " ") {
+                                                                    e.preventDefault();
+                                                                    patch({ ssl: !formData.ssl });
+                                                                }
+                                                            }}
+                                                            className="flex w-full cursor-pointer items-center justify-between gap-3 rounded-md border border-border-subtle bg-surface-elevated px-3 py-2.5 text-left transition-colors hover:bg-surface-2 focus-visible:ring-2 focus-visible:ring-ring/50 focus-visible:outline-none"
                                                         >
                                                             <div className="min-w-0">
                                                                 <p className="text-[12px] font-semibold text-foreground">SSL / TLS Encryption</p>
-                                                                <p className="mt-0.5 text-[11px] text-muted-foreground/60">
+                                                                <p className="mt-0.5 text-[11px] text-fg-muted">
                                                                     Encrypt traffic in transit for remote or managed databases.
                                                                 </p>
                                                             </div>
-                                                            <Switch
-                                                                checked={!!formData.ssl}
-                                                                onCheckedChange={(checked) => patch({ ssl: checked })}
+                                                            {/* The <span> wrapper with stopPropagation is critical: Radix
+                                                                Switch renders a hidden <input type="checkbox">
+                                                                (SwitchBubbleInput) when inside a <form>. That input has a
+                                                                useEffect that dispatches a synthetic "click" event with
+                                                                bubbles:true whenever `checked` changes. Without the stopPropagation
+                                                                wrapper, that click bubbles to this outer toggle div, which
+                                                                toggles the state back → infinite loop → "Maximum update depth
+                                                                exceeded". The Switch is purely visual (pointer-events-none);
+                                                                the outer div handles all interaction. */}
+                                                            <span
                                                                 onClick={(e) => e.stopPropagation()}
                                                                 className="shrink-0"
-                                                            />
+                                                            >
+                                                                <Switch
+                                                                    checked={!!formData.ssl}
+                                                                    aria-hidden="true"
+                                                                    tabIndex={-1}
+                                                                    className="pointer-events-none"
+                                                                />
+                                                            </span>
                                                         </div>
                                                     )}
 
@@ -583,11 +694,13 @@ const ConnectionDialog = ({ onClose, initialData, mode = "modal" }: ConnectionDi
                                                                             "rounded-md border px-2.5 py-1 text-[11px] font-medium transition-colors",
                                                                             (formData.safetyMode ?? "none") === mode
                                                                                 ? mode === "read-only"
-                                                                                    ? "border-destructive/40 bg-destructive/15 text-destructive"
+                                                                                    // Read-only is the *protective* mode — paint it success/green, not
+                                                                                    // destructive red. Red is reserved for intent that destroys data.
+                                                                                    ? "border-success/40 bg-success/15 text-success"
                                                                                     : mode === "warn"
                                                                                         ? "border-accent-orange/40 bg-accent-orange/15 text-accent-orange"
                                                                                         : "border-border bg-surface-3 text-foreground"
-                                                                                : "border-border-subtle bg-transparent text-foreground/50 hover:border-border hover:text-foreground/70",
+                                                                                : "border-border-subtle bg-transparent text-foreground/60 hover:border-border hover:text-foreground/80",
                                                                         )}
                                                                     >
                                                                         {mode === "none" ? "None" : mode === "warn" ? "Warn on write" : "Read-only"}
@@ -613,13 +726,33 @@ const ConnectionDialog = ({ onClose, initialData, mode = "modal" }: ConnectionDi
 
                                 <aside className="flex min-w-0 flex-col gap-3">
                                     <div className="rounded-md border border-border-subtle bg-card p-3">
-                                        <p className="shell-section-label">Group</p>
+                                        <div className="flex items-center justify-between">
+                                            <p className="shell-section-label">Group</p>
+                                            {relevantEnvKind && (
+                                                <EnvBadge env={relevantEnvKind} icon={relevantEnvKind === "prod"} />
+                                            )}
+                                        </div>
                                         <div className="mt-2">
                                             <GroupSelector
                                                 group={formData.group}
                                                 onChange={(g) => patch({ group: g })}
                                             />
                                         </div>
+                                        {showEnvNudge && (
+                                            <button
+                                                type="button"
+                                                onClick={() => patch({ safetyMode: "warn" })}
+                                                className="mt-3 flex w-full items-start gap-2 rounded-md border border-env-staging/35 bg-env-staging/10 px-2.5 py-2 text-left transition-colors hover:border-env-staging/55 hover:bg-env-staging/15"
+                                                style={{ color: "var(--env-staging)" }}
+                                            >
+                                                <ShieldAlert size={13} className="mt-0.5 shrink-0" />
+                                                <span className="min-w-0 flex-1 text-[11px] leading-snug">
+                                                    {relevantEnvKind === "prod"
+                                                        ? "Production connection with no write protection. Tap to enable “Warn on write” before you risk accidental data loss."
+                                                        : "Staging connection with no write protection. Tap to enable “Warn on write”."}
+                                                </span>
+                                            </button>
+                                        )}
                                     </div>
 
                                     <div className="rounded-md border border-border-subtle bg-card p-3">
@@ -632,14 +765,14 @@ const ConnectionDialog = ({ onClose, initialData, mode = "modal" }: ConnectionDi
                                                 <p className="truncate text-[13px] font-semibold text-foreground">
                                                     {formData.name || "Untitled"}
                                                 </p>
-                                                <p className="text-[11px] text-muted-foreground/58">
+                                                <p className="text-[11px] text-fg-muted">
                                                     {selectedEngineLabel}
                                                 </p>
                                             </div>
                                         </div>
-                                        <div className="mt-3">
-                                            <ConnectionUrlPreview formData={formData} />
-                                        </div>
+                                        {/* URL preview intentionally only shown once (P5): the same
+                                            ConnectionUrlPreview lives in Advanced Options, so we don’t
+                                            duplicate it here. */}
                                     </div>
                                 </aside>
                             </div>
@@ -648,8 +781,7 @@ const ConnectionDialog = ({ onClose, initialData, mode = "modal" }: ConnectionDi
                 </div>
             </TabsContent>
 
-            {!initialData && (
-                <TabsContent value="quick-connect" className="min-h-0 flex-1 overflow-hidden">
+            <TabsContent value="quick-connect" className="min-h-0 flex-1 overflow-hidden">
                     <div className="h-full min-h-0 overflow-y-auto p-4">
                         <div className={cn("mx-auto flex min-w-0 flex-col gap-3", isPageMode ? "max-w-6xl" : "max-w-4xl")}>
                             <Card size="sm" className="!gap-0 border-border-subtle bg-card py-0 shadow-none ring-0">
@@ -751,7 +883,6 @@ const ConnectionDialog = ({ onClose, initialData, mode = "modal" }: ConnectionDi
                         </div>
                     </div>
                 </TabsContent>
-            )}
 
             <div className="shrink-0 border-t border-border-subtle bg-card px-5 py-2.5">
                 <div className="flex h-full items-center justify-between gap-3">
@@ -768,14 +899,18 @@ const ConnectionDialog = ({ onClose, initialData, mode = "modal" }: ConnectionDi
                     </p>
                     <div className="flex shrink-0 flex-wrap items-center justify-end gap-2">
                         <Button
+                            type="button"
                             variant="outline"
                             size="sm"
                             onClick={handleTest}
                             disabled={isTesting || isConnecting}
                             className={cn(
                                 "h-7 px-2.5 text-[11px] font-medium gap-1.5",
+                                // Success → success/green, NOT primary blue. Primary must stay
+                                // reserved for the real primary action (Connect now), otherwise
+                                // passing Test visually competes with Connect (P1).
                                 testStatus === "success" &&
-                                "bg-primary/8 text-primary border-primary/24",
+                                "bg-success/10 text-success border-success/25",
                                 testStatus === "error" &&
                                 "bg-destructive/10 text-destructive border-destructive/20",
                             )}
@@ -797,9 +932,10 @@ const ConnectionDialog = ({ onClose, initialData, mode = "modal" }: ConnectionDi
                         </Button>
                         {initialData && (
                             <Button
+                                type="button"
                                 variant="ghost"
                                 size="sm"
-                                onClick={handleDelete}
+                                onClick={() => setShowDeleteConfirm(true)}
                                 className="h-7 px-2.5 text-[11px] font-medium text-destructive/60 hover:text-destructive hover:bg-destructive/10 gap-1.5"
                             >
                                 <Trash2 size={11} />
@@ -807,6 +943,7 @@ const ConnectionDialog = ({ onClose, initialData, mode = "modal" }: ConnectionDi
                             </Button>
                         )}
                         <Button
+                            type="button"
                             variant="outline"
                             size="sm"
                             onClick={onClose}
@@ -816,17 +953,31 @@ const ConnectionDialog = ({ onClose, initialData, mode = "modal" }: ConnectionDi
                             Close
                         </Button>
                         <Button
+                            type="button"
                             variant="outline"
                             size="sm"
                             onClick={handleSave}
                             disabled={isConnecting || !formData.name || !isDirty}
-                            className="h-7 px-2.5 text-[11px] font-medium"
+                            className="h-7 px-2.5 text-[11px] font-medium gap-1.5"
                         >
-                            {isDirty ? "Save" : "Saved"}
+                            {/* Keep button label constant. Save state lives next to it as a
+                                checkmark dot, not as a relabelled disabled button — "Saved" as
+                                a button label is both action and status and trains users to
+                                ignore disabled controls (P1). */}
+                            {!isDirty && initialData && (
+                                <span
+                                    aria-hidden="true"
+                                    className="size-1.5 rounded-full bg-success"
+                                    title="All changes saved"
+                                />
+                            )}
+                            Save
                         </Button>
                         <Button
+                            type="submit"
                             size="sm"
-                            onClick={handleConnect}
+                            // No onClick: the surrounding <form onSubmit={handleFormSubmit}>
+                            // handles the submit. Keeping onClick too would double-fire handleConnect.
                             disabled={isConnecting || !formData.name}
                             className="h-7 px-3 text-[11px] font-medium gap-1.5 active:scale-[0.97]"
                         >
@@ -856,12 +1007,54 @@ const ConnectionDialog = ({ onClose, initialData, mode = "modal" }: ConnectionDi
                 </div>
             </div>
         </Tabs>
+        </form>
+    );
+
+    // Delete confirmation — irreversible; reuses the shared AlertDialog primitive
+    // (P2: delete was previously one click with no guard).
+    const deleteConfirmDialog = (
+        <AlertDialog open={showDeleteConfirm} onOpenChange={setShowDeleteConfirm}>
+            <AlertDialogContent className="max-w-sm">
+                <AlertDialogHeader>
+                    <AlertDialogTitle>Delete connection?</AlertDialogTitle>
+                    <AlertDialogDescription asChild>
+                        <div className="flex flex-col gap-2">
+                            <span>
+                                <span className="font-mono text-foreground">
+                                    {initialData?.name ?? "this connection"}
+                                </span>{' '}
+                                will be permanently removed from your saved connections.
+                            </span>
+                            {isCurrentlyConnected && (
+                                <span className="text-warning">
+                                    This connection is currently active and will be disconnected.
+                                </span>
+                            )}
+                        </div>
+                    </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                    <AlertDialogCancel>Cancel</AlertDialogCancel>
+                    <AlertDialogAction
+                        variant="destructive"
+                        onClick={() => {
+                            setShowDeleteConfirm(false);
+                            handleDelete();
+                        }}
+                    >
+                        <Trash2 size={12} />
+                        Delete
+                    </AlertDialogAction>
+                </AlertDialogFooter>
+            </AlertDialogContent>
+        </AlertDialog>
     );
 
     if (mode === "page") {
         return (
             <div className="flex h-full min-h-0 flex-1 flex-col bg-app-bg">
                 {content}
+                {deleteConfirmDialog}
             </div>
         );
     }
@@ -880,6 +1073,7 @@ const ConnectionDialog = ({ onClose, initialData, mode = "modal" }: ConnectionDi
                 </DialogDescription>
                 {content}
             </DialogContent>
+            {deleteConfirmDialog}
         </Dialog>
     );
 };

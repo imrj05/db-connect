@@ -111,12 +111,18 @@ pub struct SchemaGraph {
     pub relationships: Vec<ForeignKeyRelation>,
 }
 
-#[derive(Debug, Serialize, Deserialize, Clone)]
+#[derive(Debug, Serialize, Deserialize, Clone, Default)]
 #[serde(rename_all = "camelCase")]
 pub struct QueryResult {
     pub columns: Vec<String>,
     pub rows: Vec<serde_json::Value>,
     pub execution_time_ms: u64,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub limit_warning: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub limited: Option<bool>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub row_limit: Option<u32>,
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]

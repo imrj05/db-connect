@@ -232,7 +232,7 @@ export function ImportSqlDialog({
                         <div className="flex flex-col items-center justify-center gap-3 py-6 rounded-lg border border-dashed border-border bg-muted/10">
                             <Upload
                                 size={28}
-                                className="text-muted-foreground/40"
+                                className="text-muted-foreground"
                             />
                             <p className="text-[11px] text-muted-foreground text-center">
                                 Choose a .sql file to import
@@ -390,7 +390,7 @@ export function ImportSqlDialog({
                         <p className="text-[12px] text-muted-foreground">
                             Importing…
                         </p>
-                        <p className="text-[10px] text-muted-foreground/60">
+                        <p className="text-[10px] text-muted-foreground">
                             Please wait, this may take a moment for large dumps.
                         </p>
                     </div>
@@ -419,7 +419,7 @@ export function ImportSqlDialog({
                                 <div className="flex items-start gap-2 rounded-lg px-3 py-2.5 border border-border bg-muted/20">
                                     <CheckCircle2
                                         size={14}
-                                        className="shrink-0 text-green-500 mt-0.5"
+                                        className="shrink-0 text-accent-green mt-0.5"
                                     />
                                     <div className="flex flex-col gap-0.5">
                                         <p className="text-[11px] font-semibold">

@@ -62,7 +62,7 @@ function FkEdgeComponent({
 			{data?.label && (
 				<EdgeLabelRenderer>
 					<div
-						className="absolute text-[8px] font-mono text-muted-foreground/60 bg-card/80 px-1 py-0.5 rounded pointer-events-none nodrag nopan"
+						className="absolute text-[9px] font-mono text-muted-foreground bg-card/80 px-1 py-0.5 rounded pointer-events-none nodrag nopan"
 						style={{
 							transform: `translate(-50%, -50%) translate(${labelX}px, ${labelY}px)`,
 						}}

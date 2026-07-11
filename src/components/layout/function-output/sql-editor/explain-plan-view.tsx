@@ -40,7 +40,7 @@ function PgTextPlan({ rows }: { rows: Record<string, unknown>[] }) {
 						className={cn(
 							"flex items-start gap-1 whitespace-pre py-0.5 rounded px-1",
 							isWarning && "bg-destructive/10 text-destructive",
-							seqScan && "bg-amber-500/6",
+							seqScan && "bg-warning/6",
 						)}
 						style={{ paddingLeft: indent + 4 }}
 					>
@@ -51,19 +51,19 @@ function PgTextPlan({ rows }: { rows: Record<string, unknown>[] }) {
 							className={cn(
 								"break-all",
 								indexScan && "text-accent-green/90",
-								seqScan && "text-amber-600 dark:text-amber-400",
+								seqScan && "text-warning",
 								isWarning && "font-semibold",
 							)}
 						>
 							{line.trimStart()}
 						</span>
 						{seqScan && (
-                            <span className="ml-auto shrink-0 rounded-sm border border-amber-400/30 bg-amber-400/10 px-1 py-px text-[8px] font-bold text-amber-600 dark:text-amber-400 leading-none">
+                            <span className="ml-auto shrink-0 rounded-sm border border-warning/30 bg-warning/10 px-1 py-px text-[9px] font-bold text-warning leading-none">
 								SEQ SCAN
 							</span>
 						)}
 						{indexScan && (
-                            <span className="ml-auto shrink-0 rounded-sm border border-accent-green/30 bg-accent-green/10 px-1 py-px text-[8px] font-bold text-accent-green leading-none">
+                            <span className="ml-auto shrink-0 rounded-sm border border-accent-green/30 bg-accent-green/10 px-1 py-px text-[9px] font-bold text-accent-green leading-none">
 								INDEX
 							</span>
 						)}
@@ -93,7 +93,7 @@ function MySQLExplainTable({
 	const typeColor = (t: unknown) => {
 		const s = String(t ?? "").toUpperCase();
 		if (s === "ALL" || s === "FULLTEXT") return "text-destructive font-bold";
-		if (s === "INDEX") return "text-amber-600 dark:text-amber-400 font-semibold";
+		if (s === "INDEX") return "text-warning font-semibold";
 		if (s.startsWith("REF") || s === "EQ_REF") return "text-accent-blue";
 		if (s === "CONST" || s === "SYSTEM") return "text-accent-green font-semibold";
 		return "";
@@ -107,7 +107,7 @@ function MySQLExplainTable({
 						{visibleCols.map((c) => (
 							<th
 								key={c}
-								className="px-3 py-1.5 border border-border text-left text-[10px] uppercase tracking-wider text-muted-foreground/60 bg-muted/40 font-semibold"
+								className="px-3 py-1.5 border border-border text-left text-[10px] uppercase tracking-wider text-muted-foreground bg-muted/40 font-semibold"
 							>
 								{c}
 							</th>
@@ -127,9 +127,9 @@ function MySQLExplainTable({
 											"px-3 py-1.5 border border-border/50",
 											col.toLowerCase() === "type" && typeColor(val),
 											col.toLowerCase() === "extra" && String(val ?? "").toLowerCase().includes("using filesort")
-												? "text-amber-600 dark:text-amber-400"
+												? "text-warning"
 												: "",
-											isEmpty && "text-muted-foreground/30 italic",
+											isEmpty && "text-muted-foreground italic",
 										)}
 									>
 										{isEmpty ? "NULL" : String(val)}
@@ -167,29 +167,29 @@ function SQLiteExplainTable({
 						key={i}
 						className={cn(
 							"flex items-start gap-2 px-3 py-1.5 rounded-md",
-							isScan && !isIndex && "bg-amber-400/8 border border-amber-400/20",
+							isScan && !isIndex && "bg-warning/8 border border-warning/20",
 							isSearch && "bg-accent-green/8 border border-accent-green/20",
 						)}
 					>
-						<span className="text-muted-foreground/40 shrink-0 tabular-nums w-4">
+						<span className="text-muted-foreground shrink-0 tabular-nums w-4">
 							{i + 1}
 						</span>
 						<span
 							className={cn(
 								"flex-1",
-								isScan && !isIndex && "text-amber-600 dark:text-amber-400",
+								isScan && !isIndex && "text-warning",
 								isIndex && "text-accent-green/90",
 							)}
 						>
 							{detail}
 						</span>
 						{isScan && !isIndex && (
-                            <span className="shrink-0 rounded-sm border border-amber-400/30 bg-amber-400/10 px-1 py-px text-[8px] font-bold text-amber-600 dark:text-amber-400 leading-none">
+                            <span className="shrink-0 rounded-sm border border-warning/30 bg-warning/10 px-1 py-px text-[9px] font-bold text-warning leading-none">
 								FULL SCAN
 							</span>
 						)}
 						{isIndex && (
-                            <span className="shrink-0 rounded-sm border border-accent-green/30 bg-accent-green/10 px-1 py-px text-[8px] font-bold text-accent-green leading-none">
+                            <span className="shrink-0 rounded-sm border border-accent-green/30 bg-accent-green/10 px-1 py-px text-[9px] font-bold text-accent-green leading-none">
 								INDEX
 							</span>
 						)}
@@ -238,11 +238,11 @@ export function ExplainPlanView({
 			{/* Header */}
 			<div className="shrink-0 flex items-center gap-2 px-4 py-2 border-b border-border bg-muted/30">
 				<Zap size={12} className="text-accent-blue/70" />
-				<span className="text-[10px] font-bold uppercase tracking-[0.12em] text-muted-foreground/60">
+				<span className="text-[10px] font-bold uppercase tracking-[0.12em] text-muted-foreground">
 					Query Plan
 				</span>
 				{seqScanCount > 0 && (
-                    <span className="flex items-center gap-1 rounded-sm border border-amber-400/30 bg-amber-400/10 px-1.5 py-0.5 text-[9px] font-bold text-amber-600 dark:text-amber-400 leading-none ml-auto">
+                    <span className="flex items-center gap-1 rounded-sm border border-warning/30 bg-warning/10 px-1.5 py-0.5 text-[9px] font-bold text-warning leading-none ml-auto">
 						<AlertTriangle size={9} />
 						{seqScanCount} full scan{seqScanCount > 1 ? "s" : ""}
 					</span>
@@ -259,7 +259,7 @@ export function ExplainPlanView({
 				{planType === "mysql" && <MySQLExplainTable columns={columns} rows={rows} />}
 				{planType === "sqlite" && <SQLiteExplainTable columns={columns} rows={rows} />}
 				{planType === "generic" && (
-					<div className="p-4 font-mono text-[11px] text-muted-foreground/60">
+					<div className="p-4 font-mono text-[11px] text-muted-foreground">
 						{rows.map((r, i) => (
 							<div key={i} className="py-0.5">
 								{Object.entries(r)

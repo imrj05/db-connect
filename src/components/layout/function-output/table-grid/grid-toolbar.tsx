@@ -21,6 +21,7 @@ import {
 	MoreHorizontal,
 	FileText,
 	FileJson,
+	ListChecks,
 } from "lucide-react";
 import {
 	DropdownMenu,
@@ -64,7 +65,7 @@ function ColumnVisibilityPanel({
 					value={search}
 					onChange={(e) => setSearch(e.target.value)}
 					placeholder="Search columns…"
-					className="w-full bg-transparent text-[11px] font-mono outline-none text-foreground placeholder:text-foreground/38"
+					className="w-full rounded-sm bg-transparent text-[11px] font-mono outline-none text-foreground placeholder:text-muted-foreground focus-visible:ring-2 focus-visible:ring-ring/50"
 				/>
 			</div>
 			<div className="max-h-60 overflow-y-auto">
@@ -129,6 +130,7 @@ export function GridToolbar({
 	onToggleColumn,
 	undoCount = 0,
 	onUndo,
+	onOpenPendingEdits,
 	selectedRowCount = 0,
 	onBulkDelete,
 	bulkDeleteLoading = false,
@@ -175,6 +177,7 @@ export function GridToolbar({
 	onToggleColumn?: (colId: string, visible: boolean) => void;
 	undoCount?: number;
 	onUndo?: () => void;
+	onOpenPendingEdits?: () => void;
 	selectedRowCount?: number;
 	onBulkDelete?: () => void;
 	bulkDeleteLoading?: boolean;
@@ -199,7 +202,7 @@ export function GridToolbar({
 								.replace(/\(.*$/, "")}
 				</span>
 				<div className="flex items-center gap-2 shrink-0">
-					<span className="text-[11px] font-mono text-foreground/44 mr-1.5">
+					<span className="text-[11px] font-mono text-foreground/70 mr-1.5">
 						{executionTimeMs}ms
 					</span>
 					{fn.tableName && (
@@ -218,7 +221,7 @@ export function GridToolbar({
 									"h-7 px-3 text-[11px] font-medium border-border-subtle shadow-xs",
 									pendingEditCount > 0
 										? "bg-accent-green/14 text-accent-green border-accent-green/22 hover:bg-accent-green/18"
-										: "bg-surface-elevated text-foreground/42 hover:bg-surface-elevated",
+										: "bg-surface-elevated text-foreground/70 hover:bg-surface-elevated",
 								)}
 							>
 								<Check size={11} className="mr-1" />
@@ -233,12 +236,28 @@ export function GridToolbar({
 									"h-7 px-3 text-[11px] font-medium border-border-subtle shadow-xs",
 									pendingEditCount > 0
 										? "bg-warning/10 text-warning border-warning/22 hover:bg-warning/14"
-										: "bg-surface-elevated text-foreground/42 hover:bg-surface-elevated",
+										: "bg-surface-elevated text-foreground/70 hover:bg-surface-elevated",
 								)}
 							>
 								<RotateCcw size={11} className="mr-1" />
 								Reset
 							</Button>
+						{pendingEditCount > 0 && onOpenPendingEdits && (
+							<Tooltip>
+								<TooltipTrigger asChild>
+									<Button
+										variant="outline"
+										size="sm"
+										onClick={onOpenPendingEdits}
+										className="h-7 px-3 text-[11px] font-medium border-warning/40 bg-warning/10 text-warning hover:bg-warning/20 shadow-xs"
+									>
+										<ListChecks size={11} className="mr-1" />
+										Review {pendingEditCount} pending
+									</Button>
+								</TooltipTrigger>
+								<TooltipContent>Review queued cell edits before applying</TooltipContent>
+							</Tooltip>
+						)}
 						{undoCount > 0 && onUndo && (
 							<Tooltip>
 								<TooltipTrigger asChild>
@@ -301,7 +320,7 @@ export function GridToolbar({
 											<Filter size={11} />
 										)}
 										{filtersActive && (
-											<span className="absolute -top-1.5 -right-1.5 min-w-[14px] h-[14px] rounded-full bg-accent-blue text-[8px] font-black text-accent-foreground flex items-center justify-center px-0.5 leading-none">
+											<span className="absolute -top-1.5 -right-1.5 min-w-[14px] h-[14px] rounded-full bg-accent-blue text-[9px] font-black text-accent-foreground flex items-center justify-center px-0.5 leading-none">
 												{filterCount}
 											</span>
 										)}
@@ -345,7 +364,7 @@ export function GridToolbar({
 									<span className="relative">
 										<Search size={11} />
 										{cellSearch && (
-											<span className="absolute -top-1.5 -right-1.5 min-w-[14px] h-[14px] rounded-full bg-accent-blue text-[8px] font-black text-accent-foreground flex items-center justify-center px-0.5 leading-none">
+											<span className="absolute -top-1.5 -right-1.5 min-w-[14px] h-[14px] rounded-full bg-accent-blue text-[9px] font-black text-accent-foreground flex items-center justify-center px-0.5 leading-none">
 												{searchedRowCount}
 											</span>
 										)}
@@ -529,7 +548,7 @@ export function GridToolbar({
 					<div className="flex items-center gap-2.5 px-3 py-2">
 						{/* Search icon */}
 						<div className="w-8 h-8 flex items-center justify-center shrink-0">
-							<Search size={15} className="text-foreground/45" />
+							<Search size={15} className="text-foreground/70" />
 						</div>
 						
 						{/* Search input */}
@@ -560,7 +579,7 @@ export function GridToolbar({
 							size="icon-xs"
 							aria-label="Clear search"
 							onClick={onClearSearch}
-							className="h-8 w-8 text-foreground/58 hover:text-foreground hover:bg-surface-3"
+							className="h-8 w-8 text-foreground/70 hover:text-foreground hover:bg-surface-3"
 						>
 							<X size={14} />
 						</Button>

@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { QueryHistoryEntry } from "@/types";
 import { cn } from "@/lib/utils";
+import { EmptyState } from "@/components/ui/empty-state";
 
 function formatTime(ms: number): string {
 	if (ms < 1000) return `${ms}ms`;
@@ -74,7 +75,7 @@ export function QueryHistoryPanel({
 			<div className="shrink-0 flex flex-col gap-1.5 px-3 py-2 border-b border-border">
 				{/* Search */}
 				<div className="relative">
-					<Search size={10} className="absolute left-2 top-1/2 -translate-y-1/2 text-muted-foreground/40 pointer-events-none" />
+					<Search size={10} className="absolute left-2 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none" />
 					<Input
 						value={search}
 						onChange={(e) => setSearch(e.target.value)}
@@ -88,7 +89,7 @@ export function QueryHistoryPanel({
 					<div className="relative">
 						<button
 							onClick={() => setConnDropOpen((v) => !v)}
-							className="flex items-center gap-1 text-[9px] font-mono text-muted-foreground/60 hover:text-foreground transition-colors focus-visible:ring-2 focus-visible:ring-ring/50 focus-visible:outline-none"
+							className="flex items-center gap-1 text-[9px] font-mono text-muted-foreground hover:text-foreground transition-colors focus-visible:ring-2 focus-visible:ring-ring/50 focus-visible:outline-none"
 						>
 							<span className="truncate max-w-[120px]">{activeConnName}</span>
 							<ChevronDown size={9} />
@@ -117,12 +118,12 @@ export function QueryHistoryPanel({
 							key={s}
 							onClick={() => setStatusFilter(s)}
 							className={cn(
-								"text-[8px] uppercase tracking-widest font-bold px-1.5 py-0.5 rounded transition-colors focus-visible:ring-2 focus-visible:ring-ring/50 focus-visible:outline-none",
+								"text-[9px] uppercase tracking-widest font-bold px-1.5 py-0.5 rounded transition-colors focus-visible:ring-2 focus-visible:ring-ring/50 focus-visible:outline-none",
 									statusFilter === s
 										? s === "error" ? "bg-destructive/20 text-destructive"
-											: s === "success" ? "bg-green-500/20 text-green-400"
+											: s === "success" ? "bg-accent-green/20 text-accent-green"
 												: "bg-primary/20 text-primary"
-										: "text-muted-foreground/40 hover:text-muted-foreground"
+										: "text-muted-foreground hover:text-muted-foreground"
 								)}
 							>
 								{s}
@@ -135,13 +136,13 @@ export function QueryHistoryPanel({
 							variant="ghost"
 							size="xs"
 							onClick={onClearHistory}
-							className="h-5 text-[8px] text-muted-foreground/30 hover:text-destructive uppercase tracking-widest ml-auto"
+							className="h-5 text-[9px] text-muted-foreground hover:text-destructive uppercase tracking-widest ml-auto"
 						>
 							Clear all
 						</Button>
 					)}
 				</div>
-				<span className="text-[9px] font-mono text-muted-foreground/30">
+				<span className="text-[9px] font-mono text-muted-foreground">
 					{filtered.length} / {history.length} queries
 				</span>
 			</div>
@@ -149,12 +150,12 @@ export function QueryHistoryPanel({
 			{/* ── List ── */}
 			<div className="flex-1 overflow-auto scrollbar-thin">
 				{filtered.length === 0 ? (
-					<div className="flex flex-col items-center justify-center h-full text-muted-foreground/30 gap-2">
-						<Clock size={20} className="opacity-30" />
-						<p className="text-[10px] font-mono">
-							{history.length === 0 ? "No queries executed yet" : "No matches"}
-						</p>
-					</div>
+					<EmptyState
+						icon={Clock}
+						title={history.length === 0 ? "No queries executed yet" : "No matches"}
+						description={history.length === 0 ? "Run a query and it will appear here." : undefined}
+						className="min-h-0"
+					/>
 				) : (
 					filtered.map((entry) => {
 						const connName = connections.find((c) => c.id === entry.connectionId)?.name ?? entry.connectionId;
@@ -169,22 +170,22 @@ export function QueryHistoryPanel({
 								<div className="flex items-center gap-1.5 mb-1 min-w-0">
 									{/* Status icon */}
 									{entry.status === "success" && (
-										<CheckCircle2 size={9} className="text-green-400 shrink-0" />
+										<CheckCircle2 size={9} className="text-accent-green shrink-0" />
 									)}
 									{entry.status === "error" && (
 										<XCircle size={9} className="text-destructive shrink-0" />
 									)}
 									{!entry.status && (
-										<Clock size={9} className="text-muted-foreground/30 shrink-0" />
+										<Clock size={9} className="text-muted-foreground shrink-0" />
 									)}
-									<span className="text-[9px] font-mono text-muted-foreground/50 shrink-0">
+									<span className="text-[9px] font-mono text-muted-foreground shrink-0">
 										{formatDate(entry.executedAt)}
 									</span>
 									<span className="text-[9px] font-mono text-primary/50 truncate">
 										{connName}
 									</span>
 									{!isError && (
-										<span className="text-[9px] font-mono text-muted-foreground/30 shrink-0 ml-auto">
+										<span className="text-[9px] font-mono text-muted-foreground shrink-0 ml-auto">
 											{entry.rowCount}r · {formatTime(entry.executionTimeMs)}
 										</span>
 									)}
@@ -213,14 +214,14 @@ export function QueryHistoryPanel({
 								<button
 									title="Re-run"
 									onClick={() => onSelectQuery(entry.sql)}
-									className="p-0.5 text-muted-foreground/50 hover:text-primary transition-colors focus-visible:ring-2 focus-visible:ring-ring/50 focus-visible:outline-none"
+									className="p-0.5 text-muted-foreground hover:text-primary transition-colors focus-visible:ring-2 focus-visible:ring-ring/50 focus-visible:outline-none"
 								>
 										<RotateCcw size={9} />
 									</button>
 								<button
 									title={isCopied ? "Copied!" : "Copy SQL"}
 									onClick={() => handleCopy(entry.id, entry.sql)}
-									className={cn("p-0.5 transition-colors focus-visible:ring-2 focus-visible:ring-ring/50 focus-visible:outline-none", isCopied ? "text-green-400" : "text-muted-foreground/50 hover:text-primary")}
+									className={cn("p-0.5 transition-colors focus-visible:ring-2 focus-visible:ring-ring/50 focus-visible:outline-none", isCopied ? "text-accent-green" : "text-muted-foreground hover:text-primary")}
 								>
 										<Copy size={9} />
 									</button>
@@ -228,7 +229,7 @@ export function QueryHistoryPanel({
 								<button
 									title="Save query"
 									onClick={() => onSaveQuery(entry.sql)}
-									className="p-0.5 text-muted-foreground/50 hover:text-primary transition-colors focus-visible:ring-2 focus-visible:ring-ring/50 focus-visible:outline-none"
+									className="p-0.5 text-muted-foreground hover:text-primary transition-colors focus-visible:ring-2 focus-visible:ring-ring/50 focus-visible:outline-none"
 								>
 											<Bookmark size={9} />
 										</button>
@@ -237,7 +238,7 @@ export function QueryHistoryPanel({
 								<button
 									title="Delete"
 									onClick={() => onDeleteEntry(entry.id)}
-									className="p-0.5 text-muted-foreground/50 hover:text-destructive transition-colors focus-visible:ring-2 focus-visible:ring-ring/50 focus-visible:outline-none"
+									className="p-0.5 text-muted-foreground hover:text-destructive transition-colors focus-visible:ring-2 focus-visible:ring-ring/50 focus-visible:outline-none"
 								>
 											<Trash2 size={9} />
 										</button>

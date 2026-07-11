@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Loader2, Copy, Check, ChevronDown, ChevronRight } from "lucide-react";
+import { Loader2, Copy, Check, ChevronDown, ChevronRight, RefreshCw, FileCode2 } from "lucide-react";
+import { toast } from "sonner";
 import {
 	AlertDialog,
 	AlertDialogAction,
@@ -19,6 +20,10 @@ import { TabBar } from "@/components/layout/function-output/tab-bar";
 import { TableGridView } from "@/components/layout/function-output/table-grid-view";
 import { SqlEditorView } from "@/components/layout/function-output/sql-editor-view";
 
+function isWriteSql(sql: string): boolean {
+	return /^\s*(insert|update|delete|drop|truncate|alter|create|replace|merge)\b/i.test(sql);
+}
+
 function isDestructive(sql: string): boolean {
 	if (/\b(DELETE|DROP|TRUNCATE)\b/i.test(sql.trim())) return true;
 	// UPDATE without WHERE is also destructive
@@ -26,9 +31,42 @@ function isDestructive(sql: string): boolean {
 	return false;
 }
 
+function getProductionConfirmationPhrase(sql: string): string {
+	const trimmed = sql.trim();
+	const dropOrTruncate = trimmed.match(/^\s*(?:DROP|TRUNCATE)\s+(?:TABLE\s+)?["`]?([\w.-]+)["`]?/i);
+	if (dropOrTruncate?.[1]) return dropOrTruncate[1].split(".").pop() ?? dropOrTruncate[1];
+	if (/^\s*DELETE\b/i.test(trimmed) && !/\bWHERE\b/i.test(trimmed)) return "DELETE";
+	if (/^\s*UPDATE\b/i.test(trimmed) && !/\bWHERE\b/i.test(trimmed)) return "UPDATE";
+	return "RUN";
+}
+
 function buildExplainSql(sql: string): string {
 	const trimmed = sql.trim().replace(/;+\s*$/, "");
 	return /^EXPLAIN\b/i.test(trimmed) ? trimmed : `EXPLAIN ${trimmed}`;
+}
+
+function getErrorHint(error: string): string | null {
+	const lower = error.toLowerCase();
+	if (lower.includes("does not exist") || lower.includes("no such table") || lower.includes("unknown column")) {
+		return "Check the table, column, schema, or selected database name.";
+	}
+	if (lower.includes("permission denied") || lower.includes("access denied") || lower.includes("not authorized")) {
+		return "Check this database user's grants and role permissions.";
+	}
+	if (lower.includes("timed out") || lower.includes("timeout")) {
+		return "Try increasing the query timeout, narrowing the result set, or checking indexes.";
+	}
+	if (lower.includes("syntax error") || lower.includes("parse error")) {
+		return "Check SQL syntax near the reported token or line.";
+	}
+	if (lower.includes("connection refused") || lower.includes("could not connect") || lower.includes("network")) {
+		return "Check host, port, tunnel, VPN, firewall, and database availability.";
+	}
+	return null;
+}
+
+function getErrorSummary(error: string): string {
+	return error.split("\n").map((line) => line.trim()).find(Boolean) ?? "Something went wrong";
 }
 
 function isEditableElement(target: EventTarget | null): boolean {
@@ -67,6 +105,8 @@ const FunctionOutput = () => {
 		switchToTab,
 		clearPendingCellEdits,
 		clearInvocationError,
+		cancelActiveQuery,
+		runningQueryIds,
 		connectedIds,
 		appSettings,
 		showConnectionsManager,
@@ -78,12 +118,20 @@ const FunctionOutput = () => {
 	const [page, setPage] = useState(0);
 	const [localPageSize, setLocalPageSize] = useState<number | null>(null);
 	const [pendingDangerSql, setPendingDangerSql] = useState<string | null>(null);
+	const [dangerConfirmInput, setDangerConfirmInput] = useState("");
 	const [pendingTabCloseId, setPendingTabCloseId] = useState<string | null>(null);
 	const [connectingHomeIds, setConnectingHomeIds] = useState<Set<string>>(new Set());
 	const [cancellingHomeIds, setCancellingHomeIds] = useState<Set<string>>(new Set());
 	const homeConnectCancelRef = useRef<Set<string>>(new Set());
 	const [errorCopied, setErrorCopied] = useState(false);
 	const [errorExpanded, setErrorExpanded] = useState(false);
+	// NOTE: errorSqlCopied MUST be declared at the top level of the component,
+	// not inside renderContent(). It was previously declared inside the
+	// `if (invocationResult?.error)` conditional block within renderContent(),
+	// which is a Rules of Hooks violation — the hook was conditionally called,
+	// changing the hook count between renders and causing
+	// "Maximum update depth exceeded" when the error state changed.
+	const [errorSqlCopied, setErrorSqlCopied] = useState(false);
 	// Reset both page and per-tab page size when switching to a different function/table
 	useEffect(() => {
 		setPage(0);
@@ -112,8 +160,13 @@ const FunctionOutput = () => {
 		if (!activeFunction) return;
 		const sql = (sqlOverride ?? pendingSqlValue).trim();
 		if (!sql) return;
-		const isProdWrite = isProductionConn && /\b(INSERT|UPDATE|DELETE|DROP|TRUNCATE|ALTER|CREATE|REPLACE)\b/i.test(sql);
-		if (isDestructive(sql) || isProdWrite) { setPendingDangerSql(sql); return; }
+		const writeSql = isWriteSql(sql);
+		if (activeConnObj?.safetyMode === "read-only" && writeSql) {
+			toast.error("Read-only connection — write queries are blocked.");
+			return;
+		}
+		const isProdWrite = isProductionConn && writeSql;
+		if (isDestructive(sql) || isProdWrite) { setDangerConfirmInput(""); setPendingDangerSql(sql); return; }
 		// Detect multiple statements
 		const stmts = sql.split(/;/).map((s) => s.replace(/--[^\n]*/g, "").trim()).filter(Boolean);
 		if (stmts.length > 1) {
@@ -121,11 +174,12 @@ const FunctionOutput = () => {
 		} else {
 			await invokeFunction(activeFunction, { sql });
 		}
-	}, [activeFunction, pendingSqlValue, invokeFunction, runMultiStatementSql, isProductionConn]);
+	}, [activeFunction, pendingSqlValue, invokeFunction, runMultiStatementSql, isProductionConn, activeConnObj?.safetyMode]);
 	const confirmDangerSql = useCallback(async () => {
 		if (!pendingDangerSql || !activeFunction) return;
 		const sql = pendingDangerSql;
 		setPendingDangerSql(null);
+		setDangerConfirmInput("");
 		await invokeFunction(activeFunction, { sql });
 	}, [pendingDangerSql, activeFunction, invokeFunction]);
 	const handleExplainSql = useCallback(async () => {
@@ -248,7 +302,7 @@ const FunctionOutput = () => {
 		};
 
 		const outputType = invocationResult?.outputType ?? "idle";
-		if (isLoading || invocationResult?.isLoading) {
+		if (isLoading || (invocationResult?.isLoading && outputType !== "sql-editor")) {
 			const label = activeFunction
 				? activeFunction.callSignature
 						.slice(activeFunction.prefix.length + 1)
@@ -272,15 +326,34 @@ const FunctionOutput = () => {
 			const lines = errorText.split("\n");
 			const isMultiLine = lines.length > 3;
 			const preview = lines.slice(0, 3).join("\n");
+			const errorSummary = getErrorSummary(errorText);
+			const errorHint = getErrorHint(errorText);
 			const handleCopyError = () => {
 				navigator.clipboard.writeText(errorText).then(() => {
 					setErrorCopied(true);
 					setTimeout(() => setErrorCopied(false), 2000);
 				});
 			};
+			const handleCopySql = () => {
+				if (!pendingSqlValue) return;
+				navigator.clipboard.writeText(pendingSqlValue).then(() => {
+					setErrorSqlCopied(true);
+					setTimeout(() => setErrorSqlCopied(false), 2000);
+				});
+			};
+			const handleRetry = () => {
+				clearInvocationError();
+				const sql = pendingSqlValue.trim();
+				if (!sql) return;
+				if (activeFunction.type === "query" || activeFunction.type === "execute") {
+					void invokeFunction(activeFunction, { sql });
+				} else {
+					void invokeFunction(activeFunction);
+				}
+			};
 			return (
 				<div className="h-full flex items-center justify-center bg-background p-8">
-					<div className="max-w-lg w-full bg-destructive/5 border border-destructive/20 rounded-lg overflow-hidden">
+					<div className="max-w-2xl w-full bg-destructive/5 border border-destructive/20 rounded-lg overflow-hidden">
 						<div className="flex items-center justify-between px-4 pt-4 pb-2">
 							<p className="text-[10px] font-bold uppercase tracking-widest text-destructive">Error</p>
 							<div className="flex items-center gap-1.5">
@@ -291,13 +364,43 @@ const FunctionOutput = () => {
 									← Back to Editor
 								</button>
 								<button
+									onClick={handleRetry}
+									className="flex items-center gap-1 rounded px-2 py-1 text-[10px] font-medium text-foreground/50 hover:bg-muted hover:text-foreground transition-colors"
+								>
+									<RefreshCw size={10} />
+									Retry
+								</button>
+								{pendingSqlValue && (
+									<button
+										onClick={handleCopySql}
+										className="flex items-center gap-1 rounded px-2 py-1 text-[10px] font-medium text-foreground/50 hover:bg-muted hover:text-foreground transition-colors"
+									>
+										{errorSqlCopied ? <Check size={10} /> : <FileCode2 size={10} />}
+										{errorSqlCopied ? "SQL copied" : "Copy SQL"}
+									</button>
+								)}
+								<button
 									onClick={handleCopyError}
 									className="flex items-center gap-1 rounded px-2 py-1 text-[10px] font-medium text-destructive/70 hover:bg-destructive/10 hover:text-destructive transition-colors"
 								>
 									{errorCopied ? <Check size={10} /> : <Copy size={10} />}
-									{errorCopied ? "Copied" : "Copy"}
+									{errorCopied ? "Copied" : "Copy error"}
 								</button>
 							</div>
+						</div>
+						<div className="px-4 pb-2">
+							<p className="text-[14px] font-semibold text-foreground">{errorSummary}</p>
+							<p className="mt-1 text-[11px] text-muted-foreground">
+								{activeConnObj?.name ?? activeFunction.connectionId}
+								{activeTableDatabase ? <> · <span className="font-mono">{activeTableDatabase}</span></> : null}
+								{" · "}
+								<span className="font-mono">{activeFunction.callSignature}</span>
+							</p>
+							{errorHint && (
+								<div className="mt-3 rounded border border-warning/30 bg-warning/8 px-3 py-2 text-[12px] text-foreground/80">
+									<span className="font-semibold text-warning">Hint:</span> {errorHint}
+								</div>
+							)}
 						</div>
 						<div className="px-4 pb-4">
 							<pre className="whitespace-pre-wrap text-xs font-mono text-destructive/80 leading-relaxed">
@@ -338,6 +441,15 @@ const FunctionOutput = () => {
 						onConnect={handleHomeConnect}
 						onCancelConnect={handleHomeCancelConnect}
 						onDisconnect={(id) => disconnectConnection(id)}
+						onOpenTable={(connectionId, tableName, schema) => {
+							const fns = Object.values(connectionFunctions[connectionId] ?? {}).flat();
+							const tableFn = fns.find(
+                                (f) => f.type === "table" && f.tableName === tableName && f.schema === schema,
+                            );
+                            if (tableFn) {
+                                void invokeFunction(tableFn);
+                            }
+                        }}
 					/>
 				);
 			}
@@ -368,11 +480,13 @@ const FunctionOutput = () => {
 					<SqlEditorView
 						fn={activeFunction}
 						queryResult={invocationResult.queryResult}
-						isLoading={false}
+						isLoading={!!invocationResult.isLoading}
 						pendingSql={pendingSqlValue}
 						onSqlChange={setPendingSql}
 						onExecute={handleExecuteSql}
 						onExplain={handleExplainSql}
+						onCancel={cancelActiveQuery}
+						canCancel={!!(activeTabId && runningQueryIds[activeTabId])}
 						tables={Object.values(connectionTables[activeFunction.connectionId] ?? {}).flat()}
 					/>
 				);
@@ -397,6 +511,10 @@ const FunctionOutput = () => {
 				);
 		}
 	};
+	const pendingDangerIsWrite = pendingDangerSql ? isWriteSql(pendingDangerSql) : false;
+	const pendingDangerRequiresPhrase = !!(pendingDangerSql && isProductionConn && pendingDangerIsWrite);
+	const pendingDangerPhrase = pendingDangerSql ? getProductionConfirmationPhrase(pendingDangerSql) : "";
+	const pendingDangerCanRun = !pendingDangerRequiresPhrase || dangerConfirmInput.trim() === pendingDangerPhrase;
 	return (
 		<div className="flex h-full w-full flex-col overflow-hidden bg-surface-1">
 			<TabBar
@@ -415,30 +533,64 @@ const FunctionOutput = () => {
 			{/* Destructive query confirmation dialog */}
 			<AlertDialog
 				open={!!pendingDangerSql}
-				onOpenChange={(o) => !o && setPendingDangerSql(null)}
+				onOpenChange={(o) => {
+					if (!o) {
+						setPendingDangerSql(null);
+						setDangerConfirmInput("");
+					}
+				}}
 			>
-				<AlertDialogContent className="max-w-md">
+				<AlertDialogContent className="max-w-lg">
 					<AlertDialogHeader>
 						<AlertDialogTitle>{isProductionConn ? "⚠️ Production database — confirm operation" : "Destructive query detected"}</AlertDialogTitle>
 						<AlertDialogDescription asChild>
 							<div>
 								{isProductionConn && (
-									<div className="mb-2 flex items-center gap-2 rounded border border-red-500/40 bg-red-500/10 px-3 py-2 text-red-400 text-xs font-semibold">
-										⚠️ You are connected to a PRODUCTION database. This cannot be undone.
+									<div className="mb-3 rounded border border-red-500/40 bg-red-500/10 px-3 py-2 text-red-300">
+										<div className="text-xs font-bold uppercase tracking-wider">Production write protection</div>
+										<div className="mt-1 text-xs text-red-200/80">
+											Connection: <span className="font-semibold text-red-100">{activeConnObj?.name ?? activeConnObj?.id ?? "Production"}</span>
+											{activeTableDatabase ? <> · Database: <span className="font-mono text-red-100">{activeTableDatabase}</span></> : null}
+										</div>
 									</div>
 								)}
-								<span className="text-sm text-muted-foreground">{isProductionConn ? "This write operation will affect your production data. Double-check before running." : "This query contains DELETE / DROP / TRUNCATE or an UPDATE without a WHERE clause."}</span>
-								<pre className="mt-2 rounded bg-muted p-2 text-xs font-mono overflow-x-auto whitespace-pre-wrap break-all max-h-40">{pendingDangerSql}</pre>
+								<span className="text-sm text-muted-foreground">
+									{isProductionConn
+										? "You are about to run a write operation on production. Review the SQL carefully before continuing."
+										: "This query contains DELETE / DROP / TRUNCATE or an UPDATE without a WHERE clause."}
+								</span>
+								<pre className="mt-3 max-h-44 overflow-x-auto whitespace-pre-wrap break-all rounded bg-muted p-2 text-xs font-mono">{pendingDangerSql}</pre>
+								{pendingDangerRequiresPhrase && (
+									<div className="mt-3 space-y-1.5">
+										<label className="text-xs font-medium text-foreground/80">
+											Type <span className="font-mono font-bold text-foreground">{pendingDangerPhrase}</span> to confirm
+										</label>
+										<input
+											value={dangerConfirmInput}
+											onChange={(event) => setDangerConfirmInput(event.target.value)}
+											className="h-8 w-full rounded border border-border bg-background px-2 font-mono text-xs text-foreground outline-none focus:ring-2 focus:ring-ring/50"
+											placeholder={pendingDangerPhrase}
+											autoFocus
+										/>
+									</div>
+								)}
 							</div>
 						</AlertDialogDescription>
 					</AlertDialogHeader>
 					<AlertDialogFooter>
 						<AlertDialogCancel>Cancel</AlertDialogCancel>
 						<AlertDialogAction
-							onClick={confirmDangerSql}
-							className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+							disabled={!pendingDangerCanRun}
+							onClick={(event) => {
+								if (!pendingDangerCanRun) {
+									event.preventDefault();
+									return;
+								}
+								void confirmDangerSql();
+							}}
+							className="bg-destructive text-destructive-foreground hover:bg-destructive/90 disabled:cursor-not-allowed disabled:opacity-50"
 						>
-							Run anyway
+							{isProductionConn ? "Run on production" : "Run anyway"}
 						</AlertDialogAction>
 					</AlertDialogFooter>
 				</AlertDialogContent>

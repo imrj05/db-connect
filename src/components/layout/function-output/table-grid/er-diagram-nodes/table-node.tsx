@@ -121,7 +121,7 @@ function TableNodeComponent({ data, selected, id }: NodeProps<TableNodeType>) {
 				{isEditing && (
 					<GripVertical
 						size={11}
-						className="text-muted-foreground/25 shrink-0 cursor-grab nodrag"
+						className="text-muted-foreground shrink-0 cursor-grab nodrag"
 					/>
 				)}
 				<Database
@@ -143,7 +143,7 @@ function TableNodeComponent({ data, selected, id }: NodeProps<TableNodeType>) {
 							{label}
 						</div>
 					)}
-					<div className="text-[9px] font-mono text-muted-foreground/45 truncate">
+					<div className="text-[9px] font-mono text-muted-foreground truncate">
 						{schema ?? "default"} · {degree} link{degree === 1 ? "" : "s"}
 					</div>
 				</div>
@@ -154,7 +154,7 @@ function TableNodeComponent({ data, selected, id }: NodeProps<TableNodeType>) {
 							e.stopPropagation();
 							onDeleteTable();
 						}}
-						className="shrink-0 text-muted-foreground/30 hover:text-destructive/70 p-0.5 nodrag"
+						className="shrink-0 text-muted-foreground hover:text-destructive/70 p-0.5 nodrag"
 						title="Delete table"
 					>
 						<Trash2 size={11} />
@@ -213,7 +213,7 @@ function TableNodeComponent({ data, selected, id }: NodeProps<TableNodeType>) {
 						variant="ghost"
 						size="xs"
 						onClick={addColumn}
-						className="h-5 w-full text-[9px] text-muted-foreground/40 hover:text-foreground rounded-none nodrag"
+						className="h-5 w-full text-[9px] text-muted-foreground hover:text-foreground rounded-none nodrag"
 					>
 						<Plus size={8} className="mr-1" />
 						Add column

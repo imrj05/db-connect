@@ -340,6 +340,7 @@ impl DatabaseDriver for RedisDriver {
                     columns: vec!["result".to_string()],
                     rows: vec![serde_json::json!({"result": "OK"})],
                     execution_time_ms: duration,
+                    ..Default::default()
                 });
             }
         }
@@ -353,6 +354,7 @@ impl DatabaseDriver for RedisDriver {
                     columns: vec!["result".to_string()],
                     rows: vec![serde_json::json!({"result": "OK"})],
                     execution_time_ms: duration,
+                    ..Default::default()
                 });
             }
         }
@@ -375,6 +377,7 @@ impl DatabaseDriver for RedisDriver {
             columns: vec!["value".to_string()],
             rows: vec![serde_json::json!({ "value": redis_value_to_json(&val) })],
             execution_time_ms: duration,
+            ..Default::default()
         })
     }
 
@@ -512,6 +515,7 @@ impl DatabaseDriver for RedisDriver {
             columns,
             rows,
             execution_time_ms: duration,
+            ..Default::default()
         })
     }
 

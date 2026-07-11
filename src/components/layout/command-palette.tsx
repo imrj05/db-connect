@@ -125,6 +125,35 @@ export function CommandPalette() {
         return hits.slice(0, 30);
     }, [isSchemaSearch, schemaQuery, connectionTables]);
 
+    type SchemaQueryHit = { source: "saved" | "recent"; id: string; name: string; sql: string; connectionId?: string };
+    const schemaQueryHits = React.useMemo<SchemaQueryHit[]>(() => {
+        if (!isSchemaSearch || !schemaQuery) return [];
+        const hits: SchemaQueryHit[] = [];
+        for (const sq of savedQueries) {
+            if (sq.name.toLowerCase().includes(schemaQuery) || sq.sql.toLowerCase().includes(schemaQuery)) {
+                hits.push({ source: "saved", id: sq.id, name: sq.name, sql: sq.sql, connectionId: sq.connectionId });
+                if (hits.length >= 20) break;
+            }
+        }
+        return hits;
+    }, [isSchemaSearch, schemaQuery, savedQueries]);
+
+    const schemaRecentQueryHits = React.useMemo<SchemaQueryHit[]>(() => {
+        if (!isSchemaSearch || !schemaQuery) return [];
+        const seen = new Set<string>();
+        const hits: SchemaQueryHit[] = [];
+        for (const entry of useAppStore.getState().queryHistory) {
+            if (entry.status === "error") continue;
+            if (seen.has(entry.id)) continue;
+            seen.add(entry.id);
+            if (entry.sql.toLowerCase().includes(schemaQuery)) {
+                hits.push({ source: "recent", id: entry.id, name: entry.sql, sql: entry.sql, connectionId: entry.connectionId });
+                if (hits.length >= 20) break;
+            }
+        }
+        return hits;
+    }, [isSchemaSearch, schemaQuery, commandPaletteOpen]);
+
     const handleSelect = (fn: ConnectionFunction) => {
         setCommandPaletteOpen(false);
         if (fn.type === "query" || fn.type === "execute") {
@@ -199,6 +228,89 @@ export function CommandPalette() {
                                     );
                                 })}
                             </CommandGroup>
+                            {schemaQueryHits.length > 0 && (
+                                <CommandGroup
+                                    heading={
+                                    <span className="flex items-center gap-1.5">
+                                        <Bookmark size={11} className="text-foreground/42" />
+                                        Saved Queries
+                                    </span>
+                                }>
+                                    {schemaQueryHits.map((hit) => (
+                                        <CommandItem
+                                            key={`schema-saved-${hit.id}`}
+                                            value={`schema-saved-${hit.id}`}
+                                            onSelect={() => {
+                                                const queryFn = hit.connectionId
+                                                    ? allFunctions.find(
+                                                        (f) => f.connectionId === hit.connectionId && f.type === "query"
+                                                    )
+                                                    : allFunctions.find((f) => f.type === "query");
+                                                setCommandPaletteOpen(false);
+                                                if (queryFn) {
+                                                    setActiveFunctionOnly(queryFn);
+                                                    window.dispatchEvent(
+                                                        new CustomEvent("palette-load-sql", {
+                                                            detail: { sql: hit.sql, connectionId: hit.connectionId },
+                                                        }),
+                                                    );
+                                                }
+                                            }}
+                                        >
+                                            <Bookmark size={13} className="shrink-0 text-foreground/42" />
+                                            <div className="flex flex-col flex-1 min-w-0">
+                                                <span className="text-[14px] font-semibold leading-tight tracking-tight">
+                                                    {hit.name}
+                                                </span>
+                                                <span className="text-[12px] text-foreground/52 mt-0.5 leading-tight truncate font-mono">
+                                                    {hit.sql.slice(0, 60)}
+                                                </span>
+                                            </div>
+                                        </CommandItem>
+                                    ))}
+                                </CommandGroup>
+                            )}
+                            {schemaRecentQueryHits.length > 0 && (
+                                <CommandGroup heading={
+                                    <span className="flex items-center gap-1.5">
+                                        <Zap size={11} className="text-foreground/42" />
+                                        Recent Queries
+                                    </span>
+                                }>
+                                    {schemaRecentQueryHits.map((hit) => (
+                                        <CommandItem
+                                            key={`schema-recent-${hit.id}`}
+                                            value={`schema-recent-${hit.id}`}
+                                            onSelect={() => {
+                                                const queryFn = hit.connectionId
+                                                    ? allFunctions.find(
+                                                        (f) => f.connectionId === hit.connectionId && f.type === "query"
+                                                    )
+                                                    : allFunctions.find((f) => f.type === "query");
+                                                setCommandPaletteOpen(false);
+                                                if (queryFn) {
+                                                    setActiveFunctionOnly(queryFn);
+                                                    window.dispatchEvent(
+                                                        new CustomEvent("palette-load-sql", {
+                                                            detail: { sql: hit.sql, connectionId: hit.connectionId },
+                                                        }),
+                                                    );
+                                                }
+                                            }}
+                                        >
+                                            <Zap size={13} className="shrink-0 text-foreground/42" />
+                                            <div className="flex flex-col flex-1 min-w-0">
+                                                <span className="text-[14px] font-semibold leading-tight tracking-tight truncate font-mono">
+                                                    {hit.sql.slice(0, 80)}
+                                                </span>
+                                                <span className="text-[12px] text-foreground/52 mt-0.5 leading-tight truncate">
+                                                    {connections.find((c) => c.id === hit.connectionId)?.name ?? "Recent"}
+                                                </span>
+                                            </div>
+                                        </CommandItem>
+                                    ))}
+                                </CommandGroup>
+                            )}
                             <CommandSeparator />
                         </>
                     )}

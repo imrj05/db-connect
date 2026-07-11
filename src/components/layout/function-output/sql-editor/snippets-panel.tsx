@@ -140,7 +140,7 @@ export function SnippetsPanel({ onInsert }: { onInsert: (sql: string) => void })
 			{/* Search + add button */}
 			<div className="px-2 py-2 border-b border-border shrink-0 flex gap-1.5">
 				<div className="relative flex-1">
-					<Search size={10} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground/40 pointer-events-none" />
+					<Search size={10} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none" />
 					<Input
 						value={search}
 						onChange={(e) => setSearch(e.target.value)}
@@ -151,7 +151,7 @@ export function SnippetsPanel({ onInsert }: { onInsert: (sql: string) => void })
 				<Button
 					size="icon"
 					variant="ghost"
-					className="h-6 w-6 shrink-0 text-muted-foreground/50 hover:text-foreground"
+					className="h-6 w-6 shrink-0 text-muted-foreground hover:text-foreground"
 					onClick={() => setShowAdd((v) => !v)}
 				>
 					{showAdd ? <X size={11} /> : <Plus size={11} />}
@@ -184,7 +184,7 @@ export function SnippetsPanel({ onInsert }: { onInsert: (sql: string) => void })
 						onChange={(e) => setForm((f) => ({ ...f, sql: e.target.value }))}
 						placeholder="SQL *"
 						rows={4}
-						className="resize-none rounded-md border border-border/60 bg-surface-3 px-2 py-1.5 text-[11px] font-mono text-foreground placeholder:text-muted-foreground/40 focus:outline-none focus:ring-1 focus:ring-primary/50"
+						className="resize-none rounded-md border border-border/60 bg-surface-3 px-2 py-1.5 text-[11px] font-mono text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary/50"
 					/>
 					<div className="flex justify-end gap-1">
 						<Button size="sm" variant="ghost" className="h-6 text-[11px]" onClick={() => setShowAdd(false)}>Cancel</Button>
@@ -201,7 +201,7 @@ export function SnippetsPanel({ onInsert }: { onInsert: (sql: string) => void })
 					onClick={() => setActiveCategory(null)}
 					className={cn(
 						"px-1.5 py-0.5 rounded text-[9px] font-semibold uppercase tracking-wide transition-colors",
-						!activeCategory ? "bg-primary/10 text-primary" : "text-muted-foreground/50 hover:text-foreground hover:bg-surface-3",
+						!activeCategory ? "bg-primary/10 text-primary" : "text-muted-foreground hover:text-foreground hover:bg-surface-3",
 					)}
 				>
 					All
@@ -212,7 +212,7 @@ export function SnippetsPanel({ onInsert }: { onInsert: (sql: string) => void })
 						onClick={() => setActiveCategory(cat === activeCategory ? null : cat)}
 						className={cn(
 							"px-1.5 py-0.5 rounded text-[9px] font-semibold uppercase tracking-wide transition-colors",
-							activeCategory === cat ? "bg-primary/10 text-primary" : "text-muted-foreground/50 hover:text-foreground hover:bg-surface-3",
+							activeCategory === cat ? "bg-primary/10 text-primary" : "text-muted-foreground hover:text-foreground hover:bg-surface-3",
 						)}
 					>
 						{cat}
@@ -223,7 +223,7 @@ export function SnippetsPanel({ onInsert }: { onInsert: (sql: string) => void })
 			{/* Snippet list */}
 			<div className="flex-1 overflow-y-auto scrollbar-thin">
 				{filtered.length === 0 ? (
-					<div className="flex items-center justify-center h-16 text-[11px] text-muted-foreground/40">
+					<div className="flex items-center justify-center h-16 text-[11px] text-muted-foreground">
 						No snippets match
 					</div>
 				) : (
@@ -242,18 +242,18 @@ export function SnippetsPanel({ onInsert }: { onInsert: (sql: string) => void })
 											<span className="text-[11px] font-mono font-semibold text-foreground/85 truncate">
 												{snippet.label}
 											</span>
-											<span className="text-[8px] font-semibold uppercase tracking-wide text-muted-foreground/40 shrink-0">
+											<span className="text-[9px] font-semibold uppercase tracking-wide text-muted-foreground shrink-0">
 												{snippet.category}
 											</span>
 											{!snippet.builtIn && (
-												<span className="text-[8px] font-semibold uppercase tracking-wide text-primary/50 shrink-0">custom</span>
+												<span className="text-[9px] font-semibold uppercase tracking-wide text-primary/50 shrink-0">custom</span>
 											)}
 										</div>
-										<div className="text-[10px] text-muted-foreground/55 truncate mt-px">
+										<div className="text-[10px] text-muted-foreground truncate mt-px">
 											{snippet.description}
 										</div>
 									</div>
-									<ChevronRight size={10} className="shrink-0 text-muted-foreground/30 group-hover:text-primary/60 transition-colors" />
+									<ChevronRight size={10} className="shrink-0 text-muted-foreground group-hover:text-primary/60 transition-colors" />
 								</button>
 								{!snippet.builtIn && (
 									<button

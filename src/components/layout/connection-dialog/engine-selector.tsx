@@ -54,9 +54,6 @@ export function EngineSelector({
 								{engine.description}
 							</span>
 						</div>
-						{isActive && (
-							<span className="absolute inset-x-3 bottom-0 h-px bg-primary" />
-						)}
 					</button>
 				);
 			})}

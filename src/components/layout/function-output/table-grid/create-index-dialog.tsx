@@ -114,11 +114,11 @@ export function CreateIndexDialog({
 										>
 											{col.name}
 										</span>
-										<span className="text-muted-foreground/40 text-[9px]">
+										<span className="text-muted-foreground text-[9px]">
 											{col.dataType}
 										</span>
 										{isSelected && (
-											<span className="w-4 h-4 rounded-full bg-primary text-primary-foreground text-[8px] font-black flex items-center justify-center shrink-0">
+											<span className="w-4 h-4 rounded-full bg-primary text-primary-foreground text-[9px] font-black flex items-center justify-center shrink-0">
 												{order + 1}
 											</span>
 										)}
@@ -134,7 +134,7 @@ export function CreateIndexDialog({
 							className="flex flex-col gap-0.5 cursor-pointer flex-1"
 						>
 							<span className="text-[11px] font-semibold">Unique index</span>
-							<span className="text-[10px] text-muted-foreground/60 font-normal">
+							<span className="text-[10px] text-muted-foreground font-normal">
 								Enforce unique values on indexed columns
 							</span>
 						</Label>

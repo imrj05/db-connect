@@ -12,7 +12,7 @@ function TypeBadge({ type }: { type: string }) {
 		.toUpperCase()
 		.slice(0, 7);
 	return (
-        <span className="shrink-0 rounded-sm border border-border/60 bg-muted/50 px-1 py-px text-[8px] font-mono text-muted-foreground/70 leading-none">
+        <span className="shrink-0 rounded-sm border border-border/60 bg-muted/50 px-1 py-px text-[9px] font-mono text-muted-foreground leading-none">
 			{short}
 		</span>
 	);
@@ -45,7 +45,7 @@ export function TableInfoPanel({
 
 	if (!structure) {
 		return (
-			<div className="flex flex-col items-center justify-center h-full gap-2 text-muted-foreground/30">
+			<div className="flex flex-col items-center justify-center h-full gap-2 text-muted-foreground">
 				<Database size={18} />
 				<p className="text-[10px]">No structure loaded</p>
 			</div>
@@ -70,7 +70,7 @@ export function TableInfoPanel({
 							key={label}
 							className="rounded-md border border-border/60 bg-muted/30 px-2.5 py-2"
 						>
-							<div className="flex items-center gap-1 text-muted-foreground/60 mb-0.5">
+							<div className="flex items-center gap-1 text-muted-foreground mb-0.5">
 								{icon}
 								<span className="text-[9px] uppercase tracking-wider">{label}</span>
 							</div>
@@ -81,7 +81,7 @@ export function TableInfoPanel({
 
 				{/* Columns */}
 				<div>
-					<p className="text-[9px] font-bold uppercase tracking-[0.12em] text-muted-foreground/50 mb-1.5">
+					<p className="text-[9px] font-bold uppercase tracking-[0.12em] text-muted-foreground mb-1.5">
 						Columns
 					</p>
 					<div className="rounded-md border border-border/60 overflow-hidden">
@@ -117,22 +117,22 @@ export function TableInfoPanel({
 								{/* Badges */}
 								<div className="flex items-center gap-1 shrink-0">
 									{col.isPrimary && (
-                                        <span className="rounded-sm border border-accent-yellow/30 bg-accent-yellow/10 px-1 py-px text-[8px] font-bold text-accent-yellow leading-none">
+                                        <span className="rounded-sm border border-accent-yellow/30 bg-accent-yellow/10 px-1 py-px text-[9px] font-bold text-accent-yellow leading-none">
 											PK
 										</span>
 									)}
 									{fkColumnNames.has(col.name) && (
-                                        <span className="rounded-sm border border-accent-blue/30 bg-accent-blue/10 px-1 py-px text-[8px] font-bold text-accent-blue leading-none">
+                                        <span className="rounded-sm border border-accent-blue/30 bg-accent-blue/10 px-1 py-px text-[9px] font-bold text-accent-blue leading-none">
 											FK
 										</span>
 									)}
 									{col.isUnique && !col.isPrimary && (
-                                        <span className="rounded-sm border border-accent-purple/30 bg-accent-purple/10 px-1 py-px text-[8px] font-bold text-accent-purple leading-none">
+                                        <span className="rounded-sm border border-accent-purple/30 bg-accent-purple/10 px-1 py-px text-[9px] font-bold text-accent-purple leading-none">
 											UQ
 										</span>
 									)}
 									{col.nullable ? (
-										<AlertCircle size={8} className="text-muted-foreground/30" />
+										<AlertCircle size={8} className="text-muted-foreground" />
 									) : (
 										<CheckCircle2 size={8} className="text-accent-green/50" />
 									)}
@@ -146,7 +146,7 @@ export function TableInfoPanel({
 				{/* Indexes */}
 				{structure.indexes.length > 0 && (
 					<div>
-						<p className="text-[9px] font-bold uppercase tracking-[0.12em] text-muted-foreground/50 mb-1.5">
+						<p className="text-[9px] font-bold uppercase tracking-[0.12em] text-muted-foreground mb-1.5">
 							Indexes
 						</p>
 						<div className="rounded-md border border-border/60 overflow-hidden">
@@ -163,12 +163,12 @@ export function TableInfoPanel({
 											{idx.name}
 										</span>
 										{idx.unique && (
-                                            <span className="rounded-sm border border-accent-purple/30 bg-accent-purple/10 px-1 py-px text-[8px] font-bold text-accent-purple leading-none shrink-0">
+                                            <span className="rounded-sm border border-accent-purple/30 bg-accent-purple/10 px-1 py-px text-[9px] font-bold text-accent-purple leading-none shrink-0">
 												UNIQUE
 											</span>
 										)}
 									</div>
-									<p className="text-[9px] text-muted-foreground/50 mt-0.5 font-mono">
+									<p className="text-[9px] text-muted-foreground mt-0.5 font-mono">
 										{idx.columns.join(", ")}
 									</p>
 								</div>
@@ -180,7 +180,7 @@ export function TableInfoPanel({
 				{/* Foreign Keys */}
 				{(outgoingFKs.length > 0 || incomingFKs.length > 0) && (
 					<div>
-						<p className="text-[9px] font-bold uppercase tracking-[0.12em] text-muted-foreground/50 mb-1.5">
+						<p className="text-[9px] font-bold uppercase tracking-[0.12em] text-muted-foreground mb-1.5">
 							Foreign Keys
 						</p>
 						<div className="space-y-1">
@@ -195,7 +195,7 @@ export function TableInfoPanel({
 											→ {fk.targetTable}
 										</span>
 									</div>
-									<p className="text-[9px] font-mono text-muted-foreground/60">
+									<p className="text-[9px] font-mono text-muted-foreground">
 										{fk.sourceColumns.join(", ")} → {fk.targetColumns.join(", ")}
 									</p>
 								</div>
@@ -205,13 +205,13 @@ export function TableInfoPanel({
 									key={fk.name}
 									className="rounded-md border border-border/50 bg-muted/20 px-2.5 py-1.5"
 								>
-									<div className="flex items-center gap-1 text-muted-foreground/60 mb-0.5">
+									<div className="flex items-center gap-1 text-muted-foreground mb-0.5">
 										<Link2 size={9} />
 										<span className="text-[9px] font-bold uppercase tracking-wider">
 											← {fk.sourceTable}
 										</span>
 									</div>
-									<p className="text-[9px] font-mono text-muted-foreground/50">
+									<p className="text-[9px] font-mono text-muted-foreground">
 										{fk.sourceColumns.join(", ")} → {fk.targetColumns.join(", ")}
 									</p>
 								</div>
