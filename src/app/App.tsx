@@ -266,8 +266,8 @@ function App() {
                 : `"${monoFont}", monospace`;
         }
 
-        document.documentElement.style.setProperty("--app-font-sans", sansList);
-        document.documentElement.style.setProperty("--app-font-mono", monoList);
+        document.documentElement.style.setProperty("--font-sans", sansList);
+        document.documentElement.style.setProperty("--font-mono", monoList);
     }, [appSettings.uiFontFamily, appSettings.monoFontFamily]);
 
     // ⌘W / Ctrl+W — close active tab, or show close-app dialog when no tabs remain

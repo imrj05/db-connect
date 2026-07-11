@@ -25,32 +25,21 @@
     --muted-foreground: oklch(0.5 0.016 285.938);
     --accent: oklch(0.955 0.002 286.375);
     --accent-foreground: oklch(0.21 0.006 285.885);
-    /* Light Accent Blue — distinct from --primary (button blue). Used for
-       selection highlights, active icons, and the hover→selected hue ramp.
-       DESIGN.md §2.1 splits these; the previous code collapsed them into one. */
-    --accent-blue: oklch(0.54 0.145 255);
     --destructive: oklch(0.577 0.245 27.325);
     --destructive-foreground: oklch(1 0 0);
     --warning: oklch(0.75 0.18 70);
     --warning-foreground: oklch(0.18 0.01 260);
     --success: oklch(0.72 0.18 145);
     --success-foreground: oklch(1 0 0);
-    /* Structural borders must read clearly on a light canvas — the previous
-       oklch(0.92) was too faint for the ruled, no-shadow aesthetic. */
+    /* Structural borders must read clearly on a light canvas. */
     --border: oklch(0.88 0.005 286.32);
     --input: oklch(0.88 0.005 286.32);
     --ring: oklch(0.54 0.145 255);
-    /* ========================================
-   * CHART COLORS — LIGHT
-   * ====================================== */
     --chart-1: oklch(0.828 0.111 230.318);
     --chart-2: oklch(0.685 0.169 237.323);
     --chart-3: oklch(0.588 0.158 241.966);
     --chart-4: oklch(0.5 0.134 242.749);
     --chart-5: oklch(0.443 0.11 240.79);
-    /* ========================================
-   * SIDEBAR
-   * ====================================== */
     --sidebar: oklch(0.972 0.003 285.885);
     --sidebar-foreground: oklch(0.141 0.005 285.823);
     --sidebar-primary: oklch(0.588 0.158 241.966);
@@ -59,57 +48,7 @@
     --sidebar-accent-foreground: oklch(0.21 0.006 285.885);
     --sidebar-border: oklch(0.92 0.004 286.32);
     --sidebar-ring: oklch(0.705 0.015 286.067);
-    --surface-0: var(--background);
-    --surface-1: var(--sidebar);
-    --surface-2: var(--card);
-    --surface-3: var(--muted);
-    --surface-elevated: var(--popover);
-    --surface-hover: var(--accent);
-    --surface-selected: var(--accent);
-    --surface-selected-hover: var(--secondary);
-    --border-subtle: var(--border);
-    /* ========================================
-   * TYPOGRAPHY
-   * ====================================== */
-    --app-font-sans: "Space Grotesk Variable", "Space Grotesk", "Geist Variable", "Geist", system-ui, -apple-system, sans-serif;
-    --app-font-mono: "JetBrains Mono", "IBM Plex Mono", "SF Mono",
-        "Cascadia Code", monospace;
-    --app-font-label: "Space Grotesk Variable", "Space Grotesk", "Geist Variable", "Geist", system-ui, -apple-system, sans-serif;
-    /* ========================================
-   * SHAPE / SPACING
-   * ====================================== */
     --radius: 0.5rem;
-    --tracking-normal: 0em;
-    /* ========================================
-   * SHADOW SYSTEM — flat at rest; depth only
-   * on floating surfaces (menus, dialogs)
-   * ====================================== */
-    --shadow-2xs: 0 1px 2px rgb(0 0 0 / 0.04);
-    --shadow-xs: 0 1px 2px rgb(0 0 0 / 0.05);
-    --shadow-sm: 0 1px 2px rgb(0 0 0 / 0.06), 0 1px 1px rgb(0 0 0 / 0.04);
-    --shadow: 0 1px 3px rgb(0 0 0 / 0.08), 0 1px 2px rgb(0 0 0 / 0.05);
-    --shadow-md: 0 4px 8px -2px rgb(0 0 0 / 0.10), 0 2px 4px -2px rgb(0 0 0 / 0.06);
-    --shadow-lg: 0 8px 24px -4px rgb(0 0 0 / 0.14), 0 2px 6px -2px rgb(0 0 0 / 0.08);
-    --shadow-xl: 0 16px 48px -8px rgb(0 0 0 / 0.20), 0 4px 12px -4px rgb(0 0 0 / 0.10);
-    --shadow-2xl: 0 24px 64px -12px rgb(0 0 0 / 0.28);
-    /* ========================================
-   * APP SEMANTIC TOKENS
-   * ====================================== */
-    --color-app-bg: var(--surface-0);
-    --color-table-bg: var(--surface-3);
-    --color-row-hover: var(--surface-hover);
-    --color-row-alt: var(--surface-2);
-    --color-border-app: var(--border);
-    --color-border-table: var(--border-subtle);
-    --color-accent-blue: var(--accent-blue);
-    --color-accent-green: var(--success);
-    --color-accent-orange: var(--warning);
-    --color-accent-purple: var(--chart-2);
-    --color-accent-red: var(--destructive);
-    /* Code Preview */
-    --color-code-preview-bg: var(--card);
-    --color-code-preview-header-bg: var(--muted);
-    --color-code-preview-text: var(--foreground);
     /* ========================================
    * EMBER ENV SAFETY TOKENS (LIGHT)
    * ====================================== */
@@ -140,11 +79,8 @@
     --muted-foreground: oklch(0.705 0.015 286.067);
     --accent: oklch(0.274 0.006 286.033);
     --accent-foreground: oklch(0.985 0 0);
-    /* Light Accent Blue for dark mode — airier than --primary, for highlights
-       and the hover→selected hue ramp (DESIGN.md §2.1). */
-    --accent-blue: oklch(0.70 0.12 257);
     /* Lock destructive hue to 27 across themes so DELETE/PROD CTAs read
-       identically in light and dark (previously 22 in dark → orange-red). */
+       identically in light and dark. */
     --destructive: oklch(0.65 0.22 27);
     --destructive-foreground: oklch(1 0 0);
     --warning: oklch(0.78 0.16 70);
@@ -153,8 +89,7 @@
     --success-foreground: oklch(1 0 0);
     --border: oklch(1 0 0 / 10%);
     --input: oklch(1 0 0 / 15%);
-    /* Focus ring: visible on-brand blue, high-contrast against slate
-       (DESIGN.md §6). Was a near-invisible neutral gray. */
+    /* Focus ring: visible on-brand blue, high-contrast against slate. */
     --ring: oklch(0.68 0.13 257);
     --sidebar: oklch(0.18 0.006 285.885);
     --sidebar-foreground: oklch(0.985 0 0);
@@ -164,44 +99,11 @@
     --sidebar-accent-foreground: oklch(0.985 0 0);
     --sidebar-border: oklch(1 0 0 / 10%);
     --sidebar-ring: oklch(0.552 0.016 285.938);
-    --surface-0: var(--background);
-    --surface-1: var(--sidebar);
-    --surface-2: var(--card);
-    --surface-3: var(--muted);
-    --surface-elevated: var(--popover);
-    --surface-hover: var(--accent);
-    --surface-selected: var(--accent);
-    --surface-selected-hover: var(--secondary);
-    --border-subtle: var(--border);
     --chart-1: oklch(0.828 0.111 230.318);
     --chart-2: oklch(0.685 0.169 237.323);
     --chart-3: oklch(0.588 0.158 241.966);
     --chart-4: oklch(0.5 0.134 242.749);
     --chart-5: oklch(0.443 0.11 240.79);
-    /* Dark shadows need more weight to register against dark surfaces */
-    --shadow-2xs: 0 1px 2px rgb(0 0 0 / 0.25);
-    --shadow-xs: 0 1px 2px rgb(0 0 0 / 0.30);
-    --shadow-sm: 0 1px 3px rgb(0 0 0 / 0.35), 0 1px 2px rgb(0 0 0 / 0.25);
-    --shadow: 0 2px 4px rgb(0 0 0 / 0.35), 0 1px 2px rgb(0 0 0 / 0.30);
-    --shadow-md: 0 4px 10px -2px rgb(0 0 0 / 0.40), 0 2px 4px -2px rgb(0 0 0 / 0.30);
-    --shadow-lg: 0 8px 28px -6px rgb(0 0 0 / 0.50), 0 2px 8px -2px rgb(0 0 0 / 0.35);
-    --shadow-xl: 0 16px 56px -12px rgb(0 0 0 / 0.60), 0 4px 16px -4px rgb(0 0 0 / 0.40);
-    --shadow-2xl: 0 24px 72px -16px rgb(0 0 0 / 0.70);
-    --color-app-bg: var(--surface-0);
-    --color-table-bg: var(--surface-3);
-    --color-row-hover: var(--surface-hover);
-    --color-row-alt: var(--surface-2);
-    --color-border-app: var(--border);
-    --color-border-table: var(--border-subtle);
-    --color-accent-blue: var(--accent-blue);
-    --color-accent-green: var(--success);
-    --color-accent-orange: var(--warning);
-    --color-accent-purple: var(--chart-2);
-    --color-accent-red: var(--destructive);
-    /* Code Preview */
-    --color-code-preview-bg: oklch(0.13 0.013 254);
-    --color-code-preview-header-bg: oklch(0.11 0.012 254);
-    --color-code-preview-text: oklch(0.88 0.008 255);
     /* ========================================
    * EMBER ENV SAFETY TOKENS (DARK)
    * ====================================== */
@@ -211,27 +113,21 @@
     --env-color: transparent;
 }
 
-/* Keep selected UI visibly tied to the active app accent. Hover and selected
-   form a single blue ramp in lightness (hover 8% → selected 18% → sel-hover 26%),
-   instead of hover=neutral / selected=blue which read as two systems. */
-:root,
-.dark {
-    --surface-hover: color-mix(in oklch, var(--accent-blue) 8%, var(--surface-2));
-    --surface-selected: color-mix(in oklch, var(--primary) 18%, var(--surface-2));
-    --surface-selected-hover: color-mix(in oklch, var(--primary) 26%, var(--surface-2));
-    --text-selection-bg: color-mix(in oklch, var(--primary) 38%, var(--surface-2));
-    --text-selection-fg: var(--foreground);
-    /* Foreground text ramp — 3 steps (DESIGN.md only defines “primary” vs
-       “muted”; ~18 ad-hoc /NN opacities had grown across the title/status bars).
-       Use text-fg-strong / text-fg / text-fg-muted instead of arbitrary
-       text-foreground/72 etc. so the ramp is discoverable and consistent. */
-    --text-strong: var(--foreground);
-    --text: color-mix(in oklch, var(--foreground) 78%, transparent);
-    --text-muted: color-mix(in oklch, var(--foreground) 50%, transparent);
+/* ========================================
+ * FONTS — non-inline so Tailwind emits these on :root; the user's
+ * font choice (settings → fonts) is applied at runtime by App.tsx via
+ * documentElement.style.setProperty("--font-sans"/"--font-mono"),
+ * which wins over the stylesheet value.
+ * ======================================== */
+@theme {
+    --font-sans: "Space Grotesk Variable", "Space Grotesk", "Geist Variable", "Geist", system-ui, -apple-system, sans-serif;
+    --font-mono: "JetBrains Mono", "IBM Plex Mono", "SF Mono", "Cascadia Code", monospace;
 }
 
 /* ========================================
- * TAILWIND THEME EXPORT
+ * TAILWIND THEME EXPORT — standard shadcn set plus the two allowed
+ * extensions: success/warning semantics and the Ember env-safety
+ * tokens (a product feature, set at runtime per active connection).
  * ======================================== */
 @theme inline {
     --color-background: var(--background);
@@ -253,6 +149,8 @@
     --color-border: var(--border);
     --color-input: var(--input);
     --color-ring: var(--ring);
+    --color-success: var(--success);
+    --color-success-foreground: var(--success-foreground);
     --color-warning: var(--warning);
     --color-warning-foreground: var(--warning-foreground);
     --color-chart-1: var(--chart-1);
@@ -268,70 +166,17 @@
     --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
     --color-sidebar-border: var(--sidebar-border);
     --color-sidebar-ring: var(--sidebar-ring);
-    --font-sans: var(--app-font-sans);
-    /* Wire the mono utility to the user-selectable mono font (settings → fonts).
-       Previously hardcoded to Geist Mono, silently ignoring the setting AND
-       the documented JetBrains-Mono-for-all-data rule (DESIGN.md §3). */
-    --font-mono: var(--app-font-mono);
-    --font-label: var(--app-font-label);
     /* Stepped radius scale (shadcn formula): controls stay crisp,
        containers get progressively softer */
     --radius-sm: calc(var(--radius) - 4px);
     --radius-md: calc(var(--radius) - 2px);
     --radius-lg: var(--radius);
     --radius-xl: calc(var(--radius) + 4px);
-    --radius-2xl: calc(var(--radius) + 8px);
-    --radius-3xl: calc(var(--radius) + 16px);
-    --radius-4xl: calc(var(--radius) + 24px);
-    --shadow-2xs: var(--shadow-2xs);
-    --shadow-xs: var(--shadow-xs);
-    --shadow-sm: var(--shadow-sm);
-    --shadow: var(--shadow);
-    --shadow-md: var(--shadow-md);
-    --shadow-lg: var(--shadow-lg);
-    --shadow-xl: var(--shadow-xl);
-    --shadow-2xl: var(--shadow-2xl);
-    --tracking-tighter: calc(var(--tracking-normal) - 0.05em);
-    --tracking-tight: calc(var(--tracking-normal) - 0.025em);
-    --tracking-normal: var(--tracking-normal);
-    --tracking-wide: calc(var(--tracking-normal) + 0.025em);
-    --tracking-wider: calc(var(--tracking-normal) + 0.05em);
-    --tracking-widest: calc(var(--tracking-normal) + 0.1em);
-    --color-surface-0: var(--surface-0);
-    --color-surface-1: var(--surface-1);
-    --color-surface-2: var(--surface-2);
-    --color-surface-3: var(--surface-3);
-    --color-surface-elevated: var(--surface-elevated);
-    --color-surface-hover: var(--surface-hover);
-    --color-surface-selected: var(--surface-selected);
-    --color-surface-selected-hover: var(--surface-selected-hover);
-    --color-border-subtle: var(--border-subtle);
-    --color-app-bg: var(--surface-0);
-    --color-table-bg: var(--surface-3);
-    --color-row-hover: var(--surface-hover);
-    --color-row-alt: var(--surface-2);
-    --color-border-app: var(--border);
-    --color-border-table: var(--border-subtle);
-    --color-accent-blue: var(--accent-blue);
-    --color-accent-green: var(--success);
-    --color-accent-orange: var(--warning);
-    --color-accent-purple: var(--chart-2);
-    --color-accent-red: var(--destructive);
-    --color-code-preview-bg: var(--card);
-    --color-code-preview-header-bg: var(--muted);
-    --color-code-preview-text: var(--foreground);
-    --font-heading: 'Manrope Variable', sans-serif;
     /* Env safety color aliases */
     --color-env-prod: var(--env-prod);
     --color-env-staging: var(--env-staging);
     --color-env-local: var(--env-local);
     --color-env-color: var(--env-color);
-    /* Foreground text ramp utilities: text-fg-strong / text-fg / text-fg-muted */
-    --color-fg-strong: var(--text-strong);
-    --color-fg: var(--text);
-    --color-fg-muted: var(--text-muted);
-    /* Success */
-    --color-success: var(--success);
 }
 
 @layer base {
@@ -341,10 +186,10 @@
 
     body {
         @apply bg-background text-foreground;
-        letter-spacing: var(--tracking-normal);
         font-size: 13px;
         line-height: 1.45;
         background-image: none;
+        background-color: var(--background);
     }
 
     input::placeholder,
@@ -353,22 +198,17 @@
     }
 
     ::selection {
-        background: var(--text-selection-bg);
-        color: var(--text-selection-fg);
+        background: color-mix(in oklch, var(--primary) 38%, var(--card));
+        color: var(--foreground);
     }
 
     .cm-selectionBackground,
     .cm-focused .cm-selectionBackground {
-        background-color: var(--text-selection-bg) !important;
+        background-color: color-mix(in oklch, var(--primary) 38%, var(--card)) !important;
     }
 
     .cm-selectionMatch {
-        background-color: color-mix(in oklch, var(--text-selection-bg) 72%, transparent) !important;
-    }
-
-    /* // add the background color of the body based on the user selected theme (light/dark) */
-    body {
-        background-color: var(--background);
+        background-color: color-mix(in oklch, var(--primary) 27%, var(--card)) !important;
     }
 
     html,
@@ -396,59 +236,6 @@
 }
 
 @layer utilities {
-    .shell-panel {
-        background: var(--surface-1);
-        border: 1px solid var(--border-subtle);
-        box-shadow: none;
-    }
-
-    .shell-panel-muted {
-        background: color-mix(in oklch, var(--surface-1) 88%, transparent);
-        border: 1px solid var(--border-subtle);
-        box-shadow: none;
-    }
-
-    .shell-toolbar {
-        background: color-mix(in oklch, var(--surface-1) 94%, transparent);
-        border-color: var(--border-subtle);
-        box-shadow: none;
-    }
-
-    .shell-section-label {
-        font-size: 11px;
-        font-weight: 600;
-        letter-spacing: 0.06em;
-        text-transform: uppercase;
-        color: color-mix(in oklch, var(--muted-foreground) 72%, transparent);
-    }
-
-    .shell-meta {
-        font-family: var(--app-font-mono);
-        font-size: 11px;
-        color: color-mix(in oklch, var(--muted-foreground) 82%, transparent);
-    }
-
-    .shell-badge {
-        display: inline-flex;
-        align-items: center;
-        height: 18px;
-        padding-inline: 6px;
-        /* Use the documented radius-sm (4px) so badges share one radius
-           language with the controls beside them, instead of a bespoke 2px. */
-        border-radius: var(--radius-sm);
-        border: 1px solid var(--border-subtle);
-        font-size: 10px;
-        font-weight: 700;
-        letter-spacing: 0.12em;
-        text-transform: uppercase;
-        line-height: 1;
-    }
-
-    .shell-icon-button {
-        border-radius: var(--radius);
-        box-shadow: none;
-    }
-
     .no-scrollbar {
         scrollbar-width: none;
         /* Firefox */
@@ -497,16 +284,12 @@
     }
 }
 
-/* Boost structural borders for users who request more contrast. The app's
-   identity depends on 1px structural borders (no shadows); in dark mode those
-   are oklch(1 0 0 / 10%) and can under-serve high-contrast needs. */
+/* Boost structural borders for users who request more contrast. */
 @media (prefers-contrast: more) {
     :root {
         --border: oklch(0.80 0.006 286.32);
-        --border-subtle: oklch(0.82 0.006 286.32);
     }
     .dark {
         --border: oklch(1 0 0 / 26%);
-        --border-subtle: oklch(1 0 0 / 22%);
     }
 }
