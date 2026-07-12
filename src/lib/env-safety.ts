@@ -26,7 +26,7 @@ const ENV_MAP: Record<EnvKind, EnvMeta> = {
     local: { kind: "local", colorVar: "var(--env-local)", label: "LCL" },
 };
 
-// Group ids (from GROUP_PRESETS in connection-dialog-modal.tsx) → env.
+// Group ids (from GROUP_PRESETS in features/connections/lib/groups.ts) → env.
 // "dev" and "testing" are local-class environments (safe to experiment).
 const GROUP_TO_ENV: Record<string, EnvKind> = {
     prod: "prod",

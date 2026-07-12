@@ -10,7 +10,7 @@ import {
 } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
 import { DB_LOGO, DB_COLOR } from "@/components/shared/db-ui";
-import { GROUP_PRESETS } from "@/features/connections/connection-dialog-modal";
+import { GROUP_PRESETS } from "@/features/connections/lib/groups";
 import { ConnectionConfig } from "@/types";
 
 function buildConnectionUrl(conn: ConnectionConfig): string {

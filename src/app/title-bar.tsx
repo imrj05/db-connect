@@ -36,7 +36,7 @@ import {
     DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { cn } from "@/lib/utils";
-import { GROUP_PRESETS } from "@/features/connections/connection-dialog-modal";
+import { GROUP_PRESETS } from "@/features/connections/lib/groups";
 import type { ConnectionConfig } from "@/types";
 // Inline styles — only reliable way to set -webkit-app-region in Tauri 2
 const noDragStyle: CSSProperties = {

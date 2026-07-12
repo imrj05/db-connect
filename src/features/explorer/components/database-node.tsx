@@ -13,7 +13,7 @@ import {
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
 import { DB_LOGO, DB_COLOR } from "@/components/shared/db-ui";
-import { GROUP_PRESETS } from "@/features/connections/connection-dialog-modal";
+import { GROUP_PRESETS } from "@/features/connections/lib/groups";
 import { ConnectionConfig, ConnectionFunction, ColumnInfo } from "@/types";
 import { SchemaGroup } from "@/features/explorer/components/schema-group";
 import { AddTableDialog } from "@/features/explorer/components/add-table-dialog";

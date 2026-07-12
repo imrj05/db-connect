@@ -37,7 +37,7 @@ import {
 } from "lucide-react";
 import { useAppStore } from "@/stores/useAppStore";
 import { DB_LOGO, DB_COLOR } from "@/components/shared/db-ui";
-import { GROUP_PRESETS } from "@/features/connections/connection-dialog-modal";
+import { GROUP_PRESETS } from "@/features/connections/lib/groups";
 import { ImportExportDialog } from "@/features/connections/import-export-dialog";
 import { ConnectionHealthPanel } from "@/features/connections/connection-health-panel";
 import { DumpDatabaseDialog, type DumpOptions } from "@/features/table-grid/components/dump-database-dialog";

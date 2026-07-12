@@ -1,5 +1,5 @@
 import { cn } from "@/lib/utils";
-import { GROUP_PRESETS } from "@/features/connections/connection-dialog-modal";
+import { GROUP_PRESETS } from "@/features/connections/lib/groups";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 
 export function GroupSelector({
