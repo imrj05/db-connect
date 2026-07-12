@@ -4,7 +4,7 @@
 
 DB Connect is a database client built for clarity and focus. The visual system is guided by a single principle: **comfortable precision**. Every surface, every color, every typographic decision is chosen to reduce cognitive overhead while keeping data front and center.
 
-The design language is **macOS-native with a monochrome accent** (the AppKit `AppColors` palette). The interface uses the platform's system fonts (SF Pro for UI, SF Mono for data), near-neutral surfaces, and a **monochrome accent** — the primary/CTA color is near-black in light mode (`#1A1B1F`) and near-white in dark mode (`#F2F2F3`), so chrome carries no decorative hue. The title bar and sidebar form a single solid **chrome rail** (`--sidebar`) — quietly recessed in light mode, gently lifted in dark — so the content canvas and white cards read as floating above it. Floating surfaces (menus, popovers, dialogs) are frosted — translucent with backdrop blur over an `NSVisualEffectView` vibrancy layer — and carry soft, large-blur shadows; content panes stay opaque. In-flow panels remain flat and are separated by hairline borders. **The only saturated color in the entire system lives in the safety tags** (§2.2, §7) — green/amber/red — so a colored element always means an environment or status signal, never mere decoration.
+The design language is **macOS-native** (the AppKit `AppColors` palette for surfaces and safety hues). The interface uses the platform's system fonts (SF Pro for UI, SF Mono for data) over near-neutral surfaces, with a single **blue interactive accent** (`--primary`) that drives CTAs, selection/active tints, links, focus rings, and the live-connection dot. The title bar and sidebar form a single solid **chrome rail** (`--sidebar`) — quietly recessed in light mode, gently lifted in dark — so the content canvas and white cards read as floating above it. Floating surfaces (menus, popovers, dialogs) are frosted — translucent with backdrop blur over an `NSVisualEffectView` vibrancy layer — and carry soft, large-blur shadows; content panes stay opaque. In-flow panels remain flat and are separated by hairline borders. Beyond the blue accent, **the only saturated colors are the safety tags** (§2.2, §7) — green/amber/red — so a warm/danger hue always means an environment or status signal.
 
 **Density:** 6/10 (Comfortable Data). Row height is 32px. Panels breathe. Data is legible without crowding.
 **Variance:** 3/10 (Predictably Structured). Consistent grid alignment across all panels and controls.
@@ -16,7 +16,7 @@ The design language is **macOS-native with a monochrome accent** (the AppKit `Ap
 
 ## 2. Color Palette & Roles
 
-All colors are expressed in the **standard shadcn token vocabulary** — there is no app-specific color layer beyond `--success`/`--warning` and the four env-safety tokens (§7). Values come from the AppKit `AppColors` palette. Surfaces are near-neutral; the accent is monochrome (near-black light / near-white dark); the only saturated hues are the three safety colors.
+All colors are expressed in the **standard shadcn token vocabulary** — there is no app-specific color layer beyond `--success`/`--warning` and the four env-safety tokens (§7). Surfaces and safety hues come from the AppKit `AppColors` palette; the interactive accent (`--primary`/`--ring`) is a refined blue that reads clearly for active/selected/focus states.
 
 ### 2.1 Dark Mode (Default — AppColors)
 
@@ -31,7 +31,8 @@ All colors are expressed in the **standard shadcn token vocabulary** — there i
 | `--muted-foreground` | `#9A9CA5` | `textSecondary` | Labels, column headers, metadata |
 | `--border` | `#2E2F37` | `borderSubtle` | Hairline structural borders |
 | `--input` | `#3A3B44` | `buttonSecondaryBorder` | Control / outline borders |
-| `--primary` / `--ring` | `#F2F2F3` | `buttonPrimaryBg` | Monochrome accent — CTAs, selection, focus |
+| `--primary` / `--ring` | `#3B82F6` | blue accent | CTAs, selection, active, focus, links |
+| `--border` / `--input` | `#33343C` / `#3E3F49` | `borderSubtle` (firmer) | Hairline / control borders |
 
 ### 2.2 Environmental Safety Accents
 
@@ -43,7 +44,7 @@ The only saturated colors in the system. These are the safety tags from AppColor
 | **Staging Amber** | `tagCheckText` | `#9C6300` / `#F2B84B` | `--env-staging` / `--warning` | Staging env badge, pending edits |
 | **Local Green** | `tagSafeText` | `#1A7A43` / `#5FD98A` | `--env-local` / `--success` | Local env badge, success states |
 
-`--destructive`, `--warning`, and `--success` carry the same three safety hues, so safety semantics and general UI semantics stay in lockstep. Because the accent is monochrome, a saturated element in the chrome is *always* a safety signal.
+`--destructive`, `--warning`, and `--success` carry the same three safety hues, so safety semantics and general UI semantics stay in lockstep. The blue accent is reserved for interaction; a warm hue (red/amber/green) always signals an environment or status.
 
 **Environmental CTA Rule:** The primary action button always inherits the active environment color.
 
@@ -63,7 +64,8 @@ SQL syntax colors in the editor come from the user-selected CodeMirror theme (Ed
 | `--muted-foreground` | `#6B6D76` | `textSecondary` | Labels, inactive states |
 | `--border` | `#E2E3E6` | `borderSubtle` | Hairline structural lines |
 | `--input` | `#D6D7DA` | `buttonSecondaryBorder` | Control / outline borders |
-| `--primary` / `--ring` | `#1A1B1F` | `buttonPrimaryBg` | Monochrome accent — CTAs, selection, focus |
+| `--primary` / `--ring` | `#2563EB` | blue accent | CTAs, selection, active, focus, links |
+| `--border` / `--input` | `#DBDCE1` / `#CFD0D5` | `borderSubtle` (firmer) | Hairline / control borders |
 
 ---
 
@@ -105,9 +107,9 @@ Fonts remain user-selectable (Settings → Fonts); the settings apply at runtime
 
 ### 4.1 Buttons
 
-**Primary Action (Monochrome accent)**
-- Background: `--primary` (`#1A1B1F` near-black light / `#F2F2F3` near-white dark)
-- Text: `--primary-foreground` (white light / near-black dark)
+**Primary Action (Blue accent)**
+- Background: `--primary` (`#2563EB` light / `#3B82F6` dark)
+- Text: `--primary-foreground` (white)
 - 12–13px, weight 500–600, padding `6px 14px`, `rounded-md`
 - Hover: `brightness(1.08)`
 
@@ -201,7 +203,7 @@ Surfaces step in lightness as they stack upward, using the standard shadcn ladde
 
 - Never remove focus outlines without a visible replacement.
 - All interactive controls use `focus-visible:ring-3 focus-visible:ring-ring/50` (the shadcn control convention) or equivalent.
-- Focus ring color: `--ring` = the monochrome accent (near-black light / near-white dark) — matches the selection accent so keyboard focus reads as native.
+- Focus ring color: `--ring` = the blue accent — matches the selection tint so keyboard focus reads as native.
 - Icon buttons, inline edit inputs, filter controls, and custom menu rows must maintain visible keyboard focus.
 
 ---
