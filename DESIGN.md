@@ -4,7 +4,7 @@
 
 DB Connect is a database client built for clarity and focus. The visual system is guided by a single principle: **comfortable precision**. Every surface, every color, every typographic decision is chosen to reduce cognitive overhead while keeping data front and center.
 
-The design language is **macOS-native**. The interface uses the platform's system fonts (SF Pro for UI, SF Mono for data), zero-chroma neutral surfaces, the macOS system accent palette, and native window materials: the sidebar is translucent over an `NSVisualEffectView` vibrancy layer, while content panes stay opaque. Floating surfaces (menus, popovers, dialogs) are frosted — translucent with backdrop blur — and carry soft, large-blur shadows. In-flow panels remain flat and are separated by hairline borders.
+The design language is **macOS-native with a monochrome accent** (the AppKit `AppColors` palette). The interface uses the platform's system fonts (SF Pro for UI, SF Mono for data), near-neutral surfaces, and a **monochrome accent** — the primary/CTA color is near-black in light mode (`#1A1B1F`) and near-white in dark mode (`#F2F2F3`), so chrome carries no decorative hue. Native window materials apply: the sidebar is translucent over an `NSVisualEffectView` vibrancy layer, while content panes stay opaque. Floating surfaces (menus, popovers, dialogs) are frosted — translucent with backdrop blur — and carry soft, large-blur shadows. In-flow panels remain flat and are separated by hairline borders. **The only saturated color in the entire system lives in the safety tags** (§2.2, §7) — green/amber/red — so a colored element always means an environment or status signal, never mere decoration.
 
 **Density:** 6/10 (Comfortable Data). Row height is 32px. Panels breathe. Data is legible without crowding.
 **Variance:** 3/10 (Predictably Structured). Consistent grid alignment across all panels and controls.
@@ -16,34 +16,34 @@ The design language is **macOS-native**. The interface uses the platform's syste
 
 ## 2. Color Palette & Roles
 
-All colors are expressed in the **standard shadcn token vocabulary** — there is no app-specific color layer beyond `--success`/`--warning` and the four env-safety tokens (§7). Neutrals are zero-chroma (pure gray); the only hue in the chrome is the macOS system accent.
+All colors are expressed in the **standard shadcn token vocabulary** — there is no app-specific color layer beyond `--success`/`--warning` and the four env-safety tokens (§7). Values come from the AppKit `AppColors` palette. Surfaces are near-neutral; the accent is monochrome (near-black light / near-white dark); the only saturated hues are the three safety colors.
 
-### 2.1 Dark Mode (Default — macOS)
+### 2.1 Dark Mode (Default — AppColors)
 
-| Token | Approx Hex | OKLCH (CSS Var) | Role |
-|-------|-----------|-----------------|------|
-| `--background` | `#1a1a1a` | `oklch(0.215 0 0)` | Base canvas, content panes |
-| `--sidebar` | 60% `#242424` | `oklch(0.24 0 0 / 60%)` | Sidebar — translucent over vibrancy |
-| `--card` | `#262626` | `oklch(0.26 0 0)` | Cards, inset panels, grid chrome |
-| `--popover` | `#2b2b2b` | `oklch(0.28 0 0)` | Menus, popovers, dialogs (frosted at 70%) |
-| `--muted` | `#2d2d2d` | `oklch(0.29 0 0)` | Muted fills, table striping base |
-| `--accent` | `#323232` | `oklch(0.31 0 0)` | Hover fills |
-| `--foreground` | `#f2f2f2` | `oklch(0.96 0 0)` | Primary text, data values |
-| `--muted-foreground` | `#a3a3a3` | `oklch(0.7 0 0)` | Labels, column headers, metadata |
-| `--border` | 12% white | `oklch(1 0 0 / 12%)` | Hairline structural borders |
-| `--primary` / `--ring` | `#0A84FF` | `oklch(0.62 0.19 252)` | System blue — CTAs, selection, focus |
+| Token | Hex | AppColors source | Role |
+|-------|-----|------------------|------|
+| `--background` | `#15161A` | `bgBase` | Base canvas, content panes |
+| `--sidebar` | 62% `#1C1D22` | `bgCard` (translucent) | Sidebar — translucent over vibrancy |
+| `--card` | `#1C1D22` | `bgCard` | Cards, inset panels, grid chrome |
+| `--popover` | `#2A2B33` | `bgOverlay` | Menus, popovers, dialogs (frosted) |
+| `--muted` / `--secondary` / `--accent` | `#23242B` | `bgElevated` | Muted fills, striping, hover fills |
+| `--foreground` | `#F2F2F3` | `textPrimary` | Primary text, data values |
+| `--muted-foreground` | `#9A9CA5` | `textSecondary` | Labels, column headers, metadata |
+| `--border` | `#2E2F37` | `borderSubtle` | Hairline structural borders |
+| `--input` | `#3A3B44` | `buttonSecondaryBorder` | Control / outline borders |
+| `--primary` / `--ring` | `#F2F2F3` | `buttonPrimaryBg` | Monochrome accent — CTAs, selection, focus |
 
 ### 2.2 Environmental Safety Accents
 
-These are the semantic core of the safety system, mapped to the macOS system palette so they read as native alerts.
+The only saturated colors in the system. These are the safety tags from AppColors, mapped onto both the env-safety tokens and the general UI semantics.
 
-| Token | System Color | CSS Var | Role |
-|-------|--------------|---------|------|
-| **Prod Red** | systemRed | `--env-prod` | Production env badge, destructive CTAs |
-| **Staging Amber** | systemOrange | `--env-staging` | Staging env badge, pending edits |
-| **Local Green** | systemGreen | `--env-local` | Local env badge, success states |
+| Token | AppColors source | Light / Dark hex | CSS Var | Role |
+|-------|------------------|------------------|---------|------|
+| **Prod Red** | `tagDangerText` | `#C5392E` / `#F2685C` | `--env-prod` / `--destructive` | Production env badge, destructive CTAs |
+| **Staging Amber** | `tagCheckText` | `#9C6300` / `#F2B84B` | `--env-staging` / `--warning` | Staging env badge, pending edits |
+| **Local Green** | `tagSafeText` | `#1A7A43` / `#5FD98A` | `--env-local` / `--success` | Local env badge, success states |
 
-`--destructive`, `--warning`, and `--success` carry the same three system hues, so safety semantics and general UI semantics stay in lockstep.
+`--destructive`, `--warning`, and `--success` carry the same three safety hues, so safety semantics and general UI semantics stay in lockstep. Because the accent is monochrome, a saturated element in the chrome is *always* a safety signal.
 
 **Environmental CTA Rule:** The primary action button always inherits the active environment color.
 
@@ -51,18 +51,19 @@ These are the semantic core of the safety system, mapped to the macOS system pal
 
 SQL syntax colors in the editor come from the user-selected CodeMirror theme (Editor → Syntax highlighting settings, one theme per appearance mode). They are intentionally not driven by app tokens. The Ambient Safety semantics (destructive red, modifying amber) still apply outside the editor — in confirmation dialogs, badges, and CTAs — via `--env-prod` / `--env-staging` / `--env-local`.
 
-### 2.4 Light Mode (macOS)
+### 2.4 Light Mode (AppColors)
 
-| Token | Approx Hex | OKLCH | Role |
-|-------|-----------|-------|------|
-| `--background` | `#ffffff` | `oklch(1 0 0)` | Base canvas, content panes |
-| `--sidebar` | 65% `#f2f2f2` | `oklch(0.965 0 0 / 65%)` | Sidebar — translucent over vibrancy |
-| `--card` | `#f7f7f7` | `oklch(0.985 0 0)` | Cards, inset panels |
-| `--muted` | `#eeeeee` | `oklch(0.955 0 0)` | Muted fills |
-| `--foreground` | `#212121` | `oklch(0.2 0 0)` | Primary text |
-| `--muted-foreground` | `#6e6e6e` | `oklch(0.5 0 0)` | Labels, inactive states |
-| `--border` | `#dedede` | `oklch(0.9 0 0)` | Hairline structural lines |
-| `--primary` / `--ring` | `#007AFF` | `oklch(0.58 0.19 252)` | System blue — CTAs, selection, focus |
+| Token | Hex | AppColors source | Role |
+|-------|-----|------------------|------|
+| `--background` | `#F5F5F6` | `bgBase` | Base canvas, content panes |
+| `--sidebar` | 72% `#ECEDEF` | `bgElevated` (translucent) | Sidebar — translucent over vibrancy |
+| `--card` / `--popover` | `#FFFFFF` | `bgCard` / `bgOverlay` | Cards, inset panels, menus |
+| `--muted` / `--secondary` / `--accent` | `#ECEDEF` | `bgElevated` | Muted fills, hover fills |
+| `--foreground` | `#1A1B1F` | `textPrimary` | Primary text |
+| `--muted-foreground` | `#6B6D76` | `textSecondary` | Labels, inactive states |
+| `--border` | `#E2E3E6` | `borderSubtle` | Hairline structural lines |
+| `--input` | `#D6D7DA` | `buttonSecondaryBorder` | Control / outline borders |
+| `--primary` / `--ring` | `#1A1B1F` | `buttonPrimaryBg` | Monochrome accent — CTAs, selection, focus |
 
 ---
 
@@ -104,9 +105,9 @@ Fonts remain user-selectable (Settings → Fonts); the settings apply at runtime
 
 ### 4.1 Buttons
 
-**Primary Action (System Blue)**
-- Background: `--primary` (`#007AFF` light / `#0A84FF` dark)
-- Text: white
+**Primary Action (Monochrome accent)**
+- Background: `--primary` (`#1A1B1F` near-black light / `#F2F2F3` near-white dark)
+- Text: `--primary-foreground` (white light / near-black dark)
 - 12–13px, weight 500–600, padding `6px 14px`, `rounded-md`
 - Hover: `brightness(1.08)`
 
@@ -200,7 +201,7 @@ Surfaces step in lightness as they stack upward, using the standard shadcn ladde
 
 - Never remove focus outlines without a visible replacement.
 - All interactive controls use `focus-visible:ring-3 focus-visible:ring-ring/50` (the shadcn control convention) or equivalent.
-- Focus ring color: `--ring` = system blue — matches the selection accent so keyboard focus reads as native.
+- Focus ring color: `--ring` = the monochrome accent (near-black light / near-white dark) — matches the selection accent so keyboard focus reads as native.
 - Icon buttons, inline edit inputs, filter controls, and custom menu rows must maintain visible keyboard focus.
 
 ---
@@ -209,11 +210,11 @@ Surfaces step in lightness as they stack upward, using the standard shadcn ladde
 
 The two-pixel top border of the window and environment badges (in the title bar) always reflect the active connection's environment:
 
-| Environment | Color | System Color | Token |
-|-------------|-------|--------------|-------|
-| Production | Red | systemRed | `--env-prod` |
-| Staging | Amber | systemOrange | `--env-staging` |
-| Local | Green | systemGreen | `--env-local` |
+| Environment | Color | AppColors source (light / dark) | Token |
+|-------------|-------|--------------------------------|-------|
+| Production | Red | `tagDangerText` `#C5392E` / `#F2685C` | `--env-prod` |
+| Staging | Amber | `tagCheckText` `#9C6300` / `#F2B84B` | `--env-staging` |
+| Local | Green | `tagSafeText` `#1A7A43` / `#5FD98A` | `--env-local` |
 
 The `--env-color` CSS variable resolves to the active environment's color and is applied to the top border, the env badge, and CTA buttons when a prod/staging connection is active. It defaults to `transparent` — never green — when no connection is live: a safety signal that says "safe" with no connection is worse than no signal.
 

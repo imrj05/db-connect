@@ -5,51 +5,52 @@
 
 :root {
     /* ========================================
-   * CORE COLORS — LIGHT (macOS)
+   * CORE COLORS — LIGHT (AppKit palette)
+   * Monochrome accent; semantic hues live only in the safety tags.
    * ====================================== */
-    --background: oklch(1 0 0);
-    --foreground: oklch(0.2 0 0);
-    --card: oklch(0.985 0 0);
-    --card-foreground: oklch(0.2 0 0);
-    --popover: oklch(1 0 0);
-    --popover-foreground: oklch(0.2 0 0);
-    --primary: oklch(0.58 0.19 252);
-    --primary-foreground: oklch(1 0 0);
-    --secondary: oklch(0.955 0 0);
-    --secondary-foreground: oklch(0.25 0 0);
-    --muted: oklch(0.955 0 0);
-    --muted-foreground: oklch(0.5 0 0);
-    --accent: oklch(0.945 0 0);
-    --accent-foreground: oklch(0.25 0 0);
-    --destructive: oklch(0.6 0.23 28);
-    --destructive-foreground: oklch(1 0 0);
-    --warning: oklch(0.74 0.17 65);
-    --warning-foreground: oklch(0.2 0.02 65);
-    --success: oklch(0.7 0.19 148);
-    --success-foreground: oklch(1 0 0);
-    --border: oklch(0.9 0 0);
-    --input: oklch(0.9 0 0);
-    --ring: oklch(0.58 0.19 252);
+    --background: #F5F5F6;            /* AppColors.bgBase */
+    --foreground: #1A1B1F;            /* AppColors.textPrimary */
+    --card: #FFFFFF;                  /* AppColors.bgCard */
+    --card-foreground: #1A1B1F;
+    --popover: #FFFFFF;              /* AppColors.bgOverlay */
+    --popover-foreground: #1A1B1F;
+    --primary: #1A1B1F;             /* AppColors.buttonPrimaryBg — near-black accent */
+    --primary-foreground: #FFFFFF;   /* AppColors.buttonPrimaryText */
+    --secondary: #ECEDEF;            /* AppColors.bgElevated */
+    --secondary-foreground: #1A1B1F;
+    --muted: #ECEDEF;                /* AppColors.bgElevated */
+    --muted-foreground: #6B6D76;     /* AppColors.textSecondary */
+    --accent: #ECEDEF;               /* AppColors.bgElevated — hover surface */
+    --accent-foreground: #1A1B1F;
+    --destructive: #C5392E;          /* AppColors.tagDangerText */
+    --destructive-foreground: #FFFFFF;
+    --warning: #9C6300;              /* AppColors.tagCheckText */
+    --warning-foreground: #FFFFFF;
+    --success: #1A7A43;              /* AppColors.tagSafeText */
+    --success-foreground: #FFFFFF;
+    --border: #E2E3E6;               /* AppColors.borderSubtle */
+    --input: #D6D7DA;                /* AppColors.buttonSecondaryBorder */
+    --ring: #1A1B1F;                 /* focus ring follows the monochrome accent */
     --chart-1: oklch(0.828 0.111 230.318);
     --chart-2: oklch(0.685 0.169 237.323);
     --chart-3: oklch(0.588 0.158 241.966);
     --chart-4: oklch(0.5 0.134 242.749);
     --chart-5: oklch(0.443 0.11 240.79);
-    --sidebar: oklch(0.965 0 0 / 65%);
-    --sidebar-foreground: oklch(0.2 0 0);
-    --sidebar-primary: oklch(0.58 0.19 252);
-    --sidebar-primary-foreground: oklch(1 0 0);
-    --sidebar-accent: oklch(0.93 0 0);
-    --sidebar-accent-foreground: oklch(0.25 0 0);
-    --sidebar-border: oklch(0.9 0 0);
-    --sidebar-ring: oklch(0.58 0.19 252);
+    --sidebar: rgb(236 237 239 / 0.72); /* translucent bgElevated for vibrancy */
+    --sidebar-foreground: #1A1B1F;
+    --sidebar-primary: #1A1B1F;
+    --sidebar-primary-foreground: #FFFFFF;
+    --sidebar-accent: #E2E3E6;
+    --sidebar-accent-foreground: #1A1B1F;
+    --sidebar-border: #E2E3E6;
+    --sidebar-ring: #1A1B1F;
     --radius: 0.625rem;
     /* ========================================
-   * EMBER ENV SAFETY TOKENS (LIGHT)
+   * EMBER ENV SAFETY TOKENS (LIGHT) — the AppColors safety-tag hues
    * ====================================== */
-    --env-prod: oklch(0.6 0.23 28);
-    --env-staging: oklch(0.74 0.17 65);
-    --env-local: oklch(0.7 0.19 148);
+    --env-prod: #C5392E;             /* AppColors.tagDangerText */
+    --env-staging: #9C6300;          /* AppColors.tagCheckText */
+    --env-local: #1A7A43;            /* AppColors.tagSafeText */
     /* Default neutral — resolved to a real env color at runtime by App.tsx once a
        connection is active. Never default to green (“safe”): a safety signal that
        says safe with no connection is worse than no signal. */
@@ -60,51 +61,48 @@
  * DARK MODE (macOS)
  * ====================================== */
 .dark {
-    --background: oklch(0.215 0 0);
-    --foreground: oklch(0.96 0 0);
-    --card: oklch(0.26 0 0);
-    --card-foreground: oklch(0.96 0 0);
-    --popover: oklch(0.28 0 0);
-    --popover-foreground: oklch(0.96 0 0);
-    --primary: oklch(0.62 0.19 252);
-    --primary-foreground: oklch(1 0 0);
-    --secondary: oklch(0.3 0 0);
-    --secondary-foreground: oklch(0.96 0 0);
-    --muted: oklch(0.29 0 0);
-    --muted-foreground: oklch(0.7 0 0);
-    --accent: oklch(0.31 0 0);
-    --accent-foreground: oklch(0.96 0 0);
-    /* Lock destructive hue to 27 across themes so DELETE/PROD CTAs read
-       identically in light and dark. */
-    --destructive: oklch(0.65 0.22 28);
-    --destructive-foreground: oklch(1 0 0);
-    --warning: oklch(0.78 0.16 70);
-    --warning-foreground: oklch(0.2 0.02 65);
-    --success: oklch(0.75 0.19 150);
-    --success-foreground: oklch(0.18 0.03 150);
-    --border: oklch(1 0 0 / 12%);
-    --input: oklch(1 0 0 / 16%);
-    /* Focus ring: visible on-brand blue, high-contrast against slate. */
-    --ring: oklch(0.62 0.19 252);
-    --sidebar: oklch(0.24 0 0 / 60%);
-    --sidebar-foreground: oklch(0.96 0 0);
-    --sidebar-primary: oklch(0.62 0.19 252);
-    --sidebar-primary-foreground: oklch(1 0 0);
-    --sidebar-accent: oklch(0.32 0 0);
-    --sidebar-accent-foreground: oklch(0.96 0 0);
-    --sidebar-border: oklch(1 0 0 / 12%);
-    --sidebar-ring: oklch(0.62 0.19 252);
+    --background: #15161A;            /* AppColors.bgBase */
+    --foreground: #F2F2F3;            /* AppColors.textPrimary */
+    --card: #1C1D22;                  /* AppColors.bgCard */
+    --card-foreground: #F2F2F3;
+    --popover: #2A2B33;              /* AppColors.bgOverlay */
+    --popover-foreground: #F2F2F3;
+    --primary: #F2F2F3;             /* AppColors.buttonPrimaryBg — near-white accent */
+    --primary-foreground: #15161A;   /* AppColors.buttonPrimaryText */
+    --secondary: #23242B;            /* AppColors.bgElevated */
+    --secondary-foreground: #F2F2F3;
+    --muted: #23242B;                /* AppColors.bgElevated */
+    --muted-foreground: #9A9CA5;     /* AppColors.textSecondary */
+    --accent: #23242B;               /* AppColors.bgElevated — hover surface */
+    --accent-foreground: #F2F2F3;
+    --destructive: #F2685C;          /* AppColors.tagDangerText */
+    --destructive-foreground: #15161A;
+    --warning: #F2B84B;              /* AppColors.tagCheckText */
+    --warning-foreground: #15161A;
+    --success: #5FD98A;              /* AppColors.tagSafeText */
+    --success-foreground: #15161A;
+    --border: #2E2F37;               /* AppColors.borderSubtle */
+    --input: #3A3B44;                /* AppColors.buttonSecondaryBorder */
+    --ring: #F2F2F3;                 /* focus ring follows the monochrome accent */
+    --sidebar: rgb(28 29 34 / 0.62);   /* translucent bgCard for vibrancy */
+    --sidebar-foreground: #F2F2F3;
+    --sidebar-primary: #F2F2F3;
+    --sidebar-primary-foreground: #15161A;
+    --sidebar-accent: #2A2B33;
+    --sidebar-accent-foreground: #F2F2F3;
+    --sidebar-border: #2E2F37;
+    --sidebar-ring: #F2F2F3;
     --chart-1: oklch(0.828 0.111 230.318);
     --chart-2: oklch(0.685 0.169 237.323);
     --chart-3: oklch(0.588 0.158 241.966);
     --chart-4: oklch(0.5 0.134 242.749);
     --chart-5: oklch(0.443 0.11 240.79);
     /* ========================================
-   * EMBER ENV SAFETY TOKENS (DARK)
+   * EMBER ENV SAFETY TOKENS (DARK) — the AppColors safety-tag hues
    * ====================================== */
-    --env-prod: oklch(0.65 0.22 28);
-    --env-staging: oklch(0.78 0.16 70);
-    --env-local: oklch(0.75 0.19 150);
+    --env-prod: #F2685C;             /* AppColors.tagDangerText */
+    --env-staging: #F2B84B;          /* AppColors.tagCheckText */
+    --env-local: #5FD98A;            /* AppColors.tagSafeText */
     --env-color: transparent;
 }
 
@@ -297,9 +295,9 @@ html[data-vibrancy="true"] body {
 /* Boost structural borders for users who request more contrast. */
 @media (prefers-contrast: more) {
     :root {
-        --border: oklch(0.80 0.006 286.32);
+        --border: #C4C5C9;
     }
     .dark {
-        --border: oklch(1 0 0 / 26%);
+        --border: #4A4B54;
     }
 }

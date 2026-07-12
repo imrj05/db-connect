@@ -16,14 +16,14 @@
 						// Use the real dark --background oklch(0.215 0 0)
 						// so the splash crossfades into the app without a warm→cool hue shift.
 						document.documentElement.classList.add("dark");
-						document.documentElement.style.backgroundColor = "#1a1a1a";
+						document.documentElement.style.backgroundColor = "#15161A";
 					} else {
 						// Light canvas: --background oklch(1 0 0)
-						document.documentElement.style.backgroundColor = "#ffffff";
+						document.documentElement.style.backgroundColor = "#F5F5F6";
 					}
 				} catch (_) {
 					document.documentElement.classList.add("dark");
-					document.documentElement.style.backgroundColor = "#1a1a1a";
+					document.documentElement.style.backgroundColor = "#15161A";
 				}
 			})();
 		</script>
@@ -42,13 +42,13 @@
 				display: flex;
 				align-items: center;
 				justify-content: center;
-				background-color: #ffffff;
+				background-color: #F5F5F6;
 				transition: opacity 250ms ease-out;
 				opacity: 1;
 				pointer-events: auto;
 			}
 			html.dark #boot-splash {
-				background-color: #1a1a1a;
+				background-color: #15161A;
 			}
 			#boot-splash .boot-glow {
 				position: absolute;
@@ -57,27 +57,27 @@
 				border-radius: 50%;
 				background: radial-gradient(
 					circle,
-					rgba(120, 130, 200, 0.18) 0%,
-					rgba(120, 130, 200, 0) 65%
+					rgba(120, 122, 130, 0.18) 0%,
+					rgba(120, 122, 130, 0) 65%
 				);
 				animation: boot-glow 1.6s ease-in-out infinite;
 			}
 			html.dark #boot-splash .boot-glow {
 				background: radial-gradient(
 					circle,
-					rgba(180, 190, 240, 0.12) 0%,
-					rgba(180, 190, 240, 0) 65%
+					rgba(200, 202, 210, 0.12) 0%,
+					rgba(200, 202, 210, 0) 65%
 				);
 			}
 			#boot-splash .boot-logo {
 				position: relative;
 				width: 64px;
 				height: 64px;
-				color: #1a1a1a;
+				color: #15161A;
 				animation: boot-pulse 1.6s ease-in-out infinite;
 			}
 			html.dark #boot-splash .boot-logo {
-				color: #e8e8e3;
+				color: #F2F2F3;
 			}
 			@keyframes boot-pulse {
 				0%,

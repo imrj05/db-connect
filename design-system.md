@@ -2,7 +2,7 @@
 
 ## Purpose
 
-This document defines the baseline UI rules used across DB Connect so new screens and components stay visually consistent. The visual language is macOS-native (system fonts, zero-chroma neutrals, system-blue accent, sidebar vibrancy) — see `DESIGN.md` for the full palette and component specs. Style only with the standard shadcn tokens plus `success`/`warning` and the env-safety vars.
+This document defines the baseline UI rules used across DB Connect so new screens and components stay visually consistent. The visual language is macOS-native with a monochrome accent (system fonts, near-neutral surfaces from the AppKit `AppColors` palette, a near-black/near-white accent, sidebar vibrancy; the only saturated hues are the safety green/amber/red) — see `DESIGN.md` for the full palette and component specs. Style only with the standard shadcn tokens plus `success`/`warning` and the env-safety vars.
 
 ## Typography Scale
 
