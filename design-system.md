@@ -2,7 +2,7 @@
 
 ## Purpose
 
-This document defines the baseline UI rules used across DB Connect so new screens and components stay visually consistent.
+This document defines the baseline UI rules used across DB Connect so new screens and components stay visually consistent. The visual language is macOS-native (system fonts, zero-chroma neutrals, system-blue accent, sidebar vibrancy) — see `DESIGN.md` for the full palette and component specs. Style only with the standard shadcn tokens plus `success`/`warning` and the env-safety vars.
 
 ## Typography Scale
 
@@ -47,19 +47,13 @@ Use shared dialog size presets instead of ad hoc width and radius values.
 
 ## Shared UI Patterns
 
-Use the following shared primitives from `src/components/ui/app-ui.tsx` where possible:
+Use the shared primitives in `src/components/ui/` where possible — notably:
 
-- `SectionHeading`
-- `SettingRow`
-- `MetadataRow`
-- `StatusBadge`
-- `IconAction`
-- `ToolbarButton`
-- `InlineStatus`
-- `EmptyState`
-- `LoadingState`
-- `ErrorState`
-- `SettingsShell`
+- `EmptyState` (`empty-state.tsx`)
+- `Field` / `FieldContent` / `FieldTitle` / `FieldDescription` (`field.tsx`)
+- `Kbd` / `KbdGroup` (`kbd.tsx`)
+- `Skeleton` (`skeleton.tsx`)
+- the standard shadcn set (`Button`, `Dialog`, `Select`, `DropdownMenu`, …)
 
 ## Empty / Loading / Error States
 

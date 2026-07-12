@@ -34,6 +34,24 @@ pub fn run() {
 
             license::init(data_dir);
 
+            // Native window materials behind the translucent sidebar. The
+            // frontend keeps opaque fallbacks, so failure here is cosmetic.
+            #[cfg(any(target_os = "macos", target_os = "windows"))]
+            {
+                use tauri::Manager;
+                if let Some(window) = app.get_webview_window("main") {
+                    #[cfg(target_os = "macos")]
+                    let _ = window_vibrancy::apply_vibrancy(
+                        &window,
+                        window_vibrancy::NSVisualEffectMaterial::Sidebar,
+                        None,
+                        None,
+                    );
+                    #[cfg(target_os = "windows")]
+                    let _ = window_vibrancy::apply_mica(&window, None);
+                }
+            }
+
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![

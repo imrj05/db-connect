@@ -6,21 +6,23 @@ import { invoke } from "@tauri-apps/api/core";
 export const DB_FONT_SANS = ".dbFontSans";
 export const DB_FONT_MONO = ".dbFontMono";
 
-// The actual CSS font-family stacks each alias resolves to
+// The actual CSS font-family stacks each alias resolves to — the platform's
+// native UI fonts (SF Pro / SF Mono on macOS), matching the app-wide default
+// in App.css.
 export const DB_FONT_SANS_STACK =
-    `"Space Grotesk Variable", "Space Grotesk", "Geist Variable", "Geist", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif`;
+    `-apple-system, BlinkMacSystemFont, "SF Pro Text", system-ui, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif`;
 export const DB_FONT_MONO_STACK =
-    `"JetBrains Mono", "IBM Plex Mono", "SF Mono", "Cascadia Code", ui-monospace, Menlo, Monaco, Consolas, monospace`;
+    `ui-monospace, "SF Mono", SFMono-Regular, Menlo, Monaco, "Cascadia Code", Consolas, monospace`;
 
 const BUILTIN_SANS: FontEntry = {
     value: DB_FONT_SANS,
-    label: "System UI Font (Default)",
+    label: "System (SF Pro)",
     isMono: false,
 };
 
 const BUILTIN_MONO: FontEntry = {
     value: DB_FONT_MONO,
-    label: "DB Mono (Default)",
+    label: "System Mono (SF Mono)",
     isMono: true,
 };
 

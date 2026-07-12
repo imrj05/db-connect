@@ -4,44 +4,46 @@
 
 DB Connect is a database client built for clarity and focus. The visual system is guided by a single principle: **comfortable precision**. Every surface, every color, every typographic decision is chosen to reduce cognitive overhead while keeping data front and center.
 
-The default mode is dark. A cool blue-gray slate with visible structural borders — modeled after Zed's One Dark aesthetic. Surfaces are separated by distinct steps of lightness and hue, not shadow. The interface reads like a well-organized workspace: quiet, spacious enough to concentrate, and never decorative.
+The design language is **macOS-native**. The interface uses the platform's system fonts (SF Pro for UI, SF Mono for data), zero-chroma neutral surfaces, the macOS system accent palette, and native window materials: the sidebar is translucent over an `NSVisualEffectView` vibrancy layer, while content panes stay opaque. Floating surfaces (menus, popovers, dialogs) are frosted — translucent with backdrop blur — and carry soft, large-blur shadows. In-flow panels remain flat and are separated by hairline borders.
 
 **Density:** 6/10 (Comfortable Data). Row height is 32px. Panels breathe. Data is legible without crowding.
 **Variance:** 3/10 (Predictably Structured). Consistent grid alignment across all panels and controls.
 **Motion:** 2/10 (Static Restrained). State transitions are instant or near-instant. No animation for its own sake.
 
-**The Ambient Safety System:** A 2px top border and environment-specific badges signal which database the user is connected to at all times. Red means Production. Amber means Staging. Green means Local. This signal runs through the interface — env badges, CTA buttons, SQL syntax tokens, and confirmation dialogs all adopt the active environment's color when the stakes are real.
+**The Ambient Safety System:** A 2px top border and environment-specific badges signal which database the user is connected to at all times. Red means Production. Amber means Staging. Green means Local. This signal runs through the interface — env badges, CTA buttons, and confirmation dialogs all adopt the active environment's color when the stakes are real.
 
 ---
 
 ## 2. Color Palette & Roles
 
-### 2.1 Dark Mode (Default — Zed One Dark)
+All colors are expressed in the **standard shadcn token vocabulary** — there is no app-specific color layer beyond `--success`/`--warning` and the four env-safety tokens (§7). Neutrals are zero-chroma (pure gray); the only hue in the chrome is the macOS system accent.
+
+### 2.1 Dark Mode (Default — macOS)
 
 | Token | Approx Hex | OKLCH (CSS Var) | Role |
 |-------|-----------|-----------------|------|
-| **Slate Base** | `#1a1e26` | `oklch(0.15 0.014 254)` | Base canvas — `--background` |
-| **Panel Slate** | `#252a34` | `oklch(0.20 0.016 254)` | Sidebar, panels — `--surface-1` |
-| **Toolbar Slate** | `#2c3240` | `oklch(0.23 0.017 254)` | Toolbars, cards — `--surface-2` |
-| **Elevated Slate** | `#333b4a` | `oklch(0.27 0.018 254)` | Hover states, active surface — `--surface-3` |
-| **Ghost Slate** | `#39424f` | `oklch(0.30 0.018 254)` | Elevated modals — `--surface-elevated` |
-| **Primary Text** | `#dce0e5` | `oklch(0.895 0.009 255)` | Primary text, data values — `--foreground` |
-| **Muted Text** | `#a9afbc` | `oklch(0.68 0.012 255)` | Labels, inactive nav, column headers — `--muted-foreground` |
-| **Structural Border** | `#464b57` (65% opacity) | `oklch(0.37 0.016 254 / 0.65)` | Structural 1px lines — `--border` |
-| **Subtle Divider** | `#464b57` (30% opacity) | `oklch(0.37 0.016 254 / 0.30)` | Table cell dividers — `--border-subtle` |
-| **Accent Blue** | `#74ade8` | `oklch(0.70 0.12 257)` | Selection highlights, active icons — `--accent` |
-| **Primary Blue** | `#4a78c0` | `oklch(0.55 0.15 255)` | Primary buttons, strong CTAs — `--primary` |
-| **Focus Ring** | `#6ca0e0` | `oklch(0.68 0.13 257)` | Keyboard focus indicator — `--ring` |
+| `--background` | `#1a1a1a` | `oklch(0.215 0 0)` | Base canvas, content panes |
+| `--sidebar` | 60% `#242424` | `oklch(0.24 0 0 / 60%)` | Sidebar — translucent over vibrancy |
+| `--card` | `#262626` | `oklch(0.26 0 0)` | Cards, inset panels, grid chrome |
+| `--popover` | `#2b2b2b` | `oklch(0.28 0 0)` | Menus, popovers, dialogs (frosted at 70%) |
+| `--muted` | `#2d2d2d` | `oklch(0.29 0 0)` | Muted fills, table striping base |
+| `--accent` | `#323232` | `oklch(0.31 0 0)` | Hover fills |
+| `--foreground` | `#f2f2f2` | `oklch(0.96 0 0)` | Primary text, data values |
+| `--muted-foreground` | `#a3a3a3` | `oklch(0.7 0 0)` | Labels, column headers, metadata |
+| `--border` | 12% white | `oklch(1 0 0 / 12%)` | Hairline structural borders |
+| `--primary` / `--ring` | `#0A84FF` | `oklch(0.62 0.19 252)` | System blue — CTAs, selection, focus |
 
 ### 2.2 Environmental Safety Accents
 
-These are the semantic core of the safety system. They are deliberately warm-hued — standing apart from the cool slate chrome — so they cannot be ignored.
+These are the semantic core of the safety system, mapped to the macOS system palette so they read as native alerts.
 
-| Token | Hex | CSS Var | Role |
-|-------|-----|---------|------|
-| **Prod Red** | `#EF4444` | `--env-prod` | Production env badge, destructive CTAs, DELETE/DROP keywords |
-| **Staging Amber** | `#F59E0B` | `--env-staging` | Staging env badge, UPDATE/INSERT keywords, pending edits |
-| **Local Green** | `#10B981` | `--env-local` | Local env badge, success states, connection confirmed |
+| Token | System Color | CSS Var | Role |
+|-------|--------------|---------|------|
+| **Prod Red** | systemRed | `--env-prod` | Production env badge, destructive CTAs |
+| **Staging Amber** | systemOrange | `--env-staging` | Staging env badge, pending edits |
+| **Local Green** | systemGreen | `--env-local` | Local env badge, success states |
+
+`--destructive`, `--warning`, and `--success` carry the same three system hues, so safety semantics and general UI semantics stay in lockstep.
 
 **Environmental CTA Rule:** The primary action button always inherits the active environment color.
 
@@ -49,18 +51,18 @@ These are the semantic core of the safety system. They are deliberately warm-hue
 
 SQL syntax colors in the editor come from the user-selected CodeMirror theme (Editor → Syntax highlighting settings, one theme per appearance mode). They are intentionally not driven by app tokens. The Ambient Safety semantics (destructive red, modifying amber) still apply outside the editor — in confirmation dialogs, badges, and CTAs — via `--env-prod` / `--env-staging` / `--env-local`.
 
-### 2.4 Light Mode
+### 2.4 Light Mode (macOS)
 
 | Token | Approx Hex | OKLCH | Role |
 |-------|-----------|-------|------|
-| **Canvas** | `#f9f9fb` | `oklch(0.985 0.002 255)` | Base canvas |
-| **Panel** | `#f2f3f6` | `oklch(0.960 0.004 255)` | Sidebar, panels |
-| **Toolbar** | `#ecedf0` | `oklch(0.950 0.004 255)` | Toolbars, cards |
-| **Ink** | `#1c2230` | `oklch(0.18 0.016 254)` | Primary text |
-| **Steel** | `#6b7280` | `oklch(0.575 0.010 255)` | Labels, inactive states |
-| **Hairline** | `#d5d8de` | `oklch(0.875 0.008 254)` | Structural lines |
-| **Primary Blue** | `#4060b0` | `oklch(0.52 0.145 255)` | Primary buttons, active states |
-| **Accent Blue** | `#4270bc` | `oklch(0.54 0.145 255)` | Hover highlights, icon tint |
+| `--background` | `#ffffff` | `oklch(1 0 0)` | Base canvas, content panes |
+| `--sidebar` | 65% `#f2f2f2` | `oklch(0.965 0 0 / 65%)` | Sidebar — translucent over vibrancy |
+| `--card` | `#f7f7f7` | `oklch(0.985 0 0)` | Cards, inset panels |
+| `--muted` | `#eeeeee` | `oklch(0.955 0 0)` | Muted fills |
+| `--foreground` | `#212121` | `oklch(0.2 0 0)` | Primary text |
+| `--muted-foreground` | `#6e6e6e` | `oklch(0.5 0 0)` | Labels, inactive states |
+| `--border` | `#dedede` | `oklch(0.9 0 0)` | Hairline structural lines |
+| `--primary` / `--ring` | `#007AFF` | `oklch(0.58 0.19 252)` | System blue — CTAs, selection, focus |
 
 ---
 
@@ -68,28 +70,30 @@ SQL syntax colors in the editor come from the user-selected CodeMirror theme (Ed
 
 ### Font Families
 
-| Role | Font | CSS Variable | Fallback Stack |
-|------|------|-------------|----------------|
-| **UI / Interface** | Space Grotesk | `--app-font-sans` | `Geist, system-ui, -apple-system, sans-serif` |
-| **Data / Code / SQL** | JetBrains Mono | `--app-font-mono` | `IBM Plex Mono, SF Mono, Cascadia Code, monospace` |
+| Role | Font | CSS Variable | Stack |
+|------|------|-------------|-------|
+| **UI / Interface** | System (SF Pro on macOS) | `--font-sans` | `-apple-system, BlinkMacSystemFont, "SF Pro Text", system-ui, "Segoe UI", Roboto, sans-serif` |
+| **Data / Code / SQL** | System Mono (SF Mono on macOS) | `--font-mono` | `ui-monospace, "SF Mono", Menlo, Monaco, "Cascadia Code", monospace` |
+
+Fonts remain user-selectable (Settings → Fonts); the settings apply at runtime by overriding `--font-sans` / `--font-mono` on the root element. The defaults above are the platform's native UI fonts.
 
 ### Type Scale
 
-| Role | Size | Weight | Letter Spacing | Font | Use |
-|------|------|--------|----------------|------|-----|
-| **Page Title** | 22–28px | 600 | -0.01em | Space Grotesk | Screen headings |
-| **Section Label** | 11px | 600 | 0.06em | Space Grotesk | Section headers — uppercase |
-| **Body / Form Label** | 13–14px | 500 | 0 | Space Grotesk | Nav items, modal body text |
-| **Small Metadata** | 11–12px | 400 | 0 | Space Grotesk | Connection subtext, timestamps |
-| **Data / Table Cell** | 13px | 400 | 0 | JetBrains Mono | All table cell content |
-| **Code / SQL** | 13px | 400 | 0 | JetBrains Mono | SQL editor, code blocks |
-| **Env Badge** | 9–10px | 700 | 0.10em | Space Grotesk | "PROD", "STG", "LCL" — uppercase |
-| **Table Header** | 11px | 600 | 0.06em | Space Grotesk | Column headers — uppercase |
-| **Button** | 12–13px | 500–600 | 0 | Space Grotesk | Button labels |
+| Role | Size | Weight | Letter Spacing | Use |
+|------|------|--------|----------------|-----|
+| **Page Title** | 22–28px | 600 | -0.01em | Screen headings |
+| **Section Label** | 11px | 600 | 0.06em | Section headers — uppercase |
+| **Body / Form Label** | 13–14px | 500 | 0 | Nav items, modal body text |
+| **Small Metadata** | 11–12px | 400 | 0 | Connection subtext, timestamps |
+| **Data / Table Cell** | 13px | 400 | 0 | All table cell content — mono |
+| **Code / SQL** | 13px | 400 | 0 | SQL editor, code blocks — mono |
+| **Env Badge** | 9–10px | 700 | 0.10em | "PROD", "STG", "LCL" — uppercase |
+| **Table Header** | 11px | 600 | 0.06em | Column headers — uppercase |
+| **Button** | 12–13px | 500–600 | 0 | Button labels |
 
 ### Typography Principles
 
-- **Data is always monospace.** Any value that a user typed, queried, or came from a database renders in JetBrains Mono — connection strings, query text, cell values, timestamps.
+- **Data is always monospace.** Any value that a user typed, queried, or came from a database renders in the mono stack — connection strings, query text, cell values, timestamps.
 - **Hierarchy via weight, not size.** A 13px connection name (weight 500) and its host:port (weight 400 + muted color) create clear hierarchy without size difference.
 - **Section labels use modest uppercase.** `letter-spacing: 0.06em` — readable, not aggressive.
 - **Sentence case everywhere else.** Buttons, settings rows, empty states — sentence case, not title case.
@@ -100,78 +104,65 @@ SQL syntax colors in the editor come from the user-selected CodeMirror theme (Ed
 
 ### 4.1 Buttons
 
-**Primary Action (Blue)**
-- Background: `oklch(0.55 0.15 255)` / `oklch(0.52 0.145 255)` (light mode)
-- Text: `#ffffff`
-- Font: Space Grotesk, 12–13px, weight 500–600
-- Padding: `6px 14px`
-- Border-radius: `4px`
-- Border: none
+**Primary Action (System Blue)**
+- Background: `--primary` (`#007AFF` light / `#0A84FF` dark)
+- Text: white
+- 12–13px, weight 500–600, padding `6px 14px`, `rounded-md`
 - Hover: `brightness(1.08)`
 
-**Destructive Action (Production Red)**
-- Background: `#EF4444`
-- Text: `#FFFFFF`
-- Border-radius: `4px`
+**Destructive Action (System Red)**
+- Background: `--destructive`
+- Text: white, `rounded-md`
 - Use: "Connect to Prod →", "Execute (prod)", confirm destructive dialogs
 
 **Ghost / Secondary**
-- Background: transparent
-- Text: `--muted-foreground`
-- Border: `1px solid var(--border-subtle)`
-- Hover: `--surface-hover` background
-- Border-radius: `4px`
+- Background: transparent; text `--muted-foreground`
+- Border: `1px solid var(--border)`; hover `--accent` fill; `rounded-md`
 
 **Icon Button**
-- 24–28px square
-- Border-radius: `4px` (`shell-icon-button`)
-- No visible border at rest, `--surface-hover` on hover
+- 24–28px square, `rounded-md`
+- No visible border at rest, `--accent` fill on hover
 
 ### 4.2 Radius Scale
 
-Stepped scale derived from `--radius: 0.5rem` via the shadcn formula (`sm = −4px`, `md = −2px`, `lg = base`, `xl = +4px`, `2xl = +8px`). Small controls stay crisp; containers get progressively softer.
+Stepped scale derived from `--radius: 0.625rem` (10px) via the shadcn formula (`sm = −4px`, `md = −2px`, `lg = base`, `xl = +4px`). Small controls stay crisp; containers get progressively softer, matching macOS control geometry.
 
 | Utility | Value | Use |
 |---------|-------|-----|
-| `rounded-sm` | 4px | Badges, chips, env badges, small controls |
-| `rounded-md` | 6px | Buttons, inputs, menu items, tabs |
-| `rounded-lg` / `var(--radius)` | 8px | Toolbars, icon buttons, panels |
-| `rounded-xl` | 12px | Cards, dialogs, popovers |
-| `rounded-2xl` | 16px | Large feature surfaces (rare) |
+| `rounded-sm` | 6px | Badges, chips, env badges, small controls |
+| `rounded-md` | 8px | Buttons, inputs, menu items, tabs |
+| `rounded-lg` / `var(--radius)` | 10px | Toolbars, icon buttons, popovers |
+| `rounded-xl` | 14px | Cards, dialogs, command palette |
 
 ### 4.3 Tabs
 
-- **Container:** `shell-toolbar` — `surface-1` background, `border-b` in `border-subtle`
+- **Container:** translucent toolbar strip (`bg-sidebar/95`), `border-b` hairline
 - **Inactive tab:** transparent bg, `text-foreground/60`, `border border-transparent`
-- **Active tab:** `bg-surface-3`, `text-foreground`, `border-border-subtle`
+- **Active tab:** `bg-muted`, `text-foreground`, hairline border
 - **Tab height:** 32px (`h-8`)
-- **Tab icon:** tinted with type color (`text-accent-blue`, `text-accent-purple`, etc.)
 
-### 4.4 Sidebar
+### 4.4 Sidebar (macOS source list)
 
-- Background: `--surface-1`
-- Right border: `1px solid var(--border-subtle)` (visible structural separator)
-- Item hover: `--sidebar-accent`
-- Item active: `--surface-selected`
-- Section label: `shell-section-label` — 11px, weight 600, `0.06em` tracking, uppercase, muted
-- Tree indent: 16px per level
+- Background: `--sidebar` — translucent; native vibrancy shows through on macOS/Windows (opaque fallback elsewhere)
+- Right border: `1px solid var(--border)` hairline
+- Item hover: `--sidebar-accent`; item active: `bg-primary/15` tinted selection
+- Section label: 11px, weight 600, `0.06em` tracking, uppercase, muted
+- Tree indent: 16px per level; rows 24–28px
 
 ### 4.5 Table Grid
 
-- **Header row:** `--surface-2`, 11px uppercase, `--muted-foreground`, `border-b border-subtle`
+- **Header row:** `--card`, 11px uppercase, `--muted-foreground`, hairline `border-b`
 - **Data row height:** 32px
-- **Alternate rows:** `--surface-2` / `--surface-3` striping
-- **Selected row:** `--surface-selected` + left edge indicator
-- **Selected cell:** `--surface-selected` + `ring-1 ring-accent/60`
-- **Pending edit cell:** `--warning/10` background + `ring-1 ring-warning/60`
-- **Cell text:** JetBrains Mono 13px, `--foreground`
+- **Alternate rows:** `bg-muted/40` striping
+- **Selected row:** `bg-primary/15` + left edge indicator
+- **Selected cell:** `bg-primary/15` + `ring-1 ring-primary/60`
+- **Pending edit cell:** `bg-warning/10` + `ring-1 ring-warning/60`
+- **Cell text:** mono 13px, `--foreground`
 - **NULL cell:** `--muted-foreground`, italic style
 
 ### 4.6 Status Bar
 
-- Background: `--card` (slightly elevated above background)
-- Top border: `1px solid var(--border)`
-- Height: 28px (`h-7`)
+- Background: `--card`; top hairline border; height 28px (`h-7`)
 - Text: 11px, monospace, `--muted-foreground`
 - Connection dot: 7px circle, `text-primary` + `animate-pulse` when connected
 
@@ -183,34 +174,33 @@ Stepped scale derived from `--radius: 0.5rem` via the shadcn formula (`sm = −4
 | `md` | Forms, connection editor, settings rows |
 | `lg` | Settings page, workspace dialogs, import flows |
 
-- Background: `--popover` (matches `--card`)
-- Border: `1px solid var(--border)`
-- Border-radius: `0.5rem` (8px) for modal containers
-- Overlay: `rgb(10 14 22 / 0.60)` in dark, `rgb(21 18 18 / 0.22)` in light
+- Background: `--popover`; menus/popovers frost at `bg-popover/70` + `backdrop-blur-2xl`
+- `rounded-xl`, `shadow-xl`, hairline ring (`ring-1 ring-foreground/10`)
 
 ---
 
 ## 5. Surface Hierarchy
 
-Surfaces step in lightness as they stack upward. In dark mode the ladder ascends (background L 0.141 → sidebar 0.18 → card 0.21 → popover 0.245 → muted 0.274); in light mode the canvas is a soft gray (L 0.985) and cards/toolbars lift to pure white, so content surfaces read as raised planes.
+Surfaces step in lightness as they stack upward, using the standard shadcn ladder directly:
 
 ```
---surface-0   background (canvas)        deepest
---surface-1   sidebar, panels            = --sidebar
---surface-2   toolbars, cards            = --card
---surface-elevated   modals, menus       = --popover
---surface-3   hover, active cells        = --muted
+--background   canvas, content panes        deepest
+--sidebar      sidebar (translucent, vibrancy behind)
+--card         cards, grid chrome, status bar
+--popover      menus, popovers, dialogs     highest
+--muted        muted fills, striping
+--accent       hover fills
 ```
 
-**Elevation rule:** surfaces at rest are flat, separated by structural borders (`--border-subtle`). Shadows exist only on floating elements — menus and popovers carry `shadow-md`/`shadow-lg`, dialogs `shadow-xl` — via a restrained black-alpha ramp that is heavier in dark mode so it registers against dark surfaces. Never add shadows to in-flow panels, cards at rest, or table chrome.
+**Elevation rule:** in-flow surfaces are flat, separated by hairline borders (`--border`). Shadows exist only on floating elements — menus and popovers carry `shadow-md`/`shadow-lg`, dialogs `shadow-xl` — via a soft, large-blur, low-alpha ramp. Never add shadows to in-flow panels, cards at rest, or table chrome.
 
 ---
 
 ## 6. Focus States
 
 - Never remove focus outlines without a visible replacement.
-- All interactive controls use `focus-visible:ring-2 focus-visible:ring-ring/70` or equivalent.
-- Focus ring color: `--ring` = `oklch(0.68 0.13 257)` — a clear blue, high-contrast against both dark and light surfaces.
+- All interactive controls use `focus-visible:ring-3 focus-visible:ring-ring/50` (the shadcn control convention) or equivalent.
+- Focus ring color: `--ring` = system blue — matches the selection accent so keyboard focus reads as native.
 - Icon buttons, inline edit inputs, filter controls, and custom menu rows must maintain visible keyboard focus.
 
 ---
@@ -219,19 +209,19 @@ Surfaces step in lightness as they stack upward. In dark mode the ladder ascends
 
 The two-pixel top border of the window and environment badges (in the title bar) always reflect the active connection's environment:
 
-| Environment | Color | Hex | Token |
-|-------------|-------|-----|-------|
-| Production | Red | `#EF4444` | `--env-prod` |
-| Staging | Amber | `#F59E0B` | `--env-staging` |
-| Local | Green | `#10B981` | `--env-local` |
+| Environment | Color | System Color | Token |
+|-------------|-------|--------------|-------|
+| Production | Red | systemRed | `--env-prod` |
+| Staging | Amber | systemOrange | `--env-staging` |
+| Local | Green | systemGreen | `--env-local` |
 
-The `--env-color` CSS variable resolves to the active environment's color and is applied to the top border, the env badge, and CTA buttons when a prod/staging connection is active.
+The `--env-color` CSS variable resolves to the active environment's color and is applied to the top border, the env badge, and CTA buttons when a prod/staging connection is active. It defaults to `transparent` — never green — when no connection is live: a safety signal that says "safe" with no connection is worse than no signal.
 
 ---
 
 ## 8. Shared Component Primitives
 
-The shared layer lives in `src/components/ui/` (shadcn-based, Radix-backed) plus a small set of shell utility classes in `src/App.css`. Reach for these before hand-rolling:
+The shared layer lives in `src/components/ui/` (shadcn-based, Radix-backed). Reach for these before hand-rolling:
 
 **Custom primitives**
 
@@ -239,12 +229,6 @@ The shared layer lives in `src/components/ui/` (shadcn-based, Radix-backed) plus
 - `Field` / `FieldContent` / `FieldTitle` / `FieldDescription` (`field.tsx`) — settings and form rows: label + description + control. Used throughout the settings page.
 - `Kbd` / `KbdGroup` (`kbd.tsx`) — keyboard shortcut chips (shortcuts help, empty-state hints).
 - `Skeleton` (`skeleton.tsx`) — loading placeholders that preserve layout; prefer over centered spinners for full-view loads.
-
-**Shell utility classes** (`src/App.css`)
-
-- `shell-toolbar` — `surface-1` toolbar strip with bottom border
-- `shell-section-label` — 11px uppercase section label (0.06em tracking, muted)
-- `shell-icon-button` — 24–28px icon button, hover surface
 
 **Standard shadcn set**: `Button`, `Badge`, `Dialog`, `AlertDialog`, `Select`, `Switch`, `ToggleGroup`, `Tabs`, `Table`, `Tooltip`, `ContextMenu`, `DropdownMenu`, `Card`, `Input`, `Textarea`, `Popover`, `Command`, `Sidebar`, and the rest of `src/components/ui/`. All carry the focus-ring and state conventions of §6; use their variants rather than overriding styles inline.
 
@@ -254,6 +238,6 @@ Status badges for env/diff states are currently local one-offs (e.g. `StatusBadg
 
 ## 9. Theming Model
 
-The app ships exactly two themes: **light** (`:root`) and **dark** (`.dark` on the root element), both expressed in the standard shadcn token vocabulary (`--background`, `--foreground`, `--card`, `--popover`, `--primary`, `--secondary`, `--muted`, `--accent`, `--destructive`, `--warning`, `--success`, `--border`, `--input`, `--ring`, `--chart-1..5`, `--sidebar-*`). The app-specific layers — the surface scale (`--surface-0..3`, `--surface-elevated/hover/selected`), env safety tokens (`--env-prod/staging/local/color`), semantic accents (`--color-accent-blue/green/orange/purple/red`), and a small set of data-grid aliases (`--color-table-bg`, `--color-row-hover`, `--color-row-alt`, `--color-border-table`) — are defined as derivations of the shadcn tokens, so both themes stay in lockstep by construction.
+The app ships exactly two themes: **light** (`:root`) and **dark** (`.dark` on the root element), both expressed **entirely** in the standard shadcn token vocabulary (`--background`, `--foreground`, `--card`, `--popover`, `--primary`, `--secondary`, `--muted`, `--accent`, `--destructive`, `--border`, `--input`, `--ring`, `--chart-1..5`, `--sidebar-*`) plus exactly two sanctioned extensions: the `--success`/`--warning` semantic pair and the env-safety tokens (`--env-prod/staging/local/color`, §7). There is no other custom token layer; component styling composes standard Tailwind utilities over these tokens.
 
-There are no named theme variants. SQL editor syntax colors come from the selected CodeMirror theme (Editor settings), not from app tokens.
+There are no named theme variants. SQL editor syntax colors come from the selected CodeMirror theme (Editor settings), not from app tokens. Native window vibrancy is applied by the Rust shell (macOS `NSVisualEffectMaterial::Sidebar`, Windows mica) and signaled to CSS via `data-vibrancy` on the root element; every translucent surface has an opaque compositing fallback.

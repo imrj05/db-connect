@@ -1,60 +1,55 @@
 @import "tailwindcss";
 @import "tw-animate-css";
 @import "shadcn/tailwind.css";
-@import "@fontsource-variable/inter";
-@import "@fontsource-variable/space-grotesk";
-@import "@fontsource-variable/geist-mono";
-@import "@fontsource-variable/manrope";
 @custom-variant dark (&.dark, &:is(.dark *));
 
 :root {
     /* ========================================
-   * CORE COLORS — LIGHT (ZED ONE LIGHT)
+   * CORE COLORS — LIGHT (macOS)
    * ====================================== */
-    --background: oklch(0.985 0.002 285.885);
-    --foreground: oklch(0.141 0.005 285.823);
-    --card: oklch(1 0 0);
-    --card-foreground: oklch(0.141 0.005 285.823);
+    --background: oklch(1 0 0);
+    --foreground: oklch(0.2 0 0);
+    --card: oklch(0.985 0 0);
+    --card-foreground: oklch(0.2 0 0);
     --popover: oklch(1 0 0);
-    --popover-foreground: oklch(0.141 0.005 285.823);
-    --primary: oklch(0.5 0.134 242.749);
-    --primary-foreground: oklch(0.977 0.013 236.62);
-    --secondary: oklch(0.955 0.002 286.375);
-    --secondary-foreground: oklch(0.21 0.006 285.885);
-    --muted: oklch(0.955 0.002 286.375);
-    --muted-foreground: oklch(0.5 0.016 285.938);
-    --accent: oklch(0.955 0.002 286.375);
-    --accent-foreground: oklch(0.21 0.006 285.885);
-    --destructive: oklch(0.577 0.245 27.325);
+    --popover-foreground: oklch(0.2 0 0);
+    --primary: oklch(0.58 0.19 252);
+    --primary-foreground: oklch(1 0 0);
+    --secondary: oklch(0.955 0 0);
+    --secondary-foreground: oklch(0.25 0 0);
+    --muted: oklch(0.955 0 0);
+    --muted-foreground: oklch(0.5 0 0);
+    --accent: oklch(0.945 0 0);
+    --accent-foreground: oklch(0.25 0 0);
+    --destructive: oklch(0.6 0.23 28);
     --destructive-foreground: oklch(1 0 0);
-    --warning: oklch(0.75 0.18 70);
-    --warning-foreground: oklch(0.18 0.01 260);
-    --success: oklch(0.72 0.18 145);
+    --warning: oklch(0.74 0.17 65);
+    --warning-foreground: oklch(0.2 0.02 65);
+    --success: oklch(0.7 0.19 148);
     --success-foreground: oklch(1 0 0);
-    /* Structural borders must read clearly on a light canvas. */
-    --border: oklch(0.88 0.005 286.32);
-    --input: oklch(0.88 0.005 286.32);
-    --ring: oklch(0.54 0.145 255);
+    --border: oklch(0.9 0 0);
+    --input: oklch(0.9 0 0);
+    --ring: oklch(0.58 0.19 252);
     --chart-1: oklch(0.828 0.111 230.318);
     --chart-2: oklch(0.685 0.169 237.323);
     --chart-3: oklch(0.588 0.158 241.966);
     --chart-4: oklch(0.5 0.134 242.749);
     --chart-5: oklch(0.443 0.11 240.79);
-    --sidebar: oklch(0.972 0.003 285.885);
-    --sidebar-foreground: oklch(0.141 0.005 285.823);
-    --sidebar-primary: oklch(0.588 0.158 241.966);
-    --sidebar-primary-foreground: oklch(0.977 0.013 236.62);
-    --sidebar-accent: oklch(0.967 0.001 286.375);
-    --sidebar-accent-foreground: oklch(0.21 0.006 285.885);
-    --sidebar-border: oklch(0.92 0.004 286.32);
-    --sidebar-ring: oklch(0.705 0.015 286.067);
-    --radius: 0.5rem;
+    --sidebar: oklch(0.965 0 0 / 65%);
+    --sidebar-foreground: oklch(0.2 0 0);
+    --sidebar-primary: oklch(0.58 0.19 252);
+    --sidebar-primary-foreground: oklch(1 0 0);
+    --sidebar-accent: oklch(0.93 0 0);
+    --sidebar-accent-foreground: oklch(0.25 0 0);
+    --sidebar-border: oklch(0.9 0 0);
+    --sidebar-ring: oklch(0.58 0.19 252);
+    --radius: 0.625rem;
     /* ========================================
    * EMBER ENV SAFETY TOKENS (LIGHT)
    * ====================================== */
-    --env-prod: oklch(0.577 0.245 27.325);
-    --env-staging: oklch(0.75 0.18 70);
-    --env-local: oklch(0.72 0.18 145);
+    --env-prod: oklch(0.6 0.23 28);
+    --env-staging: oklch(0.74 0.17 65);
+    --env-local: oklch(0.7 0.19 148);
     /* Default neutral — resolved to a real env color at runtime by App.tsx once a
        connection is active. Never default to green (“safe”): a safety signal that
        says safe with no connection is worse than no signal. */
@@ -62,43 +57,43 @@
 }
 
 /* ========================================
- * DARK MODE (ZED ONE DARK)
+ * DARK MODE (macOS)
  * ====================================== */
 .dark {
-    --background: oklch(0.141 0.005 285.823);
-    --foreground: oklch(0.985 0 0);
-    --card: oklch(0.21 0.006 285.885);
-    --card-foreground: oklch(0.985 0 0);
-    --popover: oklch(0.245 0.006 285.885);
-    --popover-foreground: oklch(0.985 0 0);
-    --primary: oklch(0.443 0.11 240.79);
-    --primary-foreground: oklch(0.977 0.013 236.62);
-    --secondary: oklch(0.274 0.006 286.033);
-    --secondary-foreground: oklch(0.985 0 0);
-    --muted: oklch(0.274 0.006 286.033);
-    --muted-foreground: oklch(0.705 0.015 286.067);
-    --accent: oklch(0.274 0.006 286.033);
-    --accent-foreground: oklch(0.985 0 0);
+    --background: oklch(0.215 0 0);
+    --foreground: oklch(0.96 0 0);
+    --card: oklch(0.26 0 0);
+    --card-foreground: oklch(0.96 0 0);
+    --popover: oklch(0.28 0 0);
+    --popover-foreground: oklch(0.96 0 0);
+    --primary: oklch(0.62 0.19 252);
+    --primary-foreground: oklch(1 0 0);
+    --secondary: oklch(0.3 0 0);
+    --secondary-foreground: oklch(0.96 0 0);
+    --muted: oklch(0.29 0 0);
+    --muted-foreground: oklch(0.7 0 0);
+    --accent: oklch(0.31 0 0);
+    --accent-foreground: oklch(0.96 0 0);
     /* Lock destructive hue to 27 across themes so DELETE/PROD CTAs read
        identically in light and dark. */
-    --destructive: oklch(0.65 0.22 27);
+    --destructive: oklch(0.65 0.22 28);
     --destructive-foreground: oklch(1 0 0);
     --warning: oklch(0.78 0.16 70);
-    --warning-foreground: oklch(0.15 0.01 260);
-    --success: oklch(0.72 0.18 145);
-    --success-foreground: oklch(1 0 0);
-    --border: oklch(1 0 0 / 10%);
-    --input: oklch(1 0 0 / 15%);
+    --warning-foreground: oklch(0.2 0.02 65);
+    --success: oklch(0.75 0.19 150);
+    --success-foreground: oklch(0.18 0.03 150);
+    --border: oklch(1 0 0 / 12%);
+    --input: oklch(1 0 0 / 16%);
     /* Focus ring: visible on-brand blue, high-contrast against slate. */
-    --ring: oklch(0.68 0.13 257);
-    --sidebar: oklch(0.18 0.006 285.885);
-    --sidebar-foreground: oklch(0.985 0 0);
-    --sidebar-primary: oklch(0.685 0.169 237.323);
-    --sidebar-primary-foreground: oklch(0.293 0.066 243.157);
-    --sidebar-accent: oklch(0.274 0.006 286.033);
-    --sidebar-accent-foreground: oklch(0.985 0 0);
-    --sidebar-border: oklch(1 0 0 / 10%);
-    --sidebar-ring: oklch(0.552 0.016 285.938);
+    --ring: oklch(0.62 0.19 252);
+    --sidebar: oklch(0.24 0 0 / 60%);
+    --sidebar-foreground: oklch(0.96 0 0);
+    --sidebar-primary: oklch(0.62 0.19 252);
+    --sidebar-primary-foreground: oklch(1 0 0);
+    --sidebar-accent: oklch(0.32 0 0);
+    --sidebar-accent-foreground: oklch(0.96 0 0);
+    --sidebar-border: oklch(1 0 0 / 12%);
+    --sidebar-ring: oklch(0.62 0.19 252);
     --chart-1: oklch(0.828 0.111 230.318);
     --chart-2: oklch(0.685 0.169 237.323);
     --chart-3: oklch(0.588 0.158 241.966);
@@ -107,9 +102,9 @@
     /* ========================================
    * EMBER ENV SAFETY TOKENS (DARK)
    * ====================================== */
-    --env-prod: oklch(0.65 0.22 27);
+    --env-prod: oklch(0.65 0.22 28);
     --env-staging: oklch(0.78 0.16 70);
-    --env-local: oklch(0.72 0.18 145);
+    --env-local: oklch(0.75 0.19 150);
     --env-color: transparent;
 }
 
@@ -120,8 +115,15 @@
  * which wins over the stylesheet value.
  * ======================================== */
 @theme {
-    --font-sans: "Space Grotesk Variable", "Space Grotesk", "Geist Variable", "Geist", system-ui, -apple-system, sans-serif;
-    --font-mono: "JetBrains Mono", "IBM Plex Mono", "SF Mono", "Cascadia Code", monospace;
+    /* Soft, large-blur, low-alpha shadows — floating surfaces only
+       (menus, popovers, dialogs); panels stay border-separated. */
+    --shadow-xs: 0 1px 2px rgb(0 0 0 / 0.06);
+    --shadow-sm: 0 1px 3px rgb(0 0 0 / 0.08), 0 1px 2px rgb(0 0 0 / 0.05);
+    --shadow-md: 0 6px 16px -4px rgb(0 0 0 / 0.12), 0 2px 5px -2px rgb(0 0 0 / 0.08);
+    --shadow-lg: 0 12px 32px -8px rgb(0 0 0 / 0.16), 0 3px 9px -3px rgb(0 0 0 / 0.10);
+    --shadow-xl: 0 24px 56px -12px rgb(0 0 0 / 0.22), 0 6px 16px -6px rgb(0 0 0 / 0.12);
+    --font-sans: -apple-system, BlinkMacSystemFont, "SF Pro Text", system-ui, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    --font-mono: ui-monospace, "SF Mono", SFMono-Regular, Menlo, Monaco, "Cascadia Code", Consolas, monospace;
 }
 
 /* ========================================
@@ -227,6 +229,14 @@
        --font-mono utility. We intentionally do NOT default <html> to mono —
        doing so would make anything rendered outside #app-wrapper (portals,
        toasts) inherit mono unnecessarily. */
+}
+
+/* Native vibrancy (Tauri macOS/Windows): App.tsx sets data-vibrancy when the
+   window carries a material; html/body go transparent so it shows through
+   behind the translucent sidebar. Content panes stay opaque. */
+html[data-vibrancy="true"],
+html[data-vibrancy="true"] body {
+    background-color: transparent;
 }
 
 /* Prevent Radix portals from rendering outside the Tauri window */

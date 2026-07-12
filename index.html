@@ -13,17 +13,17 @@
 					var t = localStorage.getItem("db_connect_theme_v1");
 					if (t !== "light") {
 						// Default to dark when missing or "dark".
-						// Use the real dark --background (#1a1e26 ≈ oklch(0.141 0.005 286))
+						// Use the real dark --background oklch(0.215 0 0)
 						// so the splash crossfades into the app without a warm→cool hue shift.
 						document.documentElement.classList.add("dark");
-						document.documentElement.style.backgroundColor = "#1a1e26";
+						document.documentElement.style.backgroundColor = "#1a1a1a";
 					} else {
-						// Light canvas: --background oklch(0.985 0.002 286) ≈ #f9f9fb
-						document.documentElement.style.backgroundColor = "#f9f9fb";
+						// Light canvas: --background oklch(1 0 0)
+						document.documentElement.style.backgroundColor = "#ffffff";
 					}
 				} catch (_) {
 					document.documentElement.classList.add("dark");
-					document.documentElement.style.backgroundColor = "#1a1e26";
+					document.documentElement.style.backgroundColor = "#1a1a1a";
 				}
 			})();
 		</script>
@@ -42,13 +42,13 @@
 				display: flex;
 				align-items: center;
 				justify-content: center;
-				background-color: #f9f9fb;
+				background-color: #ffffff;
 				transition: opacity 250ms ease-out;
 				opacity: 1;
 				pointer-events: auto;
 			}
 			html.dark #boot-splash {
-				background-color: #1a1e26;
+				background-color: #1a1a1a;
 			}
 			#boot-splash .boot-glow {
 				position: absolute;
@@ -73,7 +73,7 @@
 				position: relative;
 				width: 64px;
 				height: 64px;
-				color: #1a1e26;
+				color: #1a1a1a;
 				animation: boot-pulse 1.6s ease-in-out infinite;
 			}
 			html.dark #boot-splash .boot-logo {

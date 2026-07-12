@@ -150,6 +150,20 @@ function App() {
             envColorValue(activeEnvKind),
         );
     }, [activeEnvKind]);
+
+    // Native window materials (macOS vibrancy / Windows mica): mark the root
+    // so html/body go transparent and the material shows behind the sidebar.
+    // Browsers and Linux keep the opaque background fallback.
+    useEffect(() => {
+        const isTauri = "__TAURI_INTERNALS__" in window;
+        const ua = navigator.userAgent;
+        if (isTauri && (ua.includes("Mac") || ua.includes("Windows"))) {
+            document.documentElement.dataset.vibrancy = "true";
+            // index.html paints an opaque anti-flash background at boot;
+            // clear it so the material can show through.
+            document.documentElement.style.backgroundColor = "transparent";
+        }
+    }, []);
     const [isLoading, setIsLoading] = useState(true);
 
     useEffect(() => {
@@ -465,7 +479,11 @@ function App() {
     return (
         <ErrorBoundary>
             <>
-                <div id="app-wrapper" className="h-full flex flex-col bg-background text-foreground overflow-hidden font-sans">
+                {/* app-wrapper and <main> stay transparent so the native window
+                    material (vibrancy) shows behind the sidebar; the content
+                    pane below is opaque. Without vibrancy the body's opaque
+                    bg-background is the fallback. */}
+                <div id="app-wrapper" className="h-full flex flex-col text-foreground overflow-hidden font-sans">
                     {/* Ambient Safety top border — always 2px, colored by the
                         active connection's environment via --env-color. Reads
                         neutral when no env is active (DESIGN.md §1, §7). */}
@@ -477,7 +495,7 @@ function App() {
                         isLicensed={licenseCheck?.ok ?? null}
                         onActivate={() => setLicenseDialogOpen(true)}
                     />
-                    <main className="relative z-0 flex flex-1 overflow-hidden bg-background">
+                    <main className="relative z-0 flex flex-1 overflow-hidden">
                         {/* Sidebar — collapses smoothly; fully unmounted when there's no live connection */}
                         <div
                             ref={sidebarRef}
