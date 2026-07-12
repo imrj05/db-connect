@@ -1,29 +1,6 @@
 import type { StateCreator } from "zustand";
-import { DB_FONT_SANS, DB_FONT_MONO } from "@/lib/fonts";
-import type {
-  AppSettings,
-  EditorThemeOption,
-} from "@/stores/useAppStore";
-
-export const DEFAULT_APP_SETTINGS: AppSettings = {
-  editorFontSize: 13,
-  editorWordWrap: false,
-  editorTabSize: 2,
-  tablePageSize: 50,
-  uiZoom: 125,
-  editorDarkTheme: "dark-one-dark",
-  editorLightTheme: "light-github",
-  uiFontFamily: DB_FONT_SANS,
-  monoFontFamily: DB_FONT_MONO,
-  rowDensity: "default",
-  queryTimeoutSecs: 30,
-  queryMaxSqlBytes: 1_048_576,
-  queryMaxResultRows: 10_000,
-  diagramExportDir: "",
-  experimentalSchemaEditor: false,
-  errorReportingEnabled: true,
-  anonymousTelemetryEnabled: false,
-};
+import type { AppSettings } from "../types";
+import type { AppState } from "../useAppStore";
 
 export interface SettingsSlice {
   appSettings: AppSettings;
@@ -31,7 +8,7 @@ export interface SettingsSlice {
 }
 
 export const createSettingsSlice =
-  (loadSettings: () => AppSettings, saveSettings: (s: AppSettings) => void): StateCreator<SettingsSlice, [], [], SettingsSlice> =>
+  (loadSettings: () => AppSettings, saveSettings: (s: AppSettings) => void): StateCreator<AppState, [], [], SettingsSlice> =>
   (set) => ({
     appSettings: loadSettings(),
     updateAppSetting: (key, value) =>
@@ -41,8 +18,3 @@ export const createSettingsSlice =
         return { appSettings: updated };
       }),
   });
-
-export type {
-  AppSettings,
-  EditorThemeOption,
-};
