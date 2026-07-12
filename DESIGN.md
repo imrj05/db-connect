@@ -4,7 +4,7 @@
 
 DB Connect is a database client built for clarity and focus. The visual system is guided by a single principle: **comfortable precision**. Every surface, every color, every typographic decision is chosen to reduce cognitive overhead while keeping data front and center.
 
-The design language is **macOS-native with a monochrome accent** (the AppKit `AppColors` palette). The interface uses the platform's system fonts (SF Pro for UI, SF Mono for data), near-neutral surfaces, and a **monochrome accent** — the primary/CTA color is near-black in light mode (`#1A1B1F`) and near-white in dark mode (`#F2F2F3`), so chrome carries no decorative hue. Native window materials apply: the sidebar is translucent over an `NSVisualEffectView` vibrancy layer, while content panes stay opaque. Floating surfaces (menus, popovers, dialogs) are frosted — translucent with backdrop blur — and carry soft, large-blur shadows. In-flow panels remain flat and are separated by hairline borders. **The only saturated color in the entire system lives in the safety tags** (§2.2, §7) — green/amber/red — so a colored element always means an environment or status signal, never mere decoration.
+The design language is **macOS-native with a monochrome accent** (the AppKit `AppColors` palette). The interface uses the platform's system fonts (SF Pro for UI, SF Mono for data), near-neutral surfaces, and a **monochrome accent** — the primary/CTA color is near-black in light mode (`#1A1B1F`) and near-white in dark mode (`#F2F2F3`), so chrome carries no decorative hue. The title bar and sidebar form a single solid **chrome rail** (`--sidebar`) — quietly recessed in light mode, gently lifted in dark — so the content canvas and white cards read as floating above it. Floating surfaces (menus, popovers, dialogs) are frosted — translucent with backdrop blur over an `NSVisualEffectView` vibrancy layer — and carry soft, large-blur shadows; content panes stay opaque. In-flow panels remain flat and are separated by hairline borders. **The only saturated color in the entire system lives in the safety tags** (§2.2, §7) — green/amber/red — so a colored element always means an environment or status signal, never mere decoration.
 
 **Density:** 6/10 (Comfortable Data). Row height is 32px. Panels breathe. Data is legible without crowding.
 **Variance:** 3/10 (Predictably Structured). Consistent grid alignment across all panels and controls.
@@ -23,7 +23,7 @@ All colors are expressed in the **standard shadcn token vocabulary** — there i
 | Token | Hex | AppColors source | Role |
 |-------|-----|------------------|------|
 | `--background` | `#15161A` | `bgBase` | Base canvas, content panes |
-| `--sidebar` | 62% `#1C1D22` | `bgCard` (translucent) | Sidebar — translucent over vibrancy |
+| `--sidebar` | `#191A1F` | between `bgBase`/`bgCard` | Title bar + sidebar chrome (solid rail) |
 | `--card` | `#1C1D22` | `bgCard` | Cards, inset panels, grid chrome |
 | `--popover` | `#2A2B33` | `bgOverlay` | Menus, popovers, dialogs (frosted) |
 | `--muted` / `--secondary` / `--accent` | `#23242B` | `bgElevated` | Muted fills, striping, hover fills |
@@ -56,7 +56,7 @@ SQL syntax colors in the editor come from the user-selected CodeMirror theme (Ed
 | Token | Hex | AppColors source | Role |
 |-------|-----|------------------|------|
 | `--background` | `#F5F5F6` | `bgBase` | Base canvas, content panes |
-| `--sidebar` | 72% `#ECEDEF` | `bgElevated` (translucent) | Sidebar — translucent over vibrancy |
+| `--sidebar` | `#ECEDEF` | `bgElevated` | Title bar + sidebar chrome (solid rail) |
 | `--card` / `--popover` | `#FFFFFF` | `bgCard` / `bgOverlay` | Cards, inset panels, menus |
 | `--muted` / `--secondary` / `--accent` | `#ECEDEF` | `bgElevated` | Muted fills, hover fills |
 | `--foreground` | `#1A1B1F` | `textPrimary` | Primary text |
